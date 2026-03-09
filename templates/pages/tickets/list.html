@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block title %}Tickets - Kanzen Suite{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Tickets</h1>
+    <p class="page-subtitle">Manage and track all support tickets</p>
+  </div>
+  <div class="header-actions">
+    <a href="{% url 'frontend:ticket-create' %}" class="btn btn-primary">
+      <i class="ti ti-plus me-1"></i> New Ticket
+    </a>
+  </div>
+</div>
+
+<!-- Stats Cards -->
+<div class="tl-stats" id="ticketStats">
+  <div class="tl-stat-card">
+    <div class="tl-stat-icon tl-stat-icon--open"><i class="ti ti-inbox"></i></div>
+    <div class="tl-stat-info">
+      <span class="tl-stat-value" id="statOpen">--</span>
+      <span class="tl-stat-label">Open</span>
+    </div>
+  </div>
+  <div class="tl-stat-card">
+    <div class="tl-stat-icon tl-stat-icon--progress"><i class="ti ti-loader"></i></div>
+    <div class="tl-stat-info">
+      <span class="tl-stat-value" id="statProgress">--</span>
+      <span class="tl-stat-label">In Progress</span>
+    </div>
+  </div>
+  <div class="tl-stat-card">
+    <div class="tl-stat-icon tl-stat-icon--urgent"><i class="ti ti-alert-triangle"></i></div>
+    <div class="tl-stat-info">
+      <span class="tl-stat-value" id="statUrgent">--</span>
+      <span class="tl-stat-label">Urgent</span>
+    </div>
+  </div>
+  <div class="tl-stat-card">
+    <div class="tl-stat-icon tl-stat-icon--total"><i class="ti ti-file-text"></i></div>
+    <div class="tl-stat-info">
+      <span class="tl-stat-value" id="statTotal">--</span>
+      <span class="tl-stat-label">Total</span>
+    </div>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="tl-filter-bar">
+  <form id="filterForm" class="tl-filter-inner">
+    <div class="tl-filter-group">
+      <select id="filterStatus" class="form-select form-select-sm tl-filter-select">
+        <option value="">All Statuses</option>
+      </select>
+    </div>
+    <div class="tl-filter-group">
+      <select id="filterPriority" class="form-select form-select-sm tl-filter-select">
+        <option value="">All Priorities</option>
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+        <option value="urgent">Urgent</option>
+      </select>
+    </div>
+    <div class="tl-filter-search">
+      <i class="ti ti-search"></i>
+      <input type="text" id="filterSearch" class="form-control form-control-sm" placeholder="Search tickets...">
+    </div>
+    <button type="button" id="clearFiltersBtn" class="btn btn-sm btn-ghost tl-clear-btn d-none">
+      <i class="ti ti-x me-1"></i>Clear
+    </button>
+  </form>
+</div>
+
+<!-- Ticket Cards -->
+<div class="tl-ticket-list" id="ticketsList">
+  <div id="loadingState" class="tl-loading">
+    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+    <span>Loading tickets...</span>
+  </div>
+</div>
+
+<!-- Empty State -->
+<div id="emptyState" class="d-none">
+  <div class="tl-empty">
+    <div class="tl-empty-icon"><i class="ti ti-inbox"></i></div>
+    <h5 class="tl-empty-title">No tickets found</h5>
+    <p class="tl-empty-text">Try adjusting your filters or create a new ticket to get started.</p>
+    <a href="{% url 'frontend:ticket-create' %}" class="btn btn-primary btn-sm">
+      <i class="ti ti-plus me-1"></i>Create Ticket
+    </a>
+  </div>
+</div>
+
+<!-- Pagination -->
+<nav id="paginationNav" class="mt-3 d-none" aria-label="Ticket pagination">
+  <div class="d-flex justify-content-between align-items-center">
+    <small id="paginationInfo" class="text-muted"></small>
+    <ul id="paginationControls" class="pagination pagination-sm mb-0"></ul>
+  </div>
+</nav>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+
+  const PAGE_SIZE = 25;
+  let currentPage = 1;
+  let totalCount = 0;
+
+  var PRIORITY_COLORS = { urgent: '#EF4444', high: '#F97316', medium: '#F59E0B', low: '#10B981' };
+  var PRIORITY_BG_LIGHT = { urgent: '#FEF2F2', high: '#FFF7ED', medium: '#FFFBEB', low: '#ECFDF5' };
+  var PRIORITY_BG_DARK = { urgent: 'rgba(239,68,68,0.12)', high: 'rgba(249,115,22,0.12)', medium: 'rgba(245,158,11,0.12)', low: 'rgba(16,185,129,0.12)' };
+  var PRIORITY_TEXT_DARK = { urgent: '#FCA5A5', high: '#FDBA74', medium: '#FCD34D', low: '#6EE7B7' };
+  function isDark() { return document.documentElement.getAttribute('data-bs-theme') === 'dark'; }
+  function getPriorityBg(p) { return (isDark() ? PRIORITY_BG_DARK : PRIORITY_BG_LIGHT)[p] || (isDark() ? PRIORITY_BG_DARK : PRIORITY_BG_LIGHT).low; }
+  function getPriorityText(p) { return isDark() ? (PRIORITY_TEXT_DARK[p] || PRIORITY_TEXT_DARK.low) : (PRIORITY_COLORS[p] || PRIORITY_COLORS.low); }
+
+  // Load stat strip
+  Api.get('/api/v1/analytics/dashboard/').then(function(data) {
+    var s = data.ticket_stats || {};
+    var byStatus = s.by_status || {};
+    var byPriority = s.by_priority || {};
+    document.getElementById('statOpen').textContent = s.open_count || 0;
+    document.getElementById('statProgress').textContent = byStatus['In Progress'] || 0;
+    document.getElementById('statUrgent').textContent = byPriority['urgent'] || 0;
+    document.getElementById('statTotal').textContent = (s.open_count || 0) + (s.closed_count || 0);
+  }).catch(function() {});
+
+  Api.get('/api/v1/tickets/ticket-statuses/')
+    .then(function(data) {
+      var statuses = data.results || data;
+      var select = document.getElementById('filterStatus');
+      statuses.forEach(function(s) { var o = document.createElement('option'); o.value = s.slug; o.textContent = s.name; select.appendChild(o); });
+    }).catch(function() {});
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '--';
+    var d = new Date(dateStr), now = new Date();
+    var diff = Math.floor((now - d) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function buildQueryParams() {
+    var params = new URLSearchParams(); params.set('page', currentPage); params.set('page_size', PAGE_SIZE);
+    var s = document.getElementById('filterStatus').value; if (s) params.set('status_slug', s);
+    var p = document.getElementById('filterPriority').value; if (p) params.set('priority', p);
+    var q = document.getElementById('filterSearch').value.trim(); if (q) params.set('search', q);
+    return params.toString();
+  }
+
+  function updateClearBtn() {
+    var hasFilters = document.getElementById('filterStatus').value || document.getElementById('filterPriority').value || document.getElementById('filterSearch').value.trim();
+    document.getElementById('clearFiltersBtn').classList.toggle('d-none', !hasFilters);
+  }
+
+  document.getElementById('clearFiltersBtn').addEventListener('click', function() {
+    document.getElementById('filterStatus').value = '';
+    document.getElementById('filterPriority').value = '';
+    document.getElementById('filterSearch').value = '';
+    this.classList.add('d-none');
+    currentPage = 1;
+    loadTickets();
+  });
+
+  function getInitials(name) {
+    if (!name) return '?';
+    return name.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
+  }
+
+  function renderTickets(tickets) {
+    var container = document.getElementById('ticketsList');
+    container.innerHTML = '';
+    if (!tickets || tickets.length === 0) {
+      container.classList.add('d-none');
+      document.getElementById('emptyState').classList.remove('d-none');
+      document.getElementById('paginationNav').classList.add('d-none');
+      return;
+    }
+    container.classList.remove('d-none');
+    document.getElementById('emptyState').classList.add('d-none');
+
+    tickets.forEach(function(t) {
+      var pColor = PRIORITY_COLORS[t.priority] || PRIORITY_COLORS.low;
+      var pBg = getPriorityBg(t.priority);
+      var pText = getPriorityText(t.priority);
+      var statusStyle = t.status_color ? 'background:' + t.status_color + ';color:#fff;' : 'background:#94A3B8;color:#fff;';
+      var assigneeHtml = t.assignee_name
+        ? '<div class="tl-card-assignee"><div class="tl-card-avatar">' + getInitials(t.assignee_name) + '</div><span>' + escapeHtml(t.assignee_name) + '</span></div>'
+        : '<span class="tl-card-unassigned">Unassigned</span>';
+
+      var card = document.createElement('a');
+      card.className = 'tl-ticket-card';
+      card.href = '/tickets/' + t.number + '/';
+      card.innerHTML =
+        '<div class="tl-card-priority-bar" style="background:' + pColor + ';"></div>' +
+        '<div class="tl-card-body">' +
+          '<div class="tl-card-top">' +
+            '<span class="tl-card-number">#' + t.number + '</span>' +
+            '<span class="tl-card-time">' + formatDate(t.created_at) + '</span>' +
+          '</div>' +
+          '<h6 class="tl-card-subject">' + escapeHtml(t.subject) + '</h6>' +
+          '<div class="tl-card-bottom">' +
+            '<div class="tl-card-tags">' +
+              '<span class="tl-card-status" style="' + statusStyle + '">' + escapeHtml(t.status_name || 'Unknown') + '</span>' +
+              '<span class="tl-card-priority-badge" style="background:' + pBg + ';color:' + pText + ';">' +
+                '<span class="tl-priority-dot" style="background:' + pColor + ';"></span>' +
+                (t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : '--') +
+              '</span>' +
+            '</div>' +
+            assigneeHtml +
+          '</div>' +
+        '</div>';
+      container.appendChild(card);
+    });
+    updateClearBtn();
+  }
+
+  function renderPagination() {
+    var nav = document.getElementById('paginationNav'), info = document.getElementById('paginationInfo'), controls = document.getElementById('paginationControls');
+    var totalPages = Math.ceil(totalCount / PAGE_SIZE);
+    if (totalPages <= 1) { nav.classList.add('d-none'); return; }
+    nav.classList.remove('d-none');
+    info.textContent = 'Showing ' + ((currentPage - 1) * PAGE_SIZE + 1) + ' to ' + Math.min(currentPage * PAGE_SIZE, totalCount) + ' of ' + totalCount + ' tickets';
+    controls.innerHTML = '';
+    var prevLi = document.createElement('li'); prevLi.className = 'page-item' + (currentPage <= 1 ? ' disabled' : ''); prevLi.innerHTML = '<a class="page-link" href="#"><i class="ti ti-chevron-left"></i></a>';
+    if (currentPage > 1) prevLi.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); currentPage--; loadTickets(); });
+    controls.appendChild(prevLi);
+    var sp = Math.max(1, currentPage - 2), ep = Math.min(totalPages, currentPage + 2);
+    if (sp > 1) { controls.appendChild(createPageItem(1)); if (sp > 2) { var el = document.createElement('li'); el.className = 'page-item disabled'; el.innerHTML = '<span class="page-link">...</span>'; controls.appendChild(el); } }
+    for (var i = sp; i <= ep; i++) controls.appendChild(createPageItem(i));
+    if (ep < totalPages) { if (ep < totalPages - 1) { var el2 = document.createElement('li'); el2.className = 'page-item disabled'; el2.innerHTML = '<span class="page-link">...</span>'; controls.appendChild(el2); } controls.appendChild(createPageItem(totalPages)); }
+    var nextLi = document.createElement('li'); nextLi.className = 'page-item' + (currentPage >= totalPages ? ' disabled' : ''); nextLi.innerHTML = '<a class="page-link" href="#"><i class="ti ti-chevron-right"></i></a>';
+    if (currentPage < totalPages) nextLi.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); currentPage++; loadTickets(); });
+    controls.appendChild(nextLi);
+  }
+
+  function createPageItem(page) {
+    var li = document.createElement('li'); li.className = 'page-item' + (page === currentPage ? ' active' : ''); li.innerHTML = '<a class="page-link" href="#">' + page + '</a>';
+    li.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); currentPage = page; loadTickets(); });
+    return li;
+  }
+
+  function loadTickets() {
+    var container = document.getElementById('ticketsList');
+    container.innerHTML = '<div class="tl-loading"><div class="spinner-border spinner-border-sm text-primary" role="status"></div><span>Loading tickets...</span></div>';
+    container.classList.remove('d-none');
+    document.getElementById('emptyState').classList.add('d-none');
+
+    Api.get('/api/v1/tickets/tickets/?' + buildQueryParams()).then(function(data) {
+      totalCount = data.count || 0; var results = data.results || data;
+      if (Array.isArray(data)) { totalCount = data.length; results = data; }
+      renderTickets(results); renderPagination();
+    }).catch(function() {
+      container.innerHTML = '<div class="tl-loading text-danger"><i class="ti ti-alert-triangle me-2"></i>Failed to load tickets.</div>';
+    });
+  }
+
+  document.getElementById('filterForm').addEventListener('submit', function(e) { e.preventDefault(); currentPage = 1; loadTickets(); });
+  var searchTimeout;
+  document.getElementById('filterSearch').addEventListener('input', function() { clearTimeout(searchTimeout); searchTimeout = setTimeout(function() { currentPage = 1; loadTickets(); }, 400); updateClearBtn(); });
+  document.getElementById('filterStatus').addEventListener('change', function() { currentPage = 1; loadTickets(); updateClearBtn(); });
+  document.getElementById('filterPriority').addEventListener('change', function() { currentPage = 1; loadTickets(); updateClearBtn(); });
+  loadTickets();
+})();
+</script>
+{% endblock %}

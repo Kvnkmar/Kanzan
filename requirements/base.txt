@@ -1,0 +1,40 @@
+Django==6.0.2
+djangorestframework>=3.16.1,<4
+django-cors-headers>=4.6,<5
+django-filter>=24.3,<25
+drf-spectacular>=0.28,<0.29
+
+# Auth
+djangorestframework-simplejwt>=5.4,<6
+django-allauth>=65,<66
+PyJWT>=2.9,<3
+
+# Database & Cache
+psycopg[binary]>=3.2,<4
+django-redis>=5.4,<6
+redis>=5.2,<6
+
+# Billing
+stripe>=11,<12
+
+# Real-time
+channels>=4.2,<5
+channels-redis>=4.2,<5
+
+# Task Queue
+celery>=5.4,<6
+# django-celery-beat removed: incompatible with Django 6.0
+# Using Celery's built-in beat with shelve scheduler instead
+django-celery-results>=2.5,<3
+
+# File handling
+python-magic>=0.4,<0.5
+Pillow>=11,<12
+whitenoise>=6.8,<7
+
+# Security & Config
+django-environ>=0.12,<1
+
+# Servers (already installed but pinning)
+gunicorn>=25,<26
+uvicorn[standard]>=0.40,<1

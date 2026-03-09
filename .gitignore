@@ -1,0 +1,34 @@
+# Environment & secrets
+.env
+
+# Database
+db.sqlite3
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Virtual environment
+env/
+
+# Django
+staticfiles/
+media/
+
+# Celery
+celerybeat-schedule
+
+# Logs
+logs/
+
+# Runtime
+gunicorn.ctl
+*.sock
+
+# Claude Code
+.claude/
+
+# IDE
+.vscode/
+.idea/

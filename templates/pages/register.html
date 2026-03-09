@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% block title %}Create Account - Kanzen Suite{% endblock %}
+
+{% block fullpage %}
+<div class="auth-wrapper">
+  <!-- Left Panel: Dark gradient with branding -->
+  <div class="auth-hero">
+    <div class="auth-hero-content">
+      <div class="auth-brand-large">
+        <i class="ti ti-hexagon-filled"></i>
+        <span>Kanzen Suite</span>
+      </div>
+      <h2>Get started in<br>under a minute.</h2>
+      <p>Set up your workspace, invite your team, and start resolving tickets right away.</p>
+
+      <!-- Feature highlights -->
+      <div class="auth-features">
+        <div class="auth-feature">
+          <i class="ti ti-circle-check-filled"></i>
+          <span>Free 14-day trial</span>
+        </div>
+        <div class="auth-feature">
+          <i class="ti ti-circle-check-filled"></i>
+          <span>No credit card required</span>
+        </div>
+        <div class="auth-feature">
+          <i class="ti ti-circle-check-filled"></i>
+          <span>Cancel anytime</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Decorative elements -->
+    <div class="auth-hero-decoration">
+      <div class="decoration-circle decoration-circle-1"></div>
+      <div class="decoration-circle decoration-circle-2"></div>
+    </div>
+  </div>
+
+  <!-- Right Panel: Register Form -->
+  <div class="auth-form-panel">
+    <div class="auth-form-container">
+      <!-- Mobile-only brand -->
+      <div class="text-center mb-4 d-lg-none">
+        <a href="{% url 'frontend:landing' %}" class="text-decoration-none">
+          <div class="auth-brand-mobile">
+            <i class="ti ti-hexagon-filled"></i>
+            <span>Kanzen Suite</span>
+          </div>
+        </a>
+      </div>
+
+      <h1 class="auth-title">Create your account</h1>
+      <p class="auth-subtitle">Start your free trial today</p>
+
+      {% if error %}
+      <div class="alert alert-danger alert-sm d-flex align-items-center" role="alert">
+        <i class="ti ti-alert-circle me-2"></i>
+        {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="post" autocomplete="on">
+        {% csrf_token %}
+        <div class="row g-3 mb-3">
+          <div class="col-6">
+            <label for="first_name" class="form-label">First name</label>
+            <input type="text" class="form-control" id="first_name" name="first_name" placeholder="Jane" required autofocus>
+          </div>
+          <div class="col-6">
+            <label for="last_name" class="form-label">Last name</label>
+            <input type="text" class="form-control" id="last_name" name="last_name" placeholder="Doe" required>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label for="email" class="form-label">Email address</label>
+          <input type="email" class="form-control" id="email" name="email" placeholder="you@company.com" required>
+        </div>
+        <div class="mb-3">
+          <label for="password" class="form-label">Password</label>
+          <input type="password" class="form-control" id="password" name="password" placeholder="At least 8 characters" minlength="8" required>
+        </div>
+        <div class="mb-3">
+          <label for="password2" class="form-label">Confirm password</label>
+          <input type="password" class="form-control" id="password2" name="password2" placeholder="Re-enter your password" minlength="8" required>
+        </div>
+        <div class="mb-4 form-check">
+          <input type="checkbox" class="form-check-input" id="terms" name="terms" required>
+          <label class="form-check-label" for="terms">
+            I agree to the <a href="#" class="form-link">Terms of Service</a> and <a href="#" class="form-link">Privacy Policy</a>
+          </label>
+        </div>
+        <button type="submit" class="btn btn-primary w-100 btn-lg">
+          Create Account
+        </button>
+      </form>
+
+      <p class="auth-footer-text">
+        Already have an account? <a href="{% url 'frontend:login' %}">Sign in</a>
+      </p>
+    </div>
+  </div>
+</div>
+{% endblock %}

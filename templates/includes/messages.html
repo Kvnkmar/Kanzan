@@ -1,0 +1,21 @@
+{% if messages %}
+<div class="crm-messages-container">
+  {% for message in messages %}
+  <div class="crm-alert crm-alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+    <div class="crm-alert-icon">
+      {% if message.tags == 'success' %}
+      <i class="ti ti-circle-check-filled"></i>
+      {% elif message.tags == 'error' or message.tags == 'danger' %}
+      <i class="ti ti-circle-x-filled"></i>
+      {% elif message.tags == 'warning' %}
+      <i class="ti ti-alert-triangle-filled"></i>
+      {% else %}
+      <i class="ti ti-info-circle-filled"></i>
+      {% endif %}
+    </div>
+    <div class="crm-alert-content">{{ message }}</div>
+    <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}

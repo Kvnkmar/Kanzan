@@ -1,0 +1,259 @@
+{% extends "base.html" %}
+{% block title %}Billing - Kanzen Suite{% endblock %}
+
+{% block content %}
+<div class="page-header page-header-center">
+  <div class="text-center">
+    <h1 class="page-title">Choose your plan</h1>
+    <p class="page-subtitle">Scale your support as your team grows</p>
+
+    <!-- Monthly/Annual toggle -->
+    <div class="billing-toggle mt-3">
+      <span class="billing-toggle-label">Monthly</span>
+      <div class="form-check form-switch d-inline-block mx-2">
+        <input class="form-check-input" type="checkbox" id="billingToggle">
+      </div>
+      <span class="billing-toggle-label">Annual</span>
+      <span class="badge badge-soft-success ms-2">Save 20%</span>
+    </div>
+  </div>
+</div>
+
+<div id="billingAlert" class="d-none"></div>
+
+<!-- Current Plan Banner -->
+<div class="d-none mb-4" id="currentPlanBanner">
+  <div class="card current-plan-card overflow-hidden">
+    <div class="card-body p-4 d-flex justify-content-between align-items-center">
+      <div>
+        <div class="current-plan-label">Current Plan</div>
+        <h5 class="fw-semibold mb-1" id="currentPlanName" style="color: #fff;">--</h5>
+        <span class="current-plan-period" id="currentPlanPeriod"></span>
+      </div>
+      <div class="text-end">
+        <div class="current-plan-label">Next billing date</div>
+        <div class="fw-medium" id="nextBillingDate" style="color: #fff;">--</div>
+        <span class="badge mt-1" id="subscriptionStatusBadge" style="background: rgba(255,255,255,0.2); color: #fff;">Active</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading State -->
+<div class="text-center py-5" id="plansLoading">
+  <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+  <div class="text-muted small mt-2">Loading plans...</div>
+</div>
+
+<!-- Plan Cards -->
+<div class="row g-4 mb-5 justify-content-center d-none" id="planCardsRow">
+  <!-- Free Plan -->
+  <div class="col-md-6 col-lg-4">
+    <div class="card plan-card h-100" id="plan-free">
+      <div class="card-body p-4 d-flex flex-column">
+        <h5 class="plan-name">Free</h5>
+        <div class="plan-price-wrap mb-3">
+          <span class="plan-price" id="freePrice">$0</span>
+          <span class="plan-period">/month</span>
+        </div>
+        <p class="plan-description">For small teams getting started.</p>
+        <ul class="plan-features flex-grow-1" id="freeFeatures">
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Up to 3 users</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> 100 contacts</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Basic ticket management</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Email support</li>
+          <li class="plan-feature-excluded"><i class="ti ti-circle-x"></i> SSO</li>
+          <li class="plan-feature-excluded"><i class="ti ti-circle-x"></i> Custom branding</li>
+          <li class="plan-feature-excluded"><i class="ti ti-circle-x"></i> API access</li>
+          <li class="plan-feature-excluded"><i class="ti ti-circle-x"></i> Priority support</li>
+        </ul>
+        <button class="btn btn-outline-secondary w-100" data-plan="free" onclick="handlePlanAction('free')">
+          <span id="freeBtnText">Current Plan</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pro Plan (Popular) -->
+  <div class="col-md-6 col-lg-4">
+    <div class="card plan-card plan-card-popular h-100 position-relative" id="plan-pro">
+      <div class="plan-popular-badge">Most Popular</div>
+      <div class="card-body p-4 d-flex flex-column">
+        <h5 class="plan-name plan-name-primary">Pro</h5>
+        <div class="plan-price-wrap mb-3">
+          <span class="plan-price" id="proPrice">$29</span>
+          <span class="plan-period">/month</span>
+        </div>
+        <p class="plan-description">For growing teams.</p>
+        <ul class="plan-features flex-grow-1" id="proFeatures">
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Up to 25 users</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Unlimited contacts</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Advanced workflows</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Workflow boards</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> SSO</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Custom branding</li>
+          <li class="plan-feature-excluded"><i class="ti ti-circle-x"></i> API access</li>
+          <li class="plan-feature-excluded"><i class="ti ti-circle-x"></i> Priority support</li>
+        </ul>
+        <button class="btn btn-primary w-100" data-plan="pro" onclick="handlePlanAction('pro')">
+          <span id="proBtnText">Upgrade</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Enterprise Plan -->
+  <div class="col-md-6 col-lg-4">
+    <div class="card plan-card h-100" id="plan-enterprise">
+      <div class="card-body p-4 d-flex flex-column">
+        <h5 class="plan-name">Enterprise</h5>
+        <div class="plan-price-wrap mb-3">
+          <span class="plan-price" id="enterprisePrice">$99</span>
+          <span class="plan-period">/month</span>
+        </div>
+        <p class="plan-description">For large organizations.</p>
+        <ul class="plan-features flex-grow-1" id="enterpriseFeatures">
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Unlimited users</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Unlimited contacts</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Advanced workflows</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Workflow boards</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> SSO</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Custom branding</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Full API access</li>
+          <li class="plan-feature-included"><i class="ti ti-circle-check-filled"></i> Priority support</li>
+        </ul>
+        <button class="btn btn-outline-secondary w-100" data-plan="enterprise" onclick="handlePlanAction('enterprise')">
+          <span id="enterpriseBtnText">Upgrade</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Invoices Section -->
+<div class="d-none" id="invoicesSection">
+  <h5 class="fw-semibold mb-3">Invoices</h5>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th class="ps-3">Invoice</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Status</th>
+            <th class="text-end pe-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="invoicesBody">
+          <tr><td colspan="5" class="text-center py-4 text-muted">No invoices yet</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Upgrade Confirmation Modal -->
+<div class="modal fade" id="upgradeModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Confirm Plan Change</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p id="upgradeMessage">Are you sure?</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="confirmUpgradeBtn">
+          <span class="spinner-border spinner-border-sm d-none me-1" id="upgradeSpinner"></span>Confirm
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+  let plans = [], subscription = null, pendingPlanSlug = null;
+  function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function capitalize(s) { if (!s) return ''; return s.charAt(0).toUpperCase() + s.slice(1); }
+  function formatDate(d) { if (!d) return '--'; return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
+
+  async function init() {
+    try {
+      const [pd, sd] = await Promise.all([Api.get('/api/v1/billing/plans/'), Api.get('/api/v1/billing/subscription/').catch(function() { return null; })]);
+      plans = pd.results || pd; subscription = sd; renderPlans(); renderSubscription(); await loadInvoices();
+    } catch (e) { showAlert('Failed to load billing data.', 'danger'); }
+    finally { document.getElementById('plansLoading').classList.add('d-none'); }
+    document.getElementById('confirmUpgradeBtn').addEventListener('click', confirmPlanChange);
+  }
+
+  function renderPlans() {
+    document.getElementById('planCardsRow').classList.remove('d-none');
+    plans.forEach(function(p) { var slug = (p.slug || p.name || '').toLowerCase(); var el = document.getElementById(slug + 'Price'); if (el && p.price !== undefined) el.textContent = '$' + parseFloat(p.price).toFixed(0); });
+    updatePlanButtons();
+  }
+
+  function updatePlanButtons() {
+    var cur = subscription ? (subscription.plan_slug || subscription.plan || '').toLowerCase() : 'free';
+    var order = ['free', 'pro', 'enterprise'], idx = order.indexOf(cur);
+    order.forEach(function(slug, i) {
+      var btnText = document.getElementById(slug + 'BtnText'), btn = btnText ? btnText.closest('button') : null;
+      if (!btn) return;
+      if (slug === cur) { btnText.textContent = 'Current Plan'; btn.className = 'btn btn-outline-secondary w-100'; btn.disabled = true; }
+      else if (i > idx) { btnText.textContent = 'Upgrade'; btn.className = 'btn btn-primary w-100'; btn.disabled = false; }
+      else { btnText.textContent = 'Downgrade'; btn.className = 'btn btn-outline-secondary w-100'; btn.disabled = false; }
+    });
+  }
+
+  function renderSubscription() {
+    if (!subscription || !subscription.plan_slug) return;
+    document.getElementById('currentPlanBanner').classList.remove('d-none');
+    document.getElementById('currentPlanName').textContent = capitalize(subscription.plan_name || subscription.plan_slug || '--');
+    if (subscription.current_period_end) document.getElementById('nextBillingDate').textContent = formatDate(subscription.current_period_end);
+    if (subscription.billing_cycle) document.getElementById('currentPlanPeriod').textContent = 'Billed ' + subscription.billing_cycle;
+    var badge = document.getElementById('subscriptionStatusBadge'), status = (subscription.status || 'active').toLowerCase();
+    badge.textContent = capitalize(status);
+    if (status === 'active') { badge.style.background = 'rgba(255,255,255,0.2)'; }
+    else if (status === 'past_due') { badge.style.background = 'rgba(251,191,36,0.3)'; }
+    else { badge.style.background = 'rgba(255,255,255,0.15)'; }
+  }
+
+  async function loadInvoices() {
+    try { var data = await Api.get('/api/v1/billing/invoices/'); var invs = data.results || data; var tbody = document.getElementById('invoicesBody');
+      if (!invs || !invs.length) { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">No invoices yet</td></tr>'; }
+      else { tbody.innerHTML = invs.map(function(inv) { return '<tr><td class="ps-3 fw-medium">' + escapeHtml(inv.number || inv.id || '--') + '</td><td>' + formatDate(inv.created_at || inv.date) + '</td><td>$' + parseFloat(inv.amount || 0).toFixed(2) + '</td><td><span class="badge badge-soft-' + (inv.status === 'paid' ? 'success' : inv.status === 'pending' ? 'warning' : 'secondary') + '">' + capitalize(inv.status || '--') + '</span></td><td class="text-end pe-3">' + (inv.pdf_url ? '<a href="' + inv.pdf_url + '" class="btn btn-sm btn-outline-secondary" target="_blank"><i class="ti ti-download me-1"></i>PDF</a>' : '--') + '</td></tr>'; }).join(''); }
+    } catch (e) {} document.getElementById('invoicesSection').classList.remove('d-none');
+  }
+
+  window.handlePlanAction = function(slug) {
+    pendingPlanSlug = slug; var cur = subscription ? (subscription.plan_slug || '').toLowerCase() : 'free';
+    var action = ['free', 'pro', 'enterprise'].indexOf(slug) > ['free', 'pro', 'enterprise'].indexOf(cur) ? 'upgrade to' : 'downgrade to';
+    document.getElementById('upgradeMessage').textContent = 'Are you sure you want to ' + action + ' the ' + capitalize(slug) + ' plan?';
+    new bootstrap.Modal(document.getElementById('upgradeModal')).show();
+  };
+
+  async function confirmPlanChange() {
+    if (!pendingPlanSlug) return; var sp = document.getElementById('upgradeSpinner'); sp.classList.remove('d-none');
+    try {
+      var plan = plans.find(function(p) { return (p.tier || '').toLowerCase() === pendingPlanSlug; });
+      if (!plan || !plan.stripe_price_monthly) { showAlert('Plan changes require Stripe configuration. Contact your administrator.', 'warning'); bootstrap.Modal.getInstance(document.getElementById('upgradeModal')).hide(); return; }
+      var payload = { plan_id: plan.id, billing_cycle: 'monthly', success_url: window.location.origin + '/billing/?upgraded=1', cancel_url: window.location.origin + '/billing/' };
+      var result = await Api.post('/api/v1/billing/checkout/', payload);
+      if (result.checkout_url) { window.location.href = result.checkout_url; }
+    }
+    catch (e) { showAlert(e.detail || 'Plan changes require Stripe configuration. Contact your administrator.', 'warning'); Toast.error('Failed to start checkout'); bootstrap.Modal.getInstance(document.getElementById('upgradeModal')).hide(); }
+    finally { sp.classList.add('d-none'); pendingPlanSlug = null; }
+  }
+
+  function showAlert(msg, type) { var c = document.getElementById('billingAlert'); c.className = 'alert alert-' + type + ' alert-dismissible fade show'; c.innerHTML = escapeHtml(msg) + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>'; if (type === 'success') setTimeout(function() { var a = bootstrap.Alert.getOrCreateInstance(c); if (a) a.close(); }, 4000); }
+
+  init();
+})();
+</script>
+{% endblock %}

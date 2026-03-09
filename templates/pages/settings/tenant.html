@@ -1,0 +1,752 @@
+{% extends "base.html" %}
+{% block title %}Settings - Kanzen Suite{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Settings</h1>
+    <p class="page-subtitle">Manage your workspace configuration</p>
+  </div>
+</div>
+
+<div id="settingsAlert" class="d-none"></div>
+
+<div class="row g-4">
+  <!-- Settings Navigation (left) -->
+  <div class="col-lg-3">
+    <div class="settings-nav">
+      <a href="javascript:void(0)" class="settings-nav-item active" id="nav_generalPane" onclick="switchSettingsTab('generalPane')">
+        <i class="ti ti-settings me-2"></i> General
+      </a>
+      <a href="javascript:void(0)" class="settings-nav-item" id="nav_businessHoursPane" onclick="switchSettingsTab('businessHoursPane')">
+        <i class="ti ti-clock me-2"></i> Business Hours
+      </a>
+      <a href="javascript:void(0)" class="settings-nav-item" id="nav_authPane" onclick="switchSettingsTab('authPane')">
+        <i class="ti ti-shield-lock me-2"></i> Authentication
+      </a>
+      <a href="javascript:void(0)" class="settings-nav-item" id="nav_brandingPane" onclick="switchSettingsTab('brandingPane')">
+        <i class="ti ti-palette me-2"></i> Branding
+      </a>
+      <a href="javascript:void(0)" class="settings-nav-item" id="nav_notificationsPane" onclick="switchSettingsTab('notificationsPane')">
+        <i class="ti ti-bell me-2"></i> Notifications
+      </a>
+      <a href="javascript:void(0)" class="settings-nav-item" id="nav_categoriesPane" onclick="switchSettingsTab('categoriesPane')">
+        <i class="ti ti-tag me-2"></i> Ticket Categories
+      </a>
+      <a href="javascript:void(0)" class="settings-nav-item" id="nav_dataPane" onclick="switchSettingsTab('dataPane')">
+        <i class="ti ti-database me-2"></i> Data Management
+      </a>
+    </div>
+  </div>
+
+  <!-- Settings Content (right) -->
+  <div class="col-lg-9">
+    <div class="settings-panes">
+      <!-- General Settings -->
+      <div class="settings-pane active" id="generalPane">
+        <div class="card">
+          <div class="card-header"><h5 class="card-title mb-0">General Settings</h5></div>
+          <div class="card-body">
+            <form id="generalForm">
+              <div class="mb-3">
+                <label for="tenantName" class="form-label">Workspace Name</label>
+                <input type="text" class="form-control" id="tenantName" placeholder="Your organization name">
+                <div class="form-text">This name appears in the sidebar and email communications.</div>
+              </div>
+              <div class="row g-3">
+                <div class="col-md-6 mb-3">
+                  <label for="timezone" class="form-label">Timezone</label>
+                  <select class="form-select" id="timezone">
+                    <option value="UTC">UTC</option>
+                    <option value="US/Eastern">US/Eastern</option>
+                    <option value="US/Central">US/Central</option>
+                    <option value="US/Mountain">US/Mountain</option>
+                    <option value="US/Pacific">US/Pacific</option>
+                    <option value="Europe/London">Europe/London</option>
+                    <option value="Europe/Berlin">Europe/Berlin</option>
+                    <option value="Europe/Paris">Europe/Paris</option>
+                    <option value="Asia/Tokyo">Asia/Tokyo</option>
+                    <option value="Asia/Shanghai">Asia/Shanghai</option>
+                    <option value="Asia/Kolkata">Asia/Kolkata</option>
+                    <option value="Australia/Sydney">Australia/Sydney</option>
+                  </select>
+                </div>
+                <div class="col-md-6 mb-3">
+                  <label for="dateFormat" class="form-label">Date Format</label>
+                  <select class="form-select" id="dateFormat">
+                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                    <option value="DD.MM.YYYY">DD.MM.YYYY</option>
+                  </select>
+                </div>
+              </div>
+              <div class="settings-actions">
+                <button type="submit" class="btn btn-primary">
+                  <span class="spinner-border spinner-border-sm d-none me-1" id="generalSpinner"></span>
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Business Hours -->
+      <div class="settings-pane" id="businessHoursPane" style="display:none">
+        <div class="card">
+          <div class="card-header"><h5 class="card-title mb-0">Business Hours</h5></div>
+          <div class="card-body">
+            <p class="text-muted small mb-4">Define when your team is available. SLA timers only count during business hours.</p>
+            <form id="businessHoursForm">
+              <div class="row g-3 mb-4">
+                <div class="col-md-6">
+                  <label for="businessStart" class="form-label">Start Time</label>
+                  <input type="time" class="form-control" id="businessStart" value="09:00">
+                </div>
+                <div class="col-md-6">
+                  <label for="businessEnd" class="form-label">End Time</label>
+                  <input type="time" class="form-control" id="businessEnd" value="17:00">
+                </div>
+              </div>
+              <div class="mb-4">
+                <label class="form-label">Business Days</label>
+                <div class="d-flex flex-wrap gap-2" id="businessDaysGroup">
+                  <label class="bh-day-check"><input type="checkbox" value="0" checked><span>Mon</span></label>
+                  <label class="bh-day-check"><input type="checkbox" value="1" checked><span>Tue</span></label>
+                  <label class="bh-day-check"><input type="checkbox" value="2" checked><span>Wed</span></label>
+                  <label class="bh-day-check"><input type="checkbox" value="3" checked><span>Thu</span></label>
+                  <label class="bh-day-check"><input type="checkbox" value="4" checked><span>Fri</span></label>
+                  <label class="bh-day-check"><input type="checkbox" value="5"><span>Sat</span></label>
+                  <label class="bh-day-check"><input type="checkbox" value="6"><span>Sun</span></label>
+                </div>
+              </div>
+              <div class="settings-actions">
+                <button type="submit" class="btn btn-primary">
+                  <span class="spinner-border spinner-border-sm d-none me-1" id="bhSpinner"></span>
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Authentication Settings -->
+      <div class="settings-pane" id="authPane" style="display:none">
+        <div class="card">
+          <div class="card-header"><h5 class="card-title mb-0">Authentication Settings</h5></div>
+          <div class="card-body">
+            <form id="authForm">
+              <div class="mb-3">
+                <label for="authMethod" class="form-label">Authentication Method</label>
+                <select class="form-select" id="authMethod">
+                  <option value="django">Django (Username/Password)</option>
+                  <option value="sso">SSO Only</option>
+                  <option value="both">Both (Django + SSO)</option>
+                </select>
+                <div class="form-text">Choose how users authenticate to your workspace.</div>
+              </div>
+              <div id="ssoFields" class="d-none">
+                <hr class="my-4">
+                <h6 class="fw-semibold mb-3">SSO Configuration</h6>
+                <div class="mb-3">
+                  <label for="ssoProvider" class="form-label">SSO Provider</label>
+                  <select class="form-select" id="ssoProvider">
+                    <option value="">-- Select --</option>
+                    <option value="google">Google Workspace</option>
+                    <option value="microsoft">Microsoft Entra ID</option>
+                    <option value="okta">Okta</option>
+                    <option value="saml">Generic SAML 2.0</option>
+                    <option value="oidc">OpenID Connect</option>
+                  </select>
+                </div>
+                <div class="mb-3">
+                  <label for="ssoClientId" class="form-label">Client ID</label>
+                  <input type="text" class="form-control" id="ssoClientId" placeholder="Enter client ID">
+                </div>
+                <div class="mb-3">
+                  <label for="ssoClientSecret" class="form-label">Client Secret</label>
+                  <input type="password" class="form-control" id="ssoClientSecret" placeholder="Enter client secret">
+                </div>
+                <div class="mb-3">
+                  <label for="ssoDomain" class="form-label">Domain / Issuer URL</label>
+                  <input type="url" class="form-control" id="ssoDomain" placeholder="https://your-idp.example.com">
+                </div>
+              </div>
+              <div class="settings-actions">
+                <button type="submit" class="btn btn-primary">
+                  <span class="spinner-border spinner-border-sm d-none me-1" id="authSpinner"></span>
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Branding Settings -->
+      <div class="settings-pane" id="brandingPane" style="display:none">
+        <!-- Logo Upload -->
+        <div class="card mb-4">
+          <div class="card-header"><h5 class="card-title mb-0">Workspace Logo</h5></div>
+          <div class="card-body">
+            <div class="d-flex align-items-start gap-4">
+              <div class="branding-logo-preview" id="logoPreviewContainer">
+                <div class="branding-logo-placeholder" id="logoPlaceholder">
+                  <i class="ti ti-building" style="font-size:2rem;opacity:0.3;"></i>
+                </div>
+                <img id="logoPreviewImg" class="branding-logo-img d-none" alt="Logo">
+              </div>
+              <div class="flex-grow-1">
+                <div class="branding-dropzone" id="logoDropzone">
+                  <input type="file" id="logoFileInput" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="d-none">
+                  <div class="text-center">
+                    <i class="ti ti-cloud-upload" style="font-size:1.5rem;opacity:0.4;"></i>
+                    <p class="mb-1 small fw-medium">Drop your logo here or <a href="javascript:void(0)" id="logoBrowseLink">browse</a></p>
+                    <p class="text-muted mb-0" style="font-size:0.75rem;">PNG, JPG, SVG or WebP. Max 2 MB. Recommended 200x200px.</p>
+                  </div>
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger mt-2 d-none" id="logoRemoveBtn">
+                  <i class="ti ti-trash me-1"></i>Remove Logo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Colors -->
+        <div class="card mb-4">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="card-title mb-0">Colors</h5>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="resetColorsBtn">
+              <i class="ti ti-refresh me-1"></i>Reset to Default
+            </button>
+          </div>
+          <div class="card-body">
+            <form id="brandingForm">
+              <!-- Preset Palettes -->
+              <div class="mb-4">
+                <label class="form-label">Quick Presets</label>
+                <div class="branding-presets" id="colorPresets">
+                  <button type="button" class="branding-preset-btn" data-primary="#6366F1" data-accent="#F59E0B" title="Indigo & Amber">
+                    <span class="preset-swatch" style="background:#6366F1;"></span>
+                    <span class="preset-swatch" style="background:#F59E0B;"></span>
+                  </button>
+                  <button type="button" class="branding-preset-btn" data-primary="#3B82F6" data-accent="#10B981" title="Blue & Emerald">
+                    <span class="preset-swatch" style="background:#3B82F6;"></span>
+                    <span class="preset-swatch" style="background:#10B981;"></span>
+                  </button>
+                  <button type="button" class="branding-preset-btn" data-primary="#8B5CF6" data-accent="#EC4899" title="Violet & Pink">
+                    <span class="preset-swatch" style="background:#8B5CF6;"></span>
+                    <span class="preset-swatch" style="background:#EC4899;"></span>
+                  </button>
+                  <button type="button" class="branding-preset-btn" data-primary="#DC2626" data-accent="#F97316" title="Red & Orange">
+                    <span class="preset-swatch" style="background:#DC2626;"></span>
+                    <span class="preset-swatch" style="background:#F97316;"></span>
+                  </button>
+                  <button type="button" class="branding-preset-btn" data-primary="#059669" data-accent="#6366F1" title="Green & Indigo">
+                    <span class="preset-swatch" style="background:#059669;"></span>
+                    <span class="preset-swatch" style="background:#6366F1;"></span>
+                  </button>
+                  <button type="button" class="branding-preset-btn" data-primary="#0EA5E9" data-accent="#F43F5E" title="Sky & Rose">
+                    <span class="preset-swatch" style="background:#0EA5E9;"></span>
+                    <span class="preset-swatch" style="background:#F43F5E;"></span>
+                  </button>
+                  <button type="button" class="branding-preset-btn" data-primary="#D946EF" data-accent="#14B8A6" title="Fuchsia & Teal">
+                    <span class="preset-swatch" style="background:#D946EF;"></span>
+                    <span class="preset-swatch" style="background:#14B8A6;"></span>
+                  </button>
+                  <button type="button" class="branding-preset-btn" data-primary="#1E293B" data-accent="#3B82F6" title="Slate & Blue">
+                    <span class="preset-swatch" style="background:#1E293B;"></span>
+                    <span class="preset-swatch" style="background:#3B82F6;"></span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Color Pickers -->
+              <div class="row g-4 mb-4">
+                <div class="col-md-6">
+                  <label for="primaryColor" class="form-label">Primary Color</label>
+                  <div class="branding-color-input">
+                    <input type="color" class="form-control form-control-color" id="primaryColor" value="#6366F1">
+                    <input type="text" class="form-control" id="primaryColorHex" placeholder="#6366F1" maxlength="7">
+                  </div>
+                  <div class="form-text">Buttons, links, sidebar active state, and main actions.</div>
+                </div>
+                <div class="col-md-6">
+                  <label for="accentColor" class="form-label">Accent Color</label>
+                  <div class="branding-color-input">
+                    <input type="color" class="form-control form-control-color" id="accentColor" value="#F59E0B">
+                    <input type="text" class="form-control" id="accentColorHex" placeholder="#F59E0B" maxlength="7">
+                  </div>
+                  <div class="form-text">Badges, highlights, notifications, and secondary actions.</div>
+                </div>
+              </div>
+
+              <!-- Live Preview -->
+              <div class="mb-4">
+                <label class="form-label">Live Preview</label>
+                <div class="branding-preview-wrapper">
+                  <!-- Mini Sidebar -->
+                  <div class="bp-sidebar" id="previewSidebar">
+                    <div class="bp-sidebar-brand">
+                      <div class="bp-sidebar-logo" id="previewSidebarLogo">K</div>
+                      <span class="bp-sidebar-name">Workspace</span>
+                    </div>
+                    <div class="bp-sidebar-nav">
+                      <div class="bp-sidebar-link active" id="previewActiveLink">
+                        <i class="ti ti-layout-dashboard"></i> Dashboard
+                      </div>
+                      <div class="bp-sidebar-link">
+                        <i class="ti ti-ticket"></i> Tickets
+                      </div>
+                      <div class="bp-sidebar-link">
+                        <i class="ti ti-users"></i> Contacts
+                      </div>
+                    </div>
+                  </div>
+                  <!-- Mini Content Area -->
+                  <div class="bp-content">
+                    <div class="bp-header">
+                      <span class="fw-semibold" style="font-size:0.8rem;">Dashboard</span>
+                      <button class="bp-btn-primary" id="previewPrimaryBtn" type="button">New Ticket</button>
+                    </div>
+                    <div class="bp-cards">
+                      <div class="bp-stat-card">
+                        <div class="bp-stat-accent" id="previewStatAccent1"></div>
+                        <div>
+                          <div class="bp-stat-value">128</div>
+                          <div class="bp-stat-label">Open Tickets</div>
+                        </div>
+                      </div>
+                      <div class="bp-stat-card">
+                        <div class="bp-stat-accent" id="previewStatAccent2" style="opacity:0.6;"></div>
+                        <div>
+                          <div class="bp-stat-value">42</div>
+                          <div class="bp-stat-label">Resolved</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="bp-table-row">
+                      <span class="bp-badge-primary" id="previewBadgePrimary">In Progress</span>
+                      <span class="bp-badge-accent" id="previewBadgeAccent">Urgent</span>
+                      <span class="text-muted" style="font-size:0.7rem;margin-left:auto;">2 min ago</span>
+                    </div>
+                    <div class="bp-table-row">
+                      <span class="bp-badge-primary" id="previewBadgePrimary2">Open</span>
+                      <span style="font-size:0.7rem;color:var(--crm-text-secondary);">Login page not loading</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="settings-actions">
+                <button type="submit" class="btn btn-primary">
+                  <span class="spinner-border spinner-border-sm d-none me-1" id="brandingSpinner"></span>
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notifications Settings -->
+      <div class="settings-pane" id="notificationsPane" style="display:none">
+        <div class="card">
+          <div class="card-header"><h5 class="card-title mb-0">Notification Preferences</h5></div>
+          <div class="card-body">
+            <div class="settings-option">
+              <div>
+                <div class="fw-medium">Email notifications</div>
+                <div class="text-muted small">Receive email alerts for ticket assignments and updates.</div>
+              </div>
+              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="emailNotifications" checked></div>
+            </div>
+            <div class="settings-option">
+              <div>
+                <div class="fw-medium">Browser notifications</div>
+                <div class="text-muted small">Show desktop notifications for real-time events.</div>
+              </div>
+              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="browserNotifications"></div>
+            </div>
+            <div class="settings-option">
+              <div>
+                <div class="fw-medium">SLA breach alerts</div>
+                <div class="text-muted small">Get notified when tickets are approaching SLA deadlines.</div>
+              </div>
+              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="slaAlerts" checked></div>
+            </div>
+            <div class="settings-option">
+              <div>
+                <div class="fw-medium">Assignment notifications</div>
+                <div class="text-muted small">Get notified when a ticket is assigned to you.</div>
+              </div>
+              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="assignmentAlerts" checked></div>
+            </div>
+            <div class="settings-option" style="border-bottom:none;">
+              <div>
+                <div class="fw-medium">Mention notifications</div>
+                <div class="text-muted small">Get notified when someone @mentions you in a comment.</div>
+              </div>
+              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="mentionAlerts" checked></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ticket Categories -->
+      <div class="settings-pane" id="categoriesPane" style="display:none">
+        <div class="card">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            <h5 class="card-title mb-0">Ticket Categories</h5>
+            <button type="button" class="btn btn-sm btn-primary" id="addCategoryBtn"><i class="ti ti-plus me-1"></i>Add Category</button>
+          </div>
+          <div class="card-body">
+            <p class="text-muted small mb-3">Define categories that agents can assign to tickets.</p>
+            <div id="categoriesLoading" class="text-center py-4"><div class="spinner-border spinner-border-sm text-muted" role="status"></div></div>
+            <div id="categoriesList"></div>
+            <div id="categoriesEmpty" class="text-center py-4 d-none">
+              <i class="ti ti-tag text-muted" style="font-size:2rem;opacity:0.3;"></i>
+              <p class="text-muted small mt-2 mb-0">No categories yet. Click "Add Category" to create one.</p>
+            </div>
+          </div>
+        </div>
+        <div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h6 class="modal-title fw-semibold" id="categoryModalTitle">Add Category</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <form id="categoryForm">
+                  <input type="hidden" id="categoryEditId">
+                  <div class="mb-3">
+                    <label for="categoryName" class="form-label">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="categoryName" placeholder="e.g. Bug, Feature Request" required maxlength="100">
+                  </div>
+                  <div class="mb-3">
+                    <label for="categorySlug" class="form-label">Slug</label>
+                    <input type="text" class="form-control" id="categorySlug" placeholder="auto-generated" maxlength="100">
+                    <div class="form-text">Auto-generated from name if left blank.</div>
+                  </div>
+                  <div class="row g-3">
+                    <div class="col-6"><label for="categoryColor" class="form-label">Color</label><input type="color" class="form-control form-control-color w-100" id="categoryColor" value="#6c757d"></div>
+                    <div class="col-6"><label for="categoryOrder" class="form-label">Order</label><input type="number" class="form-control" id="categoryOrder" value="0" min="0"></div>
+                  </div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary" id="saveCategoryBtn">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Management -->
+      <div class="settings-pane" id="dataPane" style="display:none">
+        <div class="card">
+          <div class="card-header"><h5 class="card-title mb-0">Data Management</h5></div>
+          <div class="card-body">
+            <div class="settings-option">
+              <div>
+                <div class="fw-medium">Export Data</div>
+                <div class="text-muted small">Download all tickets, contacts, and activity logs as a CSV file.</div>
+              </div>
+              <button class="btn btn-sm btn-outline-primary" id="exportDataBtn"><i class="ti ti-download me-1"></i>Export</button>
+            </div>
+            <div class="settings-option">
+              <div>
+                <div class="fw-medium">Cleanup Old Notifications</div>
+                <div class="text-muted small">Remove read notifications older than 90 days to free up space.</div>
+              </div>
+              <button class="btn btn-sm btn-outline-secondary" id="cleanupNotifsBtn"><i class="ti ti-trash me-1"></i>Cleanup</button>
+            </div>
+            <div class="settings-option" style="border-bottom:none;">
+              <div>
+                <div class="fw-medium text-danger">Delete All Tickets</div>
+                <div class="text-muted small">Permanently delete all tickets in this workspace. This action cannot be undone.</div>
+              </div>
+              <button class="btn btn-sm btn-outline-danger" id="deleteAllTicketsBtn" disabled><i class="ti ti-alert-triangle me-1"></i>Delete All</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+var _settingsPaneIds = ['generalPane', 'businessHoursPane', 'authPane', 'brandingPane', 'notificationsPane', 'categoriesPane', 'dataPane'];
+function switchSettingsTab(targetId) {
+  for (var i = 0; i < _settingsPaneIds.length; i++) {
+    var pane = document.getElementById(_settingsPaneIds[i]);
+    var nav = document.getElementById('nav_' + _settingsPaneIds[i]);
+    if (pane) pane.style.display = 'none';
+    if (nav) nav.classList.remove('active');
+  }
+  var target = document.getElementById(targetId);
+  var targetNav = document.getElementById('nav_' + targetId);
+  if (target) target.style.display = 'block';
+  if (targetNav) targetNav.classList.add('active');
+}
+</script>
+<script>
+(function() {
+  'use strict';
+  var settings = {};
+  async function init() {
+    try { settings = await Api.get('/api/v1/tenants/settings/'); populateForm(settings); } catch (e) { showSettingsAlert('Failed to load settings.', 'danger'); }
+    bindFormEvents();
+  }
+  function populateForm(s) {
+    document.getElementById('tenantName').value = s.name || '';
+    setSelectValue('timezone', s.timezone || 'UTC');
+    setSelectValue('dateFormat', s.date_format || 'YYYY-MM-DD');
+    setSelectValue('authMethod', s.auth_method || 'django');
+    toggleSsoFields(s.auth_method);
+    if (s.sso_provider) setSelectValue('ssoProvider', s.sso_provider);
+    document.getElementById('ssoClientId').value = s.sso_client_id || '';
+    document.getElementById('ssoDomain').value = s.sso_domain || '';
+    var color = s.primary_color || '#6366F1';
+    document.getElementById('primaryColor').value = color;
+    document.getElementById('primaryColorHex').value = color;
+    var accent = s.accent_color || '#F59E0B';
+    document.getElementById('accentColor').value = accent;
+    document.getElementById('accentColorHex').value = accent;
+    updateColorPreview(color, accent);
+    // Logo
+    if (s.logo_url) {
+      document.getElementById('logoPreviewImg').src = s.logo_url;
+      document.getElementById('logoPreviewImg').classList.remove('d-none');
+      document.getElementById('logoPlaceholder').classList.add('d-none');
+      document.getElementById('logoRemoveBtn').classList.remove('d-none');
+    }
+    if (s.business_hours_start) document.getElementById('businessStart').value = s.business_hours_start.substring(0, 5);
+    if (s.business_hours_end) document.getElementById('businessEnd').value = s.business_hours_end.substring(0, 5);
+    if (s.business_days && Array.isArray(s.business_days)) {
+      document.querySelectorAll('#businessDaysGroup input').forEach(function(cb) { cb.checked = s.business_days.includes(parseInt(cb.value)); });
+    }
+  }
+  async function saveGeneral(e) {
+    e.preventDefault(); var sp = document.getElementById('generalSpinner'); sp.classList.remove('d-none');
+    try { await Api.patch('/api/v1/tenants/settings/', { name: document.getElementById('tenantName').value.trim(), timezone: document.getElementById('timezone').value, date_format: document.getElementById('dateFormat').value }); showSettingsAlert('General settings saved.', 'success'); Toast.success('General settings saved'); }
+    catch (e) { showSettingsAlert(e.detail || 'Failed to save.', 'danger'); Toast.error('Failed to save settings'); } finally { sp.classList.add('d-none'); }
+  }
+  async function saveBusinessHours(e) {
+    e.preventDefault(); var sp = document.getElementById('bhSpinner'); sp.classList.remove('d-none');
+    var days = [];
+    document.querySelectorAll('#businessDaysGroup input:checked').forEach(function(cb) { days.push(parseInt(cb.value)); });
+    try { await Api.patch('/api/v1/tenants/settings/', { business_hours_start: document.getElementById('businessStart').value + ':00', business_hours_end: document.getElementById('businessEnd').value + ':00', business_days: days }); showSettingsAlert('Business hours saved.', 'success'); Toast.success('Business hours saved'); }
+    catch (e) { showSettingsAlert(e.detail || 'Failed to save.', 'danger'); Toast.error('Failed to save'); } finally { sp.classList.add('d-none'); }
+  }
+  async function saveAuth(e) {
+    e.preventDefault(); var sp = document.getElementById('authSpinner'); sp.classList.remove('d-none');
+    var payload = { auth_method: document.getElementById('authMethod').value };
+    if (payload.auth_method === 'sso' || payload.auth_method === 'both') { payload.sso_provider = document.getElementById('ssoProvider').value; payload.sso_client_id = document.getElementById('ssoClientId').value.trim(); payload.sso_domain = document.getElementById('ssoDomain').value.trim(); var sec = document.getElementById('ssoClientSecret').value.trim(); if (sec) payload.sso_client_secret = sec; }
+    try { await Api.patch('/api/v1/tenants/settings/', payload); showSettingsAlert('Auth settings saved.', 'success'); Toast.success('Authentication settings saved'); }
+    catch (e) { showSettingsAlert(e.detail || 'Failed to save.', 'danger'); Toast.error('Failed to save settings'); } finally { sp.classList.add('d-none'); }
+  }
+  async function saveBranding(e) {
+    e.preventDefault(); var sp = document.getElementById('brandingSpinner'); sp.classList.remove('d-none');
+    var primary = document.getElementById('primaryColor').value;
+    var accent = document.getElementById('accentColor').value;
+    try {
+      await Api.patch('/api/v1/tenants/settings/', { primary_color: primary, accent_color: accent });
+      showSettingsAlert('Branding saved.', 'success'); Toast.success('Branding updated');
+      document.documentElement.style.setProperty('--crm-primary', primary);
+      document.documentElement.style.setProperty('--crm-accent', accent);
+    }
+    catch (e) { showSettingsAlert(e.detail || 'Failed to save.', 'danger'); Toast.error('Failed to save branding'); } finally { sp.classList.add('d-none'); }
+  }
+  function bindFormEvents() {
+    document.getElementById('generalForm').addEventListener('submit', saveGeneral);
+    document.getElementById('businessHoursForm').addEventListener('submit', saveBusinessHours);
+    document.getElementById('authForm').addEventListener('submit', saveAuth);
+    document.getElementById('brandingForm').addEventListener('submit', saveBranding);
+    document.getElementById('authMethod').addEventListener('change', function() { toggleSsoFields(this.value); });
+    // Color picker sync
+    function syncColorPair(pickerId, hexId) {
+      document.getElementById(pickerId).addEventListener('input', function() {
+        document.getElementById(hexId).value = this.value;
+        updateColorPreview(document.getElementById('primaryColor').value, document.getElementById('accentColor').value);
+      });
+      document.getElementById(hexId).addEventListener('input', function() {
+        if (/^#[0-9a-fA-F]{6}$/.test(this.value.trim())) {
+          document.getElementById(pickerId).value = this.value.trim();
+          updateColorPreview(document.getElementById('primaryColor').value, document.getElementById('accentColor').value);
+        }
+      });
+    }
+    syncColorPair('primaryColor', 'primaryColorHex');
+    syncColorPair('accentColor', 'accentColorHex');
+
+    // Preset palettes
+    document.querySelectorAll('.branding-preset-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var p = this.getAttribute('data-primary'), a = this.getAttribute('data-accent');
+        document.getElementById('primaryColor').value = p;
+        document.getElementById('primaryColorHex').value = p;
+        document.getElementById('accentColor').value = a;
+        document.getElementById('accentColorHex').value = a;
+        updateColorPreview(p, a);
+        document.querySelectorAll('.branding-preset-btn').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+      });
+    });
+
+    // Reset colors
+    document.getElementById('resetColorsBtn').addEventListener('click', function() {
+      var p = '#6366F1', a = '#F59E0B';
+      document.getElementById('primaryColor').value = p;
+      document.getElementById('primaryColorHex').value = p;
+      document.getElementById('accentColor').value = a;
+      document.getElementById('accentColorHex').value = a;
+      updateColorPreview(p, a);
+      document.querySelectorAll('.branding-preset-btn').forEach(function(b) { b.classList.remove('active'); });
+    });
+
+    // Logo upload
+    var logoDropzone = document.getElementById('logoDropzone');
+    var logoFileInput = document.getElementById('logoFileInput');
+    document.getElementById('logoBrowseLink').addEventListener('click', function() { logoFileInput.click(); });
+    logoFileInput.addEventListener('change', function() { if (this.files.length) uploadLogo(this.files[0]); });
+    logoDropzone.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('dragover'); });
+    logoDropzone.addEventListener('dragleave', function() { this.classList.remove('dragover'); });
+    logoDropzone.addEventListener('drop', function(e) { e.preventDefault(); this.classList.remove('dragover'); if (e.dataTransfer.files.length) uploadLogo(e.dataTransfer.files[0]); });
+
+    document.getElementById('logoRemoveBtn').addEventListener('click', async function() {
+      try {
+        await Api.delete('/api/v1/tenants/settings/logo/');
+        document.getElementById('logoPreviewImg').classList.add('d-none');
+        document.getElementById('logoPlaceholder').classList.remove('d-none');
+        this.classList.add('d-none');
+        Toast.success('Logo removed');
+      } catch(e) { Toast.error('Failed to remove logo'); }
+    });
+    document.getElementById('exportDataBtn').addEventListener('click', function() { Toast.info('Export started. You will be notified when the file is ready.'); });
+    document.getElementById('cleanupNotifsBtn').addEventListener('click', function() { if (confirm('Remove all read notifications older than 90 days?')) { Toast.success('Cleanup initiated.'); } });
+  }
+  function toggleSsoFields(m) { document.getElementById('ssoFields').classList.toggle('d-none', m !== 'sso' && m !== 'both'); }
+  function updateColorPreview(primary, accent) {
+    // Sidebar
+    var activeLink = document.getElementById('previewActiveLink');
+    if (activeLink) activeLink.style.background = primary;
+    var sidebarLogo = document.getElementById('previewSidebarLogo');
+    if (sidebarLogo) sidebarLogo.style.background = primary;
+    // Primary button
+    var btn = document.getElementById('previewPrimaryBtn');
+    if (btn) btn.style.background = primary;
+    // Stat card accents
+    var sa1 = document.getElementById('previewStatAccent1');
+    if (sa1) sa1.style.background = primary;
+    var sa2 = document.getElementById('previewStatAccent2');
+    if (sa2) sa2.style.background = accent;
+    // Badges
+    document.querySelectorAll('.bp-badge-primary').forEach(function(b) { b.style.background = primary; });
+    document.querySelectorAll('.bp-badge-accent').forEach(function(b) { b.style.background = accent; });
+  }
+  async function uploadLogo(file) {
+    if (!file.type.startsWith('image/')) { Toast.error('File must be an image'); return; }
+    if (file.size > 2 * 1024 * 1024) { Toast.error('Logo must be under 2 MB'); return; }
+    var formData = new FormData();
+    formData.append('logo', file);
+    try {
+      var resp = await Api.upload('/api/v1/tenants/settings/logo/', formData);
+      if (resp.logo_url) {
+        document.getElementById('logoPreviewImg').src = resp.logo_url;
+        document.getElementById('logoPreviewImg').classList.remove('d-none');
+        document.getElementById('logoPlaceholder').classList.add('d-none');
+        document.getElementById('logoRemoveBtn').classList.remove('d-none');
+        Toast.success('Logo uploaded');
+      }
+    } catch(e) { Toast.error(e.detail || 'Failed to upload logo'); }
+  }
+  function setSelectValue(id, v) { var s = document.getElementById(id); if (!s) return; for (var i = 0; i < s.options.length; i++) { if (s.options[i].value === v) { s.selectedIndex = i; return; } } }
+  function showSettingsAlert(msg, type) { var c = document.getElementById('settingsAlert'); c.className = 'alert alert-' + type + ' alert-dismissible fade show'; c.innerHTML = escapeHtml(msg) + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>'; c.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); if (type === 'success') setTimeout(function() { var a = bootstrap.Alert.getOrCreateInstance(c); if (a) a.close(); }, 4000); }
+  function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  init();
+})();
+</script>
+<script>
+(function() {
+  'use strict';
+  var categories = [];
+  var categoryModal = null;
+  function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function slugify(str) { return str.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''); }
+  async function loadCategories() {
+    try { var data = await Api.get('/api/v1/tickets/ticket-categories/?all=true'); categories = data.results || data; renderCategories(); }
+    catch(e) { console.error('Error loading categories:', e); }
+    finally { document.getElementById('categoriesLoading').classList.add('d-none'); }
+  }
+  function renderCategories() {
+    var list = document.getElementById('categoriesList'), empty = document.getElementById('categoriesEmpty');
+    list.innerHTML = '';
+    if (!categories.length) { empty.classList.remove('d-none'); return; }
+    empty.classList.add('d-none');
+    categories.forEach(function(cat) {
+      var activeLabel = cat.is_active ? '<span class="badge bg-success-subtle text-success">Active</span>' : '<span class="badge bg-secondary-subtle text-secondary">Inactive</span>';
+      list.insertAdjacentHTML('beforeend',
+        '<div class="d-flex align-items-center gap-3 py-2 px-2 rounded mb-1" style="border:1px solid var(--crm-border-light);transition:background 0.1s;" onmouseenter="this.style.background=\'var(--crm-bg)\'" onmouseleave="this.style.background=\'transparent\'">' +
+          '<div class="d-flex align-items-center gap-2 flex-grow-1"><span style="width:12px;height:12px;border-radius:3px;background:' + escapeHtml(cat.color) + ';flex-shrink:0;"></span><span class="fw-medium" style="font-size:0.875rem;">' + escapeHtml(cat.name) + '</span><span class="text-muted" style="font-size:0.75rem;">(' + escapeHtml(cat.slug) + ')</span></div>' +
+          activeLabel +
+          '<div class="d-flex gap-1"><button class="btn btn-sm btn-outline-secondary py-0 px-2 cat-edit-btn" data-id="' + cat.id + '" style="font-size:0.75rem;"><i class="ti ti-pencil"></i></button><button class="btn btn-sm btn-outline-danger py-0 px-2 cat-delete-btn" data-id="' + cat.id + '" data-name="' + escapeHtml(cat.name) + '" style="font-size:0.75rem;"><i class="ti ti-trash"></i></button></div></div>');
+    });
+    list.querySelectorAll('.cat-edit-btn').forEach(function(btn) { btn.addEventListener('click', function() { editCategory(this.getAttribute('data-id')); }); });
+    list.querySelectorAll('.cat-delete-btn').forEach(function(btn) { btn.addEventListener('click', function() { deleteCategory(this.getAttribute('data-id'), this.getAttribute('data-name')); }); });
+  }
+  function openAddModal() {
+    document.getElementById('categoryModalTitle').textContent = 'Add Category';
+    document.getElementById('categoryEditId').value = '';
+    document.getElementById('categoryName').value = '';
+    document.getElementById('categorySlug').value = '';
+    document.getElementById('categoryColor').value = '#6c757d';
+    document.getElementById('categoryOrder').value = categories.length;
+    if (!categoryModal) categoryModal = new bootstrap.Modal(document.getElementById('categoryModal'));
+    categoryModal.show();
+  }
+  function editCategory(id) {
+    var cat = categories.find(function(c) { return c.id === id; });
+    if (!cat) return;
+    document.getElementById('categoryModalTitle').textContent = 'Edit Category';
+    document.getElementById('categoryEditId').value = cat.id;
+    document.getElementById('categoryName').value = cat.name;
+    document.getElementById('categorySlug').value = cat.slug;
+    document.getElementById('categoryColor').value = cat.color;
+    document.getElementById('categoryOrder').value = cat.order;
+    if (!categoryModal) categoryModal = new bootstrap.Modal(document.getElementById('categoryModal'));
+    categoryModal.show();
+  }
+  async function saveCategory() {
+    var name = document.getElementById('categoryName').value.trim();
+    if (!name) { Toast.error('Category name is required'); return; }
+    var slug = document.getElementById('categorySlug').value.trim() || slugify(name);
+    var payload = { name: name, slug: slug, color: document.getElementById('categoryColor').value, order: parseInt(document.getElementById('categoryOrder').value) || 0, is_active: true };
+    var editId = document.getElementById('categoryEditId').value;
+    try {
+      if (editId) { await Api.patch('/api/v1/tickets/ticket-categories/' + editId + '/', payload); Toast.success('Category updated'); }
+      else { await Api.post('/api/v1/tickets/ticket-categories/', payload); Toast.success('Category created'); }
+      categoryModal.hide(); loadCategories();
+    } catch(e) { var msg = 'Failed to save category'; if (e && e.slug) msg = 'Slug: ' + (Array.isArray(e.slug) ? e.slug.join(' ') : e.slug); Toast.error(msg); }
+  }
+  async function deleteCategory(id, name) {
+    if (!confirm('Delete category "' + name + '"?')) return;
+    try { await Api.delete('/api/v1/tickets/ticket-categories/' + id + '/'); Toast.success('Category deleted'); loadCategories(); }
+    catch(e) { Toast.error('Failed to delete category'); }
+  }
+  document.getElementById('addCategoryBtn').addEventListener('click', openAddModal);
+  document.getElementById('saveCategoryBtn').addEventListener('click', saveCategory);
+  document.getElementById('categoryName').addEventListener('input', function() { if (!document.getElementById('categoryEditId').value) document.getElementById('categorySlug').value = slugify(this.value); });
+  var origSwitch = window.switchSettingsTab;
+  window.switchSettingsTab = function(targetId) { origSwitch(targetId); if (targetId === 'categoriesPane' && !categories.length) loadCategories(); };
+})();
+</script>
+{% endblock %}

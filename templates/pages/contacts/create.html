@@ -1,0 +1,595 @@
+{% extends "base.html" %}
+{% block title %}Create Contact - Kanzen Suite{% endblock %}
+
+{% block content %}
+<!-- Breadcrumb Header -->
+<div class="contact-page-header">
+  <div class="contact-breadcrumb">
+    <a href="{% url 'frontend:contact-list' %}" class="breadcrumb-link">Contacts</a>
+    <i class="ti ti-chevron-right breadcrumb-sep"></i>
+    <span class="breadcrumb-current">create</span>
+  </div>
+  <div class="contact-header-actions">
+    <a href="{% url 'frontend:contact-list' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="ti ti-x"></i> Cancel
+    </a>
+    <button type="button" id="saveContactBtn" class="btn btn-primary btn-sm">
+      <span id="saveText"><i class="ti ti-check"></i> Save</span>
+      <span id="saveSpinner" class="d-none">
+        <span class="spinner-border spinner-border-sm me-1" role="status"></span>Saving...
+      </span>
+    </button>
+    <div class="dropdown">
+      <button class="btn btn-outline-secondary btn-sm dropdown-toggle no-caret" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="ti ti-dots"></i>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="#" id="saveAndNewBtn"><i class="ti ti-plus"></i> Save & Create New</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item text-danger" href="#" id="resetFormBtn"><i class="ti ti-rotate"></i> Reset Form</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Alert -->
+<div id="formAlert" class="alert d-none mb-3" role="alert"></div>
+
+<!-- Two-column layout -->
+<div class="contact-form-layout">
+  <form id="contactForm" novalidate>
+    <div class="contact-form-grid">
+      <!-- LEFT COLUMN (Main) -->
+      <div class="contact-form-main">
+        <div class="contact-form-card">
+          <div class="contact-section-header">
+            <h6 class="contact-section-title">
+              <i class="ti ti-grid-dots"></i> Overview
+            </h6>
+          </div>
+
+          <!-- Salutation + First Name + Last Name -->
+          <div class="contact-field-row">
+            <label class="contact-field-label">Name <span class="text-danger">*</span></label>
+            <div class="contact-field-value">
+              <div class="name-fields-group">
+                <select id="contactSalutation" name="salutation" class="form-select contact-salutation-select">
+                  <option value="">--</option>
+                  <option value="Mr.">Mr.</option>
+                  <option value="Mrs.">Mrs.</option>
+                  <option value="Ms.">Ms.</option>
+                  <option value="Dr.">Dr.</option>
+                  <option value="Prof.">Prof.</option>
+                </select>
+                <input type="text" id="contactFirstName" name="first_name" class="form-control" placeholder="First Name" required maxlength="150">
+                <input type="text" id="contactLastName" name="last_name" class="form-control" placeholder="Last Name" required maxlength="150">
+              </div>
+              <div class="invalid-feedback" id="first_nameError"></div>
+              <div class="invalid-feedback" id="last_nameError"></div>
+            </div>
+          </div>
+
+          <!-- Company -->
+          <div class="contact-field-row">
+            <label class="contact-field-label">Account</label>
+            <div class="contact-field-value">
+              <select id="contactCompany" name="company" class="form-select">
+                <option value="">Select account...</option>
+              </select>
+              <div class="invalid-feedback" id="companyError"></div>
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="contact-field-row">
+            <label class="contact-field-label">Email <span class="text-danger">*</span></label>
+            <div class="contact-field-value">
+              <div class="contact-multi-field" id="emailFieldsContainer">
+                <div class="contact-input-with-actions">
+                  <input type="email" id="contactEmail" name="email" class="form-control" placeholder="email@example.com" required>
+                  <div class="contact-field-icons">
+                    <button type="button" class="contact-icon-btn" title="Opt-out" data-action="optout-email">
+                      <i class="ti ti-mail-off"></i>
+                    </button>
+                    <button type="button" class="contact-icon-btn" title="Block" data-action="block-email">
+                      <i class="ti ti-shield-x"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <button type="button" class="contact-add-field-btn" id="addEmailBtn">
+                <i class="ti ti-circle-plus"></i> Add Email
+              </button>
+              <div class="invalid-feedback" id="emailError"></div>
+            </div>
+          </div>
+
+          <!-- Phone -->
+          <div class="contact-field-row">
+            <label class="contact-field-label">Phone</label>
+            <div class="contact-field-value">
+              <div class="contact-multi-field" id="phoneFieldsContainer">
+                <div class="contact-input-with-actions">
+                  <select class="form-select contact-phone-type">
+                    <option value="Mobile">Mobile</option>
+                    <option value="Office">Office</option>
+                    <option value="Home">Home</option>
+                    <option value="Fax">Fax</option>
+                    <option value="Other">Other</option>
+                  </select>
+                  <input type="tel" id="contactPhone" name="phone" class="form-control" placeholder="+1 (555) 000-0000" maxlength="30">
+                  <div class="contact-field-icons">
+                    <button type="button" class="contact-icon-btn" title="Opt-out" data-action="optout-phone">
+                      <i class="ti ti-phone-off"></i>
+                    </button>
+                    <button type="button" class="contact-icon-btn" title="Block" data-action="block-phone">
+                      <i class="ti ti-shield-x"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <button type="button" class="contact-add-field-btn" id="addPhoneBtn">
+                <i class="ti ti-circle-plus"></i> Add Phone
+              </button>
+              <div class="invalid-feedback" id="phoneError"></div>
+            </div>
+          </div>
+
+          <!-- Job Title -->
+          <div class="contact-field-row">
+            <label class="contact-field-label">Job Title</label>
+            <div class="contact-field-value">
+              <input type="text" id="contactJobTitle" name="job_title" class="form-control" placeholder="e.g. Marketing Manager" maxlength="100">
+            </div>
+          </div>
+
+          <!-- Source -->
+          <div class="contact-field-row">
+            <label class="contact-field-label">Source</label>
+            <div class="contact-field-value">
+              <select id="contactSource" name="source" class="form-select">
+                <option value="">Select source...</option>
+                <option value="web">Web</option>
+                <option value="email">Email</option>
+                <option value="phone">Phone</option>
+                <option value="referral">Referral</option>
+                <option value="social">Social</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Address Section -->
+          <div class="contact-section-header mt-4">
+            <h6 class="contact-section-title">
+              <i class="ti ti-map-pin-filled"></i> Address
+            </h6>
+          </div>
+
+          <div class="contact-field-row">
+            <label class="contact-field-label">Street</label>
+            <div class="contact-field-value">
+              <input type="text" id="contactStreet" name="address_street" class="form-control" placeholder="Street address">
+            </div>
+          </div>
+
+          <div class="contact-field-row">
+            <label class="contact-field-label">City</label>
+            <div class="contact-field-value">
+              <input type="text" id="contactCity" name="address_city" class="form-control" placeholder="City">
+            </div>
+          </div>
+
+          <div class="contact-field-row">
+            <label class="contact-field-label">State / Province</label>
+            <div class="contact-field-value">
+              <input type="text" id="contactState" name="address_state" class="form-control" placeholder="State or Province">
+            </div>
+          </div>
+
+          <div class="contact-field-row">
+            <label class="contact-field-label">Postal Code</label>
+            <div class="contact-field-value">
+              <input type="text" id="contactPostalCode" name="address_postal" class="form-control" placeholder="ZIP / Postal Code">
+            </div>
+          </div>
+
+          <div class="contact-field-row">
+            <label class="contact-field-label">Country</label>
+            <div class="contact-field-value">
+              <input type="text" id="contactCountry" name="address_country" class="form-control" placeholder="Country">
+            </div>
+          </div>
+
+          <!-- Photo Upload -->
+          <div class="contact-section-header mt-4">
+            <h6 class="contact-section-title">
+              <i class="ti ti-photo"></i> Photo
+            </h6>
+          </div>
+
+          <div class="contact-field-row">
+            <label class="contact-field-label">Upload</label>
+            <div class="contact-field-value">
+              <div class="contact-photo-upload" id="photoDropZone">
+                <i class="ti ti-paperclip"></i>
+                <span>Click or drop a photo here</span>
+                <input type="file" id="contactPhoto" accept="image/jpeg,image/png,image/gif,image/webp" class="d-none">
+              </div>
+              <div id="photoPreview" class="d-none mt-2">
+                <div class="contact-photo-preview">
+                  <img id="photoPreviewImg" src="" alt="Preview">
+                  <button type="button" class="btn btn-sm btn-outline-danger" id="removePhotoBtn">
+                    <i class="ti ti-x"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Birthday -->
+          <div class="contact-section-header mt-4">
+            <h6 class="contact-section-title">
+              <i class="ti ti-calendar-event"></i> Personal
+            </h6>
+          </div>
+
+          <div class="contact-field-row">
+            <label class="contact-field-label">Birthday</label>
+            <div class="contact-field-value">
+              <input type="date" id="contactBirthday" name="birthday" class="form-control">
+            </div>
+          </div>
+
+          <!-- Description -->
+          <div class="contact-field-row">
+            <label class="contact-field-label">Description</label>
+            <div class="contact-field-value">
+              <textarea id="contactDescription" name="notes" class="form-control" rows="4" placeholder="Add a description or notes about this contact..."></textarea>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN (Sidebar) -->
+      <div class="contact-form-sidebar">
+        <!-- Assigned User -->
+        <div class="contact-form-card">
+          <div class="contact-sidebar-field">
+            <label class="contact-sidebar-label">Assigned User</label>
+            <div class="contact-select-with-clear">
+              <select id="contactAssignedUser" name="assigned_user" class="form-select">
+                <option value="">Select user...</option>
+              </select>
+              <button type="button" class="contact-clear-btn" id="clearAssignedUser" title="Clear">
+                <i class="ti ti-x"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Teams -->
+        <div class="contact-form-card">
+          <div class="contact-sidebar-field">
+            <label class="contact-sidebar-label">Teams</label>
+            <select id="contactTeams" name="teams" class="form-select">
+              <option value="">Select team...</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Status -->
+        <div class="contact-form-card">
+          <div class="contact-sidebar-field">
+            <label class="contact-sidebar-label">Status</label>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="contactActive" name="is_active" checked>
+              <label class="form-check-label" for="contactActive">
+                <span class="contact-status-label" id="contactStatusLabel">Active</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+
+  // --- Load companies ---
+  Api.get('/api/v1/contacts/companies/').then(function(data) {
+    var select = document.getElementById('contactCompany');
+    (data.results || data).forEach(function(c) {
+      var opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      select.appendChild(opt);
+    });
+  }).catch(function() {});
+
+  // --- Load users for assignment ---
+  Api.get('/api/v1/accounts/users/').then(function(data) {
+    var select = document.getElementById('contactAssignedUser');
+    (data.results || data).forEach(function(u) {
+      var opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = ((u.first_name || '') + ' ' + (u.last_name || '')).trim() || u.email;
+      select.appendChild(opt);
+    });
+  }).catch(function() {});
+
+  // --- Status toggle ---
+  document.getElementById('contactActive').addEventListener('change', function() {
+    document.getElementById('contactStatusLabel').textContent = this.checked ? 'Active' : 'Inactive';
+  });
+
+  // --- Clear assigned user ---
+  document.getElementById('clearAssignedUser').addEventListener('click', function() {
+    document.getElementById('contactAssignedUser').value = '';
+  });
+
+  // --- Photo upload ---
+  var photoDropZone = document.getElementById('photoDropZone');
+  var photoInput = document.getElementById('contactPhoto');
+  var selectedPhoto = null;
+
+  photoDropZone.addEventListener('click', function() { photoInput.click(); });
+  photoDropZone.addEventListener('dragover', function(e) { e.preventDefault(); photoDropZone.classList.add('dragover'); });
+  photoDropZone.addEventListener('dragleave', function(e) { e.preventDefault(); photoDropZone.classList.remove('dragover'); });
+  photoDropZone.addEventListener('drop', function(e) {
+    e.preventDefault();
+    photoDropZone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) handlePhotoSelect(e.dataTransfer.files[0]);
+  });
+  photoInput.addEventListener('change', function() {
+    if (this.files.length > 0) handlePhotoSelect(this.files[0]);
+    this.value = '';
+  });
+
+  function handlePhotoSelect(file) {
+    if (!file.type.startsWith('image/')) { Toast.warning('Please select an image file'); return; }
+    if (file.size > 5 * 1024 * 1024) { Toast.warning('Image must be under 5 MB'); return; }
+    selectedPhoto = file;
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      document.getElementById('photoPreviewImg').src = e.target.result;
+      document.getElementById('photoPreview').classList.remove('d-none');
+      photoDropZone.classList.add('d-none');
+    };
+    reader.readAsDataURL(file);
+  }
+
+  document.getElementById('removePhotoBtn').addEventListener('click', function() {
+    selectedPhoto = null;
+    document.getElementById('photoPreview').classList.add('d-none');
+    photoDropZone.classList.remove('d-none');
+  });
+
+  // --- Add Email field ---
+  var emailCounter = 0;
+  document.getElementById('addEmailBtn').addEventListener('click', function() {
+    emailCounter++;
+    var container = document.getElementById('emailFieldsContainer');
+    var div = document.createElement('div');
+    div.className = 'contact-input-with-actions mt-2';
+    div.innerHTML = '<input type="email" class="form-control extra-email" placeholder="email@example.com">' +
+      '<div class="contact-field-icons">' +
+        '<button type="button" class="contact-icon-btn text-danger" title="Remove" onclick="this.closest(\'.contact-input-with-actions\').remove()"><i class="ti ti-trash"></i></button>' +
+      '</div>';
+    container.appendChild(div);
+  });
+
+  // --- Add Phone field ---
+  var phoneCounter = 0;
+  document.getElementById('addPhoneBtn').addEventListener('click', function() {
+    phoneCounter++;
+    var container = document.getElementById('phoneFieldsContainer');
+    var div = document.createElement('div');
+    div.className = 'contact-input-with-actions mt-2';
+    div.innerHTML = '<select class="form-select contact-phone-type"><option value="Mobile">Mobile</option><option value="Office">Office</option><option value="Home">Home</option><option value="Fax">Fax</option><option value="Other">Other</option></select>' +
+      '<input type="tel" class="form-control extra-phone" placeholder="+1 (555) 000-0000" maxlength="30">' +
+      '<div class="contact-field-icons">' +
+        '<button type="button" class="contact-icon-btn text-danger" title="Remove" onclick="this.closest(\'.contact-input-with-actions\').remove()"><i class="ti ti-trash"></i></button>' +
+      '</div>';
+    container.appendChild(div);
+  });
+
+  // --- Reset form ---
+  document.getElementById('resetFormBtn').addEventListener('click', function(e) {
+    e.preventDefault();
+    document.getElementById('contactForm').reset();
+    document.querySelectorAll('#contactForm .is-invalid').forEach(function(f) { f.classList.remove('is-invalid'); });
+    document.getElementById('formAlert').classList.add('d-none');
+    document.getElementById('contactStatusLabel').textContent = 'Active';
+    // Remove extra email/phone fields
+    document.querySelectorAll('#emailFieldsContainer .mt-2').forEach(function(el) { el.remove(); });
+    document.querySelectorAll('#phoneFieldsContainer .mt-2').forEach(function(el) { el.remove(); });
+    // Reset photo
+    selectedPhoto = null;
+    document.getElementById('photoPreview').classList.add('d-none');
+    photoDropZone.classList.remove('d-none');
+    Toast.info('Form has been reset');
+  });
+
+  // --- Helpers ---
+  function clearErrors() {
+    document.querySelectorAll('#contactForm .is-invalid').forEach(function(f) { f.classList.remove('is-invalid'); });
+    document.querySelectorAll('.invalid-feedback').forEach(function(fb) { fb.textContent = ''; });
+    var alert = document.getElementById('formAlert');
+    alert.classList.add('d-none');
+    alert.classList.remove('alert-danger', 'alert-success');
+  }
+
+  function showFieldError(name, msg) {
+    var input = document.querySelector('[name="' + name + '"]');
+    if (input) input.classList.add('is-invalid');
+    var errorEl = document.getElementById(name.replace('.', '_') + 'Error');
+    if (errorEl) errorEl.textContent = msg;
+  }
+
+  function showFormError(msg) {
+    var alert = document.getElementById('formAlert');
+    alert.textContent = msg;
+    alert.classList.remove('d-none', 'alert-success');
+    alert.classList.add('alert-danger');
+    alert.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function setLoading(loading) {
+    document.getElementById('saveContactBtn').disabled = loading;
+    document.getElementById('saveText').classList.toggle('d-none', loading);
+    document.getElementById('saveSpinner').classList.toggle('d-none', !loading);
+  }
+
+  function buildPayload() {
+    var firstName = document.getElementById('contactFirstName').value.trim();
+    var lastName = document.getElementById('contactLastName').value.trim();
+    var email = document.getElementById('contactEmail').value.trim();
+    var phone = document.getElementById('contactPhone').value.trim();
+    var company = document.getElementById('contactCompany').value;
+    var jobTitle = document.getElementById('contactJobTitle').value.trim();
+    var source = document.getElementById('contactSource').value;
+    var notes = document.getElementById('contactDescription').value.trim();
+    var isActive = document.getElementById('contactActive').checked;
+
+    // Build address from fields
+    var addressParts = [];
+    var street = document.getElementById('contactStreet').value.trim();
+    var city = document.getElementById('contactCity').value.trim();
+    var state = document.getElementById('contactState').value.trim();
+    var postal = document.getElementById('contactPostalCode').value.trim();
+    var country = document.getElementById('contactCountry').value.trim();
+
+    // Store address info and other extras in custom_data
+    var customData = {};
+    var salutation = document.getElementById('contactSalutation').value;
+    if (salutation) customData.salutation = salutation;
+    if (street) customData.address_street = street;
+    if (city) customData.address_city = city;
+    if (state) customData.address_state = state;
+    if (postal) customData.address_postal = postal;
+    if (country) customData.address_country = country;
+
+    var birthday = document.getElementById('contactBirthday').value;
+    if (birthday) customData.birthday = birthday;
+
+    // Collect additional phone info
+    var phoneType = document.querySelector('.contact-phone-type');
+    if (phoneType) customData.phone_type = phoneType.value;
+
+    // Collect extra emails
+    var extraEmails = [];
+    document.querySelectorAll('.extra-email').forEach(function(el) {
+      if (el.value.trim()) extraEmails.push(el.value.trim());
+    });
+    if (extraEmails.length > 0) customData.additional_emails = extraEmails;
+
+    // Collect extra phones
+    var extraPhones = [];
+    document.querySelectorAll('#phoneFieldsContainer .mt-2').forEach(function(row) {
+      var type = row.querySelector('.contact-phone-type');
+      var ph = row.querySelector('.extra-phone');
+      if (ph && ph.value.trim()) {
+        extraPhones.push({ type: type ? type.value : 'Other', number: ph.value.trim() });
+      }
+    });
+    if (extraPhones.length > 0) customData.additional_phones = extraPhones;
+
+    var payload = { first_name: firstName, last_name: lastName, email: email, is_active: isActive };
+    if (phone) payload.phone = phone;
+    if (company) payload.company = company;
+    if (jobTitle) payload.job_title = jobTitle;
+    if (source) payload.source = source;
+    if (notes) payload.notes = notes;
+    if (Object.keys(customData).length > 0) payload.custom_data = customData;
+
+    return payload;
+  }
+
+  function validateForm() {
+    var valid = true;
+    var firstName = document.getElementById('contactFirstName').value.trim();
+    var lastName = document.getElementById('contactLastName').value.trim();
+    var email = document.getElementById('contactEmail').value.trim();
+
+    if (!firstName) { showFieldError('first_name', 'First name is required.'); valid = false; }
+    if (!lastName) { showFieldError('last_name', 'Last name is required.'); valid = false; }
+    if (!email) { showFieldError('email', 'Email is required.'); valid = false; }
+    return valid;
+  }
+
+  function submitContact(redirectTo) {
+    clearErrors();
+    if (!validateForm()) return;
+
+    var payload = buildPayload();
+    setLoading(true);
+
+    Api.post('/api/v1/contacts/contacts/', payload).then(function(contact) {
+      setLoading(false);
+      if (redirectTo === 'new') {
+        document.getElementById('contactForm').reset();
+        document.getElementById('contactStatusLabel').textContent = 'Active';
+        document.querySelectorAll('#emailFieldsContainer .mt-2').forEach(function(el) { el.remove(); });
+        document.querySelectorAll('#phoneFieldsContainer .mt-2').forEach(function(el) { el.remove(); });
+        selectedPhoto = null;
+        document.getElementById('photoPreview').classList.add('d-none');
+        photoDropZone.classList.remove('d-none');
+        Toast.success('Contact created! Ready for a new one.');
+      } else {
+        sessionStorage.setItem('toast', 'Contact created successfully');
+        window.location.href = '/contacts/';
+      }
+    }).catch(function(err) {
+      setLoading(false);
+      if (err && typeof err === 'object' && !err.message) {
+        var hasFieldError = false;
+        for (var field in err) {
+          if (err.hasOwnProperty(field) && field !== 'status') {
+            var msg = Array.isArray(err[field]) ? err[field].join(' ') : err[field];
+            if (field === 'non_field_errors' || field === 'detail') {
+              showFormError(msg);
+            } else {
+              showFieldError(field, msg);
+              hasFieldError = true;
+            }
+          }
+        }
+        if (!hasFieldError && !err.non_field_errors && !err.detail) {
+          showFormError('An error occurred while creating the contact.');
+        }
+      } else {
+        showFormError('A network error occurred. Please try again.');
+      }
+      Toast.error('Failed to create contact');
+    });
+  }
+
+  // --- Save button ---
+  document.getElementById('saveContactBtn').addEventListener('click', function() {
+    submitContact('list');
+  });
+
+  // --- Save & New button ---
+  document.getElementById('saveAndNewBtn').addEventListener('click', function(e) {
+    e.preventDefault();
+    submitContact('new');
+  });
+
+  // --- Allow Enter key on form ---
+  document.getElementById('contactForm').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
+      e.preventDefault();
+      submitContact('list');
+    }
+  });
+
+})();
+</script>
+{% endblock %}

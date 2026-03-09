@@ -1,0 +1,482 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Kanzen Suite - Modern CRM & Ticketing Platform{% endblock %}
+
+{% block fullpage %}
+<div class="landing-page">
+  <!-- Navigation -->
+  <nav class="landing-nav" id="landing-nav">
+    <div class="container">
+      <a href="{% url 'frontend:landing' %}" class="landing-brand">
+        <i class="ti ti-hexagon-filled"></i>
+        <span>Kanzen Suite</span>
+      </a>
+      <div class="landing-nav-links">
+        <a href="#features" class="landing-nav-link d-none d-md-inline-block">Features</a>
+        <a href="#how-it-works" class="landing-nav-link d-none d-md-inline-block">How It Works</a>
+        <a href="#pricing" class="landing-nav-link d-none d-md-inline-block">Pricing</a>
+        <a href="//demo.localhost:8001/login/" class="btn btn-outline-light btn-sm landing-nav-btn">Sign In</a>
+        <a href="//demo.localhost:8001/register/" class="btn btn-primary btn-sm">Get Started</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="landing-hero">
+    <div class="landing-hero-glow landing-hero-glow-1"></div>
+    <div class="landing-hero-glow landing-hero-glow-2"></div>
+    <div class="landing-hero-grid"></div>
+    <div class="container position-relative" style="z-index: 2;">
+      <div class="row justify-content-center">
+        <div class="col-lg-8 text-center">
+          <div class="landing-badge">
+            <span class="landing-badge-dot"></span>
+            Now in Beta
+          </div>
+          <h1 class="landing-hero-title">
+            Customer support,<br>
+            <span class="landing-hero-title-accent">simplified.</span>
+          </h1>
+          <p class="landing-hero-subtitle">
+            A modern CRM & ticketing platform built for teams that care
+            about their customers. Streamline workflows, track SLAs, and
+            deliver exceptional service.
+          </p>
+          <div class="landing-hero-actions">
+            <a href="//demo.localhost:8001/register/" class="btn btn-primary btn-lg landing-btn-glow">
+              Start Free Trial <i class="ti ti-arrow-right ms-2"></i>
+            </a>
+            <a href="#features" class="btn btn-outline-light btn-lg">Learn More</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product Preview -->
+      <div class="row justify-content-center mt-5">
+        <div class="col-lg-10">
+          <div class="landing-preview">
+            <div class="landing-preview-bar">
+              <div class="landing-preview-dots">
+                <span class="dot-red"></span>
+                <span class="dot-yellow"></span>
+                <span class="dot-green"></span>
+              </div>
+              <div class="landing-preview-url">demo.kanzensuite.com/dashboard</div>
+              <div style="width:52px;"></div>
+            </div>
+            <div class="landing-preview-body">
+              <div class="landing-preview-sidebar">
+                <div class="lps-item lps-active"><i class="ti ti-layout-grid"></i></div>
+                <div class="lps-item"><i class="ti ti-ticket"></i></div>
+                <div class="lps-item"><i class="ti ti-users"></i></div>
+                <div class="lps-item"><i class="ti ti-layout-kanban"></i></div>
+                <div class="lps-item"><i class="ti ti-message-dots"></i></div>
+              </div>
+              <div class="landing-preview-main">
+                <div class="lpm-stats">
+                  <div class="lpm-stat">
+                    <span class="lpm-stat-label">Open Tickets</span>
+                    <span class="lpm-stat-value" style="color: #6366F1;">24</span>
+                  </div>
+                  <div class="lpm-stat">
+                    <span class="lpm-stat-label">Resolved Today</span>
+                    <span class="lpm-stat-value" style="color: #34D399;">18</span>
+                  </div>
+                  <div class="lpm-stat">
+                    <span class="lpm-stat-label">Avg Response</span>
+                    <span class="lpm-stat-value" style="color: #818CF8;">2.4h</span>
+                  </div>
+                  <div class="lpm-stat">
+                    <span class="lpm-stat-label">SLA Compliance</span>
+                    <span class="lpm-stat-value" style="color: #FB923C;">96%</span>
+                  </div>
+                </div>
+                <div class="lpm-chart">
+                  <div class="lpm-bar" style="height:40%"></div>
+                  <div class="lpm-bar" style="height:65%"></div>
+                  <div class="lpm-bar" style="height:50%"></div>
+                  <div class="lpm-bar" style="height:80%"></div>
+                  <div class="lpm-bar" style="height:55%"></div>
+                  <div class="lpm-bar lpm-bar-accent" style="height:92%"></div>
+                  <div class="lpm-bar" style="height:70%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Social Proof Strip -->
+  <section class="landing-proof">
+    <div class="container">
+      <div class="landing-proof-inner">
+        <div class="landing-proof-item">
+          <span class="landing-proof-number">10K+</span>
+          <span class="landing-proof-label">Tickets Resolved</span>
+        </div>
+        <div class="landing-proof-divider"></div>
+        <div class="landing-proof-item">
+          <span class="landing-proof-number">500+</span>
+          <span class="landing-proof-label">Teams Active</span>
+        </div>
+        <div class="landing-proof-divider"></div>
+        <div class="landing-proof-item">
+          <span class="landing-proof-number">99.9%</span>
+          <span class="landing-proof-label">Uptime</span>
+        </div>
+        <div class="landing-proof-divider"></div>
+        <div class="landing-proof-item">
+          <span class="landing-proof-number">&lt;2min</span>
+          <span class="landing-proof-label">Avg Response</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="landing-features" id="features">
+    <div class="container">
+      <div class="text-center mb-5">
+        <span class="landing-section-tag">Features</span>
+        <h2 class="landing-section-heading">Everything your team needs</h2>
+        <p class="landing-section-desc">Powerful tools designed for clarity and speed.</p>
+      </div>
+      <div class="landing-features-grid">
+        <div class="landing-feature-card">
+          <div class="landing-feature-icon" style="--fi-color: #6366F1;">
+            <i class="ti ti-ticket"></i>
+          </div>
+          <h5 class="landing-feature-title">Ticketing</h5>
+          <p class="landing-feature-text">
+            Create, assign, and track support tickets with priority levels,
+            SLA timers, and board-based workflows.
+          </p>
+        </div>
+        <div class="landing-feature-card">
+          <div class="landing-feature-icon" style="--fi-color: #818CF8;">
+            <i class="ti ti-users"></i>
+          </div>
+          <h5 class="landing-feature-title">Contact Management</h5>
+          <p class="landing-feature-text">
+            Centralized contact directory with companies,
+            communication history, and custom fields.
+          </p>
+        </div>
+        <div class="landing-feature-card">
+          <div class="landing-feature-icon" style="--fi-color: #34D399;">
+            <i class="ti ti-chart-bar"></i>
+          </div>
+          <h5 class="landing-feature-title">Analytics</h5>
+          <p class="landing-feature-text">
+            Real-time dashboards with ticket volume, response times,
+            and agent performance metrics.
+          </p>
+        </div>
+        <div class="landing-feature-card">
+          <div class="landing-feature-icon" style="--fi-color: #60A5FA;">
+            <i class="ti ti-layout-kanban"></i>
+          </div>
+          <h5 class="landing-feature-title">Kanban Boards</h5>
+          <p class="landing-feature-text">
+            Drag-and-drop boards synced with ticket statuses.
+            WIP limits keep your team focused.
+          </p>
+        </div>
+        <div class="landing-feature-card">
+          <div class="landing-feature-icon" style="--fi-color: #FB923C;">
+            <i class="ti ti-message-dots"></i>
+          </div>
+          <h5 class="landing-feature-title">Team Messaging</h5>
+          <p class="landing-feature-text">
+            Built-in real-time messaging with WebSocket.
+            Direct and group conversations.
+          </p>
+        </div>
+        <div class="landing-feature-card">
+          <div class="landing-feature-icon" style="--fi-color: #F472B6;">
+            <i class="ti ti-shield-lock"></i>
+          </div>
+          <h5 class="landing-feature-title">Multi-Tenant Security</h5>
+          <p class="landing-feature-text">
+            Row-level data isolation, role-based access control,
+            SSO integration, and full audit logging.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Showcase -->
+  <section class="landing-showcase">
+    <div class="container">
+      <!-- Showcase 1: Real-time -->
+      <div class="landing-showcase-row">
+        <div class="landing-showcase-content">
+          <span class="landing-section-tag">Real-Time</span>
+          <h3 class="landing-showcase-title">Collaboration that keeps up with your team</h3>
+          <p class="landing-showcase-text">WebSocket-powered messaging and live notifications. Your team stays in sync without ever hitting refresh.</p>
+          <ul class="landing-showcase-list">
+            <li><i class="ti ti-check"></i> Instant ticket assignments</li>
+            <li><i class="ti ti-check"></i> Live typing indicators</li>
+            <li><i class="ti ti-check"></i> Push notifications</li>
+          </ul>
+        </div>
+        <div class="landing-showcase-visual">
+          <div class="showcase-chat">
+            <div class="showcase-chat-msg showcase-chat-incoming">
+              <div class="showcase-chat-avatar" style="background:#818CF8;">SJ</div>
+              <div class="showcase-chat-bubble">Ticket #142 assigned to you</div>
+            </div>
+            <div class="showcase-chat-msg showcase-chat-outgoing">
+              <div class="showcase-chat-bubble">On it! Checking the logs now.</div>
+            </div>
+            <div class="showcase-chat-msg showcase-chat-incoming">
+              <div class="showcase-chat-avatar" style="background:#34D399;">MK</div>
+              <div class="showcase-chat-bubble">Customer confirmed the fix works</div>
+            </div>
+            <div class="showcase-chat-typing">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Showcase 2: SLA + Kanban -->
+      <div class="landing-showcase-row landing-showcase-row-reverse">
+        <div class="landing-showcase-content">
+          <span class="landing-section-tag">Workflow</span>
+          <h3 class="landing-showcase-title">Visual boards. Automatic SLA tracking.</h3>
+          <p class="landing-showcase-text">Drag-and-drop kanban boards synced with ticket statuses. SLA timers run automatically per priority level so you never miss a deadline.</p>
+          <ul class="landing-showcase-list">
+            <li><i class="ti ti-check"></i> Customizable columns per board</li>
+            <li><i class="ti ti-check"></i> WIP limits to prevent overload</li>
+            <li><i class="ti ti-check"></i> Auto SLA escalation rules</li>
+          </ul>
+        </div>
+        <div class="landing-showcase-visual">
+          <div class="showcase-kanban">
+            <div class="showcase-kanban-col">
+              <div class="showcase-kanban-header">To Do <span class="showcase-kanban-count">3</span></div>
+              <div class="showcase-kanban-card">
+                <span class="showcase-kanban-tag showcase-tag-high">High</span>
+                Fix login timeout
+              </div>
+              <div class="showcase-kanban-card">
+                <span class="showcase-kanban-tag showcase-tag-med">Medium</span>
+                Update API docs
+              </div>
+            </div>
+            <div class="showcase-kanban-col">
+              <div class="showcase-kanban-header">In Progress <span class="showcase-kanban-count">2</span></div>
+              <div class="showcase-kanban-card showcase-kanban-card-active">
+                <span class="showcase-kanban-tag showcase-tag-urgent">Urgent</span>
+                Server 500 on checkout
+                <div class="showcase-sla-timer"><i class="ti ti-clock"></i> 1h 23m left</div>
+              </div>
+            </div>
+            <div class="showcase-kanban-col">
+              <div class="showcase-kanban-header">Done <span class="showcase-kanban-count">8</span></div>
+              <div class="showcase-kanban-card showcase-kanban-card-done">
+                <span class="showcase-kanban-tag showcase-tag-low">Low</span>
+                Update branding
+              </div>
+              <div class="showcase-kanban-card showcase-kanban-card-done">
+                <span class="showcase-kanban-tag showcase-tag-med">Medium</span>
+                Email templates
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="landing-steps" id="how-it-works">
+    <div class="container">
+      <div class="text-center mb-5">
+        <span class="landing-section-tag">How It Works</span>
+        <h2 class="landing-section-heading">Up and running in minutes</h2>
+        <p class="landing-section-desc">Three simple steps to transform your support workflow.</p>
+      </div>
+      <div class="landing-steps-track">
+        <div class="landing-steps-line"></div>
+        <div class="landing-step">
+          <div class="landing-step-number">1</div>
+          <h5 class="landing-step-title">Create your workspace</h5>
+          <p class="landing-step-text">Sign up, name your organization, and invite your team. Takes less than 60 seconds.</p>
+        </div>
+        <div class="landing-step">
+          <div class="landing-step-number">2</div>
+          <h5 class="landing-step-title">Configure your workflow</h5>
+          <p class="landing-step-text">Set up queues, SLA policies, and custom statuses to match how your team works.</p>
+        </div>
+        <div class="landing-step">
+          <div class="landing-step-number">3</div>
+          <h5 class="landing-step-title">Start resolving</h5>
+          <p class="landing-step-text">Your team is ready. Track, resolve, and delight customers with powerful tools.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section class="landing-pricing" id="pricing">
+    <div class="container">
+      <div class="text-center mb-5">
+        <span class="landing-section-tag">Pricing</span>
+        <h2 class="landing-section-heading">Simple, transparent pricing</h2>
+        <p class="landing-section-desc">Start free. Scale when you're ready.</p>
+      </div>
+      <div class="landing-pricing-grid">
+        <div class="landing-price-card">
+          <div class="landing-price-header">
+            <h6 class="landing-price-tier">Free</h6>
+            <div class="landing-price-amount">$0 <span>/month</span></div>
+            <p class="landing-price-desc">For small teams getting started.</p>
+          </div>
+          <ul class="landing-price-features">
+            <li><i class="ti ti-circle-check-filled"></i> Up to 3 agents</li>
+            <li><i class="ti ti-circle-check-filled"></i> Basic ticketing</li>
+            <li><i class="ti ti-circle-check-filled"></i> Contact management</li>
+            <li><i class="ti ti-circle-check-filled"></i> Email support</li>
+          </ul>
+          <a href="//demo.localhost:8001/register/" class="btn btn-outline-light w-100">Get Started</a>
+        </div>
+        <div class="landing-price-card landing-price-card-popular">
+          <div class="landing-price-popular-tag">Most Popular</div>
+          <div class="landing-price-header">
+            <h6 class="landing-price-tier landing-price-tier-accent">Pro</h6>
+            <div class="landing-price-amount">$29 <span>/agent/month</span></div>
+            <p class="landing-price-desc">For growing teams.</p>
+          </div>
+          <ul class="landing-price-features">
+            <li><i class="ti ti-circle-check-filled"></i> Unlimited agents</li>
+            <li><i class="ti ti-circle-check-filled"></i> SLA management</li>
+            <li><i class="ti ti-circle-check-filled"></i> Advanced analytics</li>
+            <li><i class="ti ti-circle-check-filled"></i> Workflow boards</li>
+            <li><i class="ti ti-circle-check-filled"></i> SSO integration</li>
+          </ul>
+          <a href="//demo.localhost:8001/register/" class="btn btn-primary w-100 landing-btn-glow">Start Free Trial</a>
+        </div>
+        <div class="landing-price-card">
+          <div class="landing-price-header">
+            <h6 class="landing-price-tier">Enterprise</h6>
+            <div class="landing-price-amount">Custom</div>
+            <p class="landing-price-desc">For large organizations.</p>
+          </div>
+          <ul class="landing-price-features">
+            <li><i class="ti ti-circle-check-filled"></i> Dedicated infrastructure</li>
+            <li><i class="ti ti-circle-check-filled"></i> SSO / SAML</li>
+            <li><i class="ti ti-circle-check-filled"></i> Priority support</li>
+            <li><i class="ti ti-circle-check-filled"></i> Custom integrations</li>
+            <li><i class="ti ti-circle-check-filled"></i> SLA guarantee</li>
+          </ul>
+          <a href="mailto:sales@kanzensuite.com" class="btn btn-outline-light w-100">Contact Sales</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="landing-final-cta">
+    <div class="container">
+      <div class="landing-final-cta-card">
+        <div class="landing-final-cta-glow"></div>
+        <h2 class="landing-final-cta-title">Ready to transform your support?</h2>
+        <p class="landing-final-cta-text">Join hundreds of teams already using Kanzen Suite to deliver exceptional customer service.</p>
+        <div class="landing-final-cta-actions">
+          <a href="//demo.localhost:8001/register/" class="btn btn-primary btn-lg landing-btn-glow">
+            Get Started Free <i class="ti ti-arrow-right ms-2"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="landing-footer">
+    <div class="container">
+      <div class="landing-footer-grid">
+        <div class="landing-footer-brand-col">
+          <div class="landing-footer-logo">
+            <i class="ti ti-hexagon-filled"></i>
+            <span>Kanzen Suite</span>
+          </div>
+          <p class="landing-footer-tagline">Modern CRM & ticketing for teams that care.</p>
+        </div>
+        <div class="landing-footer-col">
+          <h6 class="landing-footer-heading">Product</h6>
+          <ul class="landing-footer-links">
+            <li><a href="#features">Features</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#how-it-works">How It Works</a></li>
+          </ul>
+        </div>
+        <div class="landing-footer-col">
+          <h6 class="landing-footer-heading">Company</h6>
+          <ul class="landing-footer-links">
+            <li><a href="mailto:sales@kanzensuite.com">Contact</a></li>
+            <li><a href="#">Privacy Policy</a></li>
+            <li><a href="#">Terms of Service</a></li>
+          </ul>
+        </div>
+        <div class="landing-footer-col">
+          <h6 class="landing-footer-heading">Developers</h6>
+          <ul class="landing-footer-links">
+            <li><a href="//demo.localhost:8001/api/docs/">API Docs</a></li>
+            <li><a href="#">Changelog</a></li>
+            <li><a href="#">Status</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="landing-footer-bottom">
+        <small>&copy; {% now "Y" %} Kanzen Suite. All rights reserved.</small>
+        <div class="landing-footer-social">
+          <a href="#"><i class="ti ti-brand-github"></i></a>
+          <a href="#"><i class="ti ti-brand-x"></i></a>
+          <a href="#"><i class="ti ti-brand-linkedin"></i></a>
+        </div>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<script>
+  // Sticky nav on scroll
+  const nav = document.getElementById('landing-nav');
+  if (nav) {
+    window.addEventListener('scroll', () => {
+      nav.classList.toggle('landing-nav-scrolled', window.scrollY > 40);
+    });
+  }
+
+  // Smooth scroll for anchor links
+  document.querySelectorAll('.landing-page a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  // Intersection Observer for fade-in animations
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('lp-visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.1 });
+
+  document.querySelectorAll('.landing-feature-card, .landing-step, .landing-price-card, .landing-showcase-row, .landing-proof-item').forEach(el => {
+    el.classList.add('lp-animate');
+    observer.observe(el);
+  });
+</script>
+{% endblock %}

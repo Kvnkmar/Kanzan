@@ -1,0 +1,777 @@
+{% extends "base.html" %}
+{% block title %}Boards - Kanzen Suite{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Boards</h1>
+    <p class="page-subtitle">Drag and drop to update ticket status</p>
+  </div>
+  <div class="header-actions d-flex align-items-center gap-2">
+    <select id="boardSelector" class="form-select form-select-sm" style="width:auto;min-width:200px;">
+      <option value="">Loading boards...</option>
+    </select>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createBoardModal">
+      <i class="ti ti-plus me-1"></i>New Board
+    </button>
+    <button class="btn btn-outline-secondary btn-sm d-none" id="addColumnBtn">
+      <i class="ti ti-plus me-1"></i>Add Column
+    </button>
+  </div>
+</div>
+
+<!-- Loading State -->
+<div id="boardLoading" class="text-center py-5">
+  <div class="loading-spinner">
+    <div class="spinner-border spinner-border-sm text-primary" role="status">
+      <span class="visually-hidden">Loading...</span>
+    </div>
+    <span class="loading-text">Loading board...</span>
+  </div>
+</div>
+
+<!-- Empty State: No Boards -->
+<div id="boardEmpty" class="d-none">
+  <div class="empty-state">
+    <div class="empty-icon">
+      <i class="ti ti-layout-kanban"></i>
+    </div>
+    <h5 class="empty-title">No boards available</h5>
+    <p class="empty-text">Create a board to organize and visualize your workflow.</p>
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createBoardModal">
+      <i class="ti ti-plus me-1"></i>New Board
+    </button>
+  </div>
+</div>
+
+<!-- Empty State: No Selection -->
+<div id="boardNoSelection" class="d-none">
+  <div class="empty-state">
+    <div class="empty-icon">
+      <i class="ti ti-arrow-up-circle"></i>
+    </div>
+    <h5 class="empty-title">No board selected</h5>
+    <p class="empty-text">Select a board from the dropdown above.</p>
+  </div>
+</div>
+
+<!-- Kanban Board -->
+<div id="kanbanBoard" class="d-none">
+  <div id="columnsContainer" class="kanban-board"></div>
+</div>
+
+<!-- Card Detail Modal -->
+<div class="modal fade" id="cardDetailModal" tabindex="-1" aria-labelledby="cardDetailModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-semibold" id="cardDetailModalLabel">Ticket Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <h6 id="cardDetailSubject" class="mb-3 fw-semibold"></h6>
+        <div class="property-list">
+          <div class="property-item">
+            <label class="property-label">Status</label>
+            <span id="cardDetailStatus"></span>
+          </div>
+          <div class="property-item">
+            <label class="property-label">Priority</label>
+            <span id="cardDetailPriority"></span>
+          </div>
+          <div class="property-item">
+            <label class="property-label">Assignee</label>
+            <span id="cardDetailAssignee" class="property-value"></span>
+          </div>
+          <div class="property-item">
+            <label class="property-label">Number</label>
+            <span id="cardDetailNumber" class="property-value"></span>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        <a id="cardDetailLink" href="#" class="btn btn-primary btn-sm">
+          <i class="ti ti-external-link me-1"></i>View Ticket
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create Board Modal -->
+<div class="modal fade" id="createBoardModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-semibold">Create Board</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="createBoardAlert"></div>
+        <div class="mb-3">
+          <label for="boardName" class="form-label">Board Name</label>
+          <input type="text" class="form-control" id="boardName" placeholder="e.g. Support Pipeline" required>
+        </div>
+        <div class="mb-3">
+          <label for="boardResourceType" class="form-label">Resource Type</label>
+          <select class="form-select" id="boardResourceType">
+            <option value="ticket">Ticket</option>
+            <option value="deal">Deal</option>
+          </select>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="boardIsDefault">
+          <label class="form-check-label small" for="boardIsDefault">Set as default board for this resource type</label>
+        </div>
+        <div class="form-check mb-3" id="autoColumnsGroup">
+          <input class="form-check-input" type="checkbox" id="boardAutoColumns" checked>
+          <label class="form-check-label small" for="boardAutoColumns">Auto-create columns from ticket statuses</label>
+        </div>
+        <hr>
+        <div id="manualColumnsSection">
+          <label class="form-label">
+            Initial Columns <span class="text-muted">(optional)</span>
+          </label>
+          <div id="initialColumns">
+            <div class="input-group input-group-sm mb-2 column-row">
+              <input type="text" class="form-control" placeholder="Column name (e.g. To Do)" name="col_name">
+              <button type="button" class="btn btn-outline-danger remove-col-btn"><i class="ti ti-x"></i></button>
+            </div>
+          </div>
+          <button type="button" class="btn btn-outline-secondary btn-sm" id="addInitialColBtn">
+            <i class="ti ti-plus me-1"></i>Add Column
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="createBoardSubmitBtn">
+          <span class="spinner-border spinner-border-sm d-none me-1" id="createBoardSpinner"></span>
+          Create Board
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Add Column Modal -->
+<div class="modal fade" id="addColumnModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-semibold">Add Column</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="addColumnAlert"></div>
+        <div class="mb-3">
+          <label for="columnName" class="form-label">Column Name</label>
+          <input type="text" class="form-control" id="columnName" placeholder="e.g. In Progress" required>
+        </div>
+        <div class="mb-3">
+          <label for="columnStatus" class="form-label">
+            Ticket Status <span class="text-muted">(maps column to a status)</span>
+          </label>
+          <select class="form-select" id="columnStatus">
+            <option value="">No mapping</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label for="columnWipLimit" class="form-label">
+            WIP Limit <span class="text-muted">(optional)</span>
+          </label>
+          <input type="number" class="form-control" id="columnWipLimit" min="0" placeholder="0 = no limit">
+        </div>
+        <div class="mb-3">
+          <label for="columnColor" class="form-label">
+            Color <span class="text-muted">(optional)</span>
+          </label>
+          <input type="color" class="form-control form-control-color" id="columnColor" value="#6c757d">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="addColumnSubmitBtn">
+          <i class="ti ti-plus me-1"></i>Add Column
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+(function() {
+  'use strict';
+
+  var boards = [];
+  var currentBoard = null;
+  var sortableInstances = [];
+  var ticketStatuses = [];
+
+  // Load ticket statuses for column-status mapping
+  function loadTicketStatuses() {
+    Api.get('/api/v1/tickets/statuses/').then(function(data) {
+      ticketStatuses = data.results || data || [];
+    }).catch(function() { ticketStatuses = []; });
+  }
+  loadTicketStatuses();
+
+  function populateStatusDropdown(selectEl) {
+    selectEl.innerHTML = '<option value="">No mapping</option>';
+    ticketStatuses.forEach(function(s) {
+      var opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.name;
+      selectEl.appendChild(opt);
+    });
+  }
+
+  // Toggle auto-columns vs manual columns in Create Board modal
+  var autoColumnsCheckbox = document.getElementById('boardAutoColumns');
+  var manualColumnsSection = document.getElementById('manualColumnsSection');
+  var autoColumnsGroup = document.getElementById('autoColumnsGroup');
+  var resourceTypeSelect = document.getElementById('boardResourceType');
+
+  function updateAutoColumnsVisibility() {
+    var isTicket = resourceTypeSelect.value === 'ticket';
+    autoColumnsGroup.style.display = isTicket ? '' : 'none';
+    if (!isTicket) autoColumnsCheckbox.checked = false;
+    manualColumnsSection.style.display = (isTicket && autoColumnsCheckbox.checked) ? 'none' : '';
+  }
+  autoColumnsCheckbox.addEventListener('change', updateAutoColumnsVisibility);
+  resourceTypeSelect.addEventListener('change', updateAutoColumnsVisibility);
+  updateAutoColumnsVisibility();
+
+  var PRIORITY_COLORS = {urgent:'#EF4444',high:'#F59E0B',medium:'#3B82F6',low:'#6B7280'};
+  var AVATAR_COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  function avatarColor(name) { if (!name) return AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function formatRelativeTime(dateStr) {
+    if (!dateStr) return '';
+    var now = new Date(), d = new Date(dateStr), ms = now - d;
+    var mins = Math.floor(ms / 60000), hrs = Math.floor(ms / 3600000), days = Math.floor(ms / 86400000);
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    if (hrs < 24) return hrs + 'h ago';
+    if (days < 30) return days + 'd ago';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function showLoading() {
+    document.getElementById('boardLoading').classList.remove('d-none');
+    document.getElementById('kanbanBoard').classList.add('d-none');
+    document.getElementById('boardEmpty').classList.add('d-none');
+    document.getElementById('boardNoSelection').classList.add('d-none');
+  }
+
+  function showBoard() {
+    document.getElementById('boardLoading').classList.add('d-none');
+    document.getElementById('kanbanBoard').classList.remove('d-none');
+    document.getElementById('boardEmpty').classList.add('d-none');
+    document.getElementById('boardNoSelection').classList.add('d-none');
+  }
+
+  function showEmpty() {
+    document.getElementById('boardLoading').classList.add('d-none');
+    document.getElementById('kanbanBoard').classList.add('d-none');
+    document.getElementById('boardEmpty').classList.remove('d-none');
+    document.getElementById('boardNoSelection').classList.add('d-none');
+  }
+
+  function showNoSelection() {
+    document.getElementById('boardLoading').classList.add('d-none');
+    document.getElementById('kanbanBoard').classList.add('d-none');
+    document.getElementById('boardEmpty').classList.add('d-none');
+    document.getElementById('boardNoSelection').classList.remove('d-none');
+  }
+
+  function getAssigneeName(ticket) {
+    // API returns assignee data under "assigned_to" key
+    var assignee = ticket.assigned_to || ticket.assignee;
+    if (!assignee) return null;
+    if (typeof assignee === 'object') {
+      return assignee.name
+        || ((assignee.first_name || '') + ' ' + (assignee.last_name || '')).trim()
+        || assignee.email || null;
+    }
+    if (typeof assignee === 'string') return assignee;
+    return null;
+  }
+
+  function getInitials(name) {
+    if (!name) return '?';
+    return name.split(' ').map(function(n) { return n.charAt(0); }).join('').substring(0, 2).toUpperCase();
+  }
+
+  function createCard(ticket) {
+    var card = document.createElement('div');
+    card.className = 'kanban-card';
+    card.dataset.ticketId = ticket.id;
+    card.dataset.ticketNumber = ticket.number || '';
+    card.dataset.cardId = ticket._cardId || '';
+
+    var prColor = PRIORITY_COLORS[ticket.priority] || '#E5E7EB';
+    card.style.setProperty('--card-priority-color', prColor);
+
+    var assigneeName = getAssigneeName(ticket);
+    var initials = getInitials(assigneeName);
+    var bgColor = avatarColor(assigneeName);
+
+    var assigneeHtml = assigneeName
+      ? '<div class="kanban-card-assignee"><div class="mini-avatar" style="background:' + bgColor + ';" title="' + escapeHtml(assigneeName) + '">' + initials + '</div><span>' + escapeHtml(assigneeName) + '</span></div>'
+      : '<div class="kanban-card-assignee"><div class="mini-avatar mini-avatar-empty" title="Unassigned">?</div><span class="text-muted">Unassigned</span></div>';
+
+    var numberHtml = ticket.number
+      ? '<span class="kanban-card-number">#' + ticket.number + '</span>'
+      : '';
+
+    var timeHtml = ticket.created_at
+      ? '<span class="kanban-card-date">' + formatRelativeTime(ticket.created_at) + '</span>'
+      : '';
+
+    card.innerHTML =
+      '<div class="kanban-card-header">' +
+        numberHtml +
+        '<span class="priority-dot" style="background:' + prColor + ';"></span>' +
+      '</div>' +
+      '<h6 class="kanban-card-title">' + escapeHtml(ticket.subject || 'Untitled') + '</h6>' +
+      '<div class="kanban-card-footer">' +
+        assigneeHtml +
+        timeHtml +
+      '</div>';
+
+    card.addEventListener('click', function(e) {
+      if (ticket.number) {
+        window.location.href = '/tickets/' + ticket.number + '/';
+      } else {
+        showCardDetail(ticket);
+      }
+    });
+
+    return card;
+  }
+
+  function showCardDetail(ticket) {
+    document.getElementById('cardDetailSubject').textContent = ticket.subject || 'Untitled';
+
+    var stLabel = ticket.status ? ticket.status.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }) : '--';
+    document.getElementById('cardDetailStatus').innerHTML = '<span class="badge bg-primary-subtle text-primary">' + stLabel + '</span>';
+
+    var prLabel = ticket.priority ? ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) : '--';
+    document.getElementById('cardDetailPriority').innerHTML = '<span class="badge badge-priority-' + (ticket.priority || 'low') + '">' + prLabel + '</span>';
+
+    var assigneeName = getAssigneeName(ticket) || 'Unassigned';
+    document.getElementById('cardDetailAssignee').textContent = assigneeName;
+
+    document.getElementById('cardDetailNumber').textContent = ticket.number ? '#' + ticket.number : '--';
+
+    var detailLink = document.getElementById('cardDetailLink');
+    if (ticket.number) {
+      detailLink.href = '/tickets/' + ticket.number + '/';
+      detailLink.classList.remove('d-none');
+    } else {
+      detailLink.classList.add('d-none');
+    }
+
+    var modal = new bootstrap.Modal(document.getElementById('cardDetailModal'));
+    modal.show();
+  }
+
+  function createColumn(column) {
+    var col = document.createElement('div');
+    col.className = 'kanban-column';
+    col.dataset.columnId = column.id;
+
+    var cards = column.cards || [];
+    var colColor = column.color || '#6c757d';
+
+    col.innerHTML =
+      '<div class="kanban-column-header">' +
+        '<div class="column-header-left">' +
+          '<span class="column-dot" style="background:' + escapeHtml(colColor) + ';"></span>' +
+          '<h6 class="column-title">' + escapeHtml(column.name || 'Untitled') + '</h6>' +
+          '<span class="column-count">' + cards.length + '</span>' +
+        '</div>' +
+      '</div>' +
+      '<div class="kanban-column-body" data-column-id="' + column.id + '"></div>';
+
+    var body = col.querySelector('.kanban-column-body');
+    if (cards.length === 0) {
+      body.innerHTML = '<div class="kanban-empty-placeholder kanban-empty-state">' +
+        '<i class="ti ti-inbox d-block mb-1" style="font-size:1.25rem;opacity:0.4;"></i>' +
+        '<span>No tickets</span><br><span class="small text-muted">Drag tickets here</span></div>';
+    } else {
+      body.innerHTML = '<div class="kanban-empty-state d-none kanban-empty-placeholder">' +
+        '<i class="ti ti-inbox d-block mb-1" style="font-size:1.25rem;opacity:0.4;"></i>' +
+        '<span>No tickets</span><br><span class="small text-muted">Drag tickets here</span></div>';
+      cards.forEach(function(card) {
+        var ticket = card.data || {};
+        ticket.id = card.object_id;
+        ticket.subject = ticket.title || ticket.subject || 'Untitled';
+        ticket._cardId = card.id;
+        body.appendChild(createCard(ticket));
+      });
+    }
+
+    return col;
+  }
+
+  function destroySortables() {
+    sortableInstances.forEach(function(instance) {
+      instance.destroy();
+    });
+    sortableInstances = [];
+  }
+
+  function initSortables() {
+    destroySortables();
+
+    var columnBodies = document.querySelectorAll('.kanban-column-body');
+    columnBodies.forEach(function(body) {
+      var sortable = new Sortable(body, {
+        group: 'kanban',
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        dragClass: 'sortable-drag',
+        handle: '.kanban-card',
+        filter: '.kanban-empty-state',
+        onEnd: function(evt) {
+          var cardId = evt.item.dataset.cardId;
+          var targetColumnId = evt.to.dataset.columnId;
+          var newIndex = evt.newIndex;
+
+          toggleColumnEmptyStates();
+          updateColumnCounts();
+
+          if (!cardId) {
+            console.error('No card ID found on dragged element');
+            loadBoard(currentBoard.id);
+            return;
+          }
+
+          Api.post('/api/v1/kanban/boards/' + currentBoard.id + '/cards/move/', {
+            card_id: cardId,
+            target_column_id: targetColumnId,
+            position: newIndex
+          }).then(function() {
+            Toast.success('Card moved');
+          }).catch(function(err) {
+            console.error('Error moving card:', err);
+            Toast.error('Failed to move card');
+            loadBoard(currentBoard.id);
+          });
+        }
+      });
+      sortableInstances.push(sortable);
+    });
+  }
+
+  function updateColumnCounts() {
+    var columns = document.querySelectorAll('.kanban-column');
+    columns.forEach(function(col) {
+      var body = col.querySelector('.kanban-column-body');
+      var count = body.querySelectorAll('.kanban-card').length;
+      var countBadge = col.querySelector('.column-count');
+      if (countBadge) countBadge.textContent = count;
+    });
+  }
+
+  function toggleColumnEmptyStates() {
+    document.querySelectorAll('.kanban-column-body').forEach(function(body) {
+      var cardCount = body.querySelectorAll('.kanban-card').length;
+      var emptyState = body.querySelector('.kanban-empty-state');
+      if (!emptyState) return;
+      if (cardCount === 0) {
+        emptyState.classList.remove('d-none');
+      } else {
+        emptyState.classList.add('d-none');
+      }
+    });
+  }
+
+  function renderBoard(board) {
+    currentBoard = board;
+    var container = document.getElementById('columnsContainer');
+    container.innerHTML = '';
+
+    var columns = board.columns || [];
+    if (columns.length === 0) {
+      container.innerHTML =
+        '<div class="text-center py-5 w-100">' +
+          '<div class="empty-state">' +
+            '<div class="empty-icon"><i class="ti ti-columns"></i></div>' +
+            '<h5 class="empty-title">No columns yet</h5>' +
+            '<p class="empty-text">Click "Add Column" to create your first column.</p>' +
+          '</div>' +
+        '</div>';
+      showBoard();
+      return;
+    }
+
+    columns.sort(function(a, b) {
+      return (a.order || 0) - (b.order || 0);
+    });
+
+    columns.forEach(function(column) {
+      container.appendChild(createColumn(column));
+    });
+
+    showBoard();
+    initSortables();
+  }
+
+  function loadBoard(boardId) {
+    showLoading();
+
+    Api.get('/api/v1/kanban/boards/' + boardId + '/detail/')
+      .then(function(board) {
+        renderBoard(board);
+      })
+      .catch(function(err) {
+        console.error('Error loading board:', err);
+        document.getElementById('boardLoading').classList.add('d-none');
+        document.getElementById('kanbanBoard').classList.remove('d-none');
+        document.getElementById('columnsContainer').innerHTML =
+          '<div class="text-center py-5 w-100">' +
+            '<div class="text-danger"><i class="ti ti-alert-triangle me-2"></i>Failed to load board.</div>' +
+          '</div>';
+      });
+  }
+
+  function loadBoards() {
+    showLoading();
+
+    Api.get('/api/v1/kanban/boards/')
+      .then(function(data) {
+        boards = data.results || data;
+
+        var selector = document.getElementById('boardSelector');
+        selector.innerHTML = '';
+
+        if (!boards || boards.length === 0) {
+          selector.innerHTML = '<option value="">No boards available</option>';
+          showEmpty();
+          return;
+        }
+
+        boards.forEach(function(board) {
+          var option = document.createElement('option');
+          option.value = board.id;
+          option.textContent = board.name || board.title || 'Board #' + board.id;
+          selector.appendChild(option);
+        });
+
+        if (boards.length > 0) {
+          selector.value = boards[0].id;
+          loadBoard(boards[0].id);
+        }
+      })
+      .catch(function(err) {
+        console.error('Error loading boards:', err);
+        var selector = document.getElementById('boardSelector');
+        selector.innerHTML = '<option value="">Failed to load boards</option>';
+        document.getElementById('boardLoading').classList.add('d-none');
+      });
+  }
+
+  document.getElementById('boardSelector').addEventListener('change', function() {
+    var boardId = this.value;
+    if (boardId) {
+      loadBoard(boardId);
+    } else {
+      showNoSelection();
+    }
+  });
+
+  function updateAddColumnBtn() {
+    var btn = document.getElementById('addColumnBtn');
+    if (currentBoard) {
+      btn.classList.remove('d-none');
+    } else {
+      btn.classList.add('d-none');
+    }
+  }
+
+  // --- Create Board ---
+  document.getElementById('addInitialColBtn').addEventListener('click', function() {
+    var container = document.getElementById('initialColumns');
+    var row = document.createElement('div');
+    row.className = 'input-group input-group-sm mb-2 column-row';
+    row.innerHTML =
+      '<input type="text" class="form-control" placeholder="Column name" name="col_name">' +
+      '<button type="button" class="btn btn-outline-danger remove-col-btn"><i class="ti ti-x"></i></button>';
+    container.appendChild(row);
+  });
+
+  document.getElementById('initialColumns').addEventListener('click', function(e) {
+    var btn = e.target.closest('.remove-col-btn');
+    if (btn) {
+      btn.closest('.column-row').remove();
+    }
+  });
+
+  document.getElementById('createBoardSubmitBtn').addEventListener('click', function() {
+    var name = document.getElementById('boardName').value.trim();
+    var resourceType = document.getElementById('boardResourceType').value;
+    var isDefault = document.getElementById('boardIsDefault').checked;
+
+    if (!name) {
+      showBoardAlert('createBoardAlert', 'Board name is required.', 'warning');
+      return;
+    }
+
+    var btn = this;
+    var spinner = document.getElementById('createBoardSpinner');
+    btn.disabled = true;
+    spinner.classList.remove('d-none');
+
+    var colInputs = document.querySelectorAll('#initialColumns input[name="col_name"]');
+    var columnNames = [];
+    colInputs.forEach(function(input) {
+      var val = input.value.trim();
+      if (val) columnNames.push(val);
+    });
+
+    var autoColumns = autoColumnsCheckbox.checked && resourceType === 'ticket';
+
+    Api.post('/api/v1/kanban/boards/', {
+      name: name,
+      resource_type: resourceType,
+      is_default: isDefault,
+      auto_columns: autoColumns
+    })
+    .then(function(board) {
+      if (!autoColumns && columnNames.length > 0) {
+        var promise = Promise.resolve();
+        columnNames.forEach(function(colName, idx) {
+          promise = promise.then(function() {
+            return Api.post('/api/v1/kanban/boards/' + board.id + '/columns/', {
+              name: colName,
+              order: idx
+            });
+          });
+        });
+        return promise.then(function() { return board; });
+      }
+      return board;
+    })
+    .then(function(board) {
+      bootstrap.Modal.getInstance(document.getElementById('createBoardModal')).hide();
+      document.getElementById('boardName').value = '';
+      document.getElementById('boardIsDefault').checked = false;
+      document.getElementById('initialColumns').innerHTML =
+        '<div class="input-group input-group-sm mb-2 column-row">' +
+          '<input type="text" class="form-control" placeholder="Column name (e.g. To Do)" name="col_name">' +
+          '<button type="button" class="btn btn-outline-danger remove-col-btn"><i class="ti ti-x"></i></button>' +
+        '</div>';
+      Toast.success('Board created');
+      loadBoards();
+    })
+    .catch(function(err) {
+      var msg = 'Failed to create board.';
+      if (err && typeof err === 'object') {
+        if (err.detail) { msg = err.detail; }
+        else {
+          var parts = [];
+          for (var key in err) {
+            if (Array.isArray(err[key])) parts.push(key + ': ' + err[key].join(', '));
+          }
+          if (parts.length) msg = parts.join('; ');
+        }
+      }
+      showBoardAlert('createBoardAlert', msg, 'danger');
+      Toast.error('Failed to create board');
+    })
+    .finally(function() {
+      btn.disabled = false;
+      spinner.classList.add('d-none');
+    });
+  });
+
+  function showBoardAlert(containerId, message, type) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    container.innerHTML =
+      '<div class="alert alert-' + (type || 'info') + ' py-2 small alert-dismissible fade show" role="alert">' +
+        escapeHtml(message) +
+        '<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button>' +
+      '</div>';
+  }
+
+  // --- Add Column to Current Board ---
+  document.getElementById('addColumnBtn').addEventListener('click', function() {
+    if (!currentBoard) return;
+    document.getElementById('columnName').value = '';
+    document.getElementById('columnWipLimit').value = '';
+    document.getElementById('columnColor').value = '#6c757d';
+    populateStatusDropdown(document.getElementById('columnStatus'));
+    var modal = new bootstrap.Modal(document.getElementById('addColumnModal'));
+    modal.show();
+  });
+
+  document.getElementById('addColumnSubmitBtn').addEventListener('click', function() {
+    if (!currentBoard) return;
+
+    var name = document.getElementById('columnName').value.trim();
+    if (!name) {
+      showBoardAlert('addColumnAlert', 'Column name is required.', 'warning');
+      return;
+    }
+
+    var wipLimit = document.getElementById('columnWipLimit').value;
+    var color = document.getElementById('columnColor').value;
+
+    var existingColumns = currentBoard.columns || [];
+    var nextOrder = existingColumns.length;
+
+    var btn = this;
+    btn.disabled = true;
+
+    var statusId = document.getElementById('columnStatus').value || null;
+
+    Api.post('/api/v1/kanban/boards/' + currentBoard.id + '/columns/', {
+      name: name,
+      order: nextOrder,
+      wip_limit: wipLimit ? parseInt(wipLimit) : null,
+      color: color,
+      status: statusId
+    })
+    .then(function() {
+      bootstrap.Modal.getInstance(document.getElementById('addColumnModal')).hide();
+      Toast.success('Column added');
+      loadBoard(currentBoard.id);
+    })
+    .catch(function(err) {
+      var msg = err.detail || err.name || 'Failed to add column.';
+      if (typeof msg === 'object') msg = JSON.stringify(msg);
+      showBoardAlert('addColumnAlert', msg, 'danger');
+      Toast.error('Failed to add column');
+    })
+    .finally(function() {
+      btn.disabled = false;
+    });
+  });
+
+  var originalRenderBoard = renderBoard;
+  renderBoard = function(board) {
+    originalRenderBoard(board);
+    updateAddColumnBtn();
+  };
+
+  loadBoards();
+})();
+</script>
+{% endblock %}

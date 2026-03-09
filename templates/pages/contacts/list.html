@@ -1,0 +1,238 @@
+{% extends "base.html" %}
+{% block title %}Contacts - Kanzen Suite{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">
+      Contacts
+      <span class="badge bg-primary-subtle text-primary ms-2" id="contactCountBadge" style="font-size:0.75rem;vertical-align:middle;"></span>
+    </h1>
+    <p class="page-subtitle">Manage your customer contacts</p>
+  </div>
+  <div class="header-actions">
+    <a href="{% url 'frontend:contact-create' %}" class="btn btn-primary">
+      <i class="ti ti-plus me-1"></i> Add Contact
+    </a>
+  </div>
+</div>
+
+<!-- Search / Filter Bar -->
+<div class="filter-bar">
+  <div class="filter-bar-inner">
+    <div class="filter-group filter-group-grow">
+      <label for="contactSearch" class="filter-label">Search</label>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text"><i class="ti ti-search"></i></span>
+        <input type="text" id="contactSearch" class="form-control" placeholder="Search contacts by name, email, or company...">
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Contacts Table -->
+<div class="card" id="contactsTableCard">
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th class="ps-3">Name</th>
+          <th>Email</th>
+          <th>Phone</th>
+          <th>Company</th>
+          <th style="width:140px;" class="pe-3">Created</th>
+        </tr>
+      </thead>
+      <tbody id="contactsTableBody">
+        <tr id="loadingRow">
+          <td colspan="5" class="text-center py-5">
+            <div class="loading-spinner">
+              <div class="spinner-border spinner-border-sm text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+              </div>
+              <span class="loading-text">Loading contacts...</span>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Empty State -->
+<div id="emptyState" class="d-none">
+  <div class="empty-state">
+    <div class="empty-icon">
+      <i class="ti ti-users"></i>
+    </div>
+    <h5 class="empty-title">No contacts found</h5>
+    <p class="empty-text">Add your first contact to get started.</p>
+    <a href="{% url 'frontend:contact-create' %}" class="btn btn-primary btn-sm">
+      <i class="ti ti-plus me-1"></i>Add Contact
+    </a>
+  </div>
+</div>
+
+<!-- Pagination -->
+<nav id="paginationNav" class="mt-3 d-none" aria-label="Contact pagination">
+  <div class="d-flex justify-content-between align-items-center">
+    <small id="paginationInfo" class="text-muted"></small>
+    <ul id="paginationControls" class="pagination pagination-sm mb-0"></ul>
+  </div>
+</nav>
+
+<!-- Add Contact Modal -->
+<div class="modal fade" id="addContactModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-semibold">Add Contact</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form id="addContactForm" novalidate>
+        <div class="modal-body">
+          <div id="modalAlert" class="alert d-none" role="alert"></div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="contactFirstName" class="form-label">
+                First Name <span class="text-danger">*</span>
+              </label>
+              <input type="text" id="contactFirstName" name="first_name" class="form-control" required maxlength="150">
+              <div class="invalid-feedback" id="first_nameError"></div>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="contactLastName" class="form-label">
+                Last Name <span class="text-danger">*</span>
+              </label>
+              <input type="text" id="contactLastName" name="last_name" class="form-control" required maxlength="150">
+              <div class="invalid-feedback" id="last_nameError"></div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="contactEmail" class="form-label">
+              Email <span class="text-danger">*</span>
+            </label>
+            <input type="email" id="contactEmail" name="email" class="form-control" required>
+            <div class="invalid-feedback" id="emailError"></div>
+          </div>
+          <div class="mb-3">
+            <label for="contactPhone" class="form-label">Phone</label>
+            <input type="tel" id="contactPhone" name="phone" class="form-control" maxlength="30">
+            <div class="invalid-feedback" id="phoneError"></div>
+          </div>
+          <div class="mb-3">
+            <label for="contactCompany" class="form-label">Company</label>
+            <select id="contactCompany" name="company" class="form-select">
+              <option value="">No company</option>
+            </select>
+            <div class="invalid-feedback" id="companyError"></div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" id="addContactSubmit" class="btn btn-primary">
+            <span id="addContactText"><i class="ti ti-check me-1"></i>Add Contact</span>
+            <span id="addContactSpinner" class="d-none">
+              <span class="spinner-border spinner-border-sm me-1" role="status"></span>Saving...
+            </span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+  var PAGE_SIZE = 25, currentPage = 1, totalCount = 0;
+  var AVATAR_COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  function avatarColor(name) { if (!name) return AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
+  function formatDate(d) { if (!d) return '--'; return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+  function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function loadContacts() {
+    var tbody = document.getElementById('contactsTableBody');
+    document.getElementById('contactsTableCard').classList.remove('d-none'); document.getElementById('emptyState').classList.add('d-none');
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5"><div class="loading-spinner"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div><span class="loading-text">Loading contacts...</span></div></td></tr>';
+    var params = new URLSearchParams(); params.set('page', currentPage); params.set('page_size', PAGE_SIZE);
+    var q = document.getElementById('contactSearch').value.trim(); if (q) params.set('search', q);
+    Api.get('/api/v1/contacts/contacts/?' + params.toString()).then(function(data) {
+      totalCount = data.count || 0; var results = data.results || data;
+      if (Array.isArray(data)) { totalCount = data.length; results = data; }
+      var badge = document.getElementById('contactCountBadge');
+      if (badge) badge.textContent = totalCount + ' total';
+      tbody.innerHTML = '';
+      if (!results || results.length === 0) { document.getElementById('contactsTableCard').classList.add('d-none'); document.getElementById('emptyState').classList.remove('d-none'); document.getElementById('paginationNav').classList.add('d-none'); return; }
+      document.getElementById('emptyState').classList.add('d-none');
+      results.forEach(function(c) {
+        var row = document.createElement('tr');
+        row.className = 'table-row-clickable';
+        row.style.cursor = 'pointer';
+        row.addEventListener('click', function(e) {
+          if (e.target.tagName === 'A') return;
+          window.location.href = '/contacts/' + c.id + '/';
+        });
+        var fn = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
+        var ini = fn ? fn.split(' ').map(function(n) { return n.charAt(0); }).join('').substring(0, 2).toUpperCase() : '?';
+        var comp = c.company ? (typeof c.company === 'object' ? (c.company.name || '') : (c.company_name || '')) : '';
+        var bgColor = avatarColor(fn);
+        row.innerHTML = '<td class="ps-3"><div class="d-flex align-items-center gap-3"><div class="avatar avatar-sm" style="background:' + bgColor + ';color:#fff;">' + ini + '</div><span class="fw-medium">' + escapeHtml(fn || 'Unnamed') + '</span></div></td>' +
+          '<td>' + (c.email ? '<a href="mailto:' + escapeHtml(c.email) + '" class="text-decoration-none text-primary">' + escapeHtml(c.email) + '</a>' : '<span class="text-muted">--</span>') + '</td>' +
+          '<td>' + (c.phone ? escapeHtml(c.phone) : '<span class="text-muted">--</span>') + '</td>' +
+          '<td>' + (comp ? escapeHtml(comp) : '<span class="text-muted">--</span>') + '</td>' +
+          '<td class="pe-3 text-muted small">' + formatDate(c.created_at) + '</td>';
+        tbody.appendChild(row);
+      });
+      var nav = document.getElementById('paginationNav'), totalPages = Math.ceil(totalCount / PAGE_SIZE);
+      if (totalPages <= 1) { nav.classList.add('d-none'); return; }
+      nav.classList.remove('d-none');
+      document.getElementById('paginationInfo').textContent = 'Showing ' + ((currentPage-1)*PAGE_SIZE+1) + ' to ' + Math.min(currentPage*PAGE_SIZE, totalCount) + ' of ' + totalCount;
+      var controls = document.getElementById('paginationControls'); controls.innerHTML = '';
+      var prev = document.createElement('li'); prev.className = 'page-item' + (currentPage <= 1 ? ' disabled' : ''); prev.innerHTML = '<a class="page-link" href="#"><i class="ti ti-chevron-left"></i></a>';
+      if (currentPage > 1) prev.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); currentPage--; loadContacts(); });
+      controls.appendChild(prev);
+      for (var i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+        var li = document.createElement('li'); li.className = 'page-item' + (i === currentPage ? ' active' : ''); li.innerHTML = '<a class="page-link" href="#">' + i + '</a>';
+        (function(p) { li.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); currentPage = p; loadContacts(); }); })(i);
+        controls.appendChild(li);
+      }
+      var next = document.createElement('li'); next.className = 'page-item' + (currentPage >= totalPages ? ' disabled' : ''); next.innerHTML = '<a class="page-link" href="#"><i class="ti ti-chevron-right"></i></a>';
+      if (currentPage < totalPages) next.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); currentPage++; loadContacts(); });
+      controls.appendChild(next);
+    }).catch(function(err) { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5"><div class="text-danger"><i class="ti ti-alert-triangle me-2"></i>Failed to load contacts.</div></td></tr>'; });
+  }
+
+  Api.get('/api/v1/contacts/companies/').then(function(data) { var s = document.getElementById('contactCompany'); (data.results || data).forEach(function(c) { var o = document.createElement('option'); o.value = c.id; o.textContent = c.name; s.appendChild(o); }); }).catch(function() {});
+
+  var searchTimeout;
+  document.getElementById('contactSearch').addEventListener('input', function() { clearTimeout(searchTimeout); searchTimeout = setTimeout(function() { currentPage = 1; loadContacts(); }, 400); });
+
+  document.getElementById('addContactModal').addEventListener('hidden.bs.modal', function() { document.getElementById('addContactForm').reset(); document.querySelectorAll('#addContactForm .is-invalid').forEach(function(f) { f.classList.remove('is-invalid'); }); document.getElementById('modalAlert').classList.add('d-none'); });
+
+  document.getElementById('addContactForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    document.querySelectorAll('#addContactForm .is-invalid').forEach(function(f) { f.classList.remove('is-invalid'); });
+    document.getElementById('modalAlert').classList.add('d-none');
+    var fn = document.getElementById('contactFirstName').value.trim(), ln = document.getElementById('contactLastName').value.trim(), em = document.getElementById('contactEmail').value.trim(), ph = document.getElementById('contactPhone').value.trim(), co = document.getElementById('contactCompany').value;
+    var valid = true;
+    if (!fn) { document.getElementById('contactFirstName').classList.add('is-invalid'); document.getElementById('first_nameError').textContent = 'Required.'; valid = false; }
+    if (!ln) { document.getElementById('contactLastName').classList.add('is-invalid'); document.getElementById('last_nameError').textContent = 'Required.'; valid = false; }
+    if (!em) { document.getElementById('contactEmail').classList.add('is-invalid'); document.getElementById('emailError').textContent = 'Required.'; valid = false; }
+    if (!valid) return;
+    var payload = { first_name: fn, last_name: ln, email: em }; if (ph) payload.phone = ph; if (co) payload.company = parseInt(co, 10);
+    var btn = document.getElementById('addContactSubmit'); btn.disabled = true; document.getElementById('addContactText').classList.add('d-none'); document.getElementById('addContactSpinner').classList.remove('d-none');
+    Api.post('/api/v1/contacts/contacts/', payload).then(function() { btn.disabled = false; document.getElementById('addContactText').classList.remove('d-none'); document.getElementById('addContactSpinner').classList.add('d-none'); bootstrap.Modal.getInstance(document.getElementById('addContactModal')).hide(); currentPage = 1; loadContacts(); Toast.success('Contact created'); }).catch(function(err) {
+      btn.disabled = false; document.getElementById('addContactText').classList.remove('d-none'); document.getElementById('addContactSpinner').classList.add('d-none');
+      var a = document.getElementById('modalAlert'); a.textContent = (err && err.detail) || 'Failed to add contact.'; a.classList.remove('d-none'); a.classList.add('alert-danger');
+      Toast.error((err && err.detail) ? err.detail : 'Failed to create contact');
+    });
+  });
+
+  loadContacts();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Sign In - Kanzen Suite{% endblock %}
+
+{% block fullpage %}
+<div class="auth-wrapper">
+  <!-- Left Panel: Login Form -->
+  <div class="auth-form-panel">
+    <div class="auth-form-container">
+      <!-- Brand -->
+      <a href="{% url 'frontend:landing' %}" class="auth-logo">
+        <div class="auth-logo-icon">
+          <i class="ti ti-hexagon-filled"></i>
+        </div>
+        <span>Kanzen Suite</span>
+      </a>
+
+      <h1 class="auth-title">Sign in</h1>
+
+      {% if error %}
+      <div class="alert alert-danger alert-sm d-flex align-items-center mt-3" role="alert">
+        <i class="ti ti-alert-circle me-2"></i>
+        {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="post" autocomplete="on" class="mt-4">
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label for="email" class="form-label fw-medium">Email Address</label>
+          <div class="auth-input-wrapper">
+            <i class="ti ti-mail auth-input-icon"></i>
+            <input type="email" name="email" class="form-control auth-input" id="email" placeholder="Johndoe@gmail.com" required autofocus>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label for="password" class="form-label fw-medium">Password</label>
+          <div class="auth-input-wrapper">
+            <i class="ti ti-shield-lock auth-input-icon"></i>
+            <input type="password" name="password" class="form-control auth-input" id="password" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" required>
+          </div>
+        </div>
+
+        <div class="d-flex align-items-center justify-content-between mb-4">
+          <div class="form-check mb-0">
+            <input type="checkbox" class="form-check-input" name="remember" id="remember">
+            <label class="form-check-label" for="remember">Remember me</label>
+          </div>
+        </div>
+
+        <button type="submit" class="btn auth-btn-signin w-100">
+          Sign in
+        </button>
+      </form>
+
+      <div class="auth-footer-links">
+        <p>Don't have an account? <a href="{% url 'frontend:register' %}">Sign up</a></p>
+        <a href="#" class="form-link">Forgot Password</a>
+      </div>
+
+      <!-- Divider -->
+      <div class="auth-divider">
+        <span>or continue with</span>
+      </div>
+
+      <!-- Social Login -->
+      <div class="auth-social">
+        <a href="#" class="auth-social-btn" title="Sign in with Google">
+          <svg viewBox="0 0 24 24" width="22" height="22">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+          </svg>
+        </a>
+        <a href="#" class="auth-social-btn" title="Sign in with Microsoft">
+          <svg viewBox="0 0 24 24" width="20" height="20">
+            <path fill="#F25022" d="M1 1h10v10H1z"/>
+            <path fill="#7FBA00" d="M13 1h10v10H13z"/>
+            <path fill="#00A4EF" d="M1 13h10v10H1z"/>
+            <path fill="#FFB900" d="M13 13h10v10H13z"/>
+          </svg>
+        </a>
+        <a href="#" class="auth-social-btn" title="Sign in with SSO">
+          <i class="ti ti-key" style="font-size: 1.15rem; color: var(--crm-text-secondary);"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel: Dark Hero -->
+  <div class="auth-hero">
+    <!-- Decorative Background -->
+    <div class="auth-hero-decoration">
+      <div class="auth-geo-hexagon"></div>
+      <div class="auth-geo-line auth-geo-line-1"></div>
+      <div class="auth-geo-line auth-geo-line-2"></div>
+      <div class="auth-geo-dots"></div>
+      <div class="auth-geo-glow"></div>
+    </div>
+
+    <div class="auth-hero-content">
+      <div class="auth-brand-large">
+        <i class="ti ti-hexagon-filled"></i>
+        <span>Kanzen Suite</span>
+      </div>
+
+      <h2>Welcome to<br>Kanzen Suite</h2>
+
+      <p class="auth-hero-desc">Kanzen Suite helps teams build organized and efficient customer support workflows with powerful ticketing, analytics, and real-time collaboration tools.</p>
+
+      <p class="auth-hero-stat">Join us and start building your workspace today.</p>
+
+      <!-- Promo Card -->
+      <div class="auth-promo-card">
+        <h3>Get your team organized and deliver exceptional service</h3>
+        <p>Be among the first to experience the easiest way to manage multi-tenant customer support at scale.</p>
+        <div class="auth-promo-footer">
+          <div class="auth-promo-avatars">
+            <span class="auth-promo-avatar" style="background: linear-gradient(135deg, #6366F1, #818CF8);">EP</span>
+            <span class="auth-promo-avatar" style="background: linear-gradient(135deg, #8B5CF6, #A78BFA);">CX</span>
+            <span class="auth-promo-avatar" style="background: linear-gradient(135deg, #4F46E5, #6366F1);">TK</span>
+            <span class="auth-promo-more">+2</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// Fix browser autofill background color
+function fixAutofill() {
+  document.querySelectorAll('.auth-input').forEach(function(input) {
+    try {
+      if (input.matches(':-webkit-autofill')) {
+        input.style.setProperty('background-color', '#FFFFFF', 'important');
+      }
+    } catch(e) {}
+  });
+}
+setTimeout(fixAutofill, 100);
+setTimeout(fixAutofill, 500);
+setTimeout(fixAutofill, 1500);
+</script>
+{% endblock %}

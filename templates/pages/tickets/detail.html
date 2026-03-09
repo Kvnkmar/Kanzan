@@ -1,0 +1,1392 @@
+{% extends "base.html" %}
+{% block title %}Ticket #{{ ticket_number }} - Kanzen Suite{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" rel="stylesheet">
+<style>
+/* Flatpickr — clean minimal theme */
+.flatpickr-calendar {
+  font-family: 'Inter', sans-serif;
+  border: 1px solid #E5E7EB;
+  border-radius: 14px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  width: 296px;
+  padding: 0;
+  background: #fff;
+}
+.flatpickr-calendar.arrowTop::before,
+.flatpickr-calendar.arrowTop::after,
+.flatpickr-calendar.arrowBottom::before,
+.flatpickr-calendar.arrowBottom::after {
+  display: none;
+}
+
+/* Month header — clean white */
+.flatpickr-months {
+  background: #fff;
+  padding: 14px 8px 8px;
+  border-bottom: none;
+  align-items: center;
+}
+.flatpickr-months .flatpickr-month {
+  height: 30px;
+}
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month {
+  fill: #6B7280;
+  color: #6B7280;
+  padding: 4px 8px;
+  top: 10px;
+  border-radius: 8px;
+  transition: all 0.15s ease;
+}
+.flatpickr-months .flatpickr-prev-month:hover,
+.flatpickr-months .flatpickr-next-month:hover {
+  background: #F3F4F6;
+}
+.flatpickr-months .flatpickr-prev-month:hover svg,
+.flatpickr-months .flatpickr-next-month:hover svg {
+  fill: #111827;
+}
+.flatpickr-current-month {
+  color: #111827;
+  font-weight: 700;
+  font-size: 0.875rem;
+  padding-top: 4px;
+}
+.flatpickr-current-month .flatpickr-monthDropdown-months {
+  background: transparent;
+  color: #111827;
+  font-weight: 700;
+  font-size: 0.875rem;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.flatpickr-current-month .flatpickr-monthDropdown-months option {
+  background: #fff;
+  color: #1E293B;
+}
+.flatpickr-current-month input.cur-year {
+  color: #111827;
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+/* Weekday labels */
+span.flatpickr-weekday {
+  color: #9CA3AF;
+  font-weight: 500;
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.flatpickr-weekdays {
+  background: transparent;
+  border-bottom: none;
+  padding: 0 0 4px;
+}
+
+/* Day cells */
+.flatpickr-day {
+  color: #374151;
+  font-weight: 500;
+  font-size: 0.8125rem;
+  border-radius: 10px;
+  max-width: 36px;
+  height: 36px;
+  line-height: 36px;
+  margin: 1px;
+  border: 2px solid transparent;
+  transition: all 0.12s ease;
+}
+.flatpickr-day:hover {
+  background: #F3F4F6;
+  border-color: #F3F4F6;
+  color: #111827;
+}
+.flatpickr-day.today {
+  border-color: #4F46E5;
+  background: transparent;
+  color: #4F46E5;
+  font-weight: 700;
+}
+.flatpickr-day.today:hover {
+  background: #EEF2FF;
+  border-color: #4F46E5;
+  color: #4338CA;
+}
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover,
+.flatpickr-day.selected:focus {
+  background: #4F46E5;
+  border-color: #4F46E5;
+  color: #fff;
+  font-weight: 600;
+}
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay {
+  color: #D1D5DB;
+}
+.flatpickr-day.prevMonthDay:hover,
+.flatpickr-day.nextMonthDay:hover {
+  background: #F9FAFB;
+  border-color: #F9FAFB;
+  color: #9CA3AF;
+}
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.flatpickr-disabled:hover {
+  color: #E5E7EB;
+}
+
+/* Inner layout */
+.flatpickr-innerContainer {
+  padding: 4px 10px 6px;
+}
+.flatpickr-rContainer {
+  width: 100%;
+}
+.flatpickr-days {
+  width: 100% !important;
+}
+.dayContainer {
+  width: 100% !important;
+  min-width: 100% !important;
+  max-width: 100% !important;
+  justify-content: center;
+}
+
+/* Time picker */
+.flatpickr-time {
+  border-top: 1px solid #F3F4F6;
+  background: #F9FAFB;
+  max-height: 46px;
+  padding: 4px 0;
+}
+.flatpickr-time input {
+  color: #374151;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  font-family: 'Inter', sans-serif;
+}
+.flatpickr-time input:hover,
+.flatpickr-time input:focus {
+  background: #EEF2FF;
+}
+.flatpickr-time .numInputWrapper {
+  border-radius: 8px;
+}
+.flatpickr-time .numInputWrapper:hover {
+  background: #EEF2FF;
+}
+.flatpickr-time .flatpickr-time-separator {
+  color: #D1D5DB;
+  font-weight: 500;
+}
+.flatpickr-time .flatpickr-am-pm {
+  color: #4F46E5;
+  font-weight: 700;
+  font-size: 0.75rem;
+  border-radius: 8px;
+}
+.flatpickr-time .flatpickr-am-pm:hover {
+  background: #EEF2FF;
+  color: #4338CA;
+}
+.numInputWrapper span.arrowUp::after {
+  border-bottom-color: #6B7280;
+}
+.numInputWrapper span.arrowDown::after {
+  border-top-color: #6B7280;
+}
+
+/* Confirm button footer */
+.flatpickr-confirm {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px 10px;
+  background: #F9FAFB;
+  border-top: 1px solid #F3F4F6;
+}
+.flatpickr-confirm-btn {
+  padding: 6px 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  color: #fff;
+  background: #4F46E5;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.flatpickr-confirm-btn:hover {
+  background: #4338CA;
+}
+
+/* Dark mode overrides for flatpickr on ticket detail */
+[data-bs-theme="dark"] .flatpickr-calendar { background: #1F2937; border-color: rgba(255,255,255,0.1); }
+[data-bs-theme="dark"] .flatpickr-months { background: #1F2937; }
+[data-bs-theme="dark"] .flatpickr-current-month { color: #F9FAFB; }
+[data-bs-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months { color: #F9FAFB; }
+[data-bs-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months option { background: #1F2937; color: #F9FAFB; }
+[data-bs-theme="dark"] .flatpickr-current-month input.cur-year { color: #F9FAFB; }
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-prev-month,
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month { fill: #D1D5DB; color: #D1D5DB; }
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-prev-month:hover,
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month:hover { background: rgba(255,255,255,0.08); }
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-prev-month:hover svg,
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month:hover svg { fill: #F9FAFB; }
+[data-bs-theme="dark"] span.flatpickr-weekday { color: #6B7280; }
+[data-bs-theme="dark"] .flatpickr-day { color: #D1D5DB; }
+[data-bs-theme="dark"] .flatpickr-day:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.08); color: #F9FAFB; }
+[data-bs-theme="dark"] .flatpickr-day.today { border-color: var(--crm-primary, #6366F1); color: var(--crm-primary, #6366F1); }
+[data-bs-theme="dark"] .flatpickr-day.today:hover { background: rgba(99,102,241,0.12); }
+[data-bs-theme="dark"] .flatpickr-day.selected,
+[data-bs-theme="dark"] .flatpickr-day.selected:hover { background: var(--crm-primary, #6366F1); border-color: var(--crm-primary, #6366F1); color: #fff; }
+[data-bs-theme="dark"] .flatpickr-day.prevMonthDay,
+[data-bs-theme="dark"] .flatpickr-day.nextMonthDay { color: #4B5563; }
+[data-bs-theme="dark"] .flatpickr-time { background: #111827; border-top-color: rgba(255,255,255,0.08); }
+[data-bs-theme="dark"] .flatpickr-time input { color: #F9FAFB; }
+[data-bs-theme="dark"] .flatpickr-time input:hover,
+[data-bs-theme="dark"] .flatpickr-time input:focus { background: rgba(255,255,255,0.06); }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-time-separator { color: #6B7280; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm { color: #D1D5DB; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm:hover { background: rgba(255,255,255,0.06); color: #F9FAFB; }
+[data-bs-theme="dark"] .flatpickr-confirm { background: #111827; border-top-color: rgba(255,255,255,0.08); }
+[data-bs-theme="dark"] .flatpickr-confirm-btn { background: var(--crm-primary, #6366F1); color: #fff; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Skeleton Loading State -->
+<div id="ticketLoading" class="td-page">
+  <div class="td-skeleton-bc td-skeleton-line"></div>
+  <div class="td-skeleton-subject td-skeleton-line"></div>
+  <div class="td-skeleton-meta td-skeleton-line"></div>
+  <div class="td-layout">
+    <div class="td-main">
+      <div class="td-skeleton-block td-skeleton-line"></div>
+      <div class="td-skeleton-block-sm td-skeleton-line"></div>
+      <div class="td-skeleton-block-lg td-skeleton-line"></div>
+    </div>
+    <div class="td-skeleton-sidebar td-skeleton-line"></div>
+  </div>
+</div>
+
+<!-- Error State -->
+<div id="ticketError" class="d-none">
+  <div class="empty-state">
+    <div class="empty-icon text-danger"><i class="ti ti-alert-triangle"></i></div>
+    <h5 class="empty-title" id="ticketErrorMessage">Failed to load ticket.</h5>
+    <a href="{% url 'frontend:ticket-list' %}" class="btn btn-outline-secondary btn-sm mt-2">
+      <i class="ti ti-arrow-left me-1"></i>Back to Tickets
+    </a>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div id="ticketContent" class="d-none td-page">
+
+  <!-- Hero Banner -->
+  <div class="td-hero">
+    <div class="td-breadcrumb">
+      <a href="{% url 'frontend:ticket-list' %}"><i class="ti ti-arrow-left me-1"></i>Tickets</a>
+      <span class="td-bc-sep"><i class="ti ti-chevron-right"></i></span>
+      <span class="td-bc-current">#{{ ticket_number }}</span>
+    </div>
+
+    <div class="td-header">
+      <div class="td-header-row">
+        <h1 class="td-subject" id="ticketSubject" contenteditable="true" spellcheck="false"></h1>
+        <div class="td-header-actions">
+          <button id="deleteTicketBtn" class="td-btn-icon td-btn-danger" title="Delete ticket">
+            <i class="ti ti-trash"></i>
+          </button>
+        </div>
+      </div>
+      <div class="td-meta">
+        <span class="td-number-pill">#{{ ticket_number }}</span>
+        <span id="ticketPriorityBadge"></span>
+        <span id="ticketStatusBadge" class="td-status-pill">
+          <span class="td-dot" id="statusDot"></span>
+          <span id="ticketStatusText">--</span>
+        </span>
+        <span class="td-meta-divider"></span>
+        <span class="td-meta-item"><i class="ti ti-clock"></i> <span id="ticketCreated">--</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Two-Panel Layout -->
+  <div class="td-layout">
+
+    <!-- Main Content Area -->
+    <div class="td-main">
+
+      <!-- Description -->
+      <div class="td-card">
+        <div class="td-card-header">
+          <div class="td-card-icon td-card-icon--blue"><i class="ti ti-align-left"></i></div>
+          <span class="td-card-title">Description</span>
+          <button id="editTicketBtn" class="td-block-action" title="Edit description"><i class="ti ti-pencil"></i></button>
+        </div>
+        <div id="ticketDescriptionView" class="td-description text-muted">No description provided.</div>
+        <div id="ticketDescriptionEdit" class="d-none">
+          <div id="ticketDescriptionInputEditor"></div>
+          <div class="d-flex gap-2 mt-2">
+            <button type="button" id="saveDescriptionBtn" class="td-post-btn" style="font-size:0.75rem;padding:0.3rem 0.75rem;">Save</button>
+            <button type="button" id="cancelDescriptionBtn" class="btn btn-sm btn-outline-secondary" style="font-size:0.75rem;">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Attachments -->
+      <div class="td-card">
+        <div class="td-card-header">
+          <div class="td-card-icon td-card-icon--amber"><i class="ti ti-paperclip"></i></div>
+          <span class="td-card-title">Attachments</span>
+          <span id="attachmentCount" class="td-count">0</span>
+          <button type="button" id="addAttachmentBtn" class="td-block-action" title="Add attachment"><i class="ti ti-plus"></i></button>
+          <input type="file" id="ticketAttachmentInput" multiple class="d-none" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp">
+        </div>
+        <div id="ticketAttachmentsEmpty" class="td-attachment-empty">
+          <div class="td-attachment-dropzone">
+            <i class="ti ti-cloud-upload"></i>
+            <span>No attachments yet</span>
+            <small>Drag files here or click + to upload</small>
+          </div>
+        </div>
+        <div id="ticketAttachmentImages" class="td-attachment-grid"></div>
+        <div id="ticketAttachmentsList"></div>
+      </div>
+
+      <!-- Conversation Area -->
+      <div class="td-card td-card--conversation">
+        <div class="td-tabs">
+          <button class="td-tab active" data-td-tab="comments">
+            <i class="ti ti-message"></i>
+            Comments <span id="commentCount" class="td-count">0</span>
+          </button>
+          <button class="td-tab" data-td-tab="activity">
+            <i class="ti ti-history"></i>
+            Activity
+          </button>
+        </div>
+
+        <!-- Comments Panel -->
+        <div class="td-tab-panel active" id="tabComments">
+          <div id="commentsContainer">
+            <div id="commentsEmpty" class="td-comment-empty">
+              <div class="td-empty-illustration">
+                <i class="ti ti-message"></i>
+              </div>
+              <span>No comments yet</span>
+              <small>Start the conversation below</small>
+            </div>
+            <div id="commentsList"></div>
+          </div>
+
+          <!-- Composer -->
+          <div class="td-composer">
+            <form id="addCommentForm">
+              <div id="commentBodyEditor"></div>
+              <div id="commentFileList" class="mb-2"></div>
+              <input type="file" id="commentFiles" multiple class="d-none" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp">
+              <div class="td-composer-actions">
+                <div class="d-flex align-items-center gap-2">
+                  <label class="td-composer-toggle">
+                    <input type="checkbox" id="commentInternal">
+                    <i class="ti ti-lock"></i> Internal
+                  </label>
+                  <button type="button" id="commentAttachBtn" class="td-composer-icon-btn" title="Attach files">
+                    <i class="ti ti-paperclip"></i>
+                  </button>
+                </div>
+                <button type="submit" class="td-post-btn">
+                  <i class="ti ti-send me-1"></i>Post
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Activity Panel -->
+        <div class="td-tab-panel" id="tabActivity">
+          <div id="activityEmpty" class="td-comment-empty">
+            <div class="td-empty-illustration">
+              <i class="ti ti-history"></i>
+            </div>
+            <span>No activity recorded yet</span>
+          </div>
+          <div id="activityList"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="td-sidebar">
+
+      <!-- Properties -->
+      <div class="td-sb-section">
+        <div class="td-sb-label">
+          <div class="td-sb-icon td-sb-icon--crimson"><i class="ti ti-adjustments-horizontal"></i></div>
+          Properties
+        </div>
+        <div class="td-prop-row">
+          <span class="td-prop-row-label"><i class="ti ti-circle-filled td-prop-icon"></i> Status</span>
+          <select id="ticketStatus" class="td-prop-select"></select>
+        </div>
+        <div class="td-prop-row">
+          <span class="td-prop-row-label"><i class="ti ti-flag-filled td-prop-icon"></i> Priority</span>
+          <select id="ticketPrioritySelect" class="td-prop-select">
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div class="td-prop-row">
+          <span class="td-prop-row-label"><i class="ti ti-user-filled td-prop-icon"></i> Assignee</span>
+          <select id="ticketAssignee" class="td-prop-select">
+            <option value="">Unassigned</option>
+          </select>
+        </div>
+        <div class="td-prop-row">
+          <span class="td-prop-row-label"><i class="ti ti-inbox td-prop-icon"></i> Queue</span>
+          <select id="ticketQueueSelect" class="td-prop-select">
+            <option value="">None</option>
+          </select>
+        </div>
+        <div class="td-prop-row">
+          <span class="td-prop-row-label"><i class="ti ti-calendar-event td-prop-icon"></i> Due date</span>
+          <div class="td-due-date-wrap">
+            <input type="text" id="ticketDueDateInput" class="td-flatpickr-input" placeholder="Not set" readonly>
+            <button type="button" id="clearDueDateBtn" class="td-due-date-clear d-none" title="Clear due date"><i class="ti ti-x"></i></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Contact -->
+      <div class="td-sb-section">
+        <div class="td-sb-label">
+          <div class="td-sb-icon td-sb-icon--emerald"><i class="ti ti-address-book"></i></div>
+          Contact
+          <button type="button" id="linkContactBtn" class="td-section-action ms-auto" title="Link contact">
+            <i class="ti ti-plus"></i>
+          </button>
+        </div>
+        <div id="contactSearch" class="d-none mb-2">
+          <div class="td-contact-search">
+            <i class="ti ti-search"></i>
+            <input type="text" id="contactSearchInput" placeholder="Search contacts..." autocomplete="off">
+          </div>
+          <div id="contactSearchResults" class="td-contact-results d-none"></div>
+        </div>
+        <div id="contactCard">
+          <span class="text-muted small">Loading...</span>
+        </div>
+      </div>
+
+      <!-- Details -->
+      <div class="td-sb-section">
+        <div class="td-sb-label">
+          <div class="td-sb-icon td-sb-icon--slate"><i class="ti ti-info-circle"></i></div>
+          Details
+        </div>
+        <div class="td-prop-row">
+          <span class="td-prop-row-label"><i class="ti ti-tag-filled td-prop-icon"></i> Category</span>
+          <select id="ticketCategorySelect" class="td-prop-select">
+            <option value="">None</option>
+          </select>
+        </div>
+        <div class="td-prop-row">
+          <span class="td-prop-row-label"><i class="ti ti-building td-prop-icon"></i> Company</span>
+          <span id="ticketCompany" class="td-prop-value-text">--</span>
+        </div>
+        <div class="td-prop-row">
+          <span class="td-prop-row-label"><i class="ti ti-user td-prop-icon"></i> Created by</span>
+          <span id="ticketCreatedBy" class="td-prop-value-text">--</span>
+        </div>
+        <div class="td-prop-row">
+          <span class="td-prop-row-label"><i class="ti ti-tags td-prop-icon"></i> Tags</span>
+          <div id="ticketTags" class="td-tags"><span class="td-prop-value-text">--</span></div>
+        </div>
+      </div>
+
+      <!-- SLA Status -->
+      <div class="td-sb-section" id="slaSectionWrap" style="display:none;">
+        <div class="td-sb-label">
+          <div class="td-sb-icon td-sb-icon--rose"><i class="ti ti-shield-check"></i></div>
+          SLA Status
+        </div>
+        <div id="slaStatusContent"></div>
+      </div>
+
+      <!-- Timeline -->
+      <div class="td-sb-section">
+        <div class="td-sb-label">
+          <div class="td-sb-icon td-sb-icon--amber"><i class="ti ti-history"></i></div>
+          Timeline
+        </div>
+        <div class="td-prop-row">
+          <span class="td-prop-row-label">Created</span>
+          <span id="ticketCreated2" class="td-prop-value-text td-prop-value-text--accent">--</span>
+        </div>
+        <div class="td-prop-row">
+          <span class="td-prop-row-label">Updated</span>
+          <span id="ticketUpdated" class="td-prop-value-text td-prop-value-text--accent">--</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title fw-semibold">Delete Ticket</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0 text-secondary small">Are you sure you want to delete this ticket? This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="confirmDeleteBtn" class="btn btn-sm btn-danger">
+          <i class="ti ti-trash me-1"></i>Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script type="importmap">
+{
+  "imports": {
+    "@tiptap/core": "https://esm.sh/@tiptap/core@2",
+    "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2",
+    "@tiptap/extension-link": "https://esm.sh/@tiptap/extension-link@2",
+    "@tiptap/extension-placeholder": "https://esm.sh/@tiptap/extension-placeholder@2"
+  }
+}
+</script>
+<script type="module">
+import { Editor } from '@tiptap/core';
+import StarterKit from '@tiptap/starter-kit';
+import Link from '@tiptap/extension-link';
+import Placeholder from '@tiptap/extension-placeholder';
+window.tiptap = { Editor, StarterKit, Link, Placeholder };
+window.dispatchEvent(new Event('tiptap-ready'));
+</script>
+<script src="{% static 'js/rich-editor.js' %}"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+<script>
+(function() {
+  'use strict';
+
+  var ticketNumber = '{{ ticket_number }}';
+  var ticketId = null;
+  var currentSubject = '';
+  var statusesLoaded = false;
+  var usersLoaded = false;
+
+  // Rich text editors
+  var commentEditor = null;
+  var descriptionEditor = null;
+
+  function initRichEditors() {
+    commentEditor = createRichEditor('#commentBodyEditor', {
+      placeholder: 'Write a comment...',
+      content: ''
+    });
+    descriptionEditor = createRichEditor('#ticketDescriptionInputEditor', {
+      placeholder: 'Edit description...',
+      content: ''
+    });
+  }
+
+  if (window.tiptap) {
+    initRichEditors();
+  } else {
+    window.addEventListener('tiptap-ready', initRichEditors);
+    setTimeout(function() { if (!commentEditor) initRichEditors(); }, 5000);
+  }
+
+  var AVATAR_COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  function avatarColor(name) { var h = 0; for (var i = 0; i < (name||'').length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
+
+  function formatDateTime(dateStr) {
+    if (!dateStr) return '--';
+    var d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+  function formatDate(dateStr) {
+    if (!dateStr) return '--';
+    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function formatRelativeTime(dateStr) {
+    if (!dateStr) return '';
+    var now = new Date(), d = new Date(dateStr), ms = now - d;
+    var mins = Math.floor(ms / 60000), hrs = Math.floor(ms / 3600000), days = Math.floor(ms / 86400000);
+    if (mins < 1) return 'just now'; if (mins < 60) return mins + 'm ago'; if (hrs < 24) return hrs + 'h ago'; if (days < 30) return days + 'd ago';
+    return formatDate(dateStr);
+  }
+  function escapeHtml(str) { if (!str) return ''; var div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
+
+  function showLoading() { document.getElementById('ticketLoading').style.display = ''; document.getElementById('ticketContent').classList.add('d-none'); document.getElementById('ticketError').classList.add('d-none'); }
+  function showContent() { document.getElementById('ticketLoading').style.display = 'none'; document.getElementById('ticketContent').classList.remove('d-none'); document.getElementById('ticketError').classList.add('d-none'); }
+  function showError(msg) { document.getElementById('ticketLoading').style.display = 'none'; document.getElementById('ticketContent').classList.add('d-none'); document.getElementById('ticketError').classList.remove('d-none'); document.getElementById('ticketErrorMessage').textContent = msg; }
+
+  // ============================================================
+  // Auto-save with debounce
+  // ============================================================
+  var saveTimers = {};
+  function autoSaveField(field, value) {
+    clearTimeout(saveTimers[field]);
+    saveTimers[field] = setTimeout(function() {
+      var payload = {};
+      payload[field] = (value === '' && field !== 'priority') ? null : value;
+      Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', payload)
+        .then(function(ticket) {
+          var label = field.replace(/_/g, ' ');
+          label = label.charAt(0).toUpperCase() + label.slice(1);
+          Toast.success(label + ' updated');
+          loadActivity();
+          if (field === 'status' && ticket.status) {
+            var statusObj = typeof ticket.status === 'object' ? ticket.status : null;
+            if (statusObj) {
+              document.getElementById('ticketStatusText').textContent = statusObj.name || '--';
+              document.getElementById('statusDot').style.background = statusObj.color || '#94A3B8';
+            }
+          }
+          if (field === 'priority') {
+            var prLabel = value.charAt(0).toUpperCase() + value.slice(1);
+            document.getElementById('ticketPriorityBadge').innerHTML = '<span class="badge badge-priority-' + value + '">' + prLabel + '</span>';
+          }
+        })
+        .catch(function(err) {
+          Toast.error('Failed to update ' + field);
+        });
+    }, 600);
+  }
+
+  // ============================================================
+  // Contact card
+  // ============================================================
+  var currentContact = null;
+  var contactSearchTimeout = null;
+
+  function renderContactCard(contact) {
+    var container = document.getElementById('contactCard');
+    var linkBtn = document.getElementById('linkContactBtn');
+    if (!contact) {
+      container.innerHTML = '<div class="td-empty-hint"><i class="ti ti-user-plus"></i><span>No contact linked</span></div>';
+      linkBtn.innerHTML = '<i class="ti ti-plus"></i>';
+      linkBtn.title = 'Link contact';
+      return;
+    }
+    linkBtn.innerHTML = '<i class="ti ti-x"></i>';
+    linkBtn.title = 'Unlink contact';
+    var initials = ((contact.first_name || '').charAt(0) + (contact.last_name || '').charAt(0)).toUpperCase() || '?';
+    var bgColor = avatarColor(contact.full_name || '');
+    var html = '<div class="td-contact-card">';
+    html += '<div class="td-contact-card-header">';
+    html += '<div class="avatar avatar-sm" style="background:' + bgColor + '15;color:' + bgColor + ';width:32px;height:32px;font-size:0.6875rem;border:2px solid ' + bgColor + '25;">' + initials + '</div>';
+    html += '<div><div class="td-contact-card-name">' + escapeHtml(contact.full_name || '') + '</div>';
+    if (contact.job_title) html += '<div class="td-contact-card-role">' + escapeHtml(contact.job_title) + '</div>';
+    html += '</div></div>';
+    if (contact.email) html += '<div class="td-contact-card-row"><i class="ti ti-mail"></i><a href="mailto:' + escapeHtml(contact.email) + '">' + escapeHtml(contact.email) + '</a></div>';
+    if (contact.phone) html += '<div class="td-contact-card-row"><i class="ti ti-phone"></i><span>' + escapeHtml(contact.phone) + '</span></div>';
+    if (contact.company_name) html += '<div class="td-contact-card-row"><i class="ti ti-building"></i><span>' + escapeHtml(contact.company_name) + '</span></div>';
+    html += '</div>';
+    container.innerHTML = html;
+  }
+
+  document.getElementById('linkContactBtn').addEventListener('click', function() {
+    if (currentContact) {
+      if (!confirm('Unlink this contact from the ticket?')) return;
+      Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', { contact: null }).then(function() {
+        currentContact = null;
+        renderContactCard(null);
+        document.getElementById('contactSearch').classList.add('d-none');
+        Toast.success('Contact unlinked');
+        loadActivity();
+      }).catch(function() { Toast.error('Failed to unlink contact'); });
+    } else {
+      var searchEl = document.getElementById('contactSearch');
+      searchEl.classList.toggle('d-none');
+      if (!searchEl.classList.contains('d-none')) {
+        document.getElementById('contactSearchInput').value = '';
+        document.getElementById('contactSearchResults').classList.add('d-none');
+        document.getElementById('contactSearchInput').focus();
+      }
+    }
+  });
+
+  document.getElementById('contactSearchInput').addEventListener('input', function() {
+    var query = this.value.trim();
+    var resultsEl = document.getElementById('contactSearchResults');
+    clearTimeout(contactSearchTimeout);
+    if (query.length < 2) { resultsEl.classList.add('d-none'); return; }
+    contactSearchTimeout = setTimeout(function() {
+      Api.get('/api/v1/contacts/contacts/?search=' + encodeURIComponent(query) + '&page_size=8').then(function(data) {
+        var contacts = data.results || data;
+        if (!contacts.length) {
+          resultsEl.innerHTML = '<div class="td-contact-result-empty">No contacts found</div>';
+          resultsEl.classList.remove('d-none');
+          return;
+        }
+        var html = '';
+        contacts.forEach(function(c) {
+          var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email;
+          var initials = ((c.first_name || '').charAt(0) + (c.last_name || '').charAt(0)).toUpperCase() || '?';
+          var bgColor = avatarColor(name);
+          html += '<div class="td-contact-result-item" data-contact-id="' + c.id + '">' +
+            '<div class="td-contact-result-avatar" style="background:' + bgColor + '12;color:' + bgColor + ';">' + initials + '</div>' +
+            '<div class="td-contact-result-info"><div class="td-contact-result-name">' + escapeHtml(name) + '</div>' +
+            (c.email ? '<div class="td-contact-result-email">' + escapeHtml(c.email) + '</div>' : '') +
+            '</div></div>';
+        });
+        resultsEl.innerHTML = html;
+        resultsEl.classList.remove('d-none');
+        resultsEl.querySelectorAll('.td-contact-result-item').forEach(function(item) {
+          item.addEventListener('click', function() {
+            var contactId = this.getAttribute('data-contact-id');
+            Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', { contact: contactId }).then(function() {
+              document.getElementById('contactSearch').classList.add('d-none');
+              Toast.success('Contact linked');
+              Api.get('/api/v1/tickets/tickets/' + ticketId + '/').then(function(ticket) {
+                currentContact = ticket.contact_detail || null;
+                renderContactCard(currentContact);
+                loadActivity();
+              });
+            }).catch(function() { Toast.error('Failed to link contact'); });
+          });
+        });
+      }).catch(function() { resultsEl.classList.add('d-none'); });
+    }, 300);
+  });
+
+  // ============================================================
+  // Render ticket
+  // ============================================================
+  function renderTicket(ticket) {
+    ticketId = ticket.id;
+
+    var subjectEl = document.getElementById('ticketSubject');
+    subjectEl.textContent = ticket.subject || 'Untitled';
+    currentSubject = ticket.subject || 'Untitled';
+
+    var descEl = document.getElementById('ticketDescriptionView');
+    if (ticket.description && ticket.description.trim()) { descEl.textContent = ticket.description; descEl.classList.remove('text-muted'); }
+    else { descEl.textContent = 'No description provided.'; descEl.classList.add('text-muted'); }
+
+    var statusName = '--', statusColor = '#94A3B8', statusId = null;
+    if (typeof ticket.status === 'object' && ticket.status) {
+      statusId = ticket.status.id;
+      statusName = ticket.status.name || '--';
+      statusColor = ticket.status.color || '#94A3B8';
+    } else { statusId = ticket.status; }
+    window._currentTicketStatus = statusId;
+    document.getElementById('ticketStatusText').textContent = statusName;
+    document.getElementById('statusDot').style.background = statusColor;
+    if (statusesLoaded && statusId) document.getElementById('ticketStatus').value = statusId;
+
+    var prLabel = ticket.priority ? ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) : 'None';
+    document.getElementById('ticketPriorityBadge').innerHTML = '<span class="badge badge-priority-' + (ticket.priority || 'low') + '">' + prLabel + '</span>';
+
+    document.getElementById('ticketPrioritySelect').value = ticket.priority || 'medium';
+
+    var qSelect = document.getElementById('ticketQueueSelect');
+    if (ticket.queue) {
+      qSelect.value = ticket.queue;
+      if (qSelect.value !== ticket.queue) {
+        var qo = document.createElement('option'); qo.value = ticket.queue; qo.textContent = ticket.queue_name || 'Queue'; qSelect.appendChild(qo); qSelect.value = ticket.queue;
+      }
+    } else { qSelect.value = ''; }
+
+    var dueDate = ticket.due_date ? ticket.due_date.substring(0, 16) : '';
+    if (window._dueDatePicker) {
+      window._dueDatePicker.setDate(dueDate, false);
+    } else {
+      document.getElementById('ticketDueDateInput').value = dueDate;
+    }
+    document.getElementById('clearDueDateBtn').classList.toggle('d-none', !dueDate);
+
+    var aSelect = document.getElementById('ticketAssignee');
+    if (ticket.assignee) {
+      aSelect.value = ticket.assignee;
+      if (aSelect.value !== ticket.assignee) {
+        var o = document.createElement('option'); o.value = ticket.assignee; o.textContent = ticket.assignee_name || 'Assigned'; aSelect.appendChild(o); aSelect.value = ticket.assignee;
+      }
+    } else { aSelect.value = ''; }
+
+    var catSelect = document.getElementById('ticketCategorySelect');
+    if (ticket.category) {
+      catSelect.value = ticket.category;
+      if (catSelect.value !== String(ticket.category)) {
+        var co = document.createElement('option'); co.value = ticket.category; co.textContent = ticket.category_name || ticket.category; catSelect.appendChild(co); catSelect.value = ticket.category;
+      }
+    } else { catSelect.value = ''; }
+
+    var companyName = '--';
+    if (ticket.contact_detail && ticket.contact_detail.company_name) {
+      companyName = ticket.contact_detail.company_name;
+    } else if (ticket.company_name) {
+      companyName = ticket.company_name;
+    }
+    document.getElementById('ticketCompany').textContent = companyName;
+    document.getElementById('ticketCreatedBy').textContent = ticket.created_by_name || '--';
+
+    var tagsContainer = document.getElementById('ticketTags');
+    if (ticket.tags && ticket.tags.length > 0) {
+      tagsContainer.innerHTML = ticket.tags.map(function(t) { return '<span class="td-tag">' + escapeHtml(t) + '</span>'; }).join('');
+    } else { tagsContainer.innerHTML = '<span class="td-prop-value-text">--</span>'; }
+
+    currentContact = ticket.contact_detail || null;
+    renderContactCard(currentContact);
+
+    document.getElementById('ticketCreated').textContent = formatRelativeTime(ticket.created_at);
+    document.getElementById('ticketCreated2').textContent = formatDateTime(ticket.created_at);
+    document.getElementById('ticketUpdated').textContent = formatDateTime(ticket.updated_at);
+
+    // SLA Status
+    var slaWrap = document.getElementById('slaSectionWrap');
+    var slaContent = document.getElementById('slaStatusContent');
+    if (ticket.sla_status) {
+      var sla = ticket.sla_status;
+      slaWrap.style.display = '';
+      var respBreached = sla.response_breached;
+      var resBreached = sla.resolution_breached;
+      var respClass = respBreached ? 'text-danger' : 'text-success';
+      var respIcon = respBreached ? 'ti-circle-x-filled' : 'ti-circle-check-filled';
+      var respLabel = Math.round(sla.response_elapsed_minutes) + ' / ' + sla.first_response_target_minutes + ' min';
+      var resClass = resBreached ? 'text-danger' : 'text-success';
+      var resIcon = resBreached ? 'ti-circle-x-filled' : 'ti-circle-check-filled';
+      var resLabel = Math.round(sla.resolution_elapsed_minutes) + ' / ' + sla.resolution_target_minutes + ' min';
+      slaContent.innerHTML =
+        '<div class="td-prop-row"><span class="td-prop-row-label">Policy</span>' +
+        '<span class="td-prop-value-text">' + escapeHtml(sla.policy_name) + '</span></div>' +
+        '<div class="td-prop-row"><span class="td-prop-row-label">' +
+        '<i class="ti ti-' + respIcon + ' ' + respClass + '" style="font-size:0.625rem;"></i> Response</span>' +
+        '<span class="td-prop-value-text ' + respClass + '">' + respLabel + '</span></div>' +
+        '<div class="td-prop-row"><span class="td-prop-row-label">' +
+        '<i class="ti ti-' + resIcon + ' ' + resClass + '" style="font-size:0.625rem;"></i> Resolution</span>' +
+        '<span class="td-prop-value-text ' + resClass + '">' + resLabel + '</span></div>';
+    } else {
+      slaWrap.style.display = 'none';
+    }
+
+    showContent();
+  }
+
+  // ============================================================
+  // Comments
+  // ============================================================
+  function deleteComment(commentId) {
+    if (!confirm('Delete this comment?')) return;
+    Api.delete('/api/v1/comments/comments/' + commentId + '/').then(function() {
+      Toast.success('Comment deleted'); loadComments(); loadActivity();
+    }).catch(function() { Toast.error('Failed to delete comment'); });
+  }
+
+  function renderComments(comments) {
+    var container = document.getElementById('commentsList'), emptyMsg = document.getElementById('commentsEmpty'), countBadge = document.getElementById('commentCount');
+    container.innerHTML = '';
+    countBadge.textContent = (comments && comments.length) ? comments.length : '0';
+    if (!comments || comments.length === 0) { emptyMsg.classList.remove('d-none'); return; }
+    emptyMsg.classList.add('d-none');
+
+    comments.forEach(function(c) {
+      var authorName = 'Unknown';
+      if (c.author) authorName = typeof c.author === 'object' ? (c.author.full_name || c.author.email || 'Unknown') : c.author;
+      var initials = authorName.split(' ').map(function(n) { return n.charAt(0); }).join('').substring(0, 2).toUpperCase();
+      var color = avatarColor(authorName);
+      var internalBadge = c.is_internal ? ' <span class="td-internal-badge"><i class="ti ti-lock-filled"></i> Internal</span>' : '';
+      var deleteBtn = '<button class="btn btn-link btn-sm p-0 ms-2 text-danger comment-delete-btn" data-comment-id="' + c.id + '" title="Delete" style="font-size:0.6875rem;line-height:1;opacity:0;transition:opacity 0.15s;"><i class="ti ti-trash"></i></button>';
+
+      var attachHtml = '';
+      if (c.attachments && c.attachments.length > 0) {
+        attachHtml = '<div class="td-comment-attachments">';
+        c.attachments.forEach(function(a) {
+          if (a.mime_type && a.mime_type.startsWith('image/')) {
+            attachHtml += '<div class="mt-1"><a href="' + escapeHtml(a.file_url) + '" target="_blank"><img src="' + escapeHtml(a.file_url) + '" alt="' + escapeHtml(a.original_name) + '" class="td-comment-img"></a></div>';
+          } else {
+            attachHtml += '<div class="td-comment-file"><i class="ti ti-file"></i><a href="' + escapeHtml(a.file_url) + '" target="_blank">' + escapeHtml(a.original_name) + '</a><span class="text-muted">(' + escapeHtml(a.size_display) + ')</span></div>';
+          }
+        });
+        attachHtml += '</div>';
+      }
+
+      container.insertAdjacentHTML('beforeend',
+        '<div class="td-comment' + (c.is_internal ? ' td-comment--internal' : '') + '">' +
+          '<div class="td-comment-avatar" style="background:' + color + '15;color:' + color + ';border:2px solid ' + color + '20;">' + initials + '</div>' +
+          '<div class="td-comment-body">' +
+            '<div class="td-comment-header"><strong>' + escapeHtml(authorName) + '</strong>' + internalBadge + '<span class="td-comment-time">' + formatRelativeTime(c.created_at) + deleteBtn + '</span></div>' +
+            '<div class="td-comment-text">' + escapeHtml(c.body || '') + '</div>' +
+            attachHtml +
+          '</div>' +
+        '</div>');
+    });
+
+    container.querySelectorAll('.td-comment').forEach(function(item) {
+      item.addEventListener('mouseenter', function() { var btn = this.querySelector('.comment-delete-btn'); if (btn) btn.style.opacity = '1'; });
+      item.addEventListener('mouseleave', function() { var btn = this.querySelector('.comment-delete-btn'); if (btn) btn.style.opacity = '0'; });
+    });
+    container.querySelectorAll('.comment-delete-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() { deleteComment(this.getAttribute('data-comment-id')); });
+    });
+  }
+
+  // ============================================================
+  // Activity
+  // ============================================================
+  function renderActivity(activities) {
+    var list = document.getElementById('activityList'), emptyMsg = document.getElementById('activityEmpty');
+    list.innerHTML = '';
+    if (!activities || activities.length === 0) { emptyMsg.classList.remove('d-none'); return; }
+    emptyMsg.classList.add('d-none');
+
+    var html = '<div class="td-activity-list">';
+    activities.forEach(function(a) {
+      var dotClass = 'td-activity-dot--muted';
+      var iconClass = 'ti-circle';
+      if (a.action === 'created') { dotClass = 'td-activity-dot--primary'; iconClass = 'ti-circle-plus-filled'; }
+      else if (a.action === 'status_changed') { dotClass = 'td-activity-dot--info'; iconClass = 'ti-refresh'; }
+      else if (a.action === 'assigned') { dotClass = 'td-activity-dot--primary'; iconClass = 'ti-user-filled'; }
+      else if (a.action === 'commented') { dotClass = 'td-activity-dot--success'; iconClass = 'ti-message-filled'; }
+      else if (a.action === 'deleted') { dotClass = 'td-activity-dot--danger'; iconClass = 'ti-trash-filled'; }
+      else if (a.action === 'field_changed' || a.action === 'updated') { dotClass = 'td-activity-dot--warning'; iconClass = 'ti-pencil'; }
+      else if (a.action === 'attachment_added') { dotClass = 'td-activity-dot--info'; iconClass = 'ti-paperclip'; }
+      else if (a.action === 'attachment_removed') { dotClass = 'td-activity-dot--danger'; iconClass = 'ti-circle-x-filled'; }
+
+      var changesHtml = '';
+      if (a.changes && typeof a.changes === 'object' && Object.keys(a.changes).length > 0) {
+        var parts = [];
+        Object.keys(a.changes).forEach(function(field) {
+          var vals = a.changes[field];
+          if (Array.isArray(vals) && vals.length === 2) {
+            parts.push('<span class="text-capitalize">' + escapeHtml(field.replace(/_/g, ' ')) + '</span>: <span class="td-change-old">' + escapeHtml(String(vals[0] || '(empty)')) + '</span> <i class="ti ti-arrow-right" style="font-size:0.5625rem;opacity:0.5;"></i> <span class="td-change-new">' + escapeHtml(String(vals[1] || '(empty)')) + '</span>');
+          }
+        });
+        if (parts.length > 0) changesHtml = '<div class="td-activity-changes">' + parts.join('; ') + '</div>';
+      }
+
+      html += '<div class="td-activity-item">' +
+        '<div class="td-activity-dot ' + dotClass + '"></div>' +
+        '<div class="td-activity-content">' +
+          '<div><strong>' + escapeHtml(a.actor_name || 'System') + '</strong> ' + escapeHtml(a.description || a.action_display || a.action || '') + '</div>' +
+          changesHtml +
+          '<div class="td-activity-time">' + formatRelativeTime(a.created_at) + '</div>' +
+        '</div></div>';
+    });
+    html += '</div>';
+    list.innerHTML = html;
+  }
+
+  // ============================================================
+  // Tab switching
+  // ============================================================
+  document.querySelectorAll('.td-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.td-tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.td-tab-panel').forEach(function(p) { p.classList.remove('active'); });
+      this.classList.add('active');
+      var target = this.getAttribute('data-td-tab');
+      if (target === 'comments') document.getElementById('tabComments').classList.add('active');
+      else document.getElementById('tabActivity').classList.add('active');
+    });
+  });
+
+  // ============================================================
+  // Property auto-save listeners
+  // ============================================================
+  document.getElementById('ticketStatus').addEventListener('change', function() {
+    autoSaveField('status', this.value);
+  });
+  document.getElementById('ticketPrioritySelect').addEventListener('change', function() {
+    autoSaveField('priority', this.value);
+  });
+  document.getElementById('ticketAssignee').addEventListener('change', function() {
+    autoSaveField('assignee', this.value || null);
+  });
+  document.getElementById('ticketQueueSelect').addEventListener('change', function() {
+    autoSaveField('queue', this.value || null);
+  });
+  // Due date change is handled by flatpickr onChange callback (see below)
+  document.getElementById('clearDueDateBtn').addEventListener('click', function() {
+    if (window._dueDatePicker) {
+      window._dueDatePicker.clear();
+    }
+    autoSaveField('due_date', null);
+    this.classList.add('d-none');
+  });
+  document.getElementById('ticketCategorySelect').addEventListener('change', function() {
+    autoSaveField('category', this.value || null);
+  });
+
+  // ============================================================
+  // Inline subject editing
+  // ============================================================
+  var subjectEl = document.getElementById('ticketSubject');
+  subjectEl.addEventListener('blur', function() {
+    var newSubject = this.textContent.trim();
+    if (!newSubject) {
+      this.textContent = currentSubject;
+      return;
+    }
+    if (newSubject !== currentSubject) {
+      Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', { subject: newSubject })
+        .then(function() { currentSubject = newSubject; Toast.success('Subject updated'); loadActivity(); })
+        .catch(function() { subjectEl.textContent = currentSubject; Toast.error('Failed to update subject'); });
+    }
+  });
+  subjectEl.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
+    if (e.key === 'Escape') { this.textContent = currentSubject; this.blur(); }
+  });
+
+  // ============================================================
+  // Load data
+  // ============================================================
+  function loadStatuses() {
+    Api.get('/api/v1/tickets/ticket-statuses/').then(function(data) {
+      var select = document.getElementById('ticketStatus'); var statuses = data.results || data; select.innerHTML = '';
+      statuses.forEach(function(s) { var o = document.createElement('option'); o.value = s.id; o.textContent = s.name; select.appendChild(o); });
+      statusesLoaded = true;
+      if (ticketId && window._currentTicketStatus) { select.value = window._currentTicketStatus; }
+    }).catch(function(err) { console.error('Error loading statuses:', err); });
+  }
+
+  function loadUsers() {
+    Api.get('/api/v1/accounts/users/').then(function(data) {
+      var select = document.getElementById('ticketAssignee'); var users = data.results || data;
+      while (select.options.length > 1) select.remove(1);
+      users.forEach(function(u) { var name = ((u.first_name || '') + ' ' + (u.last_name || '')).trim() || u.email; var o = document.createElement('option'); o.value = u.id; o.textContent = name; select.appendChild(o); });
+      usersLoaded = true;
+    }).catch(function(err) { console.error('Error loading users:', err); });
+  }
+
+  function loadCategories() {
+    Api.get('/api/v1/tickets/ticket-categories/').then(function(data) {
+      var select = document.getElementById('ticketCategorySelect');
+      var categories = data.results || data;
+      while (select.options.length > 1) select.remove(1);
+      categories.forEach(function(c) {
+        var o = document.createElement('option'); o.value = c.id; o.textContent = c.name; select.appendChild(o);
+      });
+    }).catch(function(err) { console.error('Error loading categories:', err); });
+  }
+
+  function loadQueues() {
+    Api.get('/api/v1/tickets/queues/').then(function(data) {
+      var select = document.getElementById('ticketQueueSelect');
+      var queues = data.results || data;
+      while (select.options.length > 1) select.remove(1);
+      queues.forEach(function(q) {
+        var o = document.createElement('option'); o.value = q.id; o.textContent = q.name; select.appendChild(o);
+      });
+    }).catch(function(err) { console.error('Error loading queues:', err); });
+  }
+
+  function loadTicket() {
+    showLoading();
+    Api.get('/api/v1/tickets/tickets/?number=' + ticketNumber).then(function(data) {
+      var match;
+      if (data.results && data.results.length > 0) match = data.results[0];
+      else if (Array.isArray(data) && data.length > 0) match = data[0];
+      else if (data.id) match = data;
+      else { showError('Ticket #' + ticketNumber + ' not found.'); return; }
+      return Api.get('/api/v1/tickets/tickets/' + match.id + '/');
+    }).then(function(ticket) {
+      if (!ticket) return;
+      renderTicket(ticket);
+      loadComments();
+      loadTicketAttachments();
+      loadActivity();
+    }).catch(function() { showError('Failed to load ticket.'); });
+  }
+
+  function loadComments() { if (!ticketId) return; Api.get('/api/v1/tickets/tickets/' + ticketId + '/comments/').then(function(data) { renderComments(data.results || data); }).catch(function(err) { console.error('Error:', err); }); }
+  function loadActivity() { if (!ticketId) return; Api.get('/api/v1/tickets/tickets/' + ticketId + '/activity/').then(function(data) { renderActivity(data.results || data); }).catch(function(err) { console.error('Error:', err); }); }
+
+  // ============================================================
+  // Attachments
+  // ============================================================
+  function loadTicketAttachments() {
+    if (!ticketId) return;
+    Api.get('/api/v1/attachments/attachments/?content_type=tickets.ticket&object_id=' + ticketId).then(function(data) {
+      renderTicketAttachments(data.results || data);
+    }).catch(function(err) { console.error('Error loading attachments:', err); });
+  }
+
+  function renderTicketAttachments(attachments) {
+    var list = document.getElementById('ticketAttachmentsList');
+    var imgGrid = document.getElementById('ticketAttachmentImages');
+    var emptyMsg = document.getElementById('ticketAttachmentsEmpty');
+    var countBadge = document.getElementById('attachmentCount');
+    list.innerHTML = ''; imgGrid.innerHTML = '';
+    countBadge.textContent = attachments.length || '0';
+    if (!attachments || attachments.length === 0) { emptyMsg.classList.remove('d-none'); return; }
+    emptyMsg.classList.add('d-none');
+
+    var images = [], files = [];
+    attachments.forEach(function(a) {
+      if (a.mime_type && a.mime_type.startsWith('image/')) images.push(a);
+      else files.push(a);
+    });
+
+    if (images.length > 0) {
+      var gridHtml = '';
+      images.forEach(function(a) {
+        gridHtml += '<div class="attachment-thumb-wrap">' +
+          '<a href="' + escapeHtml(a.file_url) + '" target="_blank" class="attachment-thumb">' +
+          '<img src="' + escapeHtml(a.file_url) + '" alt="' + escapeHtml(a.original_name) + '">' +
+          '</a>' +
+          '<button class="attachment-thumb-delete" data-attachment-id="' + a.id + '" title="Remove"><i class="ti ti-x"></i></button>' +
+          '</div>';
+      });
+      imgGrid.innerHTML = gridHtml;
+    }
+
+    files.forEach(function(a) {
+      list.insertAdjacentHTML('beforeend',
+        '<div class="attachment-file-item">' +
+          '<i class="ti ti-file text-muted"></i>' +
+          '<a href="' + escapeHtml(a.file_url) + '" target="_blank" class="flex-grow-1 text-truncate text-decoration-none small" style="color:var(--crm-info);">' + escapeHtml(a.original_name) + '</a>' +
+          '<span class="text-muted" style="font-size:0.6875rem;">' + escapeHtml(a.size_display) + '</span>' +
+          '<button class="btn btn-link btn-sm p-0 text-danger attachment-delete-btn" data-attachment-id="' + a.id + '" title="Delete" style="font-size:0.75rem;line-height:1;"><i class="ti ti-x"></i></button>' +
+        '</div>');
+    });
+
+    imgGrid.querySelectorAll('.attachment-thumb-delete').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var aid = this.getAttribute('data-attachment-id');
+        if (confirm('Delete this attachment?')) {
+          Api.delete('/api/v1/attachments/attachments/' + aid + '/').then(function() {
+            Toast.success('Attachment deleted'); loadTicketAttachments(); loadActivity();
+          }).catch(function() { Toast.error('Failed to delete attachment'); });
+        }
+      });
+    });
+    list.querySelectorAll('.attachment-delete-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var aid = this.getAttribute('data-attachment-id');
+        if (confirm('Delete this attachment?')) {
+          Api.delete('/api/v1/attachments/attachments/' + aid + '/').then(function() {
+            Toast.success('Attachment deleted'); loadTicketAttachments(); loadActivity();
+          }).catch(function() { Toast.error('Failed to delete attachment'); });
+        }
+      });
+    });
+  }
+
+  document.getElementById('addAttachmentBtn').addEventListener('click', function() {
+    document.getElementById('ticketAttachmentInput').click();
+  });
+  document.getElementById('ticketAttachmentInput').addEventListener('change', function() {
+    if (!ticketId || !this.files.length) return;
+    var files = Array.from(this.files);
+    this.value = '';
+    var uploads = files.map(function(file) {
+      if (file.size > 25 * 1024 * 1024) { Toast.warning(file.name + ' exceeds 25 MB limit'); return Promise.resolve(); }
+      var fd = new FormData();
+      fd.append('file', file);
+      fd.append('content_type', 'tickets.ticket');
+      fd.append('object_id', ticketId);
+      return Api.upload('/api/v1/attachments/attachments/', fd).catch(function() { Toast.error('Failed to upload ' + file.name); });
+    });
+    Promise.all(uploads).then(function() { Toast.success('Attachment(s) uploaded'); loadTicketAttachments(); loadActivity(); });
+  });
+
+  // ============================================================
+  // Comment attachments
+  // ============================================================
+  var commentSelectedFiles = [];
+  document.getElementById('commentAttachBtn').addEventListener('click', function() {
+    document.getElementById('commentFiles').click();
+  });
+  document.getElementById('commentFiles').addEventListener('change', function() {
+    for (var i = 0; i < this.files.length; i++) {
+      if (this.files[i].size > 25 * 1024 * 1024) { Toast.warning(this.files[i].name + ' exceeds 25 MB limit'); continue; }
+      commentSelectedFiles.push(this.files[i]);
+    }
+    this.value = '';
+    renderCommentFileList();
+  });
+
+  function renderCommentFileList() {
+    var container = document.getElementById('commentFileList');
+    container.innerHTML = '';
+    if (commentSelectedFiles.length === 0) return;
+    commentSelectedFiles.forEach(function(f, i) {
+      var sizeStr = f.size < 1048576 ? (f.size / 1024).toFixed(1) + ' KB' : (f.size / 1048576).toFixed(1) + ' MB';
+      container.insertAdjacentHTML('beforeend',
+        '<div class="d-flex align-items-center gap-2 py-1 px-2 rounded mb-1 small" style="background:var(--crm-bg);">' +
+          '<i class="ti ti-paperclip text-muted"></i>' +
+          '<span class="flex-grow-1 text-truncate">' + escapeHtml(f.name) + '</span>' +
+          '<span class="text-muted">' + sizeStr + '</span>' +
+          '<button type="button" class="btn btn-link btn-sm p-0 text-danger comment-file-remove" data-idx="' + i + '" style="font-size:0.75rem;line-height:1;"><i class="ti ti-x"></i></button>' +
+        '</div>');
+    });
+    container.querySelectorAll('.comment-file-remove').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        commentSelectedFiles.splice(parseInt(this.getAttribute('data-idx')), 1);
+        renderCommentFileList();
+      });
+    });
+  }
+
+  // ============================================================
+  // Comment form
+  // ============================================================
+  document.getElementById('addCommentForm').addEventListener('submit', function(e) {
+    e.preventDefault(); if (!ticketId) return;
+    var body = commentEditor ? commentEditor.getHTML() : ''; if (!body || body === '<p></p>') return;
+    var isInternal = document.getElementById('commentInternal').checked;
+    var btn = this.querySelector('button[type="submit"]'); btn.disabled = true;
+    Api.post('/api/v1/tickets/tickets/' + ticketId + '/comments/', { body: body, is_internal: isInternal }).then(function(comment) {
+      if (commentSelectedFiles.length === 0) { finishComment(btn); return; }
+      var uploads = commentSelectedFiles.map(function(file) {
+        var fd = new FormData();
+        fd.append('file', file);
+        fd.append('content_type', 'comments.comment');
+        fd.append('object_id', comment.id);
+        return Api.upload('/api/v1/attachments/attachments/', fd).catch(function() { return { _failed: true }; });
+      });
+      return Promise.all(uploads).then(function(results) {
+        var failed = results.filter(function(r) { return r && r._failed; });
+        if (failed.length > 0) Toast.warning(failed.length + ' attachment(s) failed to upload');
+        finishComment(btn);
+      });
+    }).catch(function() { btn.disabled = false; Toast.error('Failed to post comment'); });
+  });
+
+  function finishComment(btn) {
+    if (commentEditor) commentEditor.setContent('');
+    document.getElementById('commentInternal').checked = false;
+    commentSelectedFiles = [];
+    renderCommentFileList();
+    btn.disabled = false;
+    Toast.success('Comment posted');
+    loadComments();
+    loadActivity();
+  }
+
+  // ============================================================
+  // Delete ticket
+  // ============================================================
+  document.getElementById('deleteTicketBtn').addEventListener('click', function() { new bootstrap.Modal(document.getElementById('deleteModal')).show(); });
+  document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+    if (!ticketId) return; this.disabled = true;
+    Api.delete('/api/v1/tickets/tickets/' + ticketId + '/').then(function() { Toast.success('Ticket deleted'); window.location.href = '/tickets/'; }).catch(function() { document.getElementById('confirmDeleteBtn').disabled = false; Toast.error('Failed to delete ticket'); });
+  });
+
+  // ============================================================
+  // Edit description
+  // ============================================================
+  document.getElementById('editTicketBtn').addEventListener('click', function() {
+    var descView = document.getElementById('ticketDescriptionView');
+    var descEdit = document.getElementById('ticketDescriptionEdit');
+    if (descEdit.classList.contains('d-none')) {
+      var currentContent = descView.classList.contains('text-muted') ? '' : descView.innerHTML;
+      if (descriptionEditor) descriptionEditor.setContent(currentContent);
+      descView.classList.add('d-none');
+      descEdit.classList.remove('d-none');
+    }
+  });
+
+  document.getElementById('saveDescriptionBtn').addEventListener('click', function() {
+    var newDesc = descriptionEditor ? descriptionEditor.getHTML() : '';
+    if (newDesc === '<p></p>') newDesc = '';
+    var btn = this; btn.disabled = true;
+    Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', { description: newDesc }).then(function() {
+      var descView = document.getElementById('ticketDescriptionView');
+      if (newDesc) { descView.innerHTML = newDesc; descView.classList.remove('text-muted'); }
+      else { descView.textContent = 'No description provided.'; descView.classList.add('text-muted'); }
+      descView.classList.remove('d-none');
+      document.getElementById('ticketDescriptionEdit').classList.add('d-none');
+      btn.disabled = false;
+      Toast.success('Description updated');
+      loadActivity();
+    }).catch(function() { btn.disabled = false; Toast.error('Failed to update description'); });
+  });
+
+  document.getElementById('cancelDescriptionBtn').addEventListener('click', function() {
+    document.getElementById('ticketDescriptionView').classList.remove('d-none');
+    document.getElementById('ticketDescriptionEdit').classList.add('d-none');
+  });
+
+  // ============================================================
+  // Custom Select Dropdown — uses global KanzenSelect
+  // ============================================================
+
+  // ============================================================
+  // Flatpickr Due-Date Picker
+  // ============================================================
+  (function() {
+    var input = document.getElementById('ticketDueDateInput');
+    var clearBtn = document.getElementById('clearDueDateBtn');
+
+    window._dueDatePicker = flatpickr(input, {
+      enableTime: true,
+      dateFormat: 'Y-m-d\\TH:i',
+      altInput: true,
+      altFormat: 'M j, Y  h:i K',
+      time_24hr: false,
+      allowInput: false,
+      clickOpens: true,
+      closeOnSelect: false,
+      placeholder: 'Not set',
+      onReady: function(selectedDates, dateStr, instance) {
+        // Style the alt-input to match our theme
+        if (instance.altInput) {
+          instance.altInput.classList.add('td-flatpickr-input');
+          instance.altInput.setAttribute('placeholder', 'Not set');
+        }
+        // Add OK confirm button
+        var footer = document.createElement('div');
+        footer.className = 'flatpickr-confirm';
+        var okBtn = document.createElement('button');
+        okBtn.type = 'button';
+        okBtn.className = 'flatpickr-confirm-btn';
+        okBtn.textContent = 'OK';
+        okBtn.addEventListener('click', function() {
+          var dates = instance.selectedDates;
+          var str = instance.input.value;
+          instance.close();
+          autoSaveField('due_date', str || null);
+          clearBtn.classList.toggle('d-none', !str);
+        });
+        footer.appendChild(okBtn);
+        instance.calendarContainer.appendChild(footer);
+      }
+    });
+  })();
+
+  // ============================================================
+  // Upgrade all selects after load
+  // ============================================================
+  function upgradeAllSelects() {
+    document.querySelectorAll('.td-prop-select').forEach(function(el) {
+      KanzenSelect.upgrade(el, { searchable: false });
+    });
+  }
+
+  // ============================================================
+  // Init
+  // ============================================================
+  loadStatuses(); loadUsers(); loadQueues(); loadCategories(); loadTicket();
+  // Upgrade selects after a short delay so options are populated
+  setTimeout(upgradeAllSelects, 800);
+  setTimeout(upgradeAllSelects, 2000);
+})();
+</script>
+{% endblock %}

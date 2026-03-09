@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Agents - Kanzen Suite{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Agents</h1>
+    <p class="page-subtitle">Monitor agent availability and workload</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-outline-secondary btn-sm" id="refreshAgentsBtn">
+      <i class="ti ti-refresh me-1"></i>Refresh
+    </button>
+  </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6">
+    <div class="stat-card">
+      <div class="stat-card-accent" style="background: #22C55E;"></div>
+      <div class="stat-card-body">
+        <span class="stat-card-label">Online</span>
+        <span class="stat-card-value" id="countOnline">0</span>
+      </div>
+    </div>
+  </div>
+  <div class="col-6">
+    <div class="stat-card">
+      <div class="stat-card-accent" style="background: #9CA3AF;"></div>
+      <div class="stat-card-body">
+        <span class="stat-card-label">Offline</span>
+        <span class="stat-card-value" id="countOffline">0</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Agents Table -->
+<div class="card">
+  <div class="card-body p-0">
+    <div id="agentsTableWrap" class="table-responsive agents-table">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th class="ps-3"><i class="ti ti-user me-1 text-muted"></i>Agent</th>
+            <th><i class="ti ti-mail me-1 text-muted"></i>Email</th>
+            <th><i class="ti ti-user-shield me-1 text-muted"></i>Role</th>
+            <th><i class="ti ti-wifi me-1 text-muted"></i>Status</th>
+            <th><i class="ti ti-ticket me-1 text-muted"></i>Open Tickets</th>
+            <th><i class="ti ti-chart-bar me-1 text-muted"></i>Capacity</th>
+            <th><i class="ti ti-clock me-1 text-muted"></i>Last Activity</th>
+          </tr>
+        </thead>
+        <tbody id="agentsTableBody">
+          <tr>
+            <td colspan="7" class="text-center py-5">
+              <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+              <span class="text-muted">Loading agents...</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="agentsEmptyState" class="empty-state d-none">
+      <div class="empty-icon"><i class="ti ti-users"></i></div>
+      <p class="empty-title">No team members found</p>
+      <p class="empty-text">Add team members from the Users page to see them here.</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+
+  var AGENTS_API = '/api/v1/agents/agents';
+  var REFRESH_INTERVAL = 30000;
+
+  function escapeHtml(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
+  }
+
+  function formatDate(d) {
+    if (!d) return '--';
+    var date = new Date(d);
+    var now = new Date();
+    var diff = Math.floor((now - date) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  var AVATAR_COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  function avatarColor(name) {
+    if (!name) return AVATAR_COLORS[0];
+    for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+    return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+  }
+
+  function getInitials(n) {
+    if (!n) return '?';
+    return n.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
+  }
+
+  function getRoleBadgeClass(roleName) {
+    var rn = (roleName || '').toLowerCase();
+    if (rn === 'admin' || rn === 'administrator') return 'badge-role-admin';
+    if (rn === 'manager') return 'badge-role-manager';
+    if (rn === 'agent') return 'badge-role-agent';
+    return 'badge-role-viewer';
+  }
+
+  function statusBadge(status) {
+    var cls = status === 'online' ? 'badge-soft-success' : 'badge-soft-secondary';
+    var label = status === 'online' ? 'Online' : 'Offline';
+    return '<span class="badge ' + cls + '">' +
+      '<span class="status-dot status-dot-' + status + ' me-1"></span>' +
+      label + '</span>';
+  }
+
+  function capacityBar(current, max) {
+    var pct = max > 0 ? Math.round((current / max) * 100) : 0;
+    var color = pct < 60 ? '#10B981' : pct < 85 ? '#F59E0B' : '#EF4444';
+    return '<div class="d-flex align-items-center gap-2">' +
+      '<div class="progress flex-grow-1" style="height:6px; min-width:60px;">' +
+      '<div class="progress-bar" style="width:' + pct + '%; background:' + color + ';"></div>' +
+      '</div>' +
+      '<span class="text-muted small">' + current + '/' + max + '</span>' +
+      '</div>';
+  }
+
+  function loadAgents() {
+    Api.get(AGENTS_API + '/all-members/').then(function(data) {
+      var agents = data.results || data;
+      var tbody = document.getElementById('agentsTableBody');
+
+      // Update summary counts
+      var counts = { online: 0, offline: 0 };
+      agents.forEach(function(a) { counts[a.status === 'online' ? 'online' : 'offline']++; });
+      document.getElementById('countOnline').textContent = counts.online;
+      document.getElementById('countOffline').textContent = counts.offline;
+
+      if (!agents || agents.length === 0) {
+        document.getElementById('agentsTableWrap').classList.add('d-none');
+        document.getElementById('agentsEmptyState').classList.remove('d-none');
+        return;
+      }
+      document.getElementById('agentsTableWrap').classList.remove('d-none');
+      document.getElementById('agentsEmptyState').classList.add('d-none');
+
+      // Sort: online first, then offline
+      agents.sort(function(a, b) { return (a.status === 'online' ? 0 : 1) - (b.status === 'online' ? 0 : 1); });
+
+      var html = '';
+      agents.forEach(function(a) {
+        var name = a.user_name || a.user_email || 'Unknown';
+        var bgColor = avatarColor(name);
+        html += '<tr>' +
+          '<td class="ps-3"><div class="d-flex align-items-center gap-2">' +
+            '<div class="user-avatar" style="background:' + bgColor + ';">' + getInitials(name) + '</div>' +
+            '<div class="fw-medium">' + escapeHtml(name) + '</div>' +
+          '</div></td>' +
+          '<td class="text-muted small">' + escapeHtml(a.user_email) + '</td>' +
+          '<td><span class="badge ' + getRoleBadgeClass(a.role) + '">' + escapeHtml(a.role) + '</span></td>' +
+          '<td>' + statusBadge(a.status) + '</td>' +
+          '<td>' + (a.current_ticket_count || 0) + '</td>' +
+          '<td>' + capacityBar(a.current_ticket_count || 0, a.max_concurrent_tickets || 10) + '</td>' +
+          '<td class="text-muted small">' + formatDate(a.last_activity) + '</td>' +
+          '</tr>';
+      });
+      tbody.innerHTML = html;
+    }).catch(function() {
+      document.getElementById('agentsTableBody').innerHTML =
+        '<tr><td colspan="7" class="text-center py-5 text-danger">Failed to load agents.</td></tr>';
+    });
+  }
+
+  // Initial load
+  loadAgents();
+
+  // Auto-refresh
+  setInterval(loadAgents, REFRESH_INTERVAL);
+
+  // Manual refresh button
+  document.getElementById('refreshAgentsBtn').addEventListener('click', function() {
+    this.disabled = true;
+    var self = this;
+    loadAgents();
+    setTimeout(function() { self.disabled = false; }, 1000);
+  });
+})();
+</script>
+{% endblock %}

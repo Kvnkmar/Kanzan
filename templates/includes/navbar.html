@@ -1,0 +1,101 @@
+<!-- Content-area header (inside .crm-main) -->
+<header class="content-header" id="contentHeader">
+  <div class="header-left">
+    <!-- Mobile sidebar toggle -->
+    <button class="sidebar-toggle d-lg-none" id="sidebarToggle" type="button" aria-label="Toggle sidebar">
+      <i class="ti ti-menu-2"></i>
+    </button>
+  </div>
+
+  <div class="header-center">
+    <!-- Search trigger — opens Command Palette (Cmd+K) -->
+    <button class="header-search" id="globalSearchTrigger" type="button">
+      <i class="ti ti-search search-icon"></i>
+      <span class="search-placeholder">Search tickets, contacts, boards...</span>
+      <kbd class="search-kbd d-none d-md-inline-block">&#8984;K</kbd>
+    </button>
+  </div>
+
+  <div class="header-right">
+    <!-- Theme Toggle -->
+    <button class="theme-toggle-btn" id="themeToggleBtn" type="button" title="Toggle theme">
+      <i class="ti ti-sun"></i>
+    </button>
+
+    <!-- Availability Toggle -->
+    {% if user_role and user_role.hierarchy_level <= 30 %}
+    <div class="header-availability" id="availabilityToggleContainer" title="Toggle availability">
+      <span class="availability-dot" id="availabilityDot"></span>
+      <label class="availability-switch">
+        <input type="checkbox" id="availabilityToggle">
+        <span class="availability-slider"></span>
+      </label>
+    </div>
+    {% endif %}
+
+    <!-- Quick Create -->
+    <div class="dropdown">
+      <button class="header-icon-btn quick-create-btn" type="button" data-bs-toggle="dropdown" title="Create new" aria-expanded="false">
+        <i class="ti ti-plus"></i>
+      </button>
+      <div class="dropdown-menu dropdown-menu-end quick-create-dropdown">
+        <h6 class="dropdown-header">Quick Create</h6>
+        <a class="dropdown-item" href="{% url 'frontend:ticket-create' %}">
+          <div class="qc-icon qc-icon--ticket"><i class="ti ti-ticket"></i></div>
+          <div class="qc-text">
+            <span class="qc-label">New Ticket</span>
+            <span class="qc-desc">Create a support ticket</span>
+          </div>
+        </a>
+        <a class="dropdown-item" href="{% url 'frontend:contact-create' %}">
+          <div class="qc-icon qc-icon--contact"><i class="ti ti-address-book"></i></div>
+          <div class="qc-text">
+            <span class="qc-label">New Contact</span>
+            <span class="qc-desc">Add a new contact</span>
+          </div>
+        </a>
+        <a class="dropdown-item" href="{% url 'frontend:kanban' %}?action=new">
+          <div class="qc-icon qc-icon--board"><i class="ti ti-layout-kanban"></i></div>
+          <div class="qc-text">
+            <span class="qc-label">New Board</span>
+            <span class="qc-desc">Create a workflow board</span>
+          </div>
+        </a>
+        <a class="dropdown-item" href="{% url 'frontend:calendar' %}?action=new">
+          <div class="qc-icon qc-icon--event"><i class="ti ti-calendar"></i></div>
+          <div class="qc-text">
+            <span class="qc-label">New Event</span>
+            <span class="qc-desc">Schedule a calendar event</span>
+          </div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="dropdown">
+      <button class="header-icon-btn" type="button" data-bs-toggle="dropdown" id="notifDropdown" title="Notifications" aria-expanded="false">
+        <i class="ti ti-bell"></i>
+        <span class="notification-badge d-none" id="notifBadge"></span>
+      </button>
+      <div class="dropdown-menu dropdown-menu-end notification-dropdown" id="notifDropdownMenu">
+        <div class="notif-header">
+          <div class="notif-header-left">
+            <h6>Notifications</h6>
+            <span class="notif-count-badge d-none" id="notifCountBadge">0</span>
+          </div>
+          <a href="#" class="notif-mark-all" id="markAllReadBtn">Mark all read</a>
+        </div>
+        <div class="notif-list" id="notifList">
+          <div class="notif-empty">
+            <div class="notif-empty-icon">
+              <i class="ti ti-bell-off"></i>
+            </div>
+            <p class="notif-empty-title">All caught up!</p>
+            <p class="notif-empty-text">No new notifications right now.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</header>

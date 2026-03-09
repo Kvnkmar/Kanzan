@@ -1,0 +1,121 @@
+<aside class="crm-sidebar" id="crmSidebar">
+  <!-- Brand/Logo Area -->
+  <a href="{% url 'frontend:dashboard' %}" class="sidebar-brand">
+    <div class="brand-icon">
+      <i class="ti ti-radar"></i>
+    </div>
+    <span class="brand-name">{{ tenant.name|default:"Kanzen Suite" }}</span>
+  </a>
+
+  <!-- Sidebar collapse toggle (desktop only) — positioned at middle edge -->
+  <button class="sidebar-collapse-btn d-none d-lg-flex" id="sidebarCollapseBtn" type="button" aria-label="Collapse sidebar" title="Collapse sidebar">
+    <i class="ti ti-chevron-left" id="sidebarCollapseIcon"></i>
+  </button>
+
+  <!-- Navigation -->
+  <nav class="sidebar-nav">
+    <!-- Home -->
+    <div class="nav-section">
+      <a href="{% url 'frontend:dashboard' %}" class="sidebar-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" data-sidebar-tooltip="Overview">
+        <i class="ti ti-layout-dashboard"></i>
+        <span class="sidebar-link-text">Overview</span>
+      </a>
+    </div>
+
+    <!-- CRM -->
+    <div class="nav-section">
+      <span class="nav-section-label">CRM</span>
+      <a href="{% url 'frontend:contact-list' %}" class="sidebar-link {% if 'contact' in request.resolver_match.url_name %}active{% endif %}" data-sidebar-tooltip="Contacts">
+        <i class="ti ti-address-book"></i>
+        <span class="sidebar-link-text">Contacts</span>
+      </a>
+      <a href="{% url 'frontend:kanban' %}" class="sidebar-link {% if request.resolver_match.url_name == 'kanban' %}active{% endif %}" data-sidebar-tooltip="Boards">
+        <i class="ti ti-layout-kanban"></i>
+        <span class="sidebar-link-text">Boards</span>
+      </a>
+    </div>
+
+    <!-- Support -->
+    <div class="nav-section">
+      <span class="nav-section-label">Support</span>
+      <a href="{% url 'frontend:ticket-list' %}" class="sidebar-link {% if 'ticket' in request.resolver_match.url_name %}active{% endif %}" data-sidebar-tooltip="Tickets">
+        <i class="ti ti-ticket"></i>
+        <span class="sidebar-link-text">Tickets</span>
+      </a>
+    </div>
+
+    <!-- Activities -->
+    <div class="nav-section">
+      <span class="nav-section-label">Activities</span>
+      <a href="{% url 'frontend:calendar' %}" class="sidebar-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}" data-sidebar-tooltip="Calendar">
+        <i class="ti ti-calendar"></i>
+        <span class="sidebar-link-text">Calendar</span>
+      </a>
+      <a href="{% url 'frontend:messaging' %}" class="sidebar-link {% if request.resolver_match.url_name == 'messaging' %}active{% endif %}" data-sidebar-tooltip="Messages">
+        <i class="ti ti-message"></i>
+        <span class="sidebar-link-text">Messages</span>
+      </a>
+    </div>
+
+    <!-- Operations (Manager + Admin) -->
+    {% if is_admin_or_manager %}
+    <div class="nav-section">
+      <span class="nav-section-label">Operations</span>
+      <a href="{% url 'frontend:analytics' %}" class="sidebar-link {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" data-sidebar-tooltip="Analytics">
+        <i class="ti ti-chart-bar"></i>
+        <span class="sidebar-link-text">Analytics</span>
+      </a>
+      <a href="{% url 'frontend:agents' %}" class="sidebar-link {% if request.resolver_match.url_name == 'agents' %}active{% endif %}" data-sidebar-tooltip="Agents">
+        <i class="ti ti-users"></i>
+        <span class="sidebar-link-text">Agents</span>
+      </a>
+      <a href="{% url 'frontend:users' %}" class="sidebar-link {% if request.resolver_match.url_name == 'users' %}active{% endif %}" data-sidebar-tooltip="Users">
+        <i class="ti ti-user-cog"></i>
+        <span class="sidebar-link-text">Users</span>
+      </a>
+    </div>
+    {% endif %}
+
+    <!-- Administration (Admin only) -->
+    {% if is_admin %}
+    <div class="nav-section">
+      <span class="nav-section-label">Administration</span>
+      <a href="{% url 'frontend:settings' %}" class="sidebar-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}" data-sidebar-tooltip="Settings">
+        <i class="ti ti-settings"></i>
+        <span class="sidebar-link-text">Settings</span>
+      </a>
+      <a href="{% url 'frontend:billing' %}" class="sidebar-link {% if request.resolver_match.url_name == 'billing' %}active{% endif %}" data-sidebar-tooltip="Billing">
+        <i class="ti ti-credit-card"></i>
+        <span class="sidebar-link-text">Billing</span>
+      </a>
+    </div>
+    {% endif %}
+  </nav>
+
+  <!-- User Footer -->
+  <div class="sidebar-footer">
+    <div class="sidebar-user dropdown">
+      <div class="sidebar-user-trigger" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+        <div class="user-avatar-sidebar">
+          {% with name=user.get_full_name|default:user.email %}
+          {{ name|make_list|first|upper }}
+          {% endwith %}
+        </div>
+        <div class="user-info">
+          <span class="user-name">{{ user.get_full_name|default:"User" }}</span>
+          <span class="user-email">{{ user.email }}</span>
+        </div>
+        <i class="ti ti-dots sidebar-menu-icon"></i>
+      </div>
+      <ul class="dropdown-menu dropdown-menu-end sidebar-user-dropdown">
+        <li><a class="dropdown-item" href="{% url 'frontend:profile' %}"><i class="ti ti-user me-2"></i>Profile</a></li>
+        {% if is_admin %}
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item" href="{% url 'frontend:settings' %}"><i class="ti ti-settings me-2"></i>Settings</a></li>
+        {% endif %}
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item text-danger" href="{% url 'frontend:logout' %}"><i class="ti ti-logout me-2"></i>Sign Out</a></li>
+      </ul>
+    </div>
+  </div>
+</aside>

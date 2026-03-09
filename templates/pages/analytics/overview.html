@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - Kanzen Suite{% endblock %}
+
+{% block content %}
+<!-- Analytics Page Header -->
+<div class="analytics-header">
+  <div class="analytics-header__left">
+    <h1 class="analytics-header__title">Analytics</h1>
+    <p class="analytics-header__subtitle">Ticket metrics, team performance, and SLA compliance.</p>
+  </div>
+  <div class="analytics-header__actions">
+    <div class="analytics-date-picker">
+      <i class="ti ti-calendar"></i>
+      <select class="analytics-date-picker__select" id="dateRange">
+        <option value="7">Last 7 days</option>
+        <option value="30" selected>Last 30 days</option>
+        <option value="90">Last 90 days</option>
+        <option value="365">Last year</option>
+      </select>
+    </div>
+  </div>
+</div>
+
+<!-- KPI Stat Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card kpi-card--warning">
+      <div class="kpi-card__icon-wrap kpi-card__icon-wrap--warning">
+        <i class="ti ti-circle-filled"></i>
+      </div>
+      <div class="kpi-card__body">
+        <span class="kpi-card__value" id="statOpen"><span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span></span>
+        <span class="kpi-card__label">Open Tickets</span>
+      </div>
+      <div class="kpi-card__glow kpi-card__glow--warning"></div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card kpi-card--success">
+      <div class="kpi-card__icon-wrap kpi-card__icon-wrap--success">
+        <i class="ti ti-circle-check-filled"></i>
+      </div>
+      <div class="kpi-card__body">
+        <span class="kpi-card__value" id="statClosed"><span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span></span>
+        <span class="kpi-card__label">Closed Tickets</span>
+      </div>
+      <div class="kpi-card__glow kpi-card__glow--success"></div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card kpi-card--info">
+      <div class="kpi-card__icon-wrap kpi-card__icon-wrap--info">
+        <i class="ti ti-clock-filled"></i>
+      </div>
+      <div class="kpi-card__body">
+        <span class="kpi-card__value" id="statAvgRes"><span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span></span>
+        <span class="kpi-card__label">Avg Resolution (hrs)</span>
+      </div>
+      <div class="kpi-card__glow kpi-card__glow--info"></div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-xl-3">
+    <div class="kpi-card kpi-card--purple">
+      <div class="kpi-card__icon-wrap kpi-card__icon-wrap--purple">
+        <i class="ti ti-chart-bar"></i>
+      </div>
+      <div class="kpi-card__body">
+        <span class="kpi-card__value" id="statTotal"><span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span></span>
+        <span class="kpi-card__label">Total Tickets</span>
+      </div>
+      <div class="kpi-card__glow kpi-card__glow--purple"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Breakdown Cards (Status & Priority) -->
+<div class="row g-3 mb-4">
+  <div class="col-lg-6">
+    <div class="analytics-panel h-100">
+      <div class="analytics-panel__header">
+        <h6 class="analytics-panel__title">Tickets by Status</h6>
+      </div>
+      <div class="analytics-panel__body" id="statusBreakdown">
+        <div class="text-center p-4"><div class="spinner-border spinner-border-sm" style="color: var(--crm-primary);"></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="analytics-panel h-100">
+      <div class="analytics-panel__header">
+        <h6 class="analytics-panel__title">Tickets by Priority</h6>
+      </div>
+      <div class="analytics-panel__body" id="priorityBreakdown">
+        <div class="text-center p-4"><div class="spinner-border spinner-border-sm" style="color: var(--crm-primary);"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if is_admin_or_manager %}
+<!-- Agent Performance (admin/manager only) -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="analytics-panel">
+      <div class="analytics-panel__header">
+        <h6 class="analytics-panel__title">Agent Performance</h6>
+      </div>
+      <div class="analytics-panel__body p-0">
+        <div class="table-responsive">
+          <table class="analytics-table" id="agentTable">
+            <thead>
+              <tr>
+                <th class="analytics-table__th">Agent</th>
+                <th class="analytics-table__th analytics-table__th--num">Total</th>
+                <th class="analytics-table__th analytics-table__th--num">Closed</th>
+                <th class="analytics-table__th analytics-table__th--num">Avg Resolution (hrs)</th>
+              </tr>
+            </thead>
+            <tbody id="agentBody">
+              <tr><td colspan="4" class="text-center p-4"><div class="spinner-border spinner-border-sm" style="color: var(--crm-primary);"></div></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- SLA Compliance (admin/manager only) -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="analytics-panel">
+      <div class="analytics-panel__header">
+        <h6 class="analytics-panel__title">SLA Compliance</h6>
+      </div>
+      <div class="analytics-panel__body" id="slaBreakdown">
+        <div class="text-center p-4"><div class="spinner-border spinner-border-sm" style="color: var(--crm-primary);"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+
+  const PRIORITY_COLORS = { urgent: '#EF4444', high: '#F59E0B', medium: '#3B82F6', low: '#10B981' };
+
+  async function loadAnalytics() {
+    const days = document.getElementById('dateRange').value;
+    const dateTo = new Date().toISOString();
+    const dateFrom = new Date(Date.now() - days * 86400000).toISOString();
+
+    try {
+      const data = await Api.get(`/api/v1/analytics/dashboard/?date_from=${dateFrom}&date_to=${dateTo}`);
+      const ts = data.ticket_stats || {};
+
+      document.getElementById('statOpen').textContent = ts.open_count || 0;
+      document.getElementById('statClosed').textContent = ts.closed_count || 0;
+      document.getElementById('statAvgRes').textContent = ts.avg_resolution_time != null ? ts.avg_resolution_time.toFixed(1) : '-';
+      document.getElementById('statTotal').textContent = (ts.open_count || 0) + (ts.closed_count || 0);
+
+      renderStatusBreakdown(ts.by_status || {});
+      renderPriorityBreakdown(ts.by_priority || {});
+
+      if (data.agent_performance) renderAgentTable(data.agent_performance.agents || []);
+      if (data.sla_compliance) renderSlaCompliance(data.sla_compliance.policies || []);
+    } catch (e) {
+      console.error('Failed to load analytics:', e);
+    }
+  }
+
+  function renderStatusBreakdown(byStatus) {
+    const container = document.getElementById('statusBreakdown');
+    const entries = Object.entries(byStatus);
+    if (!entries.length) { container.innerHTML = '<p class="text-muted small">No data</p>'; return; }
+    const total = entries.reduce((s, [, v]) => s + v, 0) || 1;
+    container.innerHTML = entries.map(([name, count]) => {
+      const pct = ((count / total) * 100).toFixed(1);
+      return `<div class="breakdown-row">
+        <span class="breakdown-row__label">${escapeHtml(name)}</span>
+        <div class="breakdown-row__track">
+          <div class="breakdown-row__bar breakdown-row__bar--status" style="width:${pct}%;"></div>
+        </div>
+        <span class="breakdown-row__value">${count} <span class="breakdown-row__pct">(${pct}%)</span></span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderPriorityBreakdown(byPriority) {
+    const container = document.getElementById('priorityBreakdown');
+    const entries = Object.entries(byPriority);
+    if (!entries.length) { container.innerHTML = '<p class="text-muted small">No data</p>'; return; }
+    const total = entries.reduce((s, [, v]) => s + v, 0) || 1;
+    container.innerHTML = entries.map(([name, count]) => {
+      const pct = ((count / total) * 100).toFixed(1);
+      const color = PRIORITY_COLORS[name] || '#6B7280';
+      return `<div class="breakdown-row">
+        <span class="breakdown-row__label breakdown-row__label--priority">${escapeHtml(name)}</span>
+        <div class="breakdown-row__track">
+          <div class="breakdown-row__bar" style="width:${pct}%; background:${color};"></div>
+        </div>
+        <span class="breakdown-row__value">${count} <span class="breakdown-row__pct">(${pct}%)</span></span>
+      </div>`;
+    }).join('');
+  }
+
+  function renderAgentTable(agents) {
+    const tbody = document.getElementById('agentBody');
+    if (!tbody) return;
+    if (!agents.length) { tbody.innerHTML = '<tr><td colspan="4" class="text-muted small text-center p-4">No agent data</td></tr>'; return; }
+    tbody.innerHTML = agents.map(a => {
+      const name = escapeHtml(a.user_name || a.user_email);
+      const initials = (a.user_name || a.user_email || '?').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+      const closedRate = a.total_tickets > 0 ? Math.round((a.closed_tickets / a.total_tickets) * 100) : 0;
+      const chipClass = closedRate >= 80 ? 'chip--success' : closedRate >= 50 ? 'chip--warning' : 'chip--neutral';
+      return `<tr class="analytics-table__row">
+        <td class="analytics-table__td">
+          <div class="agent-cell">
+            <span class="agent-cell__avatar">${initials}</span>
+            <span class="agent-cell__name">${name}</span>
+          </div>
+        </td>
+        <td class="analytics-table__td analytics-table__td--num">${a.total_tickets}</td>
+        <td class="analytics-table__td analytics-table__td--num">${a.closed_tickets}</td>
+        <td class="analytics-table__td analytics-table__td--num">
+          <span class="analytics-chip ${chipClass}">${a.avg_resolution_hours != null ? a.avg_resolution_hours.toFixed(1) : '-'}</span>
+        </td>
+      </tr>`;
+    }).join('');
+  }
+
+  function renderSlaCompliance(policies) {
+    const container = document.getElementById('slaBreakdown');
+    if (!container) return;
+    if (!policies.length) { container.innerHTML = '<p class="text-muted small">No SLA policies configured</p>'; return; }
+    container.innerHTML = `<div class="row g-3">${policies.map(p => {
+      const rate = p.compliance_rate != null ? p.compliance_rate.toFixed(0) : 0;
+      const colorClass = rate >= 90 ? 'sla-card--success' : rate >= 70 ? 'sla-card--warning' : 'sla-card--danger';
+      return `<div class="col-sm-6 col-md-4 col-lg-3">
+        <div class="sla-card ${colorClass}">
+          <div class="sla-card__rate">${rate}%</div>
+          <div class="sla-card__name">${escapeHtml(p.policy_name)}</div>
+          <div class="sla-card__detail">${p.compliant_tickets}/${p.total_tickets} compliant</div>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  document.getElementById('dateRange').addEventListener('change', loadAnalytics);
+  loadAnalytics();
+})();
+</script>
+{% endblock %}
