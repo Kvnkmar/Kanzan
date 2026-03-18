@@ -1,0 +1,14 @@
+{{ agent_name }} replied to your ticket #{{ ticket.number }}:
+
+{{ ticket.subject }}
+
+---
+
+{{ comment_body }}
+
+---
+
+To reply, respond directly to this email or visit:
+{{ ticket_url }}
+
+{{ tenant.name }}

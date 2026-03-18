@@ -91,50 +91,35 @@ def handle_ticket_assigned(sender, instance, tenant, assignee, assigned_by=None,
 
 
 @receiver(ticket_comment_created)
-def handle_comment_mention(sender, instance, tenant, ticket, author, **kwargs):
+def handle_comment_notification(sender, instance, tenant, ticket, author, **kwargs):
     """
-    Parse ``@email`` mentions from a comment body and notify each
-    mentioned user.
+    When a comment is created on a ticket:
 
-    Only notifies users who are members of the tenant to prevent
-    information leakage.
+    1. Notify the ticket assignee (if different from the comment author).
+    2. Notify ``@email`` mentioned users.
+
+    Internal comments only notify tenant members.  All recipients are
+    deduplicated so nobody receives more than one notification.
     """
-    body_text = getattr(instance, "body", "") or getattr(instance, "content", "")
-    if not body_text:
-        return
-
-    emails = set(_MENTION_RE.findall(body_text))
-    if not emails:
-        return
-
     try:
-        from django.contrib.auth import get_user_model
-
         from apps.notifications.models import NotificationType
         from apps.notifications.services import send_notification
 
-        User = get_user_model()
-
-        # Only notify users who actually belong to this tenant.
-        mentioned_users = User.objects.filter(
-            email__in=emails,
-            memberships__tenant=tenant,
-            memberships__is_active=True,
-        ).distinct()
-
         author_name = author.get_full_name() or author.email
+        body_text = getattr(instance, "body", "") or getattr(instance, "content", "") or ""
+        is_internal = getattr(instance, "is_internal", False)
+        comment_label = "internal note" if is_internal else "comment"
 
-        for user in mentioned_users:
-            # Do not notify the comment author about their own mention.
-            if user.id == author.id:
-                continue
+        notified_ids = {author.id}  # never notify the author themselves
 
+        # -- 1) Notify ticket assignee --
+        if ticket.assignee_id and ticket.assignee_id not in notified_ids:
             send_notification(
                 tenant=tenant,
-                recipient=user,
-                notification_type=NotificationType.MENTION,
-                title=f"{author_name} mentioned you on #{ticket.number}",
-                body=body_text[:200],
+                recipient=ticket.assignee,
+                notification_type=NotificationType.TICKET_COMMENT,
+                title=f"{author_name} added a {comment_label} on #{ticket.number}",
+                body=body_text[:200] if body_text else ticket.subject,
                 data={
                     "ticket_id": str(ticket.id),
                     "ticket_number": ticket.number,
@@ -142,15 +127,91 @@ def handle_comment_mention(sender, instance, tenant, ticket, author, **kwargs):
                     "url": f"/tickets/{ticket.number}",
                 },
             )
+            notified_ids.add(ticket.assignee_id)
+
+        # -- 2) Notify @mentioned users --
+        if body_text:
+            emails = set(_MENTION_RE.findall(body_text))
+            if emails:
+                from django.contrib.auth import get_user_model
+
+                User = get_user_model()
+                mentioned_users = User.objects.filter(
+                    email__in=emails,
+                    memberships__tenant=tenant,
+                    memberships__is_active=True,
+                ).distinct()
+
+                for user in mentioned_users:
+                    if user.id in notified_ids:
+                        continue
+                    send_notification(
+                        tenant=tenant,
+                        recipient=user,
+                        notification_type=NotificationType.MENTION,
+                        title=f"{author_name} mentioned you on #{ticket.number}",
+                        body=body_text[:200],
+                        data={
+                            "ticket_id": str(ticket.id),
+                            "ticket_number": ticket.number,
+                            "comment_id": str(instance.id),
+                            "url": f"/tickets/{ticket.number}",
+                        },
+                    )
+                    notified_ids.add(user.id)
 
         logger.info(
-            "Processed %d mention(s) from comment %s on ticket #%s.",
-            mentioned_users.count(),
+            "Sent %d comment notification(s) for comment %s on ticket #%s.",
+            len(notified_ids) - 1,  # subtract author
             instance.id,
             ticket.number,
         )
+
+        # -- 3) Email the ticket's contact (customer) for public replies --
+        if not is_internal and ticket.contact_id:
+            _queue_contact_reply_email(ticket, instance, author)
+
     except Exception:
         logger.exception(
-            "Failed to process mention notifications for comment %s.",
+            "Failed to process comment notifications for comment %s.",
             instance.id,
+        )
+
+
+def _queue_contact_reply_email(ticket, comment, author):
+    """
+    Queue an outbound email to the ticket's contact for a public agent reply.
+
+    Skips if the comment author is the contact themselves (e.g. inbound email
+    replies already processed by the system).
+    """
+    try:
+        contact = ticket.contact
+        if not contact or not contact.email:
+            return
+
+        # Don't email the contact about their own replies
+        if hasattr(contact, "email") and contact.email == author.email:
+            return
+
+        agent_name = author.get_full_name() or author.email
+        comment_body = getattr(comment, "body", "") or ""
+
+        from apps.tickets.tasks import send_ticket_reply_email_task
+
+        send_ticket_reply_email_task.delay(
+            str(ticket.pk),
+            comment_body,
+            agent_name,
+            str(ticket.tenant_id),
+        )
+        logger.debug(
+            "Queued contact reply email for ticket #%d to %s",
+            ticket.number,
+            contact.email,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to queue contact reply email for ticket #%d",
+            ticket.number,
         )

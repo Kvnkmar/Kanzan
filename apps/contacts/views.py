@@ -137,7 +137,99 @@ class ContactViewSet(viewsets.ModelViewSet):
         return ContactSerializer
 
     def perform_create(self, serializer):
+        from apps.billing.services import PlanLimitChecker
+
+        PlanLimitChecker(self.request.tenant).check_can_create_contact()
         serializer.save(tenant=self.request.tenant)
+
+    @action(detail=False, methods=["post"], url_path="bulk-action")
+    def bulk_action(self, request):
+        """
+        Apply an action to multiple contacts at once.
+
+        POST /api/v1/contacts/contacts/bulk-action/
+        {
+            "action": "delete|add_to_group|remove_from_group",
+            "contact_ids": ["uuid1", ...],
+            "params": { "group_id": "uuid" }
+        }
+        """
+        action_name = request.data.get("action")
+        contact_ids = request.data.get("contact_ids", [])
+        params = request.data.get("params", {})
+
+        if not action_name or not contact_ids:
+            return Response(
+                {"error": "action and contact_ids are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        contacts = Contact.objects.filter(id__in=contact_ids)
+        if contacts.count() != len(contact_ids):
+            return Response(
+                {"error": "Some contacts not found or access denied."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        count = 0
+        details = []
+
+        if action_name == "delete":
+            count = contacts.count()
+            contacts.delete()
+            details.append(f"Deleted {count} contact(s)")
+
+        elif action_name == "add_to_group":
+            group_id = params.get("group_id")
+            if not group_id:
+                return Response(
+                    {"error": "group_id is required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            group = ContactGroup.objects.filter(id=group_id).first()
+            if not group:
+                return Response(
+                    {"error": "Group not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            for contact in contacts:
+                if not group.contacts.filter(id=contact.id).exists():
+                    group.contacts.add(contact)
+                    count += 1
+            details.append(f"Added {count} contact(s) to '{group.name}'")
+
+        elif action_name == "remove_from_group":
+            group_id = params.get("group_id")
+            if not group_id:
+                return Response(
+                    {"error": "group_id is required."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            group = ContactGroup.objects.filter(id=group_id).first()
+            if not group:
+                return Response(
+                    {"error": "Group not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            count = contacts.filter(groups=group).count()
+            group.contacts.remove(*contacts)
+            details.append(f"Removed {count} contact(s) from '{group.name}'")
+
+        else:
+            return Response(
+                {"error": f"Unknown action: {action_name}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "success": True,
+                "contacts_updated": count,
+                "action": action_name,
+                "details": details,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class ContactGroupViewSet(viewsets.ModelViewSet):

@@ -1,6 +1,150 @@
 {% extends "base.html" %}
 {% block title %}New Ticket - Kanzen Suite{% endblock %}
 
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" rel="stylesheet">
+<style>
+/* ================================================================
+   Flatpickr — Theme-aware (light default, dark via data-bs-theme)
+   ================================================================ */
+
+/* -- Container -------------------------------------------------- */
+.flatpickr-calendar {
+  font-family: 'Inter', sans-serif !important;
+  display: flex !important;
+  flex-direction: column !important;
+  width: 308px;
+  padding: 0;
+  border-radius: 14px !important;
+  overflow: hidden;
+  border: 1px solid #E2E8F0 !important;
+  background: #fff !important;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.10) !important;
+}
+.flatpickr-calendar.arrowTop::before,
+.flatpickr-calendar.arrowTop::after,
+.flatpickr-calendar.arrowBottom::before,
+.flatpickr-calendar.arrowBottom::after { display: none !important; }
+
+/* -- Month nav -------------------------------------------------- */
+.flatpickr-months { background: transparent !important; padding: 14px 12px 8px; flex-shrink: 0; }
+.flatpickr-months .flatpickr-month { height: 32px; }
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month { fill: #6B7280 !important; color: #6B7280 !important; padding: 6px 8px; border-radius: 8px; transition: all 0.15s; }
+.flatpickr-months .flatpickr-prev-month:hover,
+.flatpickr-months .flatpickr-next-month:hover { background: #F3F4F6 !important; fill: #111827 !important; }
+.flatpickr-current-month { color: #111827 !important; font-weight: 700 !important; font-size: 0.9375rem; }
+.flatpickr-current-month .flatpickr-monthDropdown-months { background: transparent; color: #111827 !important; font-weight: 700 !important; -webkit-appearance: none; appearance: none; }
+.flatpickr-current-month .flatpickr-monthDropdown-months option { background: #fff; color: #111827; }
+.flatpickr-current-month input.cur-year { color: #111827 !important; font-weight: 700 !important; }
+
+/* -- Weekday labels --------------------------------------------- */
+span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important; font-size: 0.6875rem !important; text-transform: uppercase; letter-spacing: 0.04em; }
+.flatpickr-weekdays { background: transparent !important; padding: 0 0 2px; }
+
+/* -- Day grid --------------------------------------------------- */
+.flatpickr-innerContainer { padding: 2px 12px 8px; flex-shrink: 0; }
+.flatpickr-rContainer { width: 100%; }
+.flatpickr-days { width: 100% !important; }
+.dayContainer { width: 100% !important; min-width: 100% !important; max-width: 100% !important; justify-content: center; }
+
+.flatpickr-day {
+  color: #374151 !important; font-weight: 500; font-size: 0.8125rem;
+  border-radius: 10px !important; max-width: 38px; height: 38px; line-height: 38px;
+  margin: 1px; border: 2px solid transparent; transition: all 0.12s ease;
+}
+.flatpickr-day:hover { background: #F3F4F6 !important; border-color: transparent !important; color: #111827 !important; }
+.flatpickr-day.today { border-color: var(--crm-primary, #DC2626) !important; background: transparent !important; color: var(--crm-primary, #DC2626) !important; font-weight: 700; }
+.flatpickr-day.today:hover { background: rgba(220,38,38,0.08) !important; }
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover,
+.flatpickr-day.selected:focus { background: var(--crm-primary, #DC2626) !important; border-color: var(--crm-primary, #DC2626) !important; color: #fff !important; font-weight: 600; }
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay { color: #D1D5DB !important; }
+.flatpickr-day.prevMonthDay:hover,
+.flatpickr-day.nextMonthDay:hover { background: #F9FAFB !important; color: #9CA3AF !important; }
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.flatpickr-disabled:hover { color: #E5E7EB !important; cursor: default; }
+
+/* -- Time picker ------------------------------------------------ */
+.flatpickr-time {
+  flex-shrink: 0; display: flex !important; align-items: center; justify-content: center;
+  height: 50px; max-height: 50px !important; padding: 8px 16px; margin: 0;
+  border-top: 1px solid #E5E7EB !important; background: #F9FAFB !important; overflow: visible;
+}
+.flatpickr-time input { color: #374151 !important; font-weight: 600; font-size: 1rem; font-family: 'Inter', sans-serif; background: transparent !important; border: none; }
+.flatpickr-time input:hover,
+.flatpickr-time input:focus { background: #EEF2FF !important; border-radius: 8px; }
+.flatpickr-time .numInputWrapper { border-radius: 8px; height: 36px; }
+.flatpickr-time .numInputWrapper:hover { background: #EEF2FF; }
+.flatpickr-time .flatpickr-time-separator { color: #D1D5DB !important; font-weight: 600; font-size: 1rem; line-height: 36px; }
+.flatpickr-time .flatpickr-am-pm { color: var(--crm-primary, #DC2626) !important; font-weight: 700; font-size: 0.75rem; border-radius: 8px; background: transparent; height: 36px; line-height: 36px; padding: 0 8px; }
+.flatpickr-time .flatpickr-am-pm:hover { background: #EEF2FF !important; }
+
+/* numInput arrows */
+.numInputWrapper span { border: none !important; background: transparent; opacity: 0; transition: opacity 0.15s; }
+.numInputWrapper:hover span { opacity: 1; }
+.numInputWrapper span:hover { background: rgba(0,0,0,0.05) !important; }
+.numInputWrapper span.arrowUp { top: 0; border-radius: 8px 8px 0 0; }
+.numInputWrapper span.arrowDown { bottom: 0; border-radius: 0 0 8px 8px; }
+
+/* -- Footer (clear + done) -------------------------------------- */
+.flatpickr-footer {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 16px 12px; background: #F9FAFB; border-top: 1px solid #E5E7EB;
+}
+.flatpickr-clear-btn {
+  padding: 7px 16px; font-size: 0.8125rem; font-weight: 500; font-family: 'Inter', sans-serif;
+  color: #6B7280; background: transparent; border: 1px solid #E5E7EB; border-radius: 8px;
+  cursor: pointer; transition: all 0.15s;
+}
+.flatpickr-clear-btn:hover { color: #DC2626; border-color: #DC2626; background: rgba(220,38,38,0.04); }
+.flatpickr-done-btn {
+  padding: 7px 24px; font-size: 0.8125rem; font-weight: 600; font-family: 'Inter', sans-serif;
+  color: #fff; background: var(--crm-primary, #DC2626); border: none; border-radius: 8px;
+  cursor: pointer; transition: background 0.15s;
+}
+.flatpickr-done-btn:hover { filter: brightness(0.9); }
+
+/* -- Alt-input -------------------------------------------------- */
+.flatpickr-input.form-control[readonly],
+.form-control.flatpickr-input[readonly] { background: transparent; cursor: pointer; }
+
+/* ================================================================
+   Dark-mode overrides
+   ================================================================ */
+[data-bs-theme="dark"] .flatpickr-calendar { background: #1A2030 !important; border-color: rgba(255,255,255,0.08) !important; box-shadow: 0 16px 48px rgba(0,0,0,0.45) !important; }
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-prev-month,
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month { fill: #94A3B8 !important; color: #94A3B8 !important; }
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-prev-month:hover,
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month:hover { background: rgba(255,255,255,0.08) !important; fill: #F1F5F9 !important; }
+[data-bs-theme="dark"] .flatpickr-current-month,
+[data-bs-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months,
+[data-bs-theme="dark"] .flatpickr-current-month input.cur-year { color: #F1F5F9 !important; }
+[data-bs-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months option { background: #1A2030; color: #F1F5F9; }
+[data-bs-theme="dark"] span.flatpickr-weekday { color: #64748B !important; }
+[data-bs-theme="dark"] .flatpickr-day { color: #E2E8F0 !important; }
+[data-bs-theme="dark"] .flatpickr-day:hover { background: rgba(255,255,255,0.08) !important; color: #fff !important; }
+[data-bs-theme="dark"] .flatpickr-day.today { color: var(--crm-primary) !important; background: rgba(220,38,38,0.12) !important; }
+[data-bs-theme="dark"] .flatpickr-day.prevMonthDay,
+[data-bs-theme="dark"] .flatpickr-day.nextMonthDay { color: #475569 !important; }
+[data-bs-theme="dark"] .flatpickr-day.prevMonthDay:hover,
+[data-bs-theme="dark"] .flatpickr-day.nextMonthDay:hover { background: rgba(255,255,255,0.04) !important; color: #94A3B8 !important; }
+[data-bs-theme="dark"] .flatpickr-time { background: #151A23 !important; border-top-color: rgba(255,255,255,0.06) !important; }
+[data-bs-theme="dark"] .flatpickr-time input { color: #E2E8F0 !important; }
+[data-bs-theme="dark"] .flatpickr-time input:hover,
+[data-bs-theme="dark"] .flatpickr-time input:focus { background: rgba(255,255,255,0.06) !important; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm { color: #94A3B8 !important; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm:hover { background: rgba(255,255,255,0.06) !important; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-time-separator { color: #475569 !important; }
+[data-bs-theme="dark"] .flatpickr-time .numInputWrapper:hover { background: rgba(255,255,255,0.06); }
+[data-bs-theme="dark"] .numInputWrapper span:hover { background: rgba(255,255,255,0.08) !important; }
+[data-bs-theme="dark"] .flatpickr-footer { background: #151A23; border-top-color: rgba(255,255,255,0.06); }
+[data-bs-theme="dark"] .flatpickr-clear-btn { color: #94A3B8; border-color: rgba(255,255,255,0.1); }
+[data-bs-theme="dark"] .flatpickr-clear-btn:hover { color: #F87171; border-color: #F87171; background: rgba(248,113,113,0.08); }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Page Header -->
 <div class="page-header">
@@ -89,7 +233,7 @@
             <div class="row">
               <div class="col-md-4 mb-3 mb-md-0">
                 <label for="ticketDueDate" class="form-label">Due Date</label>
-                <input type="datetime-local" id="ticketDueDate" name="due_date" class="form-control">
+                <input type="text" id="ticketDueDate" name="due_date" class="form-control" placeholder="Select date & time" readonly>
                 <div class="invalid-feedback" id="due_dateError"></div>
               </div>
               <div class="col-md-4 mb-3 mb-md-0">
@@ -158,6 +302,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 window.tiptap = { Editor, StarterKit, Link, Placeholder };
 window.dispatchEvent(new Event('tiptap-ready'));
 </script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
 <script src="{% static 'js/rich-editor.js' %}"></script>
 <script>
 (function() {
@@ -199,6 +344,46 @@ window.dispatchEvent(new Event('tiptap-ready'));
     if (currentUserId) s.value = currentUserId;
   }).catch(function(e) { console.error('Error:', e); });
   Api.get('/api/v1/tickets/ticket-categories/').then(function(data) { var s = document.getElementById('ticketCategory'); (data.results || data).forEach(function(c) { var o = document.createElement('option'); o.value = c.id; o.textContent = c.name; s.appendChild(o); }); }).catch(function(e) { console.error('Error:', e); });
+
+  // --- Flatpickr date picker ---
+  var dueDatePicker = flatpickr('#ticketDueDate', {
+    enableTime: true,
+    dateFormat: 'Y-m-d\\TH:i',
+    altInput: true,
+    altFormat: 'M j, Y  h:iK',
+    time_24hr: false,
+    allowInput: false,
+    disableMobile: true,
+    closeOnSelect: false,
+    onReady: function(selectedDates, dateStr, instance) {
+      if (instance.altInput) {
+        instance.altInput.classList.add('form-control');
+        instance.altInput.setAttribute('placeholder', 'Select date & time');
+        instance.altInput.style.cursor = 'pointer';
+      }
+      // Add footer with Clear + Done buttons
+      var footer = document.createElement('div');
+      footer.className = 'flatpickr-footer';
+      var clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'flatpickr-clear-btn';
+      var clearIcon = document.createElement('i');
+      clearIcon.className = 'ti ti-x';
+      clearIcon.style.marginRight = '4px';
+      clearIcon.style.fontSize = '0.75rem';
+      clearBtn.appendChild(clearIcon);
+      clearBtn.appendChild(document.createTextNode('Clear'));
+      clearBtn.addEventListener('click', function() { instance.clear(); instance.close(); });
+      var doneBtn = document.createElement('button');
+      doneBtn.type = 'button';
+      doneBtn.className = 'flatpickr-done-btn';
+      doneBtn.textContent = 'Done';
+      doneBtn.addEventListener('click', function() { instance.close(); });
+      footer.appendChild(clearBtn);
+      footer.appendChild(doneBtn);
+      instance.calendarContainer.appendChild(footer);
+    }
+  });
 
   // --- Tag handling ---
   var tags = [];
@@ -272,7 +457,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
   document.getElementById('createTicketForm').addEventListener('submit', function(e) {
     e.preventDefault(); clearErrors();
     var subject = document.getElementById('ticketSubject').value.trim(), desc = descEditor ? descEditor.getHTML() : '', priority = document.getElementById('ticketPriority').value, queue = document.getElementById('ticketQueue').value, contact = document.getElementById('ticketContact').value;
-    var assignee = document.getElementById('ticketAssignee').value, dueDate = document.getElementById('ticketDueDate').value;
+    var assignee = document.getElementById('ticketAssignee').value, dueDate = dueDatePicker.selectedDates.length ? dueDatePicker.selectedDates[0].toISOString() : '';
     var categorySelect = document.getElementById('ticketCategory');
     var category = categorySelect.selectedIndex > 0 ? categorySelect.options[categorySelect.selectedIndex].text : '';
     var valid = true;
@@ -282,7 +467,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
     var payload = { subject: subject, description: desc, priority: priority, queue: queue };
     if (contact) payload.contact = contact;
     if (assignee) payload.assignee = assignee;
-    if (dueDate) payload.due_date = new Date(dueDate).toISOString();
+    if (dueDate) payload.due_date = dueDate;
     if (category) payload.category = category;
     if (tags.length > 0) payload.tags = tags;
     setLoading(true);

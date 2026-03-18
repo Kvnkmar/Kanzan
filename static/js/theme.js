@@ -12,14 +12,14 @@
 
   function getEffectiveTheme(preference) {
     if (preference === 'system') return getSystemTheme();
-    if (!preference) return 'dark'; // Default to dark on first visit
+    if (!preference) return 'light'; // Default to light on first visit
     return preference;
   }
 
   function applyTheme(preference) {
     var effective = getEffectiveTheme(preference);
     document.documentElement.setAttribute('data-bs-theme', effective);
-    updateToggleIcon(preference || 'dark');
+    updateToggleIcon(preference || 'light');
   }
 
   function updateToggleIcon(preference) {
@@ -42,11 +42,11 @@
   }
 
   function cycleTheme() {
-    var current = localStorage.getItem(STORAGE_KEY) || 'dark';
+    var current = localStorage.getItem(STORAGE_KEY) || 'light';
     var next;
-    if (current === 'dark') next = 'light';
-    else if (current === 'light') next = 'system';
-    else next = 'dark';
+    if (current === 'light') next = 'dark';
+    else if (current === 'dark') next = 'system';
+    else next = 'light';
 
     localStorage.setItem(STORAGE_KEY, next);
     applyTheme(next);
@@ -66,7 +66,7 @@
 
   // Bind toggle button after DOM ready
   document.addEventListener('DOMContentLoaded', function() {
-    var pref = localStorage.getItem(STORAGE_KEY) || 'dark';
+    var pref = localStorage.getItem(STORAGE_KEY) || 'light';
     updateToggleIcon(pref);
 
     var btn = document.getElementById('themeToggleBtn');

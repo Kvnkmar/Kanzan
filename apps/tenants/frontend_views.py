@@ -17,6 +17,36 @@ from django.views.decorators.http import require_http_methods
 
 
 # ---------------------------------------------------------------------------
+# Tenant membership helpers
+# ---------------------------------------------------------------------------
+
+def _has_tenant_membership(user, tenant):
+    """Return True if *user* has an active membership for *tenant*."""
+    if tenant is None:
+        return False
+    from apps.accounts.models import TenantMembership
+    return TenantMembership.objects.filter(
+        user=user, tenant=tenant, is_active=True,
+    ).exists()
+
+
+def _membership_required(view_func):
+    """
+    View decorator that requires the authenticated user to have an active
+    TenantMembership for the current tenant.
+    """
+    @functools.wraps(view_func)
+    @login_required(login_url="/login/")
+    def _wrapped(request, *args, **kwargs):
+        tenant = getattr(request, "tenant", None)
+        if tenant is not None and not _has_tenant_membership(request.user, tenant):
+            logout(request)
+            return redirect("frontend:login")
+        return view_func(request, *args, **kwargs)
+    return _wrapped
+
+
+# ---------------------------------------------------------------------------
 # Role-based access decorator
 # ---------------------------------------------------------------------------
 
@@ -25,8 +55,7 @@ def _role_required(max_hierarchy):
     View decorator that requires the user's role hierarchy_level to be
     <= *max_hierarchy* within the current tenant.
 
-    Superusers bypass the check.  Users without a membership or with
-    insufficient role see a 403 page.
+    Users without a membership or with insufficient role see a 403 page.
 
     Usage::
 
@@ -39,9 +68,6 @@ def _role_required(max_hierarchy):
         @functools.wraps(view_func)
         @login_required(login_url="/login/")
         def _wrapped(request, *args, **kwargs):
-            if request.user.is_superuser:
-                return view_func(request, *args, **kwargs)
-
             tenant = getattr(request, "tenant", None)
             if tenant is None:
                 return render(
@@ -51,19 +77,13 @@ def _role_required(max_hierarchy):
                     status=403,
                 )
 
-            # Reuse or create cached membership lookup
-            cache_attr = "_cached_tenant_membership"
-            if hasattr(request, cache_attr):
-                membership = getattr(request, cache_attr)
-            else:
-                from apps.accounts.models import TenantMembership
+            from apps.accounts.models import TenantMembership
 
-                membership = (
-                    TenantMembership.objects.select_related("role")
-                    .filter(user=request.user, tenant=tenant, is_active=True)
-                    .first()
-                )
-                setattr(request, cache_attr, membership)
+            membership = (
+                TenantMembership.objects.select_related("role")
+                .filter(user=request.user, tenant=tenant, is_active=True)
+                .first()
+            )
 
             if membership is None or membership.role.hierarchy_level > max_hierarchy:
                 return render(
@@ -105,16 +125,21 @@ def login_page(request):
         password = request.POST.get("password", "")
         user = authenticate(request, email=email, password=password)
         if user is not None:
-            login(request, user)
-            next_url = request.GET.get("next", "")
-            if next_url and url_has_allowed_host_and_scheme(
-                next_url,
-                allowed_hosts={request.get_host()},
-                require_https=request.is_secure(),
-            ):
-                return redirect(next_url)
-            return redirect("frontend:dashboard")
-        error = "Invalid email or password."
+            tenant = getattr(request, "tenant", None)
+            if tenant and not _has_tenant_membership(user, tenant):
+                error = "You are not a member of this organization."
+            else:
+                login(request, user)
+                next_url = request.GET.get("next", "")
+                if next_url and url_has_allowed_host_and_scheme(
+                    next_url,
+                    allowed_hosts={request.get_host()},
+                    require_https=request.is_secure(),
+                ):
+                    return redirect(next_url)
+                return redirect("frontend:dashboard")
+        else:
+            error = "Invalid email or password."
 
     return render(request, "pages/login.html", {"error": error})
 
@@ -126,7 +151,6 @@ def register_page(request):
         return redirect("frontend:dashboard")
 
     error = None
-    success = None
     if request.method == "POST":
         from django.contrib.auth import get_user_model
 
@@ -155,10 +179,14 @@ def register_page(request):
                     first_name=first_name,
                     last_name=last_name,
                 )
-                login(request, user)
-                return redirect("frontend:dashboard")
+                tenant = getattr(request, "tenant", None)
+                if tenant and not _has_tenant_membership(user, tenant):
+                    error = "Account created, but you are not a member of this organization. Contact an admin for access."
+                else:
+                    login(request, user)
+                    return redirect("frontend:dashboard")
 
-    return render(request, "pages/register.html", {"error": error, "success": success})
+    return render(request, "pages/register.html", {"error": error})
 
 
 @require_http_methods(["GET", "POST"])
@@ -177,71 +205,81 @@ def logout_page(request):
 # Authenticated pages (all roles)
 # ---------------------------------------------------------------------------
 
-@login_required(login_url="/login/")
+@_membership_required
 def profile_page(request):
     return render(request, "pages/profile.html")
 
 
-@login_required(login_url="/login/")
+@_membership_required
 def dashboard_page(request):
     return render(request, "pages/dashboard.html")
 
 
-@login_required(login_url="/login/")
+@_membership_required
 def ticket_list_page(request):
     return render(request, "pages/tickets/list.html")
 
 
-@login_required(login_url="/login/")
+@_membership_required
 def ticket_create_page(request):
     return render(request, "pages/tickets/create.html")
 
 
-@login_required(login_url="/login/")
+@_membership_required
 def ticket_detail_page(request, ticket_number):
     return render(request, "pages/tickets/detail.html", {"ticket_number": ticket_number})
 
 
-@login_required(login_url="/login/")
+@_membership_required
 def contact_list_page(request):
     return render(request, "pages/contacts/list.html")
 
 
-@login_required(login_url="/login/")
+@_membership_required
 def contact_create_page(request):
     return render(request, "pages/contacts/create.html")
 
 
-@login_required(login_url="/login/")
+@_membership_required
 def contact_detail_page(request, contact_id):
     return render(request, "pages/contacts/detail.html", {"contact_id": contact_id})
 
 
-@login_required(login_url="/login/")
+@_membership_required
 def calendar_page(request):
     return render(request, "pages/calendar.html")
 
 
-@login_required(login_url="/login/")
+@_membership_required
 def kanban_page(request):
     return render(request, "pages/kanban/board.html")
 
 
-@login_required(login_url="/login/")
+@_membership_required
 def messaging_page(request):
     return render(request, "pages/messaging/chat.html")
 
 
-@login_required(login_url="/login/")
+@_membership_required
 def analytics_page(request):
     return render(request, "pages/analytics/overview.html")
+
+
+@_membership_required
+def knowledge_list_page(request):
+    return render(request, "pages/knowledge/list.html")
+
+
+@_membership_required
+def knowledge_article_page(request, article_slug):
+    return render(request, "pages/knowledge/article.html", {"article_slug": article_slug})
 
 
 # ---------------------------------------------------------------------------
 # Admin-only pages (hierarchy_level <= 10)
 # ---------------------------------------------------------------------------
 
-@_role_required(10)
+@_membership_required
 def settings_page(request):
     return render(request, "pages/settings/tenant.html")
 
@@ -263,3 +301,8 @@ def users_page(request):
 @_role_required(20)
 def agents_page(request):
     return render(request, "pages/agents/list.html")
+
+
+@_role_required(20)
+def inbound_email_page(request):
+    return render(request, "pages/inbound_email/list.html")

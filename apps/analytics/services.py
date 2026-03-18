@@ -260,3 +260,116 @@ def get_sla_compliance(tenant, date_from=None, date_to=None):
         )
 
     return {"policies": policies}
+
+
+def get_due_today(tenant, user):
+    """
+    Return tickets due today that are assigned to the given user.
+
+    Returns a dict with:
+        - count: number of tickets due today
+        - tickets: list of dicts with id, number, subject, priority, due_date
+    """
+    now = timezone.now()
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    closed_status_ids = list(
+        TicketStatus.unscoped.filter(tenant=tenant, is_closed=True)
+        .values_list("id", flat=True)
+    )
+
+    qs = Ticket.unscoped.filter(
+        tenant=tenant,
+        assignee=user,
+        due_date__gte=start_of_day,
+        due_date__lte=end_of_day,
+    ).exclude(status_id__in=closed_status_ids).select_related("status").order_by("due_date")
+
+    tickets = []
+    for t in qs[:20]:
+        tickets.append({
+            "id": str(t.id),
+            "number": t.number,
+            "subject": t.subject,
+            "priority": t.priority,
+            "due_date": t.due_date.isoformat() if t.due_date else None,
+            "status_name": t.status.name if t.status else "",
+            "status_color": t.status.color if t.status else "#6B7280",
+        })
+
+    return {
+        "count": qs.count(),
+        "tickets": tickets,
+    }
+
+
+def get_overdue_tickets(tenant, user):
+    """
+    Return overdue tickets assigned to the given user (or all if admin).
+
+    Returns a dict with:
+        - count: total overdue tickets
+        - tickets: list of dicts with id, number, subject, priority,
+          due_date, overdue_by, status_name, status_color
+    """
+    now = timezone.now()
+
+    closed_status_ids = list(
+        TicketStatus.unscoped.filter(tenant=tenant, is_closed=True)
+        .values_list("id", flat=True)
+    )
+
+    qs = (
+        Ticket.unscoped.filter(
+            tenant=tenant,
+            due_date__lt=now,
+            due_date__isnull=False,
+        )
+        .exclude(status_id__in=closed_status_ids)
+        .select_related("status", "assignee")
+        .order_by("due_date")
+    )
+
+    # Non-admin users only see their own overdue tickets
+    from apps.accounts.models import TenantMembership
+
+    membership = (
+        TenantMembership.objects.select_related("role")
+        .filter(user=user, tenant=tenant, is_active=True)
+        .first()
+    )
+    is_admin = (
+        user.is_superuser
+        or (membership and membership.role.hierarchy_level <= 20)
+    )
+    if not is_admin:
+        qs = qs.filter(assignee=user)
+
+    tickets = []
+    for t in qs[:20]:
+        overdue_delta = now - t.due_date
+        overdue_hours = int(overdue_delta.total_seconds() / 3600)
+        if overdue_hours < 1:
+            overdue_label = f"{int(overdue_delta.total_seconds() / 60)}m"
+        elif overdue_hours < 24:
+            overdue_label = f"{overdue_hours}h"
+        else:
+            overdue_label = f"{overdue_hours // 24}d {overdue_hours % 24}h"
+
+        tickets.append({
+            "id": str(t.id),
+            "number": t.number,
+            "subject": t.subject,
+            "priority": t.priority,
+            "due_date": t.due_date.isoformat() if t.due_date else None,
+            "overdue_by": overdue_label,
+            "assignee_name": t.assignee.get_full_name() if t.assignee else "Unassigned",
+            "status_name": t.status.name if t.status else "",
+            "status_color": t.status.color if t.status else "#6B7280",
+        })
+
+    return {
+        "count": qs.count(),
+        "tickets": tickets,
+    }

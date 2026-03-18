@@ -27,6 +27,8 @@ from apps.analytics.serializers import (
 from apps.accounts.permissions import HasTenantPermission, IsTenantAdminOrManager
 from apps.analytics.services import (
     get_agent_performance,
+    get_due_today,
+    get_overdue_tickets,
     get_sla_compliance,
     get_ticket_stats,
 )
@@ -52,9 +54,6 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return ReportDefinition.objects.select_related("created_by").all()
 
-    def perform_create(self, serializer):
-        serializer.save()
-
 
 # ---------------------------------------------------------------------------
 # DashboardWidget
@@ -78,9 +77,6 @@ class DashboardWidgetViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return DashboardWidget.objects.select_related("user").all()
-
-    def perform_create(self, serializer):
-        serializer.save()
 
 
 # ---------------------------------------------------------------------------
@@ -111,9 +107,6 @@ class ExportJobViewSet(viewsets.ModelViewSet):
         if self.action == "create":
             return ExportJobCreateSerializer
         return ExportJobSerializer
-
-    def perform_create(self, serializer):
-        serializer.save()
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +154,7 @@ class DashboardView(APIView):
         - sla_compliance: per-policy compliance rates
     """
 
-    permission_classes = [IsAuthenticated, IsTenantAdminOrManager]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         tenant = request.tenant
@@ -170,16 +163,34 @@ class DashboardView(APIView):
 
         ticket_stats = get_ticket_stats(tenant, date_from, date_to, user=request.user)
         agent_performance = get_agent_performance(tenant, date_from, date_to)
-        sla_compliance = get_sla_compliance(tenant, date_from, date_to)
 
-        return Response(
-            {
-                "ticket_stats": ticket_stats,
-                "agent_performance": agent_performance,
-                "sla_compliance": sla_compliance,
-            },
-            status=status.HTTP_200_OK,
+        # Determine role level for the current user
+        is_admin_or_manager = self._is_admin_or_manager(request.user, tenant)
+
+        data = {
+            "ticket_stats": ticket_stats,
+            "agent_performance": agent_performance,
+            "is_admin_or_manager": is_admin_or_manager,
+            "sla_compliance": get_sla_compliance(tenant, date_from, date_to),
+            "due_today": get_due_today(tenant, request.user),
+            "overdue_tickets": get_overdue_tickets(tenant, request.user),
+        }
+
+        return Response(data, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _is_admin_or_manager(user, tenant):
+        """Check if the user has admin or manager role (hierarchy_level <= 20)."""
+        if user.is_superuser:
+            return True
+        from apps.accounts.models import TenantMembership
+
+        membership = (
+            TenantMembership.objects.select_related("role")
+            .filter(user=user, tenant=tenant, is_active=True)
+            .first()
         )
+        return membership is not None and membership.role.hierarchy_level <= 20
 
     @staticmethod
     def _parse_date(value):

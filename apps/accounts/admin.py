@@ -1,6 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
+from main.admin import TenantFilteredAdmin
+
 from apps.accounts.models import (
     Invitation,
     Permission,
@@ -67,7 +69,7 @@ class UserAdmin(BaseUserAdmin):
 
 
 @admin.register(Profile)
-class ProfileAdmin(admin.ModelAdmin):
+class ProfileAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = ("user", "tenant", "job_title", "department", "notification_email")
     list_filter = ("tenant", "notification_email")
     search_fields = ("user__email", "user__first_name", "user__last_name", "job_title")
@@ -80,7 +82,7 @@ class ProfileAdmin(admin.ModelAdmin):
 
 
 @admin.register(TenantMembership)
-class TenantMembershipAdmin(admin.ModelAdmin):
+class TenantMembershipAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = ("user", "tenant", "role", "is_active", "joined_at")
     list_filter = ("tenant", "role", "is_active")
     search_fields = ("user__email", "tenant__name")
@@ -93,7 +95,7 @@ class TenantMembershipAdmin(admin.ModelAdmin):
 
 
 @admin.register(Role)
-class RoleAdmin(admin.ModelAdmin):
+class RoleAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = ("name", "slug", "tenant", "hierarchy_level", "is_system")
     list_filter = ("tenant", "is_system")
     search_fields = ("name", "slug")
@@ -119,7 +121,7 @@ class PermissionAdmin(admin.ModelAdmin):
 
 
 @admin.register(Invitation)
-class InvitationAdmin(admin.ModelAdmin):
+class InvitationAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = ("email", "tenant", "role", "invited_by", "accepted_at", "expires_at")
     list_filter = ("tenant",)
     search_fields = ("email",)

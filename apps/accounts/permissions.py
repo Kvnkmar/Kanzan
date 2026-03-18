@@ -21,6 +21,24 @@ ACTION_MAP = {
     "assign": "update",
     "change_status": "update",
     "change_priority": "update",
+    "bulk_action": "update",
+    "close": "update",
+    "lookup": "view",
+    "teammates": "view",
+    "team_progress": "view",
+    # Canned response / Saved view custom actions
+    "render": "view",
+    "set_default": "update",
+    # Agent custom actions
+    "all_members": "view",
+    "online": "view",
+    "workload": "view",
+    "set_status": "update",
+    "my_status": "view",
+    # Knowledge base custom actions
+    "record_view": "view",
+    "remove_file": "update",
+    "preview_file": "view",
 }
 
 
@@ -50,18 +68,12 @@ class HasTenantPermission(BasePermission):
     The view should set ``permission_resource`` (e.g., ``"ticket"``).
     The permission codename is derived automatically from the DRF view action:
         ``{permission_resource}.{action}``
-
-    Superusers bypass all checks.
     """
 
     def has_permission(self, request, view):
         user = request.user
         if not user or not user.is_authenticated:
             return False
-
-        # Superusers bypass all permission checks
-        if user.is_superuser:
-            return True
 
         tenant = getattr(request, "tenant", None)
         if tenant is None:
@@ -91,7 +103,19 @@ class HasTenantPermission(BasePermission):
             return False
 
         codename = f"{resource}.{action_verb}"
-        return membership.role.has_permission(codename)
+
+        # Check explicit permissions first
+        if membership.role.permissions.exists():
+            return membership.role.has_permission(codename)
+
+        # Fallback: hierarchy-based defaults when no permissions are assigned
+        level = membership.role.hierarchy_level
+        if action_verb == "view":
+            return level <= 40          # Everyone can view
+        elif action_verb in ("create", "update"):
+            return level <= 30          # Agent and above
+        else:
+            return level <= 20          # Manager and above (delete, manage, assign, export)
 
 
 class IsTicketAccessible(BasePermission):
@@ -100,13 +124,10 @@ class IsTicketAccessible(BasePermission):
     individual tickets they did not create and are not assigned to.
 
     Admin and Manager roles (hierarchy_level <= 20) bypass the check.
-    Superusers bypass all checks.
     """
 
     def has_object_permission(self, request, view, obj):
         user = request.user
-        if user.is_superuser:
-            return True
 
         tenant = getattr(request, "tenant", None)
         if tenant is None:
@@ -128,17 +149,12 @@ class IsTenantAdmin(BasePermission):
     """
     Allows access only to users whose role hierarchy_level is <= 10
     within the current tenant (i.e., Admin-level users).
-
-    Superusers bypass all checks.
     """
 
     def has_permission(self, request, view):
         user = request.user
         if not user or not user.is_authenticated:
             return False
-
-        if user.is_superuser:
-            return True
 
         tenant = getattr(request, "tenant", None)
         if tenant is None:
@@ -155,17 +171,12 @@ class IsTenantAdminOrManager(BasePermission):
     """
     Allows access to users whose role hierarchy_level is <= 20
     within the current tenant (Admin or Manager).
-
-    Superusers bypass all checks.
     """
 
     def has_permission(self, request, view):
         user = request.user
         if not user or not user.is_authenticated:
             return False
-
-        if user.is_superuser:
-            return True
 
         tenant = getattr(request, "tenant", None)
         if tenant is None:

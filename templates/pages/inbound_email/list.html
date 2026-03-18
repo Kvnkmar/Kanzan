@@ -1,0 +1,541 @@
+{% extends "base.html" %}
+{% block title %}Inbound Email - Kanzen Suite{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Inbound Email</h1>
+    <p class="page-subtitle">Monitor email-to-ticket processing</p>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4" id="emailStats">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-card-inner">
+        <div class="stat-card-label">Total</div>
+        <div class="stat-card-value" id="statTotal">--</div>
+      </div>
+      <div class="stat-card-accent" style="background: var(--bs-primary);"></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-card-inner">
+        <div class="stat-card-label">Tickets Created</div>
+        <div class="stat-card-value" id="statCreated">--</div>
+      </div>
+      <div class="stat-card-accent" style="background: #10B981;"></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-card-inner">
+        <div class="stat-card-label">Replies Added</div>
+        <div class="stat-card-value" id="statReplies">--</div>
+      </div>
+      <div class="stat-card-accent" style="background: #3B82F6;"></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-card-inner">
+        <div class="stat-card-label">Failed / Rejected</div>
+        <div class="stat-card-value" id="statFailed">--</div>
+      </div>
+      <div class="stat-card-accent" style="background: #EF4444;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="tl-toolbar">
+  <div class="tl-toolbar-left">
+    <div class="tl-toolbar-filters">
+      <div class="tl-filter-group">
+        <label for="filterStatus" class="visually-hidden">Status</label>
+        <select id="filterStatus" class="form-select form-select-sm tl-filter-select">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="processing">Processing</option>
+          <option value="ticket_created">Ticket Created</option>
+          <option value="reply_added">Reply Added</option>
+          <option value="rejected">Rejected</option>
+          <option value="failed">Failed</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="tl-toolbar-right">
+    <div class="tl-filter-search">
+      <i class="ti ti-search" aria-hidden="true"></i>
+      <label for="filterSearch" class="visually-hidden">Search emails</label>
+      <input type="text" id="filterSearch" class="form-control form-control-sm" placeholder="Search sender or subject...">
+    </div>
+  </div>
+</div>
+
+<!-- Table Header -->
+<div class="tl-table-header">
+  <div class="tl-col" style="flex:2;">Sender</div>
+  <div class="tl-col" style="flex:3;">Subject</div>
+  <div class="tl-col" style="flex:1.5;">Status</div>
+  <div class="tl-col" style="flex:2;">Linked Ticket</div>
+  <div class="tl-col" style="flex:1.5;">Received</div>
+</div>
+
+<!-- Email List -->
+<div class="tl-ticket-list" id="emailList" role="list" aria-label="Inbound email list">
+  <div id="loadingState" class="tl-loading" role="status">
+    <div class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></div>
+    <span>Loading emails...</span>
+  </div>
+</div>
+
+<!-- Empty State -->
+<div id="emptyState" class="d-none">
+  <div class="tl-empty">
+    <div class="tl-empty-icon"><i class="ti ti-mail-off" aria-hidden="true"></i></div>
+    <h5 class="tl-empty-title">No inbound emails</h5>
+    <p class="tl-empty-text">Emails sent to your inbound address will appear here once processed.</p>
+  </div>
+</div>
+
+<!-- Pagination -->
+<nav id="paginationNav" class="mt-3 d-none" aria-label="Email pagination">
+  <div class="d-flex justify-content-between align-items-center">
+    <small id="paginationInfo" class="text-muted"></small>
+    <ul id="paginationControls" class="pagination pagination-sm mb-0"></ul>
+  </div>
+</nav>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="emailDetailModal" tabindex="-1" aria-labelledby="emailDetailTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="emailDetailTitle">Email Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="emailDetailBody">
+        <div class="text-center py-4">
+          <div class="spinner-border spinner-border-sm" role="status"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+
+  var PAGE_SIZE = 25;
+  var DEBOUNCE_MS = 400;
+  var currentPage = 1;
+  var totalCount = 0;
+
+  var STATUS_STYLES = {
+    pending:        { bg: '#F59E0B1A', color: '#F59E0B', border: '#F59E0B33', label: 'Pending' },
+    processing:     { bg: '#3B82F61A', color: '#3B82F6', border: '#3B82F633', label: 'Processing' },
+    ticket_created: { bg: '#10B9811A', color: '#10B981', border: '#10B98133', label: 'Ticket Created' },
+    reply_added:    { bg: '#6366F11A', color: '#6366F1', border: '#6366F133', label: 'Reply Added' },
+    rejected:       { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', label: 'Rejected' },
+    failed:         { bg: '#DC26261A', color: '#DC2626', border: '#DC262633', label: 'Failed' }
+  };
+
+  var dom = {
+    emailList: document.getElementById('emailList'),
+    emptyState: document.getElementById('emptyState'),
+    filterStatus: document.getElementById('filterStatus'),
+    filterSearch: document.getElementById('filterSearch'),
+    paginationNav: document.getElementById('paginationNav'),
+    paginationInfo: document.getElementById('paginationInfo'),
+    paginationControls: document.getElementById('paginationControls'),
+    statTotal: document.getElementById('statTotal'),
+    statCreated: document.getElementById('statCreated'),
+    statReplies: document.getElementById('statReplies'),
+    statFailed: document.getElementById('statFailed')
+  };
+
+  function formatDate(dateStr) {
+    if (!dateStr) return '--';
+    var d = new Date(dateStr);
+    var now = new Date();
+    var diff = Math.floor((now - d) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+
+  function buildParams() {
+    var params = new URLSearchParams();
+    params.set('page', currentPage);
+    params.set('page_size', PAGE_SIZE);
+    var s = dom.filterStatus.value;
+    if (s) params.set('status', s);
+    var q = dom.filterSearch.value.trim();
+    if (q) params.set('search', q);
+    return params.toString();
+  }
+
+  function createStatusBadge(status) {
+    var sc = STATUS_STYLES[status] || STATUS_STYLES.pending;
+    var badge = document.createElement('span');
+    badge.className = 'tl-cell-status';
+    badge.textContent = sc.label;
+    badge.style.background = sc.bg;
+    badge.style.color = sc.color;
+    badge.style.border = '1px solid ' + sc.border;
+    return badge;
+  }
+
+  function loadStats() {
+    Promise.all([
+      Api.get('/api/v1/inbound-email/?page_size=1'),
+      Api.get('/api/v1/inbound-email/?status=ticket_created&page_size=1'),
+      Api.get('/api/v1/inbound-email/?status=reply_added&page_size=1'),
+      Api.get('/api/v1/inbound-email/?status=failed&page_size=1').catch(function() { return { count: 0 }; }),
+      Api.get('/api/v1/inbound-email/?status=rejected&page_size=1').catch(function() { return { count: 0 }; })
+    ]).then(function(results) {
+      dom.statTotal.textContent = results[0].count || 0;
+      dom.statCreated.textContent = results[1].count || 0;
+      dom.statReplies.textContent = results[2].count || 0;
+      dom.statFailed.textContent = (results[3].count || 0) + (results[4].count || 0);
+    }).catch(function() {});
+  }
+
+  function renderEmails(emails) {
+    dom.emailList.textContent = '';
+
+    if (!emails || emails.length === 0) {
+      dom.emailList.classList.add('d-none');
+      dom.emptyState.classList.remove('d-none');
+      dom.paginationNav.classList.add('d-none');
+      return;
+    }
+
+    dom.emailList.classList.remove('d-none');
+    dom.emptyState.classList.add('d-none');
+
+    var fragment = document.createDocumentFragment();
+
+    emails.forEach(function(e) {
+      var row = document.createElement('div');
+      row.className = 'tl-table-row';
+      row.style.cursor = 'pointer';
+      row.setAttribute('role', 'listitem');
+      row.addEventListener('click', function() { showDetail(e.id); });
+
+      // Sender column
+      var colSender = document.createElement('div');
+      colSender.className = 'tl-col';
+      colSender.style.flex = '2';
+      var senderName = document.createElement('div');
+      senderName.className = 'fw-medium text-truncate';
+      senderName.style.fontSize = '0.85rem';
+      senderName.textContent = e.sender_name || e.sender_email;
+      colSender.appendChild(senderName);
+      if (e.sender_name) {
+        var senderEmail = document.createElement('div');
+        senderEmail.className = 'text-muted text-truncate';
+        senderEmail.style.fontSize = '0.75rem';
+        senderEmail.textContent = e.sender_email;
+        colSender.appendChild(senderEmail);
+      }
+
+      // Subject column
+      var colSubject = document.createElement('div');
+      colSubject.className = 'tl-col text-truncate';
+      colSubject.style.flex = '3';
+      colSubject.textContent = e.subject || '(No Subject)';
+
+      // Status column
+      var colStatus = document.createElement('div');
+      colStatus.className = 'tl-col';
+      colStatus.style.flex = '1.5';
+      colStatus.appendChild(createStatusBadge(e.status));
+
+      // Linked Ticket column
+      var colTicket = document.createElement('div');
+      colTicket.className = 'tl-col';
+      colTicket.style.flex = '2';
+      if (e.ticket_number) {
+        var ticketLink = document.createElement('a');
+        ticketLink.href = '/tickets/' + e.ticket_number + '/';
+        ticketLink.className = 'text-primary text-decoration-none';
+        ticketLink.style.fontSize = '0.85rem';
+        ticketLink.textContent = '#' + e.ticket_number;
+        if (e.ticket_subject) ticketLink.textContent += ' ' + e.ticket_subject;
+        ticketLink.addEventListener('click', function(ev) { ev.stopPropagation(); });
+        colTicket.appendChild(ticketLink);
+      } else {
+        var noTicket = document.createElement('span');
+        noTicket.className = 'text-muted';
+        noTicket.style.fontSize = '0.85rem';
+        noTicket.textContent = '--';
+        colTicket.appendChild(noTicket);
+      }
+
+      // Date column
+      var colDate = document.createElement('div');
+      colDate.className = 'tl-col';
+      colDate.style.flex = '1.5';
+      var dateSpan = document.createElement('span');
+      dateSpan.className = 'tl-cell-date';
+      dateSpan.textContent = formatDate(e.created_at);
+      colDate.appendChild(dateSpan);
+
+      row.appendChild(colSender);
+      row.appendChild(colSubject);
+      row.appendChild(colStatus);
+      row.appendChild(colTicket);
+      row.appendChild(colDate);
+      fragment.appendChild(row);
+    });
+
+    dom.emailList.appendChild(fragment);
+  }
+
+  function renderPagination() {
+    var totalPages = Math.ceil(totalCount / PAGE_SIZE);
+    if (totalPages <= 1) { dom.paginationNav.classList.add('d-none'); return; }
+
+    dom.paginationNav.classList.remove('d-none');
+    dom.paginationInfo.textContent = 'Showing ' + ((currentPage - 1) * PAGE_SIZE + 1) + ' to ' + Math.min(currentPage * PAGE_SIZE, totalCount) + ' of ' + totalCount;
+
+    // Clear old pagination
+    while (dom.paginationControls.firstChild) {
+      dom.paginationControls.removeChild(dom.paginationControls.firstChild);
+    }
+
+    // Previous
+    var prevLi = document.createElement('li');
+    prevLi.className = 'page-item' + (currentPage <= 1 ? ' disabled' : '');
+    var prevA = document.createElement('a');
+    prevA.className = 'page-link';
+    prevA.href = '#';
+    prevA.setAttribute('aria-label', 'Previous');
+    var prevIcon = document.createElement('i');
+    prevIcon.className = 'ti ti-chevron-left';
+    prevA.appendChild(prevIcon);
+    prevLi.appendChild(prevA);
+    if (currentPage > 1) prevA.addEventListener('click', function(ev) { ev.preventDefault(); currentPage--; loadEmails(); });
+    dom.paginationControls.appendChild(prevLi);
+
+    // Page numbers
+    for (var i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+      var li = document.createElement('li');
+      li.className = 'page-item' + (i === currentPage ? ' active' : '');
+      var a = document.createElement('a');
+      a.className = 'page-link';
+      a.href = '#';
+      a.textContent = i;
+      li.appendChild(a);
+      (function(page) {
+        a.addEventListener('click', function(ev) { ev.preventDefault(); currentPage = page; loadEmails(); });
+      })(i);
+      dom.paginationControls.appendChild(li);
+    }
+
+    // Next
+    var nextLi = document.createElement('li');
+    nextLi.className = 'page-item' + (currentPage >= totalPages ? ' disabled' : '');
+    var nextA = document.createElement('a');
+    nextA.className = 'page-link';
+    nextA.href = '#';
+    nextA.setAttribute('aria-label', 'Next');
+    var nextIcon = document.createElement('i');
+    nextIcon.className = 'ti ti-chevron-right';
+    nextA.appendChild(nextIcon);
+    nextLi.appendChild(nextA);
+    if (currentPage < totalPages) nextA.addEventListener('click', function(ev) { ev.preventDefault(); currentPage++; loadEmails(); });
+    dom.paginationControls.appendChild(nextLi);
+  }
+
+  function loadEmails() {
+    dom.emailList.textContent = '';
+    var loading = document.createElement('div');
+    loading.className = 'tl-loading';
+    loading.setAttribute('role', 'status');
+    var spinner = document.createElement('div');
+    spinner.className = 'spinner-border spinner-border-sm text-primary';
+    spinner.setAttribute('aria-hidden', 'true');
+    var loadingText = document.createElement('span');
+    loadingText.textContent = 'Loading emails...';
+    loading.appendChild(spinner);
+    loading.appendChild(loadingText);
+    dom.emailList.appendChild(loading);
+    dom.emailList.classList.remove('d-none');
+    dom.emptyState.classList.add('d-none');
+
+    Api.get('/api/v1/inbound-email/?' + buildParams()).then(function(data) {
+      totalCount = data.count || 0;
+      var results = data.results || data;
+      renderEmails(results);
+      renderPagination();
+    }).catch(function() {
+      dom.emailList.textContent = '';
+      var err = document.createElement('div');
+      err.className = 'tl-loading text-danger';
+      err.textContent = 'Failed to load inbound emails.';
+      dom.emailList.appendChild(err);
+    });
+  }
+
+  function showDetail(emailId) {
+    var modal = new bootstrap.Modal(document.getElementById('emailDetailModal'));
+    var body = document.getElementById('emailDetailBody');
+    body.textContent = '';
+    var loadSpinner = document.createElement('div');
+    loadSpinner.className = 'text-center py-4';
+    var sp = document.createElement('div');
+    sp.className = 'spinner-border spinner-border-sm';
+    sp.setAttribute('role', 'status');
+    loadSpinner.appendChild(sp);
+    body.appendChild(loadSpinner);
+    modal.show();
+
+    Api.get('/api/v1/inbound-email/' + emailId + '/').then(function(e) {
+      body.textContent = '';
+
+      // Header row
+      var headerRow = document.createElement('div');
+      headerRow.className = 'd-flex justify-content-between align-items-start mb-2';
+
+      var senderDiv = document.createElement('div');
+      var senderStrong = document.createElement('strong');
+      senderStrong.textContent = e.sender_name || e.sender_email;
+      senderDiv.appendChild(senderStrong);
+      if (e.sender_name) {
+        var emailSmall = document.createElement('small');
+        emailSmall.className = 'text-muted d-block';
+        emailSmall.textContent = e.sender_email;
+        senderDiv.appendChild(emailSmall);
+      }
+      headerRow.appendChild(senderDiv);
+      headerRow.appendChild(createStatusBadge(e.status));
+      body.appendChild(headerRow);
+
+      // Recipient & time
+      var metaDiv = document.createElement('div');
+      metaDiv.className = 'text-muted mb-2';
+      metaDiv.style.fontSize = '0.8rem';
+      var arrowIcon = document.createElement('i');
+      arrowIcon.className = 'ti ti-arrow-right me-1';
+      metaDiv.appendChild(arrowIcon);
+      metaDiv.appendChild(document.createTextNode(e.recipient_email));
+      var timeSpan = document.createElement('span');
+      timeSpan.className = 'ms-3';
+      var clockIcon = document.createElement('i');
+      clockIcon.className = 'ti ti-clock me-1';
+      timeSpan.appendChild(clockIcon);
+      timeSpan.appendChild(document.createTextNode(formatDate(e.created_at)));
+      metaDiv.appendChild(timeSpan);
+      body.appendChild(metaDiv);
+
+      body.appendChild(document.createElement('hr'));
+
+      // Subject
+      var subjectDiv = document.createElement('div');
+      subjectDiv.className = 'mb-3';
+      var subjectLabel = document.createElement('strong');
+      subjectLabel.textContent = 'Subject: ';
+      subjectDiv.appendChild(subjectLabel);
+      subjectDiv.appendChild(document.createTextNode(e.subject || '(No Subject)'));
+      body.appendChild(subjectDiv);
+
+      // Linked ticket
+      var ticketDiv = document.createElement('div');
+      ticketDiv.className = 'mb-3';
+      var ticketLabel = document.createElement('strong');
+      ticketLabel.textContent = 'Linked Ticket: ';
+      ticketDiv.appendChild(ticketLabel);
+      if (e.ticket_number) {
+        var tLink = document.createElement('a');
+        tLink.href = '/tickets/' + e.ticket_number + '/';
+        tLink.className = 'text-primary';
+        tLink.textContent = '#' + e.ticket_number + ' ' + (e.ticket_subject || '');
+        ticketDiv.appendChild(tLink);
+      } else {
+        var noTk = document.createElement('span');
+        noTk.className = 'text-muted';
+        noTk.textContent = 'None';
+        ticketDiv.appendChild(noTk);
+      }
+      body.appendChild(ticketDiv);
+
+      // Error message
+      if (e.error_message) {
+        var errorDiv = document.createElement('div');
+        errorDiv.className = 'alert alert-danger py-2 mb-3';
+        errorDiv.style.fontSize = '0.85rem';
+        var errIcon = document.createElement('i');
+        errIcon.className = 'ti ti-alert-circle me-1';
+        errorDiv.appendChild(errIcon);
+        errorDiv.appendChild(document.createTextNode(e.error_message));
+        body.appendChild(errorDiv);
+      }
+
+      // Body
+      var bodySection = document.createElement('div');
+      bodySection.className = 'mb-3';
+      var bodyLabel = document.createElement('strong');
+      bodyLabel.textContent = 'Body:';
+      bodySection.appendChild(bodyLabel);
+      var bodyPre = document.createElement('div');
+      bodyPre.className = 'border rounded p-3 mt-1';
+      bodyPre.style.maxHeight = '300px';
+      bodyPre.style.overflowY = 'auto';
+      bodyPre.style.fontSize = '0.85rem';
+      bodyPre.style.whiteSpace = 'pre-wrap';
+      bodyPre.style.background = 'var(--bs-tertiary-bg)';
+      bodyPre.textContent = e.body_text || '(empty)';
+      bodySection.appendChild(bodyPre);
+      body.appendChild(bodySection);
+
+      // Message-ID metadata
+      var metaSection = document.createElement('div');
+      metaSection.className = 'text-muted';
+      metaSection.style.fontSize = '0.75rem';
+      var midLabel = document.createElement('strong');
+      midLabel.textContent = 'Message-ID: ';
+      metaSection.appendChild(midLabel);
+      metaSection.appendChild(document.createTextNode(e.message_id));
+      if (e.in_reply_to) {
+        metaSection.appendChild(document.createElement('br'));
+        var irtLabel = document.createElement('strong');
+        irtLabel.textContent = 'In-Reply-To: ';
+        metaSection.appendChild(irtLabel);
+        metaSection.appendChild(document.createTextNode(e.in_reply_to));
+      }
+      body.appendChild(metaSection);
+    }).catch(function() {
+      body.textContent = '';
+      var errMsg = document.createElement('div');
+      errMsg.className = 'text-danger';
+      errMsg.textContent = 'Failed to load email details.';
+      body.appendChild(errMsg);
+    });
+  }
+
+  // Event listeners
+  dom.filterStatus.addEventListener('change', function() { currentPage = 1; loadEmails(); });
+
+  var searchTimeout;
+  dom.filterSearch.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(function() { currentPage = 1; loadEmails(); }, DEBOUNCE_MS);
+  });
+
+  // Init
+  loadEmails();
+  loadStats();
+})();
+</script>
+{% endblock %}

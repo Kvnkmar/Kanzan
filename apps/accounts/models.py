@@ -130,6 +130,31 @@ class Profile(TenantScopedModel):
         default=True,
         help_text="Receive email notifications for this tenant.",
     )
+    # Phase 2: Agent preferences
+    signature = models.TextField(
+        null=True, blank=True,
+        help_text="Personal signature appended to ticket replies.",
+    )
+    timezone = models.CharField(
+        max_length=50, default="UTC", blank=True,
+        help_text="Agent's preferred timezone (e.g. Asia/Kuala_Lumpur).",
+    )
+    language = models.CharField(
+        max_length=10, default="en", blank=True,
+        help_text="Preferred UI language code (e.g. en, ms, zh).",
+    )
+    dnd_enabled = models.BooleanField(
+        default=False,
+        help_text="Do Not Disturb — suppress notifications.",
+    )
+    dnd_start = models.TimeField(
+        null=True, blank=True,
+        help_text="DND quiet hours start time.",
+    )
+    dnd_end = models.TimeField(
+        null=True, blank=True,
+        help_text="DND quiet hours end time.",
+    )
 
     class Meta:
         verbose_name = "profile"

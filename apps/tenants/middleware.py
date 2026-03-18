@@ -11,7 +11,6 @@ Resolution strategy:
     4. Bare ``localhost`` / ``BASE_DOMAIN`` -> main site (``request.tenant = None``)
 """
 
-import json
 import logging
 
 from channels.db import database_sync_to_async
@@ -24,7 +23,6 @@ logger = logging.getLogger(__name__)
 
 # Paths that are always served regardless of tenant resolution.
 EXEMPT_PATH_PREFIXES = (
-    "/admin/",
     "/static/",
     "/media/",
     "/api/v1/accounts/auth/",
@@ -33,7 +31,32 @@ EXEMPT_PATH_PREFIXES = (
     "/api/docs/",
     "/api/schema/",
     "/accounts/",
+    "/inbound/email/",
 )
+
+
+def _extract_slug(host: str, base_domain: str) -> str | None:
+    """
+    Return the tenant slug from *host*, or ``None`` if the host is the
+    bare domain (main site) or not a recognised subdomain pattern.
+    """
+    host = host.split(":")[0].lower()
+
+    if host in ("localhost", "127.0.0.1", base_domain):
+        return None
+
+    if host.endswith(".localhost"):
+        slug = host.removesuffix(".localhost")
+        return slug if slug else None
+
+    suffix = f".{base_domain}"
+    if host.endswith(suffix):
+        slug = host.removesuffix(suffix)
+        # Guard against nested sub-subdomains (e.g. a.b.example.com).
+        if slug and "." not in slug:
+            return slug
+
+    return None
 
 
 class TenantMiddleware:
@@ -56,33 +79,6 @@ class TenantMiddleware:
         """Return True if *path* should bypass tenant resolution."""
         return any(path.startswith(prefix) for prefix in EXEMPT_PATH_PREFIXES)
 
-    def _extract_slug(self, host: str) -> str | None:
-        """
-        Return the tenant slug from *host*, or ``None`` if the host is the
-        bare domain (main site) or not a recognised subdomain pattern.
-        """
-        # Strip port number if present.
-        host = host.split(":")[0].lower()
-
-        # Bare localhost or bare BASE_DOMAIN -> main site.
-        if host in ("localhost", "127.0.0.1", self.base_domain):
-            return None
-
-        # <slug>.localhost
-        if host.endswith(".localhost"):
-            slug = host.removesuffix(".localhost")
-            return slug if slug else None
-
-        # <slug>.<BASE_DOMAIN>
-        suffix = f".{self.base_domain}"
-        if host.endswith(suffix):
-            slug = host.removesuffix(suffix)
-            # Guard against nested sub-subdomains (e.g. a.b.example.com).
-            if slug and "." not in slug:
-                return slug
-
-        return None
-
     # ------------------------------------------------------------------
     # main entry point
     # ------------------------------------------------------------------
@@ -101,10 +97,19 @@ class TenantMiddleware:
             clear_current_tenant()
             return response
 
+        # --- Django admin: always pass through without tenant context.
+        # Access control is handled by the custom AdminSite (superuser-only).
+        if path.startswith("/admin/"):
+            request.tenant = None
+            set_current_tenant(None)
+            response = self.get_response(request)
+            clear_current_tenant()
+            return response
+
         # --- Resolve tenant ---
         host = request.get_host()
         host_bare = host.split(":")[0].lower()
-        slug = self._extract_slug(host)
+        slug = _extract_slug(host, self.base_domain)
 
         tenant = None
 
@@ -177,7 +182,7 @@ class WebSocketTenantMiddleware:
         host_bare = host.split(":")[0].lower()
 
         tenant = None
-        slug = self._extract_slug(host)
+        slug = _extract_slug(host, self.base_domain)
 
         if slug is not None:
             tenant = await self._get_tenant_by_slug(slug)
@@ -192,21 +197,6 @@ class WebSocketTenantMiddleware:
             return await self.app(scope, receive, send)
         finally:
             clear_current_tenant()
-
-    def _extract_slug(self, host: str) -> str | None:
-        """Return the tenant slug from *host*, or None."""
-        host = host.split(":")[0].lower()
-        if host in ("localhost", "127.0.0.1", self.base_domain):
-            return None
-        if host.endswith(".localhost"):
-            slug = host.removesuffix(".localhost")
-            return slug if slug else None
-        suffix = f".{self.base_domain}"
-        if host.endswith(suffix):
-            slug = host.removesuffix(suffix)
-            if slug and "." not in slug:
-                return slug
-        return None
 
     @database_sync_to_async
     def _get_tenant_by_slug(self, slug):

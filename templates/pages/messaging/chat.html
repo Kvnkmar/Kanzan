@@ -7,13 +7,15 @@
   <div class="chat-sidebar" id="chatSidebar">
     <div class="chat-sidebar-header">
       <h5 class="mb-0">Messages</h5>
-      <button class="btn btn-sm btn-primary" id="newChat" data-bs-toggle="modal" data-bs-target="#newConversationModal">
-        <i class="ti ti-edit"></i>
+      <button class="btn btn-sm btn-primary" id="newChat" data-bs-toggle="modal" data-bs-target="#newConversationModal" title="New conversation">
+        <i class="ti ti-plus"></i>
       </button>
     </div>
     <div class="chat-search">
-      <i class="ti ti-search"></i>
-      <input type="text" placeholder="Search conversations..." id="conversationSearch">
+      <div class="chat-search-box">
+        <i class="ti ti-search"></i>
+        <input type="text" placeholder="Search conversations..." id="conversationSearch">
+      </div>
     </div>
     <div class="conversation-list" id="conversationListContainer">
       <div class="text-center p-4" id="conversationListLoading">
@@ -27,10 +29,12 @@
   <div class="chat-main" id="chatArea">
     <!-- Empty State -->
     <div class="chat-empty-state" id="chatEmptyState">
-      <div class="empty-state">
-        <div class="empty-icon"><i class="ti ti-message-dots"></i></div>
+      <div>
+        <div class="chat-empty-illustration">
+          <i class="ti ti-message-chatbot"></i>
+        </div>
         <p class="empty-title">No conversation selected</p>
-        <p class="empty-text">Select a conversation or start a new one.</p>
+        <p class="empty-text">Pick a conversation from the sidebar or start a new one to get chatting.</p>
         <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newConversationModal">
           <i class="ti ti-plus me-1"></i>New Conversation
         </button>
@@ -67,14 +71,20 @@
     <!-- Messages Container (hidden by default) -->
     <div class="chat-messages d-none" id="messagesContainer"></div>
 
+    <!-- Typing Indicator -->
+    <div class="chat-typing-indicator d-none" id="typingIndicator">
+      <div class="typing-dots"><span></span><span></span><span></span></div>
+      <span id="typingName"></span>
+    </div>
+
     <!-- Message Input (hidden by default) -->
     <div class="chat-input d-none" id="messageInputArea">
       <form id="messageForm" class="chat-input-form">
-        <button type="button" class="chat-attach-btn">
+        <button type="button" class="chat-attach-btn" title="Attach file">
           <i class="ti ti-paperclip"></i>
         </button>
         <input type="text" placeholder="Type a message..." id="messageInput" autocomplete="off">
-        <button type="submit" class="chat-send-btn" id="sendBtn">
+        <button type="submit" class="chat-send-btn" id="sendBtn" title="Send message">
           <i class="ti ti-send"></i>
         </button>
       </form>
@@ -84,36 +94,55 @@
 
 <!-- New Conversation Modal -->
 <div class="modal fade" id="newConversationModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">New Conversation</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content new-conv-modal">
+      <div class="new-conv-header">
+        <div class="new-conv-header-icon">
+          <i class="ti ti-message-plus"></i>
+        </div>
+        <div>
+          <h5 class="modal-title">New Conversation</h5>
+          <p class="new-conv-subtitle">Start a direct message or create a group chat</p>
+        </div>
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
         <form id="newConversationForm">
-          <div class="mb-3">
-            <label class="form-label">Type</label>
-            <select class="form-select" id="convType">
-              <option value="direct">Direct Message</option>
-              <option value="group">Group</option>
-            </select>
+          <!-- Type Selector Cards -->
+          <div class="new-conv-type-selector mb-3">
+            <label class="new-conv-type-card active" data-type="direct">
+              <input type="radio" name="convTypeRadio" value="direct" checked class="d-none">
+              <div class="new-conv-type-icon"><i class="ti ti-user"></i></div>
+              <span class="new-conv-type-label">Direct</span>
+            </label>
+            <label class="new-conv-type-card" data-type="group">
+              <input type="radio" name="convTypeRadio" value="group" class="d-none">
+              <div class="new-conv-type-icon"><i class="ti ti-users-group"></i></div>
+              <span class="new-conv-type-label">Group</span>
+            </label>
           </div>
+          <input type="hidden" id="convType" value="direct">
+
           <div class="mb-3 d-none" id="groupNameField">
-            <label class="form-label">Group Name</label>
-            <input type="text" class="form-control" id="groupName" placeholder="Enter group name">
+            <label class="form-label new-conv-label">Group Name</label>
+            <input type="text" class="form-control" id="groupName" placeholder="e.g. Design Team, Project Alpha">
           </div>
+
           <div class="mb-3">
-            <label class="form-label">Participants</label>
-            <input type="text" class="form-control" id="participantSearch" placeholder="Search users...">
-            <div class="border rounded mt-1" id="participantResults" style="max-height: 200px; overflow-y: auto; display: none;"></div>
-            <div class="d-flex flex-wrap gap-1 mt-2" id="selectedParticipants"></div>
+            <label class="form-label new-conv-label">
+              <i class="ti ti-search me-1" style="font-size:0.8125rem;"></i>Find People
+            </label>
+            <input type="text" class="form-control" id="participantSearch" placeholder="Type a name or email...">
+            <div class="new-conv-results" id="participantResults" style="display:none;"></div>
+            <div class="new-conv-selected" id="selectedParticipants"></div>
           </div>
         </form>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm" id="createConversationBtn">Create</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="createConversationBtn">
+          <i class="ti ti-send me-1"></i>Start Chat
+        </button>
       </div>
     </div>
   </div>
@@ -153,42 +182,98 @@
       renderConversationList(conversations);
     } catch (e) {
       console.error('Failed to load conversations:', e);
-      document.getElementById('conversationListLoading').innerHTML =
-        '<span class="text-danger small">Failed to load conversations</span>';
+      var loadEl = document.getElementById('conversationListLoading');
+      loadEl.textContent = '';
+      var errSpan = document.createElement('span');
+      errSpan.className = 'text-danger small';
+      errSpan.textContent = 'Failed to load conversations';
+      loadEl.appendChild(errSpan);
     }
   }
 
   function renderConversationList(list) {
     const container = document.getElementById('conversationListContainer');
+    container.textContent = '';
+
     if (!list.length) {
-      container.innerHTML = '<div class="text-center p-4 text-muted small">No conversations yet</div>';
+      var emptyDiv = document.createElement('div');
+      emptyDiv.className = 'chat-no-conversations';
+      var iconWrap = document.createElement('div');
+      iconWrap.className = 'chat-no-conversations-icon';
+      var icon = document.createElement('i');
+      icon.className = 'ti ti-messages';
+      iconWrap.appendChild(icon);
+      var h6 = document.createElement('h6');
+      h6.textContent = 'No conversations yet';
+      var p = document.createElement('p');
+      p.textContent = 'Start a new conversation to begin messaging.';
+      emptyDiv.appendChild(iconWrap);
+      emptyDiv.appendChild(h6);
+      emptyDiv.appendChild(p);
+      container.appendChild(emptyDiv);
       return;
     }
-    container.innerHTML = list.map(conv => {
-      const isActive = conv.id === activeConversationId;
-      const lastMsg = conv.last_message;
-      const preview = lastMsg ? truncate(lastMsg.body, 40) : 'No messages yet';
-      const time = lastMsg ? formatTime(lastMsg.created_at) : '';
-      const unread = conv.unread_count || 0;
-      const title = conv.title || conv.name || 'Conversation';
-      const bgColor = avatarColor(title);
-      const ini = getInitials(title);
-      return `
-        <div class="conversation-item ${isActive ? 'active' : ''}"
-             data-id="${conv.id}" onclick="window.__selectConversation('${conv.id}')">
-          <div class="conv-avatar" style="background:${bgColor};">${ini}</div>
-          <div class="conversation-item-content">
-            <div class="conversation-item-top">
-              <span class="conversation-item-name">${escapeHtml(title)}</span>
-              <span class="conversation-item-time">${time}</span>
-            </div>
-            <div class="conversation-item-bottom">
-              <span class="conversation-item-preview">${escapeHtml(preview)}</span>
-              ${unread > 0 ? `<span class="conversation-unread-badge">${unread}</span>` : ''}
-            </div>
-          </div>
-        </div>`;
-    }).join('');
+
+    list.forEach(function(conv) {
+      var isActive = conv.id === activeConversationId;
+      var lastMsg = conv.last_message;
+      var preview = lastMsg ? truncate(lastMsg.body, 40) : 'No messages yet';
+      var time = lastMsg ? formatTime(lastMsg.created_at) : '';
+      var unread = conv.unread_count || 0;
+      var title = conv.title || conv.name || 'Conversation';
+      var bgColor = avatarColor(title);
+      var ini = getInitials(title);
+      var isGroup = conv.type === 'group';
+
+      var item = document.createElement('div');
+      item.className = 'conversation-item' + (isActive ? ' active' : '') + (unread > 0 ? ' has-unread' : '');
+      item.dataset.id = conv.id;
+      item.addEventListener('click', function() { window.__selectConversation(conv.id); });
+
+      var avatar = document.createElement('div');
+      avatar.className = 'conv-avatar';
+      avatar.style.background = bgColor;
+      avatar.textContent = ini;
+
+      var content = document.createElement('div');
+      content.className = 'conversation-item-content';
+
+      var top = document.createElement('div');
+      top.className = 'conversation-item-top';
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'conversation-item-name';
+      nameSpan.textContent = title;
+      if (isGroup) {
+        var groupIcon = document.createElement('i');
+        groupIcon.className = 'ti ti-users';
+        groupIcon.style.cssText = 'font-size:0.6875rem;color:var(--crm-text-muted);margin-left:0.25rem;';
+        nameSpan.appendChild(groupIcon);
+      }
+      var timeSpan = document.createElement('span');
+      timeSpan.className = 'conversation-item-time';
+      timeSpan.textContent = time;
+      top.appendChild(nameSpan);
+      top.appendChild(timeSpan);
+
+      var bottom = document.createElement('div');
+      bottom.className = 'conversation-item-bottom';
+      var previewSpan = document.createElement('span');
+      previewSpan.className = 'conversation-item-preview';
+      previewSpan.textContent = preview;
+      bottom.appendChild(previewSpan);
+      if (unread > 0) {
+        var badge = document.createElement('span');
+        badge.className = 'conversation-unread-badge';
+        badge.textContent = unread;
+        bottom.appendChild(badge);
+      }
+
+      content.appendChild(top);
+      content.appendChild(bottom);
+      item.appendChild(avatar);
+      item.appendChild(content);
+      container.appendChild(item);
+    });
   }
 
   // -- Select Conversation --
@@ -242,16 +327,27 @@
   // -- Messages --
 
   async function loadMessages(conversationId) {
-    const container = document.getElementById('messagesContainer');
-    container.innerHTML = '<div class="text-center p-3 text-muted"><div class="spinner-border spinner-border-sm text-primary"></div></div>';
+    var container = document.getElementById('messagesContainer');
+    container.textContent = '';
+    var spinner = document.createElement('div');
+    spinner.className = 'text-center p-3 text-muted';
+    var spinEl = document.createElement('div');
+    spinEl.className = 'spinner-border spinner-border-sm text-primary';
+    spinEl.setAttribute('role', 'status');
+    spinner.appendChild(spinEl);
+    container.appendChild(spinner);
 
     try {
-      const data = await Api.get(`/api/v1/messaging/conversations/${conversationId}/messages/`);
-      const messages = data.results || data;
+      var data = await Api.get('/api/v1/messaging/conversations/' + conversationId + '/messages/');
+      var messages = data.results || data;
       renderMessages(messages);
     } catch (e) {
       console.error('Failed to load messages:', e);
-      container.innerHTML = '<div class="text-center p-3 text-danger small">Failed to load messages</div>';
+      container.textContent = '';
+      var errDiv = document.createElement('div');
+      errDiv.className = 'text-center p-3 text-danger small';
+      errDiv.textContent = 'Failed to load messages';
+      container.appendChild(errDiv);
     }
   }
 
@@ -268,50 +364,73 @@
 
   function renderMessages(messages) {
     const container = document.getElementById('messagesContainer');
+    container.textContent = '';
     if (!messages.length) {
-      container.innerHTML = '<div class="text-center mt-auto p-3 text-muted small">No messages yet. Start the conversation.</div>';
+      var emptyDiv = document.createElement('div');
+      emptyDiv.className = 'text-center mt-auto p-3 text-muted small';
+      emptyDiv.textContent = 'No messages yet. Start the conversation.';
+      container.appendChild(emptyDiv);
       return;
     }
-    let html = '';
-    let lastDateLabel = '';
-    messages.forEach(msg => {
-      const dateLabel = getDateLabel(msg.created_at);
+    var lastDateLabel = '';
+    messages.forEach(function(msg) {
+      var dateLabel = getDateLabel(msg.created_at);
       if (dateLabel !== lastDateLabel) {
-        html += '<div class="date-separator"><span>' + escapeHtml(dateLabel) + '</span></div>';
+        var sep = document.createElement('div');
+        sep.className = 'date-separator';
+        var sepSpan = document.createElement('span');
+        sepSpan.textContent = dateLabel;
+        sep.appendChild(sepSpan);
+        container.appendChild(sep);
         lastDateLabel = dateLabel;
       }
-      html += renderMessageBubble(msg);
+      container.appendChild(buildMessageBubble(msg));
     });
-    container.innerHTML = html;
     scrollToBottom();
   }
 
-  function renderMessageBubble(msg) {
-    // Normalize: REST returns msg.author (object), WS returns msg.author_id + msg.author_name
-    const authorId = msg.author ? String(msg.author.id) : (msg.author_id || '');
-    const authorName = msg.author
+  function buildMessageBubble(msg) {
+    var authorId = msg.author ? String(msg.author.id) : (msg.author_id || '');
+    var authorName = msg.author
       ? (msg.author.full_name || msg.author.email || 'Unknown')
       : (msg.author_name || 'Unknown');
-    const isMine = authorId === String(currentUserId);
-    const body = msg.body || '';
-    const time = formatTime(msg.created_at);
-    return `
-      <div class="d-flex ${isMine ? 'justify-content-end' : 'justify-content-start'} mb-2">
-        <div class="chat-bubble ${isMine ? 'chat-bubble-sent' : 'chat-bubble-received'}">
-          ${!isMine ? `<div class="chat-bubble-sender">${escapeHtml(authorName)}</div>` : ''}
-          <div>${escapeHtml(body)}</div>
-          <div class="chat-bubble-time">${time}</div>
-        </div>
-      </div>`;
+    var isMine = authorId === String(currentUserId);
+    var body = msg.body || '';
+    var time = formatTime(msg.created_at);
+
+    var wrapper = document.createElement('div');
+    wrapper.className = 'd-flex mb-2 ' + (isMine ? 'justify-content-end' : 'justify-content-start');
+
+    var bubble = document.createElement('div');
+    bubble.className = 'chat-bubble ' + (isMine ? 'chat-bubble-sent' : 'chat-bubble-received');
+
+    if (!isMine) {
+      var sender = document.createElement('div');
+      sender.className = 'chat-bubble-sender';
+      sender.textContent = authorName;
+      bubble.appendChild(sender);
+    }
+
+    var bodyDiv = document.createElement('div');
+    bodyDiv.textContent = body;
+    bubble.appendChild(bodyDiv);
+
+    var timeDiv = document.createElement('div');
+    timeDiv.className = 'chat-bubble-time';
+    timeDiv.textContent = time;
+    bubble.appendChild(timeDiv);
+
+    wrapper.appendChild(bubble);
+    return wrapper;
   }
 
   function appendMessage(msg) {
-    const container = document.getElementById('messagesContainer');
-    const emptyNote = container.querySelector('.text-center.mt-auto');
-    if (emptyNote && emptyNote.textContent.includes('No messages yet')) {
+    var container = document.getElementById('messagesContainer');
+    var emptyNote = container.querySelector('.text-center.mt-auto');
+    if (emptyNote && emptyNote.textContent.indexOf('No messages yet') !== -1) {
       emptyNote.remove();
     }
-    container.insertAdjacentHTML('beforeend', renderMessageBubble(msg));
+    container.appendChild(buildMessageBubble(msg));
     scrollToBottom();
   }
 
@@ -437,10 +556,14 @@
     document.getElementById('convType').value = 'direct';
     document.getElementById('groupName').value = '';
     document.getElementById('groupNameField').classList.add('d-none');
-    document.getElementById('selectedParticipants').innerHTML = '';
+    document.getElementById('selectedParticipants').textContent = '';
     document.getElementById('participantSearch').value = '';
     document.getElementById('participantResults').style.display = 'none';
     participantIds = [];
+    // Reset type selector cards
+    document.querySelectorAll('.new-conv-type-card').forEach(function(c) {
+      c.classList.toggle('active', c.dataset.type === 'direct');
+    });
   }
 
   async function searchUsers(query) {
@@ -449,18 +572,33 @@
       return;
     }
     try {
-      const data = await Api.get(`/api/v1/messaging/conversations/search-participants/?search=${encodeURIComponent(query)}`);
+      const data = await Api.get('/api/v1/messaging/conversations/search-participants/?search=' + encodeURIComponent(query));
       const users = data.results || data;
       const resultsEl = document.getElementById('participantResults');
+      resultsEl.textContent = '';
       if (!users.length) {
-        resultsEl.innerHTML = '<div class="p-2 text-muted small">No users found</div>';
+        var noResult = document.createElement('div');
+        noResult.className = 'p-2 text-muted small';
+        noResult.textContent = 'No users found';
+        resultsEl.appendChild(noResult);
       } else {
-        resultsEl.innerHTML = users
-          .filter(u => u.id !== currentUserId && !participantIds.includes(u.id))
-          .map(u => `
-            <div class="p-2 user-result" style="cursor: pointer; border-bottom: 1px solid var(--crm-border);" data-id="${u.id}" data-name="${escapeHtml(u.full_name || u.email)}">
-              <span class="small">${escapeHtml(u.full_name || u.email)}</span>
-            </div>`).join('');
+        users.filter(function(u) { return u.id !== currentUserId && !participantIds.includes(u.id); })
+          .forEach(function(u) {
+            var row = document.createElement('div');
+            row.className = 'user-result';
+            row.dataset.id = u.id;
+            row.dataset.name = u.full_name || u.email;
+            var uAvatar = document.createElement('div');
+            uAvatar.className = 'conv-avatar';
+            uAvatar.style.cssText = 'width:28px;height:28px;font-size:0.625rem;background:' + avatarColor(u.full_name || u.email);
+            uAvatar.textContent = getInitials(u.full_name || u.email);
+            var nameEl = document.createElement('span');
+            nameEl.style.cssText = 'font-size:0.8125rem;font-weight:500;';
+            nameEl.textContent = u.full_name || u.email;
+            row.appendChild(uAvatar);
+            row.appendChild(nameEl);
+            resultsEl.appendChild(row);
+          });
       }
       resultsEl.style.display = 'block';
     } catch (e) {
@@ -471,20 +609,24 @@
   function addParticipant(id, name) {
     if (participantIds.includes(id)) return;
     participantIds.push(id);
-    const container = document.getElementById('selectedParticipants');
-    const badge = document.createElement('span');
-    badge.className = 'badge badge-soft-primary d-flex align-items-center gap-1';
-    badge.dataset.id = id;
-    badge.innerHTML = `${escapeHtml(name)} <i class="ti ti-x" style="cursor: pointer;" onclick="window.__removeParticipant('${id}')"></i>`;
-    container.appendChild(badge);
+    var container = document.getElementById('selectedParticipants');
+    var chip = document.createElement('span');
+    chip.className = 'new-conv-chip';
+    chip.dataset.id = id;
+    chip.textContent = name + ' ';
+    var closeIcon = document.createElement('i');
+    closeIcon.className = 'ti ti-x';
+    closeIcon.addEventListener('click', function() { window.__removeParticipant(id); });
+    chip.appendChild(closeIcon);
+    container.appendChild(chip);
     document.getElementById('participantSearch').value = '';
     document.getElementById('participantResults').style.display = 'none';
   }
 
   window.__removeParticipant = function(id) {
-    participantIds = participantIds.filter(p => p !== id);
-    const badge = document.querySelector(`#selectedParticipants .badge[data-id="${id}"]`);
-    if (badge) badge.remove();
+    participantIds = participantIds.filter(function(p) { return p !== id; });
+    var chip = document.querySelector('#selectedParticipants .new-conv-chip[data-id="' + id + '"]');
+    if (chip) chip.remove();
   };
 
   // -- Event Bindings --
@@ -513,8 +655,16 @@
       renderConversationList(filtered);
     });
 
-    document.getElementById('convType').addEventListener('change', function() {
-      document.getElementById('groupNameField').classList.toggle('d-none', this.value !== 'group');
+    // Type selector cards
+    document.querySelectorAll('.new-conv-type-card').forEach(function(card) {
+      card.addEventListener('click', function() {
+        document.querySelectorAll('.new-conv-type-card').forEach(function(c) { c.classList.remove('active'); });
+        card.classList.add('active');
+        var type = card.dataset.type;
+        document.getElementById('convType').value = type;
+        document.getElementById('groupNameField').classList.toggle('d-none', type !== 'group');
+        if (type === 'group') document.getElementById('groupName').focus();
+      });
     });
 
     document.getElementById('participantSearch').addEventListener('input', function() {

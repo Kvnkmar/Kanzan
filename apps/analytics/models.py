@@ -208,11 +208,16 @@ class CalendarEvent(TenantScopedModel):
     description = models.TextField(blank=True, default="")
     event_date = models.DateField()
     event_time = models.TimeField(null=True, blank=True)
+    end_date = models.DateField(null=True, blank=True)
+    end_time = models.TimeField(null=True, blank=True)
     event_type = models.CharField(
         max_length=20,
         choices=EventType.choices,
         default=EventType.OTHER,
     )
+    is_all_day = models.BooleanField(default=False)
+    location = models.CharField(max_length=500, blank=True, default="")
+    color = models.CharField(max_length=7, blank=True, default="")
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

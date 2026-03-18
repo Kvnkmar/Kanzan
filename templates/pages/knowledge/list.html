@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}Knowledge Base - Kanzen Suite{% endblock %}
+
+{% block content %}
+<!-- Hero Header -->
+<div class="kb-hero">
+  <div class="kb-hero-content">
+    <h1 class="kb-hero-title">Knowledge Base</h1>
+    <p class="kb-hero-subtitle">Find answers, guides, and documentation</p>
+    <div class="kb-hero-search">
+      <i class="ti ti-search kb-hero-search-icon"></i>
+      <input type="text" id="kbSearch" class="form-control kb-hero-search-input" placeholder="Search for articles...">
+    </div>
+  </div>
+</div>
+
+<!-- Category Filter -->
+<div class="kb-category-bar">
+  <div class="kb-category-pills" id="categoryPills">
+    <button class="kb-pill active" data-category="" onclick="KB.filterCategory('')">
+      <i class="ti ti-apps me-1"></i>All
+    </button>
+  </div>
+</div>
+
+<!-- Pinned / Featured -->
+<div id="pinnedSection" class="kb-section" style="display:none;">
+  <div class="kb-section-header">
+    <h6 class="kb-section-title"><i class="ti ti-pin me-1"></i> Pinned</h6>
+  </div>
+  <div class="kb-featured-grid" id="pinnedGrid"></div>
+</div>
+
+<!-- Articles -->
+<div class="kb-section">
+  <div class="kb-section-header">
+    <h6 class="kb-section-title" id="articlesTitle">All Articles</h6>
+    <span class="kb-article-count" id="articleCount"></span>
+  </div>
+  <div class="kb-list" id="articlesList"></div>
+
+  <div id="kbEmpty" class="kb-empty-state" style="display:none;">
+    <div class="kb-empty-icon"><i class="ti ti-book-off"></i></div>
+    <h6>No articles found</h6>
+    <p>Try adjusting your search or category filter</p>
+  </div>
+
+  <div id="kbLoading" class="kb-loading">
+    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+    <span class="ms-2">Loading articles...</span>
+  </div>
+</div>
+
+<!-- Pagination -->
+<div class="kb-pagination" id="kbPagination"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const API = '/api/v1/knowledge';
+  const PAGE_SIZE = 15;
+  let page = 1, catFilter = '', search = '', cats = [], timer = null;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadCategories();
+    loadArticles();
+    document.getElementById('kbSearch').addEventListener('input', e => {
+      clearTimeout(timer);
+      timer = setTimeout(() => { search = e.target.value.trim(); page = 1; loadArticles(); }, 400);
+    });
+  });
+
+  async function loadCategories() {
+    try {
+      const r = await Api.get(`${API}/categories/?active_only=true&page_size=50`);
+      cats = r.results || r;
+      const c = document.getElementById('categoryPills');
+      let h = `<button class="kb-pill ${!catFilter ? 'active' : ''}" data-category="" onclick="KB.filterCategory('')"><i class="ti ti-apps me-1"></i>All</button>`;
+      cats.forEach(cat => {
+        h += `<button class="kb-pill ${catFilter === cat.id ? 'active' : ''}" data-category="${cat.id}" onclick="KB.filterCategory('${cat.id}')">
+          <i class="${cat.icon || 'ti ti-folder'} me-1"></i>${esc(cat.name)}
+          <span class="kb-pill-count">${cat.article_count}</span>
+        </button>`;
+      });
+      c.innerHTML = h;
+    } catch(e) { console.error(e); }
+  }
+
+  async function loadArticles() {
+    const ld = document.getElementById('kbLoading'), em = document.getElementById('kbEmpty'),
+          list = document.getElementById('articlesList'), pg = document.getElementById('pinnedGrid'),
+          ps = document.getElementById('pinnedSection');
+    ld.style.display = 'flex'; em.style.display = 'none'; list.innerHTML = '';
+
+    let q = `?page=${page}&page_size=${PAGE_SIZE}&status=published`;
+    if (catFilter) q += `&category=${catFilter}`;
+    if (search) q += `&search=${encodeURIComponent(search)}`;
+
+    try {
+      const r = await Api.get(`${API}/articles/${q}`);
+      const arts = r.results || r, total = r.count || arts.length;
+      ld.style.display = 'none';
+      document.getElementById('articleCount').textContent = `${total} article${total !== 1 ? 's' : ''}`;
+
+      if (!arts.length) { em.style.display = 'flex'; ps.style.display = 'none'; document.getElementById('kbPagination').innerHTML = ''; return; }
+
+      const pinned = (!search && page === 1) ? arts.filter(a => a.is_pinned) : [];
+      const regular = (!search && page === 1) ? arts.filter(a => !a.is_pinned) : arts;
+
+      if (pinned.length) { ps.style.display = 'block'; pg.innerHTML = pinned.map(featCard).join(''); }
+      else { ps.style.display = 'none'; }
+
+      list.innerHTML = regular.map(artRow).join('');
+
+      const t = document.getElementById('articlesTitle');
+      if (catFilter) { const c = cats.find(x => x.id === catFilter); t.textContent = c ? c.name : 'Articles'; }
+      else t.textContent = search ? 'Search Results' : 'All Articles';
+
+      renderPag(total);
+    } catch(e) { ld.style.display = 'none'; list.innerHTML = '<p class="text-danger p-3">Failed to load articles.</p>'; }
+  }
+
+  function featCard(a) {
+    const d = a.published_at ? relDate(a.published_at) : '';
+    const cat = a.category_name ? `<span class="kb-feat-cat"><i class="${a.category_icon || 'ti ti-folder'} me-1"></i>${esc(a.category_name)}</span>` : '';
+    const ex = a.excerpt || (a.content ? a.content.substring(0, 150).replace(/<[^>]*>/g, '') : '');
+    return `<a href="/knowledge/${a.slug}/" class="kb-featured-card">
+      <div class="kb-feat-pin"><i class="ti ti-pin-filled"></i></div>
+      <h6 class="kb-feat-title">${esc(a.title)}</h6>
+      <p class="kb-feat-excerpt">${esc(ex)}</p>
+      <div class="kb-feat-footer">${cat}<span class="kb-feat-meta">${d}</span></div>
+    </a>`;
+  }
+
+  function artRow(a) {
+    const d = a.published_at ? relDate(a.published_at) : '';
+    const cat = a.category_name ? `<span class="kb-row-cat"><i class="${a.category_icon || 'ti ti-folder'} me-1"></i>${esc(a.category_name)}</span>` : '';
+    const ex = a.excerpt || (a.content ? a.content.substring(0, 200).replace(/<[^>]*>/g, '') : '');
+    const icon = a.file ? 'ti ti-file-filled' : 'ti ti-file-text';
+    return `<a href="/knowledge/${a.slug}/" class="kb-article-row">
+      <div class="kb-row-icon"><i class="${icon}"></i></div>
+      <div class="kb-row-main">
+        <h6 class="kb-row-title">${esc(a.title)}</h6>
+        <p class="kb-row-excerpt">${esc(ex)}</p>
+        <div class="kb-row-bottom">
+          ${cat}
+          <span class="kb-row-dot"></span>
+          <span class="kb-row-meta"><i class="ti ti-eye me-1"></i>${a.view_count || 0}</span>
+          <span class="kb-row-dot"></span>
+          <span class="kb-row-meta"><i class="ti ti-clock me-1"></i>${d}</span>
+          ${a.author_name ? `<span class="kb-row-dot"></span><span class="kb-row-meta"><i class="ti ti-user me-1"></i>${esc(a.author_name)}</span>` : ''}
+        </div>
+      </div>
+      <div class="kb-row-arrow"><i class="ti ti-chevron-right"></i></div>
+    </a>`;
+  }
+
+  function renderPag(total) {
+    const tp = Math.ceil(total / PAGE_SIZE), c = document.getElementById('kbPagination');
+    if (tp <= 1) { c.innerHTML = ''; return; }
+    let h = '';
+    if (page > 1) h += `<button class="kb-page-btn" onclick="KB.goPage(${page - 1})"><i class="ti ti-chevron-left me-1"></i>Prev</button>`;
+    h += `<span class="kb-page-info">Page ${page} of ${tp}</span>`;
+    if (page < tp) h += `<button class="kb-page-btn" onclick="KB.goPage(${page + 1})">Next<i class="ti ti-chevron-right ms-1"></i></button>`;
+    c.innerHTML = h;
+  }
+
+  function relDate(iso) {
+    const diff = Math.floor((new Date() - new Date(iso)) / 86400000);
+    if (diff === 0) return 'Today'; if (diff === 1) return 'Yesterday';
+    if (diff < 7) return diff + 'd ago'; if (diff < 30) return Math.floor(diff / 7) + 'w ago';
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  window.KB = {
+    filterCategory(id) { catFilter = id; page = 1; loadArticles(); document.querySelectorAll('.kb-pill').forEach(p => p.classList.toggle('active', (p.dataset.category||'') === (id||''))); },
+    goPage(p) { page = p; loadArticles(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  };
+})();
+</script>
+{% endblock %}

@@ -4,6 +4,8 @@ Django admin configuration for comments, mentions, and activity logs.
 
 from django.contrib import admin
 
+from main.admin import TenantFilteredAdmin
+
 from apps.comments.models import ActivityLog, Comment, Mention
 
 
@@ -15,7 +17,7 @@ class MentionInline(admin.TabularInline):
 
 
 @admin.register(Comment)
-class CommentAdmin(admin.ModelAdmin):
+class CommentAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "id",
         "author",
@@ -32,7 +34,7 @@ class CommentAdmin(admin.ModelAdmin):
     inlines = [MentionInline]
 
     def get_queryset(self, request):
-        return Comment.unscoped.select_related("author", "content_type", "tenant")
+        return super().get_queryset(request).select_related("author", "content_type", "tenant")
 
 
 @admin.register(Mention)
@@ -45,7 +47,7 @@ class MentionAdmin(admin.ModelAdmin):
 
 
 @admin.register(ActivityLog)
-class ActivityLogAdmin(admin.ModelAdmin):
+class ActivityLogAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "id",
         "tenant",
@@ -90,4 +92,4 @@ class ActivityLogAdmin(admin.ModelAdmin):
         return False
 
     def get_queryset(self, request):
-        return ActivityLog.unscoped.select_related("actor", "content_type", "tenant")
+        return super().get_queryset(request).select_related("actor", "content_type", "tenant")

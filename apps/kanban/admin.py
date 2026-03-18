@@ -4,6 +4,8 @@ Django admin configuration for the kanban app.
 
 from django.contrib import admin
 
+from main.admin import TenantFilteredAdmin
+
 from apps.kanban.models import Board, CardPosition, Column
 
 
@@ -16,7 +18,7 @@ class ColumnInline(admin.TabularInline):
 
 
 @admin.register(Board)
-class BoardAdmin(admin.ModelAdmin):
+class BoardAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = ("name", "resource_type", "is_default", "tenant", "created_by", "created_at")
     list_filter = ("resource_type", "is_default")
     search_fields = ("name", "tenant__name")
@@ -42,7 +44,7 @@ class BoardAdmin(admin.ModelAdmin):
 
 
 @admin.register(Column)
-class ColumnAdmin(admin.ModelAdmin):
+class ColumnAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = ("name", "board", "order", "status", "wip_limit", "color")
     list_filter = ("board",)
     search_fields = ("name", "board__name")
@@ -68,11 +70,11 @@ class ColumnAdmin(admin.ModelAdmin):
 
 
 @admin.register(CardPosition)
-class CardPositionAdmin(admin.ModelAdmin):
-    list_display = ("id", "column", "content_type", "object_id", "order")
+class CardPositionAdmin(TenantFilteredAdmin, admin.ModelAdmin):
+    list_display = ("id", "column", "content_type", "object_id", "order", "tenant")
     list_filter = ("content_type", "column__board")
     search_fields = ("object_id",)
-    readonly_fields = ("id",)
+    readonly_fields = ("id", "tenant", "created_at", "updated_at")
     raw_id_fields = ("column", "content_type")
     ordering = ("column", "order")
 
@@ -80,7 +82,14 @@ class CardPositionAdmin(admin.ModelAdmin):
         (
             None,
             {
-                "fields": ("id", "column", "content_type", "object_id", "order"),
+                "fields": ("id", "tenant", "column", "content_type", "object_id", "order"),
+            },
+        ),
+        (
+            "Timestamps",
+            {
+                "classes": ("collapse",),
+                "fields": ("created_at", "updated_at"),
             },
         ),
     )

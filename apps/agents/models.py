@@ -15,6 +15,8 @@ class AgentStatus(models.TextChoices):
     """Possible availability states for an agent."""
 
     ONLINE = "online", "Online"
+    AWAY = "away", "Away"
+    BUSY = "busy", "Busy"
     OFFLINE = "offline", "Offline"
 
 
@@ -44,6 +46,10 @@ class AgentAvailability(TenantScopedModel):
     current_ticket_count = models.PositiveIntegerField(
         default=0,
         help_text="Current number of open tickets assigned to this agent.",
+    )
+    status_message = models.CharField(
+        max_length=100, null=True, blank=True,
+        help_text="Custom status message (e.g. 'In a meeting').",
     )
     last_activity = models.DateTimeField(
         null=True,

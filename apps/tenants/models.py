@@ -124,6 +124,14 @@ class TenantSettings(TimestampedModel):
         help_text="ISO weekday integers (0=Mon, 6=Sun) that are business days.",
     )
 
+    # --- Inbound Email ---
+    inbound_email_address = models.EmailField(
+        null=True,
+        blank=True,
+        unique=True,
+        help_text="Custom inbound email address for this tenant (e.g. support@acme.com).",
+    )
+
     # --- Branding ---
     primary_color = models.CharField(
         max_length=7,

@@ -26,6 +26,7 @@ class AgentAvailabilitySerializer(serializers.ModelSerializer):
             "user_email",
             "user_name",
             "status",
+            "status_message",
             "max_concurrent_tickets",
             "current_ticket_count",
             "last_activity",

@@ -7,11 +7,13 @@ display, search, and filter options for administrative use.
 
 from django.contrib import admin
 
+from main.admin import TenantFilteredAdmin
+
 from apps.analytics.models import DashboardWidget, ExportJob, ReportDefinition
 
 
 @admin.register(ReportDefinition)
-class ReportDefinitionAdmin(admin.ModelAdmin):
+class ReportDefinitionAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "name",
         "report_type",
@@ -27,7 +29,7 @@ class ReportDefinitionAdmin(admin.ModelAdmin):
 
 
 @admin.register(DashboardWidget)
-class DashboardWidgetAdmin(admin.ModelAdmin):
+class DashboardWidgetAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "title",
         "widget_type",
@@ -44,7 +46,7 @@ class DashboardWidgetAdmin(admin.ModelAdmin):
 
 
 @admin.register(ExportJob)
-class ExportJobAdmin(admin.ModelAdmin):
+class ExportJobAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "resource_type",
         "export_type",

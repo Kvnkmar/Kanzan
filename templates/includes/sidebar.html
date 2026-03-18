@@ -69,6 +69,10 @@
         <i class="ti ti-users"></i>
         <span class="sidebar-link-text">Agents</span>
       </a>
+      <a href="{% url 'frontend:inbound-email' %}" class="sidebar-link {% if request.resolver_match.url_name == 'inbound-email' %}active{% endif %}" data-sidebar-tooltip="Inbound Email">
+        <i class="ti ti-mail-forward"></i>
+        <span class="sidebar-link-text">Inbound Email</span>
+      </a>
       <a href="{% url 'frontend:users' %}" class="sidebar-link {% if request.resolver_match.url_name == 'users' %}active{% endif %}" data-sidebar-tooltip="Users">
         <i class="ti ti-user-cog"></i>
         <span class="sidebar-link-text">Users</span>
@@ -76,20 +80,20 @@
     </div>
     {% endif %}
 
-    <!-- Administration (Admin only) -->
-    {% if is_admin %}
+    <!-- Settings (all members) + Administration (Admin only) -->
     <div class="nav-section">
-      <span class="nav-section-label">Administration</span>
+      <span class="nav-section-label">Settings</span>
       <a href="{% url 'frontend:settings' %}" class="sidebar-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}" data-sidebar-tooltip="Settings">
         <i class="ti ti-settings"></i>
         <span class="sidebar-link-text">Settings</span>
       </a>
+      {% if is_admin %}
       <a href="{% url 'frontend:billing' %}" class="sidebar-link {% if request.resolver_match.url_name == 'billing' %}active{% endif %}" data-sidebar-tooltip="Billing">
         <i class="ti ti-credit-card"></i>
         <span class="sidebar-link-text">Billing</span>
       </a>
+      {% endif %}
     </div>
-    {% endif %}
   </nav>
 
   <!-- User Footer -->
@@ -109,10 +113,8 @@
       </div>
       <ul class="dropdown-menu dropdown-menu-end sidebar-user-dropdown">
         <li><a class="dropdown-item" href="{% url 'frontend:profile' %}"><i class="ti ti-user me-2"></i>Profile</a></li>
-        {% if is_admin %}
         <li><hr class="dropdown-divider"></li>
         <li><a class="dropdown-item" href="{% url 'frontend:settings' %}"><i class="ti ti-settings me-2"></i>Settings</a></li>
-        {% endif %}
         <li><hr class="dropdown-divider"></li>
         <li><a class="dropdown-item text-danger" href="{% url 'frontend:logout' %}"><i class="ti ti-logout me-2"></i>Sign Out</a></li>
       </ul>

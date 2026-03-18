@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
+from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
@@ -121,6 +122,12 @@ class ProfileSerializer(serializers.ModelSerializer):
             "department",
             "bio",
             "notification_email",
+            "signature",
+            "timezone",
+            "language",
+            "dnd_enabled",
+            "dnd_start",
+            "dnd_end",
             "created_at",
             "updated_at",
         ]
@@ -204,8 +211,6 @@ class InvitationSerializer(serializers.ModelSerializer):
         email = attrs.get("email", "").strip().lower()
 
         if tenant and email:
-            from apps.accounts.models import TenantMembership
-
             # Check if already a tenant member
             if TenantMembership.objects.filter(
                 tenant=tenant, user__email__iexact=email, is_active=True
@@ -215,8 +220,6 @@ class InvitationSerializer(serializers.ModelSerializer):
                 )
 
             # Delete expired, unaccepted invitations for this email
-            from django.utils import timezone
-
             Invitation.objects.filter(
                 tenant=tenant,
                 email__iexact=email,

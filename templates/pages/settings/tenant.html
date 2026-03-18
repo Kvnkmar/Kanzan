@@ -2,393 +2,496 @@
 {% block title %}Settings - Kanzen Suite{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Settings</h1>
-    <p class="page-subtitle">Manage your workspace configuration</p>
+<!-- Settings Hero -->
+<div class="st-hero">
+  <div class="st-hero-gradient"></div>
+  <div class="st-hero-content">
+    <div class="st-hero-icon">
+      <i class="ti ti-settings"></i>
+    </div>
+    <div class="st-hero-info">
+      <h1 class="st-hero-title">Settings</h1>
+      <p class="st-hero-desc">Manage your workspace configuration, notifications, and team preferences</p>
+    </div>
   </div>
 </div>
 
 <div id="settingsAlert" class="d-none"></div>
 
-<div class="row g-4">
+<div class="st-layout">
   <!-- Settings Navigation (left) -->
-  <div class="col-lg-3">
-    <div class="settings-nav">
-      <a href="javascript:void(0)" class="settings-nav-item active" id="nav_generalPane" onclick="switchSettingsTab('generalPane')">
-        <i class="ti ti-settings me-2"></i> General
-      </a>
-      <a href="javascript:void(0)" class="settings-nav-item" id="nav_businessHoursPane" onclick="switchSettingsTab('businessHoursPane')">
-        <i class="ti ti-clock me-2"></i> Business Hours
-      </a>
-      <a href="javascript:void(0)" class="settings-nav-item" id="nav_authPane" onclick="switchSettingsTab('authPane')">
-        <i class="ti ti-shield-lock me-2"></i> Authentication
-      </a>
-      <a href="javascript:void(0)" class="settings-nav-item" id="nav_brandingPane" onclick="switchSettingsTab('brandingPane')">
-        <i class="ti ti-palette me-2"></i> Branding
-      </a>
-      <a href="javascript:void(0)" class="settings-nav-item" id="nav_notificationsPane" onclick="switchSettingsTab('notificationsPane')">
-        <i class="ti ti-bell me-2"></i> Notifications
-      </a>
-      <a href="javascript:void(0)" class="settings-nav-item" id="nav_categoriesPane" onclick="switchSettingsTab('categoriesPane')">
-        <i class="ti ti-tag me-2"></i> Ticket Categories
-      </a>
-      <a href="javascript:void(0)" class="settings-nav-item" id="nav_dataPane" onclick="switchSettingsTab('dataPane')">
-        <i class="ti ti-database me-2"></i> Data Management
-      </a>
-    </div>
+  <div class="st-sidebar">
+    <nav class="st-nav">
+      {% if is_admin %}
+      <div class="st-nav-group">
+        <div class="st-nav-label">Workspace</div>
+        <a href="javascript:void(0)" class="st-nav-item active" id="nav_generalPane" onclick="switchSettingsTab('generalPane')">
+          <div class="st-nav-icon"><i class="ti ti-settings"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">General</span>
+            <span class="st-nav-hint">Name, timezone, date format</span>
+          </div>
+        </a>
+        <a href="javascript:void(0)" class="st-nav-item" id="nav_businessHoursPane" onclick="switchSettingsTab('businessHoursPane')">
+          <div class="st-nav-icon"><i class="ti ti-clock"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Business Hours</span>
+            <span class="st-nav-hint">Schedule &amp; availability</span>
+          </div>
+        </a>
+        <a href="javascript:void(0)" class="st-nav-item" id="nav_authPane" onclick="switchSettingsTab('authPane')">
+          <div class="st-nav-icon"><i class="ti ti-shield-lock"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Authentication</span>
+            <span class="st-nav-hint">SSO &amp; login methods</span>
+          </div>
+        </a>
+        <a href="javascript:void(0)" class="st-nav-item" id="nav_brandingPane" onclick="switchSettingsTab('brandingPane')">
+          <div class="st-nav-icon"><i class="ti ti-palette"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Branding</span>
+            <span class="st-nav-hint">Logo, colors &amp; theme</span>
+          </div>
+        </a>
+      </div>
+      {% endif %}
+
+      <div class="st-nav-group">
+        <div class="st-nav-label">Preferences</div>
+        <a href="javascript:void(0)" class="st-nav-item {% if not is_admin %}active{% endif %}" id="nav_notificationsPane" onclick="switchSettingsTab('notificationsPane')">
+          <div class="st-nav-icon"><i class="ti ti-bell"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Notifications</span>
+            <span class="st-nav-hint">Alerts &amp; email prefs</span>
+          </div>
+        </a>
+        <a href="javascript:void(0)" class="st-nav-item" id="nav_cannedResponsesPane" onclick="switchSettingsTab('cannedResponsesPane')">
+          <div class="st-nav-icon"><i class="ti ti-message-chatbot"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Canned Responses</span>
+            <span class="st-nav-hint">Quick reply templates</span>
+          </div>
+        </a>
+      </div>
+
+      <div class="st-nav-group">
+        <div class="st-nav-label">Content</div>
+        {% if is_admin_or_manager %}
+        <a href="javascript:void(0)" class="st-nav-item" id="nav_categoriesPane" onclick="switchSettingsTab('categoriesPane')">
+          <div class="st-nav-icon"><i class="ti ti-tag"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Ticket Categories</span>
+            <span class="st-nav-hint">Organize ticket types</span>
+          </div>
+        </a>
+        {% endif %}
+        <a href="javascript:void(0)" class="st-nav-item" id="nav_knowledgeBasePane" onclick="switchSettingsTab('knowledgeBasePane')">
+          <div class="st-nav-icon"><i class="ti ti-book"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Knowledge Base</span>
+            <span class="st-nav-hint">Articles &amp; resources</span>
+          </div>
+        </a>
+      </div>
+
+      {% if is_admin %}
+      <div class="st-nav-group">
+        <div class="st-nav-label">Advanced</div>
+        <a href="javascript:void(0)" class="st-nav-item" id="nav_dataPane" onclick="switchSettingsTab('dataPane')">
+          <div class="st-nav-icon"><i class="ti ti-database"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Data Management</span>
+            <span class="st-nav-hint">Export &amp; cleanup</span>
+          </div>
+        </a>
+      </div>
+      {% endif %}
+    </nav>
   </div>
 
   <!-- Settings Content (right) -->
-  <div class="col-lg-9">
+  <div class="st-content">
     <div class="settings-panes">
+      {% if is_admin %}
       <!-- General Settings -->
       <div class="settings-pane active" id="generalPane">
-        <div class="card">
-          <div class="card-header"><h5 class="card-title mb-0">General Settings</h5></div>
-          <div class="card-body">
-            <form id="generalForm">
-              <div class="mb-3">
-                <label for="tenantName" class="form-label">Workspace Name</label>
-                <input type="text" class="form-control" id="tenantName" placeholder="Your organization name">
-                <div class="form-text">This name appears in the sidebar and email communications.</div>
-              </div>
-              <div class="row g-3">
-                <div class="col-md-6 mb-3">
-                  <label for="timezone" class="form-label">Timezone</label>
-                  <select class="form-select" id="timezone">
-                    <option value="UTC">UTC</option>
-                    <option value="US/Eastern">US/Eastern</option>
-                    <option value="US/Central">US/Central</option>
-                    <option value="US/Mountain">US/Mountain</option>
-                    <option value="US/Pacific">US/Pacific</option>
-                    <option value="Europe/London">Europe/London</option>
-                    <option value="Europe/Berlin">Europe/Berlin</option>
-                    <option value="Europe/Paris">Europe/Paris</option>
-                    <option value="Asia/Tokyo">Asia/Tokyo</option>
-                    <option value="Asia/Shanghai">Asia/Shanghai</option>
-                    <option value="Asia/Kolkata">Asia/Kolkata</option>
-                    <option value="Australia/Sydney">Australia/Sydney</option>
-                  </select>
-                </div>
-                <div class="col-md-6 mb-3">
-                  <label for="dateFormat" class="form-label">Date Format</label>
-                  <select class="form-select" id="dateFormat">
-                    <option value="YYYY-MM-DD">YYYY-MM-DD</option>
-                    <option value="MM/DD/YYYY">MM/DD/YYYY</option>
-                    <option value="DD/MM/YYYY">DD/MM/YYYY</option>
-                    <option value="DD.MM.YYYY">DD.MM.YYYY</option>
-                  </select>
-                </div>
-              </div>
-              <div class="settings-actions">
-                <button type="submit" class="btn btn-primary">
-                  <span class="spinner-border spinner-border-sm d-none me-1" id="generalSpinner"></span>
-                  Save Changes
-                </button>
-              </div>
-            </form>
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-settings"></i></div>
+            <div>
+              <h3 class="st-section-title">General Settings</h3>
+              <p class="st-section-desc">Configure your workspace name, timezone, and regional preferences</p>
+            </div>
           </div>
+          <form id="generalForm">
+            <div class="st-form-group">
+              <label for="tenantName" class="st-label">Workspace Name</label>
+              <input type="text" class="form-control" id="tenantName" placeholder="Your organization name">
+              <div class="form-text">This name appears in the sidebar and email communications.</div>
+            </div>
+            <div class="st-form-row">
+              <div class="st-form-group">
+                <label for="timezone" class="st-label">Timezone</label>
+                <select class="form-select" id="timezone">
+                  <option value="UTC">UTC</option>
+                  <option value="US/Eastern">US/Eastern</option>
+                  <option value="US/Central">US/Central</option>
+                  <option value="US/Mountain">US/Mountain</option>
+                  <option value="US/Pacific">US/Pacific</option>
+                  <option value="Europe/London">Europe/London</option>
+                  <option value="Europe/Berlin">Europe/Berlin</option>
+                  <option value="Europe/Paris">Europe/Paris</option>
+                  <option value="Asia/Tokyo">Asia/Tokyo</option>
+                  <option value="Asia/Shanghai">Asia/Shanghai</option>
+                  <option value="Asia/Kolkata">Asia/Kolkata</option>
+                  <option value="Australia/Sydney">Australia/Sydney</option>
+                </select>
+              </div>
+              <div class="st-form-group">
+                <label for="dateFormat" class="st-label">Date Format</label>
+                <select class="form-select" id="dateFormat">
+                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                  <option value="DD.MM.YYYY">DD.MM.YYYY</option>
+                </select>
+              </div>
+            </div>
+            <div class="st-form-actions">
+              <button type="submit" class="btn btn-primary">
+                <span class="spinner-border spinner-border-sm d-none me-1" id="generalSpinner"></span>
+                Save Changes
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
       <!-- Business Hours -->
       <div class="settings-pane" id="businessHoursPane" style="display:none">
-        <div class="card">
-          <div class="card-header"><h5 class="card-title mb-0">Business Hours</h5></div>
-          <div class="card-body">
-            <p class="text-muted small mb-4">Define when your team is available. SLA timers only count during business hours.</p>
-            <form id="businessHoursForm">
-              <div class="row g-3 mb-4">
-                <div class="col-md-6">
-                  <label for="businessStart" class="form-label">Start Time</label>
-                  <input type="time" class="form-control" id="businessStart" value="09:00">
-                </div>
-                <div class="col-md-6">
-                  <label for="businessEnd" class="form-label">End Time</label>
-                  <input type="time" class="form-control" id="businessEnd" value="17:00">
-                </div>
-              </div>
-              <div class="mb-4">
-                <label class="form-label">Business Days</label>
-                <div class="d-flex flex-wrap gap-2" id="businessDaysGroup">
-                  <label class="bh-day-check"><input type="checkbox" value="0" checked><span>Mon</span></label>
-                  <label class="bh-day-check"><input type="checkbox" value="1" checked><span>Tue</span></label>
-                  <label class="bh-day-check"><input type="checkbox" value="2" checked><span>Wed</span></label>
-                  <label class="bh-day-check"><input type="checkbox" value="3" checked><span>Thu</span></label>
-                  <label class="bh-day-check"><input type="checkbox" value="4" checked><span>Fri</span></label>
-                  <label class="bh-day-check"><input type="checkbox" value="5"><span>Sat</span></label>
-                  <label class="bh-day-check"><input type="checkbox" value="6"><span>Sun</span></label>
-                </div>
-              </div>
-              <div class="settings-actions">
-                <button type="submit" class="btn btn-primary">
-                  <span class="spinner-border spinner-border-sm d-none me-1" id="bhSpinner"></span>
-                  Save Changes
-                </button>
-              </div>
-            </form>
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-clock"></i></div>
+            <div>
+              <h3 class="st-section-title">Business Hours</h3>
+              <p class="st-section-desc">Define when your team is available. SLA timers only count during business hours.</p>
+            </div>
           </div>
+          <form id="businessHoursForm">
+            <div class="st-form-row">
+              <div class="st-form-group">
+                <label for="businessStart" class="st-label">Start Time</label>
+                <input type="time" class="form-control" id="businessStart" value="09:00">
+              </div>
+              <div class="st-form-group">
+                <label for="businessEnd" class="st-label">End Time</label>
+                <input type="time" class="form-control" id="businessEnd" value="17:00">
+              </div>
+            </div>
+            <div class="st-form-group">
+              <label class="st-label">Business Days</label>
+              <div class="d-flex flex-wrap gap-2" id="businessDaysGroup">
+                <label class="bh-day-check"><input type="checkbox" value="0" checked><span>Mon</span></label>
+                <label class="bh-day-check"><input type="checkbox" value="1" checked><span>Tue</span></label>
+                <label class="bh-day-check"><input type="checkbox" value="2" checked><span>Wed</span></label>
+                <label class="bh-day-check"><input type="checkbox" value="3" checked><span>Thu</span></label>
+                <label class="bh-day-check"><input type="checkbox" value="4" checked><span>Fri</span></label>
+                <label class="bh-day-check"><input type="checkbox" value="5"><span>Sat</span></label>
+                <label class="bh-day-check"><input type="checkbox" value="6"><span>Sun</span></label>
+              </div>
+            </div>
+            <div class="st-form-actions">
+              <button type="submit" class="btn btn-primary">
+                <span class="spinner-border spinner-border-sm d-none me-1" id="bhSpinner"></span>
+                Save Changes
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
       <!-- Authentication Settings -->
       <div class="settings-pane" id="authPane" style="display:none">
-        <div class="card">
-          <div class="card-header"><h5 class="card-title mb-0">Authentication Settings</h5></div>
-          <div class="card-body">
-            <form id="authForm">
-              <div class="mb-3">
-                <label for="authMethod" class="form-label">Authentication Method</label>
-                <select class="form-select" id="authMethod">
-                  <option value="django">Django (Username/Password)</option>
-                  <option value="sso">SSO Only</option>
-                  <option value="both">Both (Django + SSO)</option>
-                </select>
-                <div class="form-text">Choose how users authenticate to your workspace.</div>
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-shield-lock"></i></div>
+            <div>
+              <h3 class="st-section-title">Authentication Settings</h3>
+              <p class="st-section-desc">Configure how users sign in to your workspace</p>
+            </div>
+          </div>
+          <form id="authForm">
+            <div class="st-form-group">
+              <label for="authMethod" class="st-label">Authentication Method</label>
+              <select class="form-select" id="authMethod">
+                <option value="django">Email & Password</option>
+                <option value="sso">SSO Only</option>
+                <option value="both">Both (Email & Password + SSO)</option>
+              </select>
+              <div class="form-text">Choose how users authenticate to your workspace.</div>
+            </div>
+            <div id="ssoFields" class="d-none">
+              <div class="st-divider"></div>
+              <div class="st-form-group">
+                <h6 class="fw-semibold mb-3 d-flex align-items-center gap-2"><i class="ti ti-key" style="color:var(--crm-primary);"></i> SSO Configuration</h6>
               </div>
-              <div id="ssoFields" class="d-none">
-                <hr class="my-4">
-                <h6 class="fw-semibold mb-3">SSO Configuration</h6>
-                <div class="mb-3">
-                  <label for="ssoProvider" class="form-label">SSO Provider</label>
-                  <select class="form-select" id="ssoProvider">
-                    <option value="">-- Select --</option>
-                    <option value="google">Google Workspace</option>
-                    <option value="microsoft">Microsoft Entra ID</option>
-                    <option value="okta">Okta</option>
-                    <option value="saml">Generic SAML 2.0</option>
-                    <option value="oidc">OpenID Connect</option>
-                  </select>
-                </div>
-                <div class="mb-3">
-                  <label for="ssoClientId" class="form-label">Client ID</label>
+              <div class="st-form-group">
+                <label for="ssoProvider" class="st-label">SSO Provider</label>
+                <select class="form-select" id="ssoProvider">
+                  <option value="">-- Select --</option>
+                  <option value="google">Google Workspace</option>
+                  <option value="microsoft">Microsoft Entra ID</option>
+                  <option value="okta">Okta</option>
+                  <option value="saml">Generic SAML 2.0</option>
+                  <option value="oidc">OpenID Connect</option>
+                </select>
+              </div>
+              <div class="st-form-row">
+                <div class="st-form-group">
+                  <label for="ssoClientId" class="st-label">Client ID</label>
                   <input type="text" class="form-control" id="ssoClientId" placeholder="Enter client ID">
                 </div>
-                <div class="mb-3">
-                  <label for="ssoClientSecret" class="form-label">Client Secret</label>
+                <div class="st-form-group">
+                  <label for="ssoClientSecret" class="st-label">Client Secret</label>
                   <input type="password" class="form-control" id="ssoClientSecret" placeholder="Enter client secret">
                 </div>
-                <div class="mb-3">
-                  <label for="ssoDomain" class="form-label">Domain / Issuer URL</label>
-                  <input type="url" class="form-control" id="ssoDomain" placeholder="https://your-idp.example.com">
-                </div>
               </div>
-              <div class="settings-actions">
-                <button type="submit" class="btn btn-primary">
-                  <span class="spinner-border spinner-border-sm d-none me-1" id="authSpinner"></span>
-                  Save Changes
-                </button>
+              <div class="st-form-group">
+                <label for="ssoDomain" class="st-label">Domain / Issuer URL</label>
+                <input type="url" class="form-control" id="ssoDomain" placeholder="https://your-idp.example.com">
               </div>
-            </form>
-          </div>
+            </div>
+            <div class="st-form-actions">
+              <button type="submit" class="btn btn-primary">
+                <span class="spinner-border spinner-border-sm d-none me-1" id="authSpinner"></span>
+                Save Changes
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
       <!-- Branding Settings -->
       <div class="settings-pane" id="brandingPane" style="display:none">
         <!-- Logo Upload -->
-        <div class="card mb-4">
-          <div class="card-header"><h5 class="card-title mb-0">Workspace Logo</h5></div>
-          <div class="card-body">
-            <div class="d-flex align-items-start gap-4">
-              <div class="branding-logo-preview" id="logoPreviewContainer">
-                <div class="branding-logo-placeholder" id="logoPlaceholder">
-                  <i class="ti ti-building" style="font-size:2rem;opacity:0.3;"></i>
-                </div>
-                <img id="logoPreviewImg" class="branding-logo-img d-none" alt="Logo">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-photo"></i></div>
+            <div>
+              <h3 class="st-section-title">Workspace Logo</h3>
+              <p class="st-section-desc">Upload your brand logo to personalize the workspace</p>
+            </div>
+          </div>
+          <div class="d-flex align-items-start gap-4">
+            <div class="branding-logo-preview" id="logoPreviewContainer">
+              <div class="branding-logo-placeholder" id="logoPlaceholder">
+                <i class="ti ti-building" style="font-size:2rem;opacity:0.3;"></i>
               </div>
-              <div class="flex-grow-1">
-                <div class="branding-dropzone" id="logoDropzone">
-                  <input type="file" id="logoFileInput" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="d-none">
-                  <div class="text-center">
-                    <i class="ti ti-cloud-upload" style="font-size:1.5rem;opacity:0.4;"></i>
-                    <p class="mb-1 small fw-medium">Drop your logo here or <a href="javascript:void(0)" id="logoBrowseLink">browse</a></p>
-                    <p class="text-muted mb-0" style="font-size:0.75rem;">PNG, JPG, SVG or WebP. Max 2 MB. Recommended 200x200px.</p>
-                  </div>
+              <img id="logoPreviewImg" class="branding-logo-img d-none" alt="Logo">
+            </div>
+            <div class="flex-grow-1">
+              <div class="branding-dropzone" id="logoDropzone">
+                <input type="file" id="logoFileInput" accept="image/png,image/jpeg,image/svg+xml,image/webp" class="d-none">
+                <div class="text-center">
+                  <i class="ti ti-cloud-upload" style="font-size:1.5rem;opacity:0.4;"></i>
+                  <p class="mb-1 small fw-medium">Drop your logo here or <a href="javascript:void(0)" id="logoBrowseLink">browse</a></p>
+                  <p class="text-muted mb-0" style="font-size:0.75rem;">PNG, JPG, SVG or WebP. Max 2 MB. Recommended 200x200px.</p>
                 </div>
-                <button type="button" class="btn btn-sm btn-outline-danger mt-2 d-none" id="logoRemoveBtn">
-                  <i class="ti ti-trash me-1"></i>Remove Logo
-                </button>
               </div>
+              <button type="button" class="btn btn-sm btn-outline-danger mt-2 d-none" id="logoRemoveBtn">
+                <i class="ti ti-trash me-1"></i>Remove Logo
+              </button>
             </div>
           </div>
         </div>
 
         <!-- Colors -->
-        <div class="card mb-4">
-          <div class="card-header d-flex align-items-center justify-content-between">
-            <h5 class="card-title mb-0">Colors</h5>
+        <div class="st-section mt-4">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-palette"></i></div>
+            <div class="flex-grow-1">
+              <h3 class="st-section-title">Colors</h3>
+              <p class="st-section-desc">Customize your workspace color scheme</p>
+            </div>
             <button type="button" class="btn btn-sm btn-outline-secondary" id="resetColorsBtn">
-              <i class="ti ti-refresh me-1"></i>Reset to Default
+              <i class="ti ti-refresh me-1"></i>Reset
             </button>
           </div>
-          <div class="card-body">
-            <form id="brandingForm">
-              <!-- Preset Palettes -->
-              <div class="mb-4">
-                <label class="form-label">Quick Presets</label>
-                <div class="branding-presets" id="colorPresets">
-                  <button type="button" class="branding-preset-btn" data-primary="#6366F1" data-accent="#F59E0B" title="Indigo & Amber">
-                    <span class="preset-swatch" style="background:#6366F1;"></span>
-                    <span class="preset-swatch" style="background:#F59E0B;"></span>
-                  </button>
-                  <button type="button" class="branding-preset-btn" data-primary="#3B82F6" data-accent="#10B981" title="Blue & Emerald">
-                    <span class="preset-swatch" style="background:#3B82F6;"></span>
-                    <span class="preset-swatch" style="background:#10B981;"></span>
-                  </button>
-                  <button type="button" class="branding-preset-btn" data-primary="#8B5CF6" data-accent="#EC4899" title="Violet & Pink">
-                    <span class="preset-swatch" style="background:#8B5CF6;"></span>
-                    <span class="preset-swatch" style="background:#EC4899;"></span>
-                  </button>
-                  <button type="button" class="branding-preset-btn" data-primary="#DC2626" data-accent="#F97316" title="Red & Orange">
-                    <span class="preset-swatch" style="background:#DC2626;"></span>
-                    <span class="preset-swatch" style="background:#F97316;"></span>
-                  </button>
-                  <button type="button" class="branding-preset-btn" data-primary="#059669" data-accent="#6366F1" title="Green & Indigo">
-                    <span class="preset-swatch" style="background:#059669;"></span>
-                    <span class="preset-swatch" style="background:#6366F1;"></span>
-                  </button>
-                  <button type="button" class="branding-preset-btn" data-primary="#0EA5E9" data-accent="#F43F5E" title="Sky & Rose">
-                    <span class="preset-swatch" style="background:#0EA5E9;"></span>
-                    <span class="preset-swatch" style="background:#F43F5E;"></span>
-                  </button>
-                  <button type="button" class="branding-preset-btn" data-primary="#D946EF" data-accent="#14B8A6" title="Fuchsia & Teal">
-                    <span class="preset-swatch" style="background:#D946EF;"></span>
-                    <span class="preset-swatch" style="background:#14B8A6;"></span>
-                  </button>
-                  <button type="button" class="branding-preset-btn" data-primary="#1E293B" data-accent="#3B82F6" title="Slate & Blue">
-                    <span class="preset-swatch" style="background:#1E293B;"></span>
-                    <span class="preset-swatch" style="background:#3B82F6;"></span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- Color Pickers -->
-              <div class="row g-4 mb-4">
-                <div class="col-md-6">
-                  <label for="primaryColor" class="form-label">Primary Color</label>
-                  <div class="branding-color-input">
-                    <input type="color" class="form-control form-control-color" id="primaryColor" value="#6366F1">
-                    <input type="text" class="form-control" id="primaryColorHex" placeholder="#6366F1" maxlength="7">
-                  </div>
-                  <div class="form-text">Buttons, links, sidebar active state, and main actions.</div>
-                </div>
-                <div class="col-md-6">
-                  <label for="accentColor" class="form-label">Accent Color</label>
-                  <div class="branding-color-input">
-                    <input type="color" class="form-control form-control-color" id="accentColor" value="#F59E0B">
-                    <input type="text" class="form-control" id="accentColorHex" placeholder="#F59E0B" maxlength="7">
-                  </div>
-                  <div class="form-text">Badges, highlights, notifications, and secondary actions.</div>
-                </div>
-              </div>
-
-              <!-- Live Preview -->
-              <div class="mb-4">
-                <label class="form-label">Live Preview</label>
-                <div class="branding-preview-wrapper">
-                  <!-- Mini Sidebar -->
-                  <div class="bp-sidebar" id="previewSidebar">
-                    <div class="bp-sidebar-brand">
-                      <div class="bp-sidebar-logo" id="previewSidebarLogo">K</div>
-                      <span class="bp-sidebar-name">Workspace</span>
-                    </div>
-                    <div class="bp-sidebar-nav">
-                      <div class="bp-sidebar-link active" id="previewActiveLink">
-                        <i class="ti ti-layout-dashboard"></i> Dashboard
-                      </div>
-                      <div class="bp-sidebar-link">
-                        <i class="ti ti-ticket"></i> Tickets
-                      </div>
-                      <div class="bp-sidebar-link">
-                        <i class="ti ti-users"></i> Contacts
-                      </div>
-                    </div>
-                  </div>
-                  <!-- Mini Content Area -->
-                  <div class="bp-content">
-                    <div class="bp-header">
-                      <span class="fw-semibold" style="font-size:0.8rem;">Dashboard</span>
-                      <button class="bp-btn-primary" id="previewPrimaryBtn" type="button">New Ticket</button>
-                    </div>
-                    <div class="bp-cards">
-                      <div class="bp-stat-card">
-                        <div class="bp-stat-accent" id="previewStatAccent1"></div>
-                        <div>
-                          <div class="bp-stat-value">128</div>
-                          <div class="bp-stat-label">Open Tickets</div>
-                        </div>
-                      </div>
-                      <div class="bp-stat-card">
-                        <div class="bp-stat-accent" id="previewStatAccent2" style="opacity:0.6;"></div>
-                        <div>
-                          <div class="bp-stat-value">42</div>
-                          <div class="bp-stat-label">Resolved</div>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="bp-table-row">
-                      <span class="bp-badge-primary" id="previewBadgePrimary">In Progress</span>
-                      <span class="bp-badge-accent" id="previewBadgeAccent">Urgent</span>
-                      <span class="text-muted" style="font-size:0.7rem;margin-left:auto;">2 min ago</span>
-                    </div>
-                    <div class="bp-table-row">
-                      <span class="bp-badge-primary" id="previewBadgePrimary2">Open</span>
-                      <span style="font-size:0.7rem;color:var(--crm-text-secondary);">Login page not loading</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="settings-actions">
-                <button type="submit" class="btn btn-primary">
-                  <span class="spinner-border spinner-border-sm d-none me-1" id="brandingSpinner"></span>
-                  Save Changes
+          <form id="brandingForm">
+            <!-- Preset Palettes -->
+            <div class="st-form-group">
+              <label class="st-label">Quick Presets</label>
+              <div class="branding-presets" id="colorPresets">
+                <button type="button" class="branding-preset-btn" data-primary="#2563EB" data-accent="#F59E0B" title="Royal Blue & Amber">
+                  <span class="preset-swatch" style="background:#2563EB;"></span>
+                  <span class="preset-swatch" style="background:#F59E0B;"></span>
+                </button>
+                <button type="button" class="branding-preset-btn" data-primary="#3B82F6" data-accent="#10B981" title="Blue & Emerald">
+                  <span class="preset-swatch" style="background:#3B82F6;"></span>
+                  <span class="preset-swatch" style="background:#10B981;"></span>
+                </button>
+                <button type="button" class="branding-preset-btn" data-primary="#8B5CF6" data-accent="#EC4899" title="Violet & Pink">
+                  <span class="preset-swatch" style="background:#8B5CF6;"></span>
+                  <span class="preset-swatch" style="background:#EC4899;"></span>
+                </button>
+                <button type="button" class="branding-preset-btn" data-primary="#DC2626" data-accent="#F97316" title="Red & Orange">
+                  <span class="preset-swatch" style="background:#DC2626;"></span>
+                  <span class="preset-swatch" style="background:#F97316;"></span>
+                </button>
+                <button type="button" class="branding-preset-btn" data-primary="#059669" data-accent="#2563EB" title="Green & Blue">
+                  <span class="preset-swatch" style="background:#059669;"></span>
+                  <span class="preset-swatch" style="background:#2563EB;"></span>
+                </button>
+                <button type="button" class="branding-preset-btn" data-primary="#0EA5E9" data-accent="#F43F5E" title="Sky & Rose">
+                  <span class="preset-swatch" style="background:#0EA5E9;"></span>
+                  <span class="preset-swatch" style="background:#F43F5E;"></span>
+                </button>
+                <button type="button" class="branding-preset-btn" data-primary="#D946EF" data-accent="#14B8A6" title="Fuchsia & Teal">
+                  <span class="preset-swatch" style="background:#D946EF;"></span>
+                  <span class="preset-swatch" style="background:#14B8A6;"></span>
+                </button>
+                <button type="button" class="branding-preset-btn" data-primary="#1E293B" data-accent="#3B82F6" title="Slate & Blue">
+                  <span class="preset-swatch" style="background:#1E293B;"></span>
+                  <span class="preset-swatch" style="background:#3B82F6;"></span>
                 </button>
               </div>
-            </form>
-          </div>
+            </div>
+
+            <!-- Color Pickers -->
+            <div class="st-form-row">
+              <div class="st-form-group">
+                <label for="primaryColor" class="st-label">Primary Color</label>
+                <div class="branding-color-input">
+                  <input type="color" class="form-control form-control-color" id="primaryColor" value="#2563EB">
+                  <input type="text" class="form-control" id="primaryColorHex" placeholder="#2563EB" maxlength="7">
+                </div>
+                <div class="form-text">Buttons, links, sidebar active state, and main actions.</div>
+              </div>
+              <div class="st-form-group">
+                <label for="accentColor" class="st-label">Accent Color</label>
+                <div class="branding-color-input">
+                  <input type="color" class="form-control form-control-color" id="accentColor" value="#F59E0B">
+                  <input type="text" class="form-control" id="accentColorHex" placeholder="#F59E0B" maxlength="7">
+                </div>
+                <div class="form-text">Badges, highlights, notifications, and secondary actions.</div>
+              </div>
+            </div>
+
+            <!-- Live Preview -->
+            <div class="st-form-group">
+              <label class="st-label">Live Preview</label>
+              <div class="branding-preview-wrapper">
+                <div class="bp-sidebar" id="previewSidebar">
+                  <div class="bp-sidebar-brand">
+                    <div class="bp-sidebar-logo" id="previewSidebarLogo">K</div>
+                    <span class="bp-sidebar-name">Workspace</span>
+                  </div>
+                  <div class="bp-sidebar-nav">
+                    <div class="bp-sidebar-link active" id="previewActiveLink">
+                      <i class="ti ti-layout-dashboard"></i> Dashboard
+                    </div>
+                    <div class="bp-sidebar-link">
+                      <i class="ti ti-ticket"></i> Tickets
+                    </div>
+                    <div class="bp-sidebar-link">
+                      <i class="ti ti-users"></i> Contacts
+                    </div>
+                  </div>
+                </div>
+                <div class="bp-content">
+                  <div class="bp-header">
+                    <span class="fw-semibold" style="font-size:0.8rem;">Dashboard</span>
+                    <button class="bp-btn-primary" id="previewPrimaryBtn" type="button">New Ticket</button>
+                  </div>
+                  <div class="bp-cards">
+                    <div class="bp-stat-card">
+                      <div class="bp-stat-accent" id="previewStatAccent1"></div>
+                      <div>
+                        <div class="bp-stat-value">128</div>
+                        <div class="bp-stat-label">Open Tickets</div>
+                      </div>
+                    </div>
+                    <div class="bp-stat-card">
+                      <div class="bp-stat-accent" id="previewStatAccent2" style="opacity:0.6;"></div>
+                      <div>
+                        <div class="bp-stat-value">42</div>
+                        <div class="bp-stat-label">Resolved</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="bp-table-row">
+                    <span class="bp-badge-primary" id="previewBadgePrimary">In Progress</span>
+                    <span class="bp-badge-accent" id="previewBadgeAccent">Urgent</span>
+                    <span class="text-muted" style="font-size:0.7rem;margin-left:auto;">2 min ago</span>
+                  </div>
+                  <div class="bp-table-row">
+                    <span class="bp-badge-primary" id="previewBadgePrimary2">Open</span>
+                    <span style="font-size:0.7rem;color:var(--crm-text-secondary);">Login page not loading</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="st-form-actions">
+              <button type="submit" class="btn btn-primary">
+                <span class="spinner-border spinner-border-sm d-none me-1" id="brandingSpinner"></span>
+                Save Changes
+              </button>
+            </div>
+          </form>
         </div>
       </div>
 
+      {% endif %}
+
       <!-- Notifications Settings -->
-      <div class="settings-pane" id="notificationsPane" style="display:none">
-        <div class="card">
-          <div class="card-header"><h5 class="card-title mb-0">Notification Preferences</h5></div>
-          <div class="card-body">
-            <div class="settings-option">
-              <div>
-                <div class="fw-medium">Email notifications</div>
-                <div class="text-muted small">Receive email alerts for ticket assignments and updates.</div>
+      <div class="settings-pane{% if not is_admin %} active{% endif %}" id="notificationsPane" style="{% if is_admin %}display:none{% endif %}">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-bell"></i></div>
+            <div>
+              <h3 class="st-section-title">Notification Preferences</h3>
+              <p class="st-section-desc">Choose how and when you want to be notified</p>
+            </div>
+          </div>
+          <div class="st-toggle-list">
+            <div class="st-toggle-item">
+              <div class="st-toggle-icon"><i class="ti ti-mail"></i></div>
+              <div class="st-toggle-info">
+                <span class="st-toggle-label">Email notifications</span>
+                <span class="st-toggle-desc">Receive email alerts for ticket assignments and updates.</span>
               </div>
               <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="emailNotifications" checked></div>
             </div>
-            <div class="settings-option">
-              <div>
-                <div class="fw-medium">Browser notifications</div>
-                <div class="text-muted small">Show desktop notifications for real-time events.</div>
+            <div class="st-toggle-item">
+              <div class="st-toggle-icon"><i class="ti ti-device-desktop"></i></div>
+              <div class="st-toggle-info">
+                <span class="st-toggle-label">Browser notifications</span>
+                <span class="st-toggle-desc">Show desktop notifications for real-time events.</span>
               </div>
               <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="browserNotifications"></div>
             </div>
-            <div class="settings-option">
-              <div>
-                <div class="fw-medium">SLA breach alerts</div>
-                <div class="text-muted small">Get notified when tickets are approaching SLA deadlines.</div>
+            <div class="st-toggle-item">
+              <div class="st-toggle-icon"><i class="ti ti-alarm"></i></div>
+              <div class="st-toggle-info">
+                <span class="st-toggle-label">SLA breach alerts</span>
+                <span class="st-toggle-desc">Get notified when tickets are approaching SLA deadlines.</span>
               </div>
               <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="slaAlerts" checked></div>
             </div>
-            <div class="settings-option">
-              <div>
-                <div class="fw-medium">Assignment notifications</div>
-                <div class="text-muted small">Get notified when a ticket is assigned to you.</div>
+            <div class="st-toggle-item">
+              <div class="st-toggle-icon"><i class="ti ti-user-plus"></i></div>
+              <div class="st-toggle-info">
+                <span class="st-toggle-label">Assignment notifications</span>
+                <span class="st-toggle-desc">Get notified when a ticket is assigned to you.</span>
               </div>
               <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="assignmentAlerts" checked></div>
             </div>
-            <div class="settings-option" style="border-bottom:none;">
-              <div>
-                <div class="fw-medium">Mention notifications</div>
-                <div class="text-muted small">Get notified when someone @mentions you in a comment.</div>
+            <div class="st-toggle-item">
+              <div class="st-toggle-icon"><i class="ti ti-at"></i></div>
+              <div class="st-toggle-info">
+                <span class="st-toggle-label">Mention notifications</span>
+                <span class="st-toggle-desc">Get notified when someone @mentions you in a comment.</span>
               </div>
               <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="mentionAlerts" checked></div>
             </div>
@@ -396,21 +499,23 @@
         </div>
       </div>
 
+      {% if is_admin_or_manager %}
       <!-- Ticket Categories -->
       <div class="settings-pane" id="categoriesPane" style="display:none">
-        <div class="card">
-          <div class="card-header d-flex align-items-center justify-content-between">
-            <h5 class="card-title mb-0">Ticket Categories</h5>
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-tag"></i></div>
+            <div class="flex-grow-1">
+              <h3 class="st-section-title">Ticket Categories</h3>
+              <p class="st-section-desc">Define categories that agents can assign to tickets</p>
+            </div>
             <button type="button" class="btn btn-sm btn-primary" id="addCategoryBtn"><i class="ti ti-plus me-1"></i>Add Category</button>
           </div>
-          <div class="card-body">
-            <p class="text-muted small mb-3">Define categories that agents can assign to tickets.</p>
-            <div id="categoriesLoading" class="text-center py-4"><div class="spinner-border spinner-border-sm text-muted" role="status"></div></div>
-            <div id="categoriesList"></div>
-            <div id="categoriesEmpty" class="text-center py-4 d-none">
-              <i class="ti ti-tag text-muted" style="font-size:2rem;opacity:0.3;"></i>
-              <p class="text-muted small mt-2 mb-0">No categories yet. Click "Add Category" to create one.</p>
-            </div>
+          <div id="categoriesLoading" class="text-center py-4"><div class="spinner-border spinner-border-sm text-muted" role="status"></div></div>
+          <div id="categoriesList"></div>
+          <div id="categoriesEmpty" class="st-empty-state d-none">
+            <i class="ti ti-tag"></i>
+            <p>No categories yet. Click "Add Category" to create one.</p>
           </div>
         </div>
         <div class="modal fade" id="categoryModal" tabindex="-1" aria-hidden="true">
@@ -447,35 +552,328 @@
         </div>
       </div>
 
+      {% endif %}
+
+      <!-- Canned Responses -->
+      <div class="settings-pane" id="cannedResponsesPane" style="display:none">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-message-chatbot"></i></div>
+            <div class="flex-grow-1">
+              <h3 class="st-section-title">Canned Responses</h3>
+              <p class="st-section-desc">Create reusable reply templates. Use shortcuts like <code>/thanks</code> in the ticket comment box.</p>
+            </div>
+          </div>
+          <div class="st-toolbar">
+            <select id="crFilterCategory" class="form-select form-select-sm" style="width:auto;min-width:140px;">
+              <option value="">All Categories</option>
+            </select>
+            <input type="text" id="crSearchInput" class="form-control form-control-sm" placeholder="Search..." style="width:160px;">
+            <button type="button" class="btn btn-sm btn-primary" id="addCannedBtn"><i class="ti ti-plus me-1"></i>New Response</button>
+          </div>
+          <div id="crLoading" class="text-center py-4"><div class="spinner-border spinner-border-sm text-muted" role="status"></div></div>
+          <div id="crList"></div>
+          <div id="crEmpty" class="st-empty-state d-none">
+            <i class="ti ti-message-chatbot"></i>
+            <p>No canned responses yet. Click "New Response" to create one.</p>
+          </div>
+        </div>
+        <!-- Canned Response Modal -->
+        <div class="modal fade" id="cannedModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h6 class="modal-title fw-semibold" id="cannedModalTitle">New Canned Response</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <form id="cannedForm">
+                  <input type="hidden" id="crEditId">
+                  <div class="mb-3">
+                    <label for="crTitle" class="form-label">Title <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="crTitle" placeholder="e.g. Thank You Reply" required maxlength="200">
+                  </div>
+                  <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                      <label for="crCategory" class="form-label">Category</label>
+                      <input type="text" class="form-control" id="crCategory" placeholder="e.g. Billing, General" list="crCategoryList" maxlength="100">
+                      <datalist id="crCategoryList"></datalist>
+                    </div>
+                    <div class="col-md-6">
+                      <label for="crShortcut" class="form-label">Shortcut</label>
+                      <div class="input-group">
+                        <span class="input-group-text">/</span>
+                        <input type="text" class="form-control" id="crShortcut" placeholder="thanks" maxlength="19">
+                      </div>
+                      <div class="form-text">Type <code>/shortcut</code> in ticket comments to insert.</div>
+                    </div>
+                  </div>
+                  <div class="mb-3">
+                    <label for="crContent" class="form-label">Content <span class="text-danger">*</span></label>
+                    <textarea class="form-control" id="crContent" rows="6" placeholder="Hi {{contact.first_name}},&#10;&#10;Thank you for reaching out..." required></textarea>
+                    <div class="form-text">
+                      Variables: <code>{{ticket.number}}</code> <code>{{ticket.subject}}</code> <code>{{contact.name}}</code> <code>{{contact.first_name}}</code> <code>{{contact.email}}</code> <code>{{agent.name}}</code> <code>{{agent.first_name}}</code> <code>{{agent.email}}</code>
+                    </div>
+                  </div>
+                  <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="crShared" checked>
+                    <label class="form-check-label" for="crShared">Share with all team members</label>
+                  </div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary" id="saveCannedBtn">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if not is_admin %}
+      <!-- Knowledge Base (Read-Only) -->
+      <div class="settings-pane" id="knowledgeBasePane" style="display:none">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-book"></i></div>
+            <div>
+              <h3 class="st-section-title">Knowledge Base</h3>
+              <p class="st-section-desc">Browse published articles for reference</p>
+            </div>
+          </div>
+          <div class="st-toolbar">
+            <select id="kbROFilterCat" class="form-select form-select-sm" style="max-width:180px;" onchange="KBReadOnly.loadArticles()">
+              <option value="">All Categories</option>
+            </select>
+            <input type="text" id="kbROSearch" class="form-control form-control-sm" placeholder="Search articles..." style="max-width:220px;" oninput="KBReadOnly.debounceSearch()">
+          </div>
+          <div id="kbROLoading" class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+          <div id="kbROList" style="display:none;"></div>
+          <div id="kbROEmpty" class="st-empty-state" style="display:none;">
+            <i class="ti ti-book"></i>
+            <p>No articles available.</p>
+          </div>
+          <div id="kbROPagination" class="d-flex justify-content-center gap-2 py-2"></div>
+        </div>
+        <!-- Article Detail View -->
+        <div class="st-section mt-4" id="kbRODetail" style="display:none;">
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="st-section-title mb-0" id="kbRODetailTitle"></h5>
+            <button class="btn btn-sm btn-outline-secondary" onclick="KBReadOnly.closeDetail()"><i class="ti ti-arrow-left me-1"></i>Back</button>
+          </div>
+          <div class="d-flex gap-3 mb-3 small text-muted">
+            <span id="kbRODetailCat"><i class="ti ti-folder me-1"></i></span>
+            <span id="kbRODetailDate"><i class="ti ti-calendar me-1"></i></span>
+          </div>
+          <div id="kbRODetailContent" class="kb-article-content"></div>
+          <div id="kbRODetailFile" class="mt-3" style="display:none;">
+            <a id="kbRODetailFileLink" href="#" target="_blank" class="kb-file-link-item">
+              <i class="ti ti-file-text kb-file-link-icon"></i>
+              <span class="kb-file-link-name" id="kbRODetailFileName"></span>
+              <span class="kb-file-link-hint">Click to preview</span>
+              <i class="ti ti-external-link kb-file-link-arrow"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if is_admin %}
+      <!-- Knowledge Base Management -->
+      <div class="settings-pane" id="knowledgeBasePane" style="display:none">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-book"></i></div>
+            <div class="flex-grow-1">
+              <h3 class="st-section-title">Categories</h3>
+              <p class="st-section-desc">Organize your knowledge base articles</p>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="KBSettings.showCatModal()"><i class="ti ti-plus me-1"></i>Add Category</button>
+          </div>
+          <div id="kbCatLoading" class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+          <table class="table table-sm mb-0" id="kbCatTable" style="display:none;">
+            <thead><tr><th>Name</th><th>Slug</th><th>Articles</th><th>Active</th><th style="width:80px;"></th></tr></thead>
+            <tbody id="kbCatBody"></tbody>
+          </table>
+          <div id="kbCatEmpty" class="st-empty-state" style="display:none;">
+            <i class="ti ti-folder"></i>
+            <p>No categories yet.</p>
+          </div>
+        </div>
+
+        <div class="st-section mt-4">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-article"></i></div>
+            <div class="flex-grow-1">
+              <h3 class="st-section-title">Articles</h3>
+              <p class="st-section-desc">Manage knowledge base articles and content</p>
+            </div>
+            <button class="btn btn-sm btn-primary" onclick="KBSettings.showArtModal()"><i class="ti ti-plus me-1"></i>New Article</button>
+          </div>
+          <div class="st-toolbar">
+            <select id="kbArtFilterStatus" class="form-select form-select-sm" style="max-width:140px;" onchange="KBSettings.loadArticles()">
+              <option value="">All Status</option>
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+            </select>
+            <select id="kbArtFilterCat" class="form-select form-select-sm" style="max-width:180px;" onchange="KBSettings.loadArticles()">
+              <option value="">All Categories</option>
+            </select>
+            <input type="text" id="kbArtSearch" class="form-control form-control-sm" placeholder="Search articles..." style="max-width:220px;" oninput="KBSettings.debounceSearch()">
+          </div>
+          <div id="kbArtLoading" class="text-center py-3"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+          <table class="table table-sm mb-0" id="kbArtTable" style="display:none;">
+            <thead><tr><th>Title</th><th>Category</th><th>Status</th><th>Views</th><th>Published</th><th style="width:100px;"></th></tr></thead>
+            <tbody id="kbArtBody"></tbody>
+          </table>
+          <div id="kbArtEmpty" class="st-empty-state" style="display:none;">
+            <i class="ti ti-article"></i>
+            <p>No articles yet.</p>
+          </div>
+          <div id="kbArtPagination" class="d-flex justify-content-center gap-2 py-2"></div>
+        </div>
+
+        <!-- Category Modal -->
+        <div class="modal fade" id="kbCatModal" tabindex="-1">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h6 class="modal-title fw-semibold" id="kbCatModalTitle">New Category</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <input type="hidden" id="kbCatEditId">
+                <div class="mb-3">
+                  <label class="form-label">Name <span class="text-danger">*</span></label>
+                  <input type="text" id="kbCatName" class="form-control" required>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Description</label>
+                  <textarea id="kbCatDesc" class="form-control" rows="2"></textarea>
+                </div>
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">Icon Class</label>
+                    <input type="text" id="kbCatIcon" class="form-control" value="ti-folder" placeholder="ti-folder">
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label">Order</label>
+                    <input type="number" id="kbCatOrder" class="form-control" value="0" min="0">
+                  </div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="KBSettings.saveCat()">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Article Modal -->
+        <div class="modal fade" id="kbArtModal" tabindex="-1">
+          <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h6 class="modal-title fw-semibold" id="kbArtModalTitle">New Article</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <input type="hidden" id="kbArtEditId">
+                <div class="mb-3">
+                  <label class="form-label">Title <span class="text-danger">*</span></label>
+                  <input type="text" id="kbArtTitle" class="form-control" required>
+                </div>
+                <div class="row g-3 mb-3">
+                  <div class="col-md-4">
+                    <label class="form-label">Category</label>
+                    <select id="kbArtCategory" class="form-select"><option value="">None</option></select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label">Status</label>
+                    <select id="kbArtStatus" class="form-select">
+                      <option value="draft">Draft</option>
+                      <option value="published">Published</option>
+                    </select>
+                  </div>
+                  <div class="col-md-4 d-flex align-items-end">
+                    <div class="form-check">
+                      <input type="checkbox" id="kbArtPinned" class="form-check-input">
+                      <label class="form-check-label" for="kbArtPinned">Pin article</label>
+                    </div>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Excerpt</label>
+                  <textarea id="kbArtExcerpt" class="form-control" rows="2" placeholder="Brief summary for list view..."></textarea>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Content <span class="text-danger">*</span></label>
+                  <textarea id="kbArtContent" class="form-control" rows="10" required></textarea>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Tags (comma-separated)</label>
+                  <input type="text" id="kbArtTags" class="form-control" placeholder="guide, faq, setup">
+                </div>
+                <div class="mb-3">
+                  <label class="form-label">Attach File</label>
+                  <input type="file" id="kbArtFile" class="form-control">
+                  <div id="kbArtFileInfo" class="small text-muted mt-1" style="display:none;">
+                    <i class="ti ti-file me-1"></i><span id="kbArtFileName"></span>
+                    <a id="kbArtFileViewLink" href="#" target="_blank" class="btn btn-link btn-sm p-0 ms-2"><i class="ti ti-eye"></i> Preview</a>
+                    <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2" onclick="KBSettings.removeFile()"><i class="ti ti-x"></i> Remove</button>
+                  </div>
+                  <div class="form-text">Upload a PDF, DOCX, or other document. Max 25MB.</div>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="KBSettings.saveArt()">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <!-- Data Management -->
       <div class="settings-pane" id="dataPane" style="display:none">
-        <div class="card">
-          <div class="card-header"><h5 class="card-title mb-0">Data Management</h5></div>
-          <div class="card-body">
-            <div class="settings-option">
-              <div>
-                <div class="fw-medium">Export Data</div>
-                <div class="text-muted small">Download all tickets, contacts, and activity logs as a CSV file.</div>
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-database"></i></div>
+            <div>
+              <h3 class="st-section-title">Data Management</h3>
+              <p class="st-section-desc">Export your data or clean up old records</p>
+            </div>
+          </div>
+          <div class="st-toggle-list">
+            <div class="st-toggle-item">
+              <div class="st-toggle-icon"><i class="ti ti-download"></i></div>
+              <div class="st-toggle-info">
+                <span class="st-toggle-label">Export Data</span>
+                <span class="st-toggle-desc">Download all tickets, contacts, and activity logs as a CSV file.</span>
               </div>
               <button class="btn btn-sm btn-outline-primary" id="exportDataBtn"><i class="ti ti-download me-1"></i>Export</button>
             </div>
-            <div class="settings-option">
-              <div>
-                <div class="fw-medium">Cleanup Old Notifications</div>
-                <div class="text-muted small">Remove read notifications older than 90 days to free up space.</div>
+            <div class="st-toggle-item">
+              <div class="st-toggle-icon"><i class="ti ti-trash"></i></div>
+              <div class="st-toggle-info">
+                <span class="st-toggle-label">Cleanup Old Notifications</span>
+                <span class="st-toggle-desc">Remove read notifications older than 90 days to free up space.</span>
               </div>
               <button class="btn btn-sm btn-outline-secondary" id="cleanupNotifsBtn"><i class="ti ti-trash me-1"></i>Cleanup</button>
             </div>
-            <div class="settings-option" style="border-bottom:none;">
-              <div>
-                <div class="fw-medium text-danger">Delete All Tickets</div>
-                <div class="text-muted small">Permanently delete all tickets in this workspace. This action cannot be undone.</div>
+            <div class="st-toggle-item st-toggle-item--danger">
+              <div class="st-toggle-icon st-toggle-icon--danger"><i class="ti ti-alert-triangle"></i></div>
+              <div class="st-toggle-info">
+                <span class="st-toggle-label text-danger">Delete All Tickets</span>
+                <span class="st-toggle-desc">Permanently delete all tickets in this workspace. This action cannot be undone.</span>
               </div>
               <button class="btn btn-sm btn-outline-danger" id="deleteAllTicketsBtn" disabled><i class="ti ti-alert-triangle me-1"></i>Delete All</button>
             </div>
           </div>
         </div>
       </div>
+      {% endif %}
 
     </div>
   </div>
@@ -484,7 +882,14 @@
 
 {% block extra_js %}
 <script>
-var _settingsPaneIds = ['generalPane', 'businessHoursPane', 'authPane', 'brandingPane', 'notificationsPane', 'categoriesPane', 'dataPane'];
+var _settingsPaneIds = [
+  {% if is_admin %}'generalPane', 'businessHoursPane', 'authPane', 'brandingPane',{% endif %}
+  'notificationsPane',
+  {% if is_admin_or_manager %}'categoriesPane',{% endif %}
+  'cannedResponsesPane',
+  'knowledgeBasePane'
+  {% if is_admin %},'dataPane'{% endif %}
+];
 function switchSettingsTab(targetId) {
   for (var i = 0; i < _settingsPaneIds.length; i++) {
     var pane = document.getElementById(_settingsPaneIds[i]);
@@ -498,6 +903,7 @@ function switchSettingsTab(targetId) {
   if (targetNav) targetNav.classList.add('active');
 }
 </script>
+{% if is_admin %}
 <script>
 (function() {
   'use strict';
@@ -515,14 +921,13 @@ function switchSettingsTab(targetId) {
     if (s.sso_provider) setSelectValue('ssoProvider', s.sso_provider);
     document.getElementById('ssoClientId').value = s.sso_client_id || '';
     document.getElementById('ssoDomain').value = s.sso_domain || '';
-    var color = s.primary_color || '#6366F1';
+    var color = s.primary_color || '#2563EB';
     document.getElementById('primaryColor').value = color;
     document.getElementById('primaryColorHex').value = color;
     var accent = s.accent_color || '#F59E0B';
     document.getElementById('accentColor').value = accent;
     document.getElementById('accentColorHex').value = accent;
     updateColorPreview(color, accent);
-    // Logo
     if (s.logo_url) {
       document.getElementById('logoPreviewImg').src = s.logo_url;
       document.getElementById('logoPreviewImg').classList.remove('d-none');
@@ -572,7 +977,6 @@ function switchSettingsTab(targetId) {
     document.getElementById('authForm').addEventListener('submit', saveAuth);
     document.getElementById('brandingForm').addEventListener('submit', saveBranding);
     document.getElementById('authMethod').addEventListener('change', function() { toggleSsoFields(this.value); });
-    // Color picker sync
     function syncColorPair(pickerId, hexId) {
       document.getElementById(pickerId).addEventListener('input', function() {
         document.getElementById(hexId).value = this.value;
@@ -587,8 +991,6 @@ function switchSettingsTab(targetId) {
     }
     syncColorPair('primaryColor', 'primaryColorHex');
     syncColorPair('accentColor', 'accentColorHex');
-
-    // Preset palettes
     document.querySelectorAll('.branding-preset-btn').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var p = this.getAttribute('data-primary'), a = this.getAttribute('data-accent');
@@ -601,10 +1003,8 @@ function switchSettingsTab(targetId) {
         this.classList.add('active');
       });
     });
-
-    // Reset colors
     document.getElementById('resetColorsBtn').addEventListener('click', function() {
-      var p = '#6366F1', a = '#F59E0B';
+      var p = '#2563EB', a = '#F59E0B';
       document.getElementById('primaryColor').value = p;
       document.getElementById('primaryColorHex').value = p;
       document.getElementById('accentColor').value = a;
@@ -612,8 +1012,6 @@ function switchSettingsTab(targetId) {
       updateColorPreview(p, a);
       document.querySelectorAll('.branding-preset-btn').forEach(function(b) { b.classList.remove('active'); });
     });
-
-    // Logo upload
     var logoDropzone = document.getElementById('logoDropzone');
     var logoFileInput = document.getElementById('logoFileInput');
     document.getElementById('logoBrowseLink').addEventListener('click', function() { logoFileInput.click(); });
@@ -621,7 +1019,6 @@ function switchSettingsTab(targetId) {
     logoDropzone.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('dragover'); });
     logoDropzone.addEventListener('dragleave', function() { this.classList.remove('dragover'); });
     logoDropzone.addEventListener('drop', function(e) { e.preventDefault(); this.classList.remove('dragover'); if (e.dataTransfer.files.length) uploadLogo(e.dataTransfer.files[0]); });
-
     document.getElementById('logoRemoveBtn').addEventListener('click', async function() {
       try {
         await Api.delete('/api/v1/tenants/settings/logo/');
@@ -636,20 +1033,16 @@ function switchSettingsTab(targetId) {
   }
   function toggleSsoFields(m) { document.getElementById('ssoFields').classList.toggle('d-none', m !== 'sso' && m !== 'both'); }
   function updateColorPreview(primary, accent) {
-    // Sidebar
     var activeLink = document.getElementById('previewActiveLink');
     if (activeLink) activeLink.style.background = primary;
     var sidebarLogo = document.getElementById('previewSidebarLogo');
     if (sidebarLogo) sidebarLogo.style.background = primary;
-    // Primary button
     var btn = document.getElementById('previewPrimaryBtn');
     if (btn) btn.style.background = primary;
-    // Stat card accents
     var sa1 = document.getElementById('previewStatAccent1');
     if (sa1) sa1.style.background = primary;
     var sa2 = document.getElementById('previewStatAccent2');
     if (sa2) sa2.style.background = accent;
-    // Badges
     document.querySelectorAll('.bp-badge-primary').forEach(function(b) { b.style.background = primary; });
     document.querySelectorAll('.bp-badge-accent').forEach(function(b) { b.style.background = accent; });
   }
@@ -670,11 +1063,25 @@ function switchSettingsTab(targetId) {
     } catch(e) { Toast.error(e.detail || 'Failed to upload logo'); }
   }
   function setSelectValue(id, v) { var s = document.getElementById(id); if (!s) return; for (var i = 0; i < s.options.length; i++) { if (s.options[i].value === v) { s.selectedIndex = i; return; } } }
-  function showSettingsAlert(msg, type) { var c = document.getElementById('settingsAlert'); c.className = 'alert alert-' + type + ' alert-dismissible fade show'; c.innerHTML = escapeHtml(msg) + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>'; c.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); if (type === 'success') setTimeout(function() { var a = bootstrap.Alert.getOrCreateInstance(c); if (a) a.close(); }, 4000); }
-  function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function showSettingsAlert(msg, type) {
+    var c = document.getElementById('settingsAlert');
+    c.className = 'alert alert-' + type + ' alert-dismissible fade show';
+    var textNode = document.createTextNode(msg);
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close';
+    closeBtn.setAttribute('data-bs-dismiss', 'alert');
+    c.textContent = '';
+    c.appendChild(textNode);
+    c.appendChild(closeBtn);
+    c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    if (type === 'success') setTimeout(function() { var a = bootstrap.Alert.getOrCreateInstance(c); if (a) a.close(); }, 4000);
+  }
   init();
 })();
 </script>
+{% endif %}
+{% if is_admin_or_manager %}
 <script>
 (function() {
   'use strict';
@@ -689,19 +1096,63 @@ function switchSettingsTab(targetId) {
   }
   function renderCategories() {
     var list = document.getElementById('categoriesList'), empty = document.getElementById('categoriesEmpty');
-    list.innerHTML = '';
+    list.textContent = '';
     if (!categories.length) { empty.classList.remove('d-none'); return; }
     empty.classList.add('d-none');
     categories.forEach(function(cat) {
-      var activeLabel = cat.is_active ? '<span class="badge bg-success-subtle text-success">Active</span>' : '<span class="badge bg-secondary-subtle text-secondary">Inactive</span>';
-      list.insertAdjacentHTML('beforeend',
-        '<div class="d-flex align-items-center gap-3 py-2 px-2 rounded mb-1" style="border:1px solid var(--crm-border-light);transition:background 0.1s;" onmouseenter="this.style.background=\'var(--crm-bg)\'" onmouseleave="this.style.background=\'transparent\'">' +
-          '<div class="d-flex align-items-center gap-2 flex-grow-1"><span style="width:12px;height:12px;border-radius:3px;background:' + escapeHtml(cat.color) + ';flex-shrink:0;"></span><span class="fw-medium" style="font-size:0.875rem;">' + escapeHtml(cat.name) + '</span><span class="text-muted" style="font-size:0.75rem;">(' + escapeHtml(cat.slug) + ')</span></div>' +
-          activeLabel +
-          '<div class="d-flex gap-1"><button class="btn btn-sm btn-outline-secondary py-0 px-2 cat-edit-btn" data-id="' + cat.id + '" style="font-size:0.75rem;"><i class="ti ti-pencil"></i></button><button class="btn btn-sm btn-outline-danger py-0 px-2 cat-delete-btn" data-id="' + cat.id + '" data-name="' + escapeHtml(cat.name) + '" style="font-size:0.75rem;"><i class="ti ti-trash"></i></button></div></div>');
+      var row = document.createElement('div');
+      row.className = 'd-flex align-items-center gap-3 py-2 px-2 rounded mb-1';
+      row.style.cssText = 'border:1px solid var(--crm-border-light);transition:background 0.1s;';
+      row.addEventListener('mouseenter', function() { this.style.background = 'var(--crm-bg)'; });
+      row.addEventListener('mouseleave', function() { this.style.background = 'transparent'; });
+
+      var infoDiv = document.createElement('div');
+      infoDiv.className = 'd-flex align-items-center gap-2 flex-grow-1';
+      var swatch = document.createElement('span');
+      swatch.style.cssText = 'width:12px;height:12px;border-radius:3px;flex-shrink:0;background:' + (cat.color || '#6c757d');
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'fw-medium';
+      nameSpan.style.fontSize = '0.875rem';
+      nameSpan.textContent = cat.name;
+      var slugSpan = document.createElement('span');
+      slugSpan.className = 'text-muted';
+      slugSpan.style.fontSize = '0.75rem';
+      slugSpan.textContent = '(' + cat.slug + ')';
+      infoDiv.appendChild(swatch);
+      infoDiv.appendChild(nameSpan);
+      infoDiv.appendChild(slugSpan);
+
+      var badge = document.createElement('span');
+      badge.className = cat.is_active ? 'badge bg-success-subtle text-success' : 'badge bg-secondary-subtle text-secondary';
+      badge.textContent = cat.is_active ? 'Active' : 'Inactive';
+
+      var btns = document.createElement('div');
+      btns.className = 'd-flex gap-1';
+      var editBtn = document.createElement('button');
+      editBtn.className = 'btn btn-sm btn-outline-secondary py-0 px-2';
+      editBtn.style.fontSize = '0.75rem';
+      editBtn.dataset.id = cat.id;
+      var editIcon = document.createElement('i');
+      editIcon.className = 'ti ti-pencil';
+      editBtn.appendChild(editIcon);
+      editBtn.addEventListener('click', function() { editCategory(this.dataset.id); });
+      var delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-sm btn-outline-danger py-0 px-2';
+      delBtn.style.fontSize = '0.75rem';
+      delBtn.dataset.id = cat.id;
+      delBtn.dataset.name = cat.name;
+      var delIcon = document.createElement('i');
+      delIcon.className = 'ti ti-trash';
+      delBtn.appendChild(delIcon);
+      delBtn.addEventListener('click', function() { deleteCategory(this.dataset.id, this.dataset.name); });
+      btns.appendChild(editBtn);
+      btns.appendChild(delBtn);
+
+      row.appendChild(infoDiv);
+      row.appendChild(badge);
+      row.appendChild(btns);
+      list.appendChild(row);
     });
-    list.querySelectorAll('.cat-edit-btn').forEach(function(btn) { btn.addEventListener('click', function() { editCategory(this.getAttribute('data-id')); }); });
-    list.querySelectorAll('.cat-delete-btn').forEach(function(btn) { btn.addEventListener('click', function() { deleteCategory(this.getAttribute('data-id'), this.getAttribute('data-name')); }); });
   }
   function openAddModal() {
     document.getElementById('categoryModalTitle').textContent = 'Add Category';
@@ -749,4 +1200,700 @@ function switchSettingsTab(targetId) {
   window.switchSettingsTab = function(targetId) { origSwitch(targetId); if (targetId === 'categoriesPane' && !categories.length) loadCategories(); };
 })();
 </script>
+{% endif %}
+<script>
+(function() {
+  'use strict';
+  var cannedResponses = [];
+  var cannedModal = null;
+  var crLoaded = false;
+
+  function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  async function loadCannedResponses() {
+    try {
+      var params = '';
+      var cat = document.getElementById('crFilterCategory').value;
+      var search = document.getElementById('crSearchInput').value.trim();
+      if (cat) params += '&category=' + encodeURIComponent(cat);
+      if (search) params += '&search=' + encodeURIComponent(search);
+      var data = await Api.get('/api/v1/tickets/canned-responses/?' + params.replace(/^&/, ''));
+      cannedResponses = data.results || data;
+      renderCannedResponses();
+      updateCategoryFilter();
+    } catch(e) { console.error('Error loading canned responses:', e); }
+    finally { document.getElementById('crLoading').classList.add('d-none'); }
+  }
+
+  function updateCategoryFilter() {
+    var select = document.getElementById('crFilterCategory');
+    var current = select.value;
+    var cats = new Set();
+    cannedResponses.forEach(function(cr) { if (cr.category) cats.add(cr.category); });
+    while (select.options.length > 1) select.remove(1);
+    cats.forEach(function(c) {
+      var o = document.createElement('option');
+      o.value = c; o.textContent = c;
+      select.appendChild(o);
+    });
+    select.value = current;
+    var dl = document.getElementById('crCategoryList');
+    if (dl) {
+      dl.textContent = '';
+      cats.forEach(function(c) { var o = document.createElement('option'); o.value = c; dl.appendChild(o); });
+    }
+  }
+
+  function renderCannedResponses() {
+    var list = document.getElementById('crList'), empty = document.getElementById('crEmpty');
+    list.textContent = '';
+    if (!cannedResponses.length) { empty.classList.remove('d-none'); return; }
+    empty.classList.add('d-none');
+
+    cannedResponses.forEach(function(cr) {
+      var row = document.createElement('div');
+      row.className = 'd-flex align-items-center gap-3 py-2 px-2 rounded mb-1';
+      row.style.cssText = 'border:1px solid var(--crm-border-light);transition:background 0.1s;';
+      row.addEventListener('mouseenter', function() { this.style.background = 'var(--crm-bg)'; });
+      row.addEventListener('mouseleave', function() { this.style.background = 'transparent'; });
+
+      var contentDiv = document.createElement('div');
+      contentDiv.className = 'flex-grow-1';
+
+      var topRow = document.createElement('div');
+      topRow.className = 'd-flex align-items-center gap-2';
+      var titleSpan = document.createElement('span');
+      titleSpan.className = 'fw-medium';
+      titleSpan.style.fontSize = '0.875rem';
+      titleSpan.textContent = cr.title;
+      topRow.appendChild(titleSpan);
+
+      if (cr.shortcut) {
+        var shortcutEl = document.createElement('code');
+        shortcutEl.className = 'me-2';
+        shortcutEl.textContent = cr.shortcut;
+        topRow.appendChild(shortcutEl);
+      }
+      if (cr.category) {
+        var catSpan = document.createElement('span');
+        catSpan.className = 'text-muted me-2';
+        catSpan.style.fontSize = '0.75rem';
+        catSpan.textContent = cr.category;
+        topRow.appendChild(catSpan);
+      }
+      var sharedBadge = document.createElement('span');
+      sharedBadge.className = cr.is_shared ? 'badge bg-primary-subtle text-primary' : 'badge bg-secondary-subtle text-secondary';
+      sharedBadge.textContent = cr.is_shared ? 'Shared' : 'Personal';
+      topRow.appendChild(sharedBadge);
+
+      var preview = document.createElement('div');
+      preview.className = 'text-muted';
+      preview.style.cssText = 'font-size:0.75rem;max-width:500px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+      preview.textContent = cr.content;
+
+      contentDiv.appendChild(topRow);
+      contentDiv.appendChild(preview);
+
+      var actionsDiv = document.createElement('div');
+      actionsDiv.className = 'd-flex align-items-center gap-2';
+      var usesSpan = document.createElement('span');
+      usesSpan.className = 'text-muted';
+      usesSpan.style.fontSize = '0.7rem';
+      usesSpan.title = 'Times used';
+      usesSpan.textContent = cr.usage_count + ' uses';
+      var editBtn = document.createElement('button');
+      editBtn.className = 'btn btn-sm btn-outline-secondary py-0 px-2';
+      editBtn.style.fontSize = '0.75rem';
+      editBtn.dataset.id = cr.id;
+      var editIcon = document.createElement('i');
+      editIcon.className = 'ti ti-pencil';
+      editBtn.appendChild(editIcon);
+      editBtn.addEventListener('click', function() { editCanned(this.dataset.id); });
+      var delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-sm btn-outline-danger py-0 px-2';
+      delBtn.style.fontSize = '0.75rem';
+      delBtn.dataset.id = cr.id;
+      delBtn.dataset.title = cr.title;
+      var delIcon = document.createElement('i');
+      delIcon.className = 'ti ti-trash';
+      delBtn.appendChild(delIcon);
+      delBtn.addEventListener('click', function() { deleteCanned(this.dataset.id, this.dataset.title); });
+      actionsDiv.appendChild(usesSpan);
+      actionsDiv.appendChild(editBtn);
+      actionsDiv.appendChild(delBtn);
+
+      row.appendChild(contentDiv);
+      row.appendChild(actionsDiv);
+      list.appendChild(row);
+    });
+  }
+
+  function openAddModal() {
+    document.getElementById('cannedModalTitle').textContent = 'New Canned Response';
+    document.getElementById('crEditId').value = '';
+    document.getElementById('crTitle').value = '';
+    document.getElementById('crCategory').value = '';
+    document.getElementById('crShortcut').value = '';
+    document.getElementById('crContent').value = '';
+    document.getElementById('crShared').checked = true;
+    if (!cannedModal) cannedModal = new bootstrap.Modal(document.getElementById('cannedModal'));
+    cannedModal.show();
+  }
+
+  function editCanned(id) {
+    var cr = cannedResponses.find(function(c) { return c.id === id; });
+    if (!cr) return;
+    document.getElementById('cannedModalTitle').textContent = 'Edit Canned Response';
+    document.getElementById('crEditId').value = cr.id;
+    document.getElementById('crTitle').value = cr.title;
+    document.getElementById('crCategory').value = cr.category || '';
+    document.getElementById('crShortcut').value = (cr.shortcut || '').replace(/^\//, '');
+    document.getElementById('crContent').value = cr.content;
+    document.getElementById('crShared').checked = cr.is_shared;
+    if (!cannedModal) cannedModal = new bootstrap.Modal(document.getElementById('cannedModal'));
+    cannedModal.show();
+  }
+
+  async function saveCanned() {
+    var title = document.getElementById('crTitle').value.trim();
+    var content = document.getElementById('crContent').value.trim();
+    if (!title || !content) { Toast.error('Title and content are required'); return; }
+
+    var shortcutRaw = document.getElementById('crShortcut').value.trim();
+    var shortcut = shortcutRaw ? '/' + shortcutRaw.replace(/^\//, '') : '';
+
+    var payload = {
+      title: title,
+      category: document.getElementById('crCategory').value.trim(),
+      shortcut: shortcut,
+      content: content,
+      is_shared: document.getElementById('crShared').checked
+    };
+
+    var editId = document.getElementById('crEditId').value;
+    try {
+      if (editId) {
+        await Api.patch('/api/v1/tickets/canned-responses/' + editId + '/', payload);
+        Toast.success('Canned response updated');
+      } else {
+        await Api.post('/api/v1/tickets/canned-responses/', payload);
+        Toast.success('Canned response created');
+      }
+      cannedModal.hide();
+      loadCannedResponses();
+    } catch(e) {
+      var msg = 'Failed to save';
+      if (e && e.shortcut) msg = 'Shortcut: ' + (Array.isArray(e.shortcut) ? e.shortcut.join(' ') : e.shortcut);
+      else if (e && e.detail) msg = e.detail;
+      Toast.error(msg);
+    }
+  }
+
+  async function deleteCanned(id, title) {
+    if (!confirm('Delete canned response "' + title + '"?')) return;
+    try {
+      await Api.delete('/api/v1/tickets/canned-responses/' + id + '/');
+      Toast.success('Canned response deleted');
+      loadCannedResponses();
+    } catch(e) { Toast.error('Failed to delete'); }
+  }
+
+  document.getElementById('addCannedBtn').addEventListener('click', openAddModal);
+  document.getElementById('saveCannedBtn').addEventListener('click', saveCanned);
+
+  var crSearchTimeout;
+  document.getElementById('crSearchInput').addEventListener('input', function() {
+    clearTimeout(crSearchTimeout);
+    crSearchTimeout = setTimeout(loadCannedResponses, 400);
+  });
+  document.getElementById('crFilterCategory').addEventListener('change', loadCannedResponses);
+
+  var origSwitch2 = window.switchSettingsTab;
+  window.switchSettingsTab = function(targetId) {
+    origSwitch2(targetId);
+    if (targetId === 'cannedResponsesPane' && !crLoaded) { crLoaded = true; loadCannedResponses(); }
+  };
+})();
+</script>
+{% if not is_admin %}
+<script>
+(function() {
+  'use strict';
+  var API = '/api/v1/knowledge';
+  var roArts = [], roLoaded = false, roPage = 1, roSearchTimer = null;
+
+  async function loadCategories() {
+    try {
+      var r = await Api.get(API + '/categories/?page_size=50&is_active=true');
+      var cats = r.results || r;
+      var sel = document.getElementById('kbROFilterCat');
+      sel.textContent = '';
+      var allOpt = document.createElement('option');
+      allOpt.value = '';
+      allOpt.textContent = 'All Categories';
+      sel.appendChild(allOpt);
+      cats.forEach(function(c) {
+        var opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        sel.appendChild(opt);
+      });
+    } catch(e) { console.error(e); }
+  }
+
+  function renderArticles(total) {
+    var list = document.getElementById('kbROList'), empty = document.getElementById('kbROEmpty');
+    if (!roArts.length) { list.style.display = 'none'; empty.style.display = 'flex'; document.getElementById('kbROPagination').textContent = ''; return; }
+    empty.style.display = 'none'; list.style.display = 'block';
+    list.textContent = '';
+    roArts.forEach(function(a) {
+      var item = document.createElement('div');
+      item.className = 'p-3 border-bottom';
+      item.style.cursor = 'pointer';
+      item.addEventListener('click', function() { KBReadOnly.viewArticle(a.id); });
+
+      var topRow = document.createElement('div');
+      topRow.className = 'd-flex align-items-center';
+      if (a.is_pinned) { var pin = document.createElement('i'); pin.className = 'ti ti-pin text-primary me-1'; pin.title = 'Pinned'; topRow.appendChild(pin); }
+      if (a.file) { var clip = document.createElement('i'); clip.className = 'ti ti-paperclip text-muted me-1'; clip.title = 'Has attachment'; topRow.appendChild(clip); }
+      var titleEl = document.createElement('strong');
+      titleEl.className = 'small';
+      titleEl.textContent = a.title;
+      topRow.appendChild(titleEl);
+      if (a.published_at) {
+        var dateSpan = document.createElement('span');
+        dateSpan.className = 'ms-auto small text-muted';
+        dateSpan.textContent = new Date(a.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        topRow.appendChild(dateSpan);
+      }
+      item.appendChild(topRow);
+
+      if (a.category_name) {
+        var catDiv = document.createElement('div');
+        catDiv.className = 'mt-1';
+        var catBadge = document.createElement('span');
+        catBadge.className = 'badge bg-secondary-subtle text-secondary me-2';
+        catBadge.textContent = a.category_name;
+        catDiv.appendChild(catBadge);
+        item.appendChild(catDiv);
+      }
+      if (a.excerpt) {
+        var excerptP = document.createElement('p');
+        excerptP.className = 'text-muted small mb-0 mt-1';
+        excerptP.textContent = a.excerpt;
+        item.appendChild(excerptP);
+      }
+      list.appendChild(item);
+    });
+
+    var tp = Math.ceil(total / 15), pg = document.getElementById('kbROPagination');
+    pg.textContent = '';
+    if (tp <= 1) return;
+    if (roPage > 1) {
+      var prevBtn = document.createElement('button');
+      prevBtn.className = 'btn btn-sm btn-outline-secondary';
+      prevBtn.textContent = 'Prev';
+      prevBtn.addEventListener('click', function() { KBReadOnly.goPage(roPage - 1); });
+      pg.appendChild(prevBtn);
+    }
+    var pageInfo = document.createElement('span');
+    pageInfo.className = 'small text-muted align-self-center';
+    pageInfo.textContent = 'Page ' + roPage + ' of ' + tp;
+    pg.appendChild(pageInfo);
+    if (roPage < tp) {
+      var nextBtn = document.createElement('button');
+      nextBtn.className = 'btn btn-sm btn-outline-secondary';
+      nextBtn.textContent = 'Next';
+      nextBtn.addEventListener('click', function() { KBReadOnly.goPage(roPage + 1); });
+      pg.appendChild(nextBtn);
+    }
+  }
+
+  window.KBReadOnly = {
+    loadArticles: async function() {
+      var q = '?page=' + roPage + '&page_size=15&status=published';
+      var cat = document.getElementById('kbROFilterCat').value;
+      var search = document.getElementById('kbROSearch').value.trim();
+      if (cat) q += '&category=' + cat;
+      if (search) q += '&search=' + encodeURIComponent(search);
+
+      document.getElementById('kbROLoading').style.display = 'block';
+      try {
+        var r = await Api.get(API + '/articles/' + q);
+        roArts = r.results || r;
+        renderArticles(r.count || roArts.length);
+      } catch(e) { console.error(e); }
+      document.getElementById('kbROLoading').style.display = 'none';
+    },
+
+    debounceSearch: function() {
+      clearTimeout(roSearchTimer);
+      roSearchTimer = setTimeout(function() { roPage = 1; KBReadOnly.loadArticles(); }, 400);
+    },
+
+    viewArticle: async function(id) {
+      try {
+        var a = await Api.get(API + '/articles/' + id + '/');
+        document.getElementById('kbRODetailTitle').textContent = a.title;
+        var catEl = document.getElementById('kbRODetailCat');
+        catEl.textContent = '';
+        var catIcon = document.createElement('i'); catIcon.className = 'ti ti-folder me-1'; catEl.appendChild(catIcon);
+        catEl.appendChild(document.createTextNode(a.category_name || 'Uncategorized'));
+        var dateEl = document.getElementById('kbRODetailDate');
+        dateEl.textContent = '';
+        var dateIcon = document.createElement('i'); dateIcon.className = 'ti ti-calendar me-1'; dateEl.appendChild(dateIcon);
+        dateEl.appendChild(document.createTextNode(a.published_at ? new Date(a.published_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'Not published'));
+        var contentEl = document.getElementById('kbRODetailContent');
+        var contentDiv = document.createElement('div');
+        contentDiv.style.whiteSpace = 'pre-wrap';
+        contentDiv.textContent = a.content || '';
+        contentEl.textContent = '';
+        contentEl.appendChild(contentDiv);
+        if (a.file) {
+          document.getElementById('kbRODetailFileLink').href = API + '/articles/' + a.id + '/preview-file/';
+          document.getElementById('kbRODetailFileName').textContent = a.file_name || 'Attachment';
+          document.getElementById('kbRODetailFile').style.display = 'block';
+        } else {
+          document.getElementById('kbRODetailFile').style.display = 'none';
+        }
+        document.getElementById('kbRODetail').style.display = 'block';
+        document.getElementById('kbRODetail').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch(e) { Toast.error('Failed to load article'); }
+    },
+
+    closeDetail: function() {
+      document.getElementById('kbRODetail').style.display = 'none';
+    },
+
+    goPage: function(p) { roPage = p; KBReadOnly.loadArticles(); }
+  };
+
+  var origSwitchRO = window.switchSettingsTab;
+  window.switchSettingsTab = function(targetId) {
+    origSwitchRO(targetId);
+    if (targetId === 'knowledgeBasePane' && !roLoaded) {
+      roLoaded = true;
+      loadCategories();
+      KBReadOnly.loadArticles();
+    }
+  };
+})();
+</script>
+{% endif %}
+{% if is_admin %}
+<script>
+(function() {
+  'use strict';
+  var API = '/api/v1/knowledge';
+  var kbCats = [], kbArts = [], kbLoaded = false, kbArtPage = 1, kbSearchTimer = null;
+
+  function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  async function loadCategories() {
+    try {
+      var r = await Api.get(API + '/categories/?page_size=50');
+      kbCats = r.results || r;
+      renderCats();
+      populateCatSelects();
+    } catch(e) { console.error(e); }
+    document.getElementById('kbCatLoading').style.display = 'none';
+  }
+
+  function renderCats() {
+    var body = document.getElementById('kbCatBody'), tbl = document.getElementById('kbCatTable'), empty = document.getElementById('kbCatEmpty');
+    if (!kbCats.length) { tbl.style.display = 'none'; empty.style.display = 'flex'; return; }
+    empty.style.display = 'none'; tbl.style.display = 'table';
+    body.textContent = '';
+    kbCats.forEach(function(c) {
+      var tr = document.createElement('tr');
+      var td1 = document.createElement('td');
+      var icon = document.createElement('i');
+      icon.className = (c.icon || 'ti ti-folder') + ' me-2';
+      td1.appendChild(icon);
+      td1.appendChild(document.createTextNode(c.name));
+      var td2 = document.createElement('td');
+      td2.className = 'text-muted small';
+      td2.textContent = c.slug;
+      var td3 = document.createElement('td');
+      td3.textContent = c.article_count;
+      var td4 = document.createElement('td');
+      var activeBadge = document.createElement('span');
+      activeBadge.className = c.is_active ? 'badge bg-success-subtle text-success' : 'badge bg-secondary-subtle text-secondary';
+      activeBadge.textContent = c.is_active ? 'Yes' : 'No';
+      td4.appendChild(activeBadge);
+      var td5 = document.createElement('td');
+      var editBtn = document.createElement('button');
+      editBtn.className = 'btn btn-sm btn-outline-secondary py-0 px-2';
+      var editIcon = document.createElement('i');
+      editIcon.className = 'ti ti-pencil';
+      editBtn.appendChild(editIcon);
+      editBtn.addEventListener('click', function() { KBSettings.editCat(c.id); });
+      var delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-sm btn-outline-danger py-0 px-2 ms-1';
+      var delIcon = document.createElement('i');
+      delIcon.className = 'ti ti-trash';
+      delBtn.appendChild(delIcon);
+      delBtn.addEventListener('click', function() { KBSettings.delCat(c.id, c.name); });
+      td5.appendChild(editBtn);
+      td5.appendChild(delBtn);
+      tr.appendChild(td1);
+      tr.appendChild(td2);
+      tr.appendChild(td3);
+      tr.appendChild(td4);
+      tr.appendChild(td5);
+      body.appendChild(tr);
+    });
+  }
+
+  function populateCatSelects() {
+    var s1 = document.getElementById('kbArtCategory');
+    var s2 = document.getElementById('kbArtFilterCat');
+    if (s1) {
+      s1.textContent = '';
+      var noneOpt = document.createElement('option');
+      noneOpt.value = '';
+      noneOpt.textContent = 'None';
+      s1.appendChild(noneOpt);
+      kbCats.forEach(function(c) { var o = document.createElement('option'); o.value = c.id; o.textContent = c.name; s1.appendChild(o); });
+    }
+    if (s2) {
+      s2.textContent = '';
+      var allOpt = document.createElement('option');
+      allOpt.value = '';
+      allOpt.textContent = 'All Categories';
+      s2.appendChild(allOpt);
+      kbCats.forEach(function(c) { var o = document.createElement('option'); o.value = c.id; o.textContent = c.name; s2.appendChild(o); });
+    }
+  }
+
+  window.KBSettings = {
+    showCatModal: function(cat) {
+      document.getElementById('kbCatModalTitle').textContent = cat ? 'Edit Category' : 'New Category';
+      document.getElementById('kbCatEditId').value = cat ? cat.id : '';
+      document.getElementById('kbCatName').value = cat ? cat.name : '';
+      document.getElementById('kbCatDesc').value = cat ? (cat.description || '') : '';
+      document.getElementById('kbCatIcon').value = cat ? (cat.icon || 'ti-folder') : 'ti-folder';
+      document.getElementById('kbCatOrder').value = cat ? cat.order : kbCats.length;
+      new bootstrap.Modal(document.getElementById('kbCatModal')).show();
+    },
+    editCat: function(id) {
+      var cat = kbCats.find(function(c) { return c.id === id; });
+      if (cat) KBSettings.showCatModal(cat);
+    },
+    saveCat: async function() {
+      var name = document.getElementById('kbCatName').value.trim();
+      if (!name) { Toast.error('Name is required'); return; }
+      var data = { name: name, description: document.getElementById('kbCatDesc').value, icon: document.getElementById('kbCatIcon').value.trim() || 'ti-folder', order: parseInt(document.getElementById('kbCatOrder').value) || 0 };
+      var id = document.getElementById('kbCatEditId').value;
+      try {
+        if (id) { await Api.patch(API + '/categories/' + id + '/', data); Toast.success('Category updated'); }
+        else { await Api.post(API + '/categories/', data); Toast.success('Category created'); }
+        bootstrap.Modal.getInstance(document.getElementById('kbCatModal')).hide();
+        loadCategories();
+      } catch(e) { Toast.error(e.detail || (e.name && e.name[0]) || 'Failed to save'); }
+    },
+    delCat: async function(id, name) {
+      if (!confirm('Delete category "' + name + '"? Articles will be uncategorized.')) return;
+      try { await Api.delete(API + '/categories/' + id + '/'); Toast.success('Category deleted'); loadCategories(); KBSettings.loadArticles(); }
+      catch(e) { Toast.error('Failed to delete'); }
+    },
+
+    loadArticles: async function() {
+      var q = '?page=' + kbArtPage + '&page_size=15';
+      var st = document.getElementById('kbArtFilterStatus').value;
+      var cat = document.getElementById('kbArtFilterCat').value;
+      var search = document.getElementById('kbArtSearch').value.trim();
+      if (st) q += '&status=' + st;
+      if (cat) q += '&category=' + cat;
+      if (search) q += '&search=' + encodeURIComponent(search);
+
+      document.getElementById('kbArtLoading').style.display = 'block';
+      try {
+        var r = await Api.get(API + '/articles/' + q);
+        kbArts = r.results || r;
+        var total = r.count || kbArts.length;
+        renderArts(total);
+      } catch(e) { console.error(e); }
+      document.getElementById('kbArtLoading').style.display = 'none';
+    },
+
+    debounceSearch: function() {
+      clearTimeout(kbSearchTimer);
+      kbSearchTimer = setTimeout(function() { kbArtPage = 1; KBSettings.loadArticles(); }, 400);
+    },
+
+    showArtModal: function(art) {
+      document.getElementById('kbArtModalTitle').textContent = art ? 'Edit Article' : 'New Article';
+      document.getElementById('kbArtEditId').value = art ? art.id : '';
+      document.getElementById('kbArtTitle').value = art ? art.title : '';
+      document.getElementById('kbArtCategory').value = art ? (art.category || '') : '';
+      document.getElementById('kbArtStatus').value = art ? art.status : 'draft';
+      document.getElementById('kbArtExcerpt').value = art ? (art.excerpt || '') : '';
+      document.getElementById('kbArtContent').value = art ? (art.content || '') : '';
+      document.getElementById('kbArtTags').value = art ? (art.tags || []).join(', ') : '';
+      document.getElementById('kbArtPinned').checked = art ? art.is_pinned : false;
+      document.getElementById('kbArtFile').value = '';
+      var fileInfo = document.getElementById('kbArtFileInfo');
+      var fileViewLink = document.getElementById('kbArtFileViewLink');
+      if (art && art.file_name && art.file) {
+        document.getElementById('kbArtFileName').textContent = art.file_name;
+        fileViewLink.href = API + '/articles/' + art.id + '/preview-file/';
+        fileInfo.style.display = 'block';
+      } else {
+        fileInfo.style.display = 'none';
+      }
+      new bootstrap.Modal(document.getElementById('kbArtModal')).show();
+    },
+
+    removeFile: async function() {
+      var id = document.getElementById('kbArtEditId').value;
+      if (id) {
+        try { await Api.post(API + '/articles/' + id + '/remove-file/'); } catch(e) {}
+      }
+      document.getElementById('kbArtFile').value = '';
+      document.getElementById('kbArtFileInfo').style.display = 'none';
+    },
+
+    editArt: async function(id) {
+      try {
+        var art = await Api.get(API + '/articles/' + id + '/');
+        KBSettings.showArtModal(art);
+      } catch(e) { Toast.error('Failed to load article'); }
+    },
+
+    saveArt: async function() {
+      var title = document.getElementById('kbArtTitle').value.trim();
+      var content = document.getElementById('kbArtContent').value.trim();
+      var fileInput = document.getElementById('kbArtFile');
+      var hasFile = fileInput.files && fileInput.files.length > 0;
+      if (!title || (!content && !hasFile)) { Toast.error('Title and content (or a file) are required'); return; }
+      var tagsRaw = document.getElementById('kbArtTags').value;
+      var tags = tagsRaw ? tagsRaw.split(',').map(function(t) { return t.trim(); }).filter(Boolean) : [];
+      var id = document.getElementById('kbArtEditId').value;
+
+      if (hasFile) {
+        var fd = new FormData();
+        fd.append('title', title);
+        fd.append('content', content);
+        fd.append('excerpt', document.getElementById('kbArtExcerpt').value);
+        fd.append('status', document.getElementById('kbArtStatus').value);
+        fd.append('is_pinned', document.getElementById('kbArtPinned').checked);
+        var cat = document.getElementById('kbArtCategory').value;
+        if (cat) fd.append('category', cat);
+        tags.forEach(function(t) { fd.append('tags', t); });
+        fd.append('file', fileInput.files[0]);
+        fd.append('file_name', fileInput.files[0].name);
+
+        try {
+          if (id) { await Api.upload(API + '/articles/' + id + '/', fd, 'PATCH'); Toast.success('Article updated'); }
+          else { await Api.upload(API + '/articles/', fd); Toast.success('Article created'); }
+          bootstrap.Modal.getInstance(document.getElementById('kbArtModal')).hide();
+          KBSettings.loadArticles();
+        } catch(e) { Toast.error(e.detail || (e.title && e.title[0]) || 'Failed to save'); }
+      } else {
+        var data = {
+          title: title,
+          category: document.getElementById('kbArtCategory').value || null,
+          status: document.getElementById('kbArtStatus').value,
+          excerpt: document.getElementById('kbArtExcerpt').value,
+          content: content,
+          tags: tags,
+          is_pinned: document.getElementById('kbArtPinned').checked
+        };
+        try {
+          if (id) { await Api.patch(API + '/articles/' + id + '/', data); Toast.success('Article updated'); }
+          else { await Api.post(API + '/articles/', data); Toast.success('Article created'); }
+          bootstrap.Modal.getInstance(document.getElementById('kbArtModal')).hide();
+          KBSettings.loadArticles();
+        } catch(e) { Toast.error(e.detail || (e.title && e.title[0]) || 'Failed to save'); }
+      }
+    },
+
+    delArt: async function(id, title) {
+      if (!confirm('Delete article "' + title + '"?')) return;
+      try { await Api.delete(API + '/articles/' + id + '/'); Toast.success('Article deleted'); KBSettings.loadArticles(); }
+      catch(e) { Toast.error('Failed to delete'); }
+    },
+
+    goArtPage: function(p) { kbArtPage = p; KBSettings.loadArticles(); }
+  };
+
+  function renderArts(total) {
+    var body = document.getElementById('kbArtBody'), tbl = document.getElementById('kbArtTable'), empty = document.getElementById('kbArtEmpty');
+    if (!kbArts.length) { tbl.style.display = 'none'; empty.style.display = 'flex'; document.getElementById('kbArtPagination').textContent = ''; return; }
+    empty.style.display = 'none'; tbl.style.display = 'table';
+    body.textContent = '';
+    kbArts.forEach(function(a) {
+      var tr = document.createElement('tr');
+      var td1 = document.createElement('td');
+      if (a.is_pinned) { var pin = document.createElement('i'); pin.className = 'ti ti-pin text-primary me-1'; pin.title = 'Pinned'; td1.appendChild(pin); }
+      if (a.file) { var clip = document.createElement('i'); clip.className = 'ti ti-paperclip text-muted me-1'; clip.title = 'Has attachment'; td1.appendChild(clip); }
+      td1.appendChild(document.createTextNode(a.title));
+      var td2 = document.createElement('td');
+      td2.className = 'text-muted small';
+      td2.textContent = a.category_name || '-';
+      var td3 = document.createElement('td');
+      var statusBadge = document.createElement('span');
+      statusBadge.className = a.status === 'published' ? 'badge bg-success-subtle text-success' : 'badge bg-warning-subtle text-warning';
+      statusBadge.textContent = a.status === 'published' ? 'Published' : 'Draft';
+      td3.appendChild(statusBadge);
+      var td4 = document.createElement('td');
+      td4.textContent = a.view_count || 0;
+      var td5 = document.createElement('td');
+      td5.className = 'text-muted small';
+      td5.textContent = a.published_at ? new Date(a.published_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '-';
+      var td6 = document.createElement('td');
+      var editBtn = document.createElement('button');
+      editBtn.className = 'btn btn-sm btn-outline-secondary py-0 px-2';
+      var editIcon = document.createElement('i');
+      editIcon.className = 'ti ti-pencil';
+      editBtn.appendChild(editIcon);
+      editBtn.addEventListener('click', function() { KBSettings.editArt(a.id); });
+      var delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-sm btn-outline-danger py-0 px-2 ms-1';
+      var delIcon = document.createElement('i');
+      delIcon.className = 'ti ti-trash';
+      delBtn.appendChild(delIcon);
+      delBtn.addEventListener('click', function() { KBSettings.delArt(a.id, a.title); });
+      td6.appendChild(editBtn);
+      td6.appendChild(delBtn);
+      tr.appendChild(td1); tr.appendChild(td2); tr.appendChild(td3); tr.appendChild(td4); tr.appendChild(td5); tr.appendChild(td6);
+      body.appendChild(tr);
+    });
+
+    var tp = Math.ceil(total / 15), pg = document.getElementById('kbArtPagination');
+    pg.textContent = '';
+    if (tp <= 1) return;
+    if (kbArtPage > 1) {
+      var prevBtn = document.createElement('button');
+      prevBtn.className = 'btn btn-sm btn-outline-secondary';
+      prevBtn.textContent = 'Prev';
+      prevBtn.addEventListener('click', function() { KBSettings.goArtPage(kbArtPage - 1); });
+      pg.appendChild(prevBtn);
+    }
+    var pageInfo = document.createElement('span');
+    pageInfo.className = 'small text-muted align-self-center';
+    pageInfo.textContent = 'Page ' + kbArtPage + ' of ' + tp;
+    pg.appendChild(pageInfo);
+    if (kbArtPage < tp) {
+      var nextBtn = document.createElement('button');
+      nextBtn.className = 'btn btn-sm btn-outline-secondary';
+      nextBtn.textContent = 'Next';
+      nextBtn.addEventListener('click', function() { KBSettings.goArtPage(kbArtPage + 1); });
+      pg.appendChild(nextBtn);
+    }
+  }
+
+  var origSwitch3 = window.switchSettingsTab;
+  window.switchSettingsTab = function(targetId) {
+    origSwitch3(targetId);
+    if (targetId === 'knowledgeBasePane' && !kbLoaded) {
+      kbLoaded = true;
+      loadCategories();
+      KBSettings.loadArticles();
+    }
+  };
+})();
+</script>
+{% endif %}
 {% endblock %}

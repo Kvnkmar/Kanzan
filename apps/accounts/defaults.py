@@ -71,6 +71,20 @@ PERMISSION_DEFINITIONS = [
     # Agent Management (operational — Manager domain)
     ("agent", "view", "View agent availability"),
     ("agent", "manage", "Manage agent availability"),
+    # Knowledge Base
+    ("kb_article", "view", "View knowledge base articles"),
+    ("kb_article", "create", "Create knowledge base articles"),
+    ("kb_article", "update", "Update knowledge base articles"),
+    ("kb_article", "delete", "Delete knowledge base articles"),
+    ("kb_category", "view", "View knowledge base categories"),
+    ("kb_category", "create", "Create knowledge base categories"),
+    ("kb_category", "update", "Update knowledge base categories"),
+    ("kb_category", "delete", "Delete knowledge base categories"),
+    # Calendar Events
+    ("calendar_event", "view", "View calendar events"),
+    ("calendar_event", "create", "Create calendar events"),
+    ("calendar_event", "update", "Update calendar events"),
+    ("calendar_event", "delete", "Delete calendar events"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -121,6 +135,20 @@ MANAGER_CODENAMES = [
     "escalation_rule.create",
     "escalation_rule.update",
     "escalation_rule.delete",
+    # Knowledge Base — full control
+    "kb_article.view",
+    "kb_article.create",
+    "kb_article.update",
+    "kb_article.delete",
+    "kb_category.view",
+    "kb_category.create",
+    "kb_category.update",
+    "kb_category.delete",
+    # Calendar Events — full control
+    "calendar_event.view",
+    "calendar_event.create",
+    "calendar_event.update",
+    "calendar_event.delete",
 ]
 
 AGENT_CODENAMES = [
@@ -133,6 +161,15 @@ AGENT_CODENAMES = [
     "contact.update",
     "company.view",
     "report.view",
+    # Knowledge Base — view + contribute
+    "kb_article.view",
+    "kb_article.create",
+    "kb_article.update",
+    "kb_category.view",
+    # Calendar Events — view + create + update
+    "calendar_event.view",
+    "calendar_event.create",
+    "calendar_event.update",
 ]
 
 VIEWER_CODENAMES = [
@@ -140,6 +177,11 @@ VIEWER_CODENAMES = [
     "contact.view",
     "company.view",
     "report.view",
+    # Knowledge Base — read-only
+    "kb_article.view",
+    "kb_category.view",
+    # Calendar Events — view only
+    "calendar_event.view",
 ]
 
 ROLE_DEFINITIONS = [

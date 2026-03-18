@@ -15,69 +15,116 @@
   </div>
 </div>
 
-<!-- Stats Cards -->
-<div class="tl-stats" id="ticketStats">
-  <div class="tl-stat-card">
-    <div class="tl-stat-icon tl-stat-icon--open"><i class="ti ti-inbox"></i></div>
-    <div class="tl-stat-info">
-      <span class="tl-stat-value" id="statOpen">--</span>
-      <span class="tl-stat-label">Open</span>
+<!-- Email-style Toolbar -->
+<div class="tl-toolbar">
+  <div class="tl-toolbar-left">
+    <div class="tl-toolbar-check">
+      <input type="checkbox" id="selectAllCheckbox" aria-label="Select all tickets on this page">
+    </div>
+    <div class="tl-toolbar-filters">
+      <form id="filterForm" class="tl-toolbar-filter-form" role="search" aria-label="Filter tickets">
+        <div class="tl-filter-group">
+          <label for="filterStatus" class="visually-hidden">Status</label>
+          <select id="filterStatus" class="form-select form-select-sm tl-filter-select" name="status">
+            <option value="">All Statuses</option>
+          </select>
+        </div>
+        <div class="tl-filter-group">
+          <label for="filterPriority" class="visually-hidden">Priority</label>
+          <select id="filterPriority" class="form-select form-select-sm tl-filter-select" name="priority">
+            <option value="">All Priorities</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div class="tl-filter-group">
+          <label for="filterQueue" class="visually-hidden">Queue</label>
+          <select id="filterQueue" class="form-select form-select-sm tl-filter-select" name="queue">
+            <option value="">All Queues</option>
+          </select>
+        </div>
+        <div class="tl-filter-group">
+          <label for="filterAssignee" class="visually-hidden">Assignee</label>
+          <select id="filterAssignee" class="form-select form-select-sm tl-filter-select" name="assignee">
+            <option value="">All Assignees</option>
+          </select>
+        </div>
+        <div class="tl-filter-group">
+          <label for="filterCategory" class="visually-hidden">Category</label>
+          <select id="filterCategory" class="form-select form-select-sm tl-filter-select" name="category">
+            <option value="">All Categories</option>
+          </select>
+        </div>
+        <button type="button" id="clearFiltersBtn" class="btn btn-sm btn-ghost tl-clear-btn d-none">
+          <i class="ti ti-x me-1" aria-hidden="true"></i>Clear
+        </button>
+      </form>
     </div>
   </div>
-  <div class="tl-stat-card">
-    <div class="tl-stat-icon tl-stat-icon--progress"><i class="ti ti-loader"></i></div>
-    <div class="tl-stat-info">
-      <span class="tl-stat-value" id="statProgress">--</span>
-      <span class="tl-stat-label">In Progress</span>
-    </div>
-  </div>
-  <div class="tl-stat-card">
-    <div class="tl-stat-icon tl-stat-icon--urgent"><i class="ti ti-alert-triangle"></i></div>
-    <div class="tl-stat-info">
-      <span class="tl-stat-value" id="statUrgent">--</span>
-      <span class="tl-stat-label">Urgent</span>
-    </div>
-  </div>
-  <div class="tl-stat-card">
-    <div class="tl-stat-icon tl-stat-icon--total"><i class="ti ti-file-text"></i></div>
-    <div class="tl-stat-info">
-      <span class="tl-stat-value" id="statTotal">--</span>
-      <span class="tl-stat-label">Total</span>
-    </div>
-  </div>
-</div>
-
-<!-- Filter Bar -->
-<div class="tl-filter-bar">
-  <form id="filterForm" class="tl-filter-inner">
-    <div class="tl-filter-group">
-      <select id="filterStatus" class="form-select form-select-sm tl-filter-select">
-        <option value="">All Statuses</option>
-      </select>
-    </div>
-    <div class="tl-filter-group">
-      <select id="filterPriority" class="form-select form-select-sm tl-filter-select">
-        <option value="">All Priorities</option>
-        <option value="low">Low</option>
-        <option value="medium">Medium</option>
-        <option value="high">High</option>
-        <option value="urgent">Urgent</option>
-      </select>
-    </div>
+  <div class="tl-toolbar-right">
     <div class="tl-filter-search">
-      <i class="ti ti-search"></i>
-      <input type="text" id="filterSearch" class="form-control form-control-sm" placeholder="Search tickets...">
+      <i class="ti ti-search" aria-hidden="true"></i>
+      <label for="filterSearch" class="visually-hidden">Search tickets</label>
+      <input type="text" id="filterSearch" name="search" class="form-control form-control-sm" placeholder="Search tickets...">
     </div>
-    <button type="button" id="clearFiltersBtn" class="btn btn-sm btn-ghost tl-clear-btn d-none">
-      <i class="ti ti-x me-1"></i>Clear
-    </button>
-  </form>
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-secondary dropdown-toggle tl-view-btn" type="button" id="viewSelector" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="ti ti-funnel me-1" aria-hidden="true"></i><span id="currentViewName">All Tickets</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end" id="viewDropdown" aria-labelledby="viewSelector">
+        <li><a class="dropdown-item" href="#" id="clearViewBtn"><i class="ti ti-list me-1" aria-hidden="true"></i> All Tickets</a></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><h6 class="dropdown-header">Saved Views</h6></li>
+        <li id="savedViewsList"></li>
+        <li><hr class="dropdown-divider"></li>
+        <li><a class="dropdown-item text-primary" href="#" id="saveViewBtn">
+          <i class="ti ti-plus-circle me-1" aria-hidden="true"></i> Save Current View
+        </a></li>
+      </ul>
+    </div>
+  </div>
 </div>
 
-<!-- Ticket Cards -->
-<div class="tl-ticket-list" id="ticketsList">
-  <div id="loadingState" class="tl-loading">
-    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+<!-- Stats Tabs (inline, like email folder counts) -->
+<div class="tl-stat-tabs" id="ticketStats" role="tablist" aria-label="Ticket statistics">
+  <button class="tl-stat-tab tl-stat-tab--active" data-filter="" role="tab" aria-selected="true">
+    <span class="tl-tab-label">All</span>
+    <span class="tl-tab-count" id="statTotal">--</span>
+  </button>
+  <button class="tl-stat-tab" data-filter="open" role="tab" aria-selected="false">
+    <span class="tl-tab-dot" style="background:#3B82F6;"></span>
+    <span class="tl-tab-label">Open</span>
+    <span class="tl-tab-count" id="statOpen">--</span>
+  </button>
+  <button class="tl-stat-tab" data-filter="in_progress" role="tab" aria-selected="false">
+    <span class="tl-tab-dot" style="background:#A855F7;"></span>
+    <span class="tl-tab-label">In Progress</span>
+    <span class="tl-tab-count" id="statProgress">--</span>
+  </button>
+  <button class="tl-stat-tab" data-filter="urgent" role="tab" aria-selected="false">
+    <span class="tl-tab-dot" style="background:#EF4444;"></span>
+    <span class="tl-tab-label">Urgent</span>
+    <span class="tl-tab-count" id="statUrgent">--</span>
+  </button>
+</div>
+
+<!-- Table Header -->
+<div class="tl-table-header">
+  <div class="tl-col tl-col-check"><span class="visually-hidden">Select</span></div>
+  <div class="tl-col tl-col-subject">Subject</div>
+  <div class="tl-col tl-col-requester">Requester</div>
+  <div class="tl-col tl-col-assignee">Assignee</div>
+  <div class="tl-col tl-col-status">Status</div>
+  <div class="tl-col tl-col-date">Created Date</div>
+  <div class="tl-col tl-col-priority">Priority</div>
+</div>
+
+<!-- Ticket Table Rows -->
+<div class="tl-ticket-list" id="ticketsList" role="list" aria-label="Ticket list">
+  <div id="loadingState" class="tl-loading" role="status">
+    <div class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></div>
     <span>Loading tickets...</span>
   </div>
 </div>
@@ -85,11 +132,11 @@
 <!-- Empty State -->
 <div id="emptyState" class="d-none">
   <div class="tl-empty">
-    <div class="tl-empty-icon"><i class="ti ti-inbox"></i></div>
+    <div class="tl-empty-icon"><i class="ti ti-inbox" aria-hidden="true"></i></div>
     <h5 class="tl-empty-title">No tickets found</h5>
     <p class="tl-empty-text">Try adjusting your filters or create a new ticket to get started.</p>
     <a href="{% url 'frontend:ticket-create' %}" class="btn btn-primary btn-sm">
-      <i class="ti ti-plus me-1"></i>Create Ticket
+      <i class="ti ti-plus me-1" aria-hidden="true"></i>Create Ticket
     </a>
   </div>
 </div>
@@ -101,6 +148,132 @@
     <ul id="paginationControls" class="pagination pagination-sm mb-0"></ul>
   </div>
 </nav>
+
+<!-- Bulk Actions Toolbar (sticky bottom bar) -->
+<div class="bulk-toolbar d-none" id="bulkToolbar">
+  <div class="bulk-toolbar-inner">
+    <div class="bulk-toolbar-info">
+      <span class="bulk-toolbar-count" id="bulkToolbarCount">0</span> ticket(s) selected
+    </div>
+    <div class="bulk-toolbar-actions">
+      <button type="button" class="btn btn-sm btn-primary" id="bulkToolbarActionsBtn">
+        <i class="ti ti-settings me-1" aria-hidden="true"></i>Actions
+      </button>
+      <button type="button" class="btn btn-sm btn-outline-secondary" id="bulkToolbarClearBtn">
+        <i class="ti ti-x me-1" aria-hidden="true"></i>Clear
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Actions Modal -->
+<div class="modal fade" id="bulkActionsModal" tabindex="-1" aria-labelledby="bulkModalTitle" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content bulk-modal">
+      <div class="bulk-modal-header">
+        <div class="bulk-modal-header-inner">
+          <div class="bulk-modal-icon-wrap">
+            <i class="ti ti-list-check" aria-hidden="true"></i>
+          </div>
+          <div>
+            <h6 class="bulk-modal-title" id="bulkModalTitle">Bulk Actions</h6>
+            <p class="bulk-modal-subtitle">Apply changes to <span class="bulk-count-badge" id="selectedCount">0</span> selected tickets</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+
+      <div class="bulk-modal-body">
+        <div class="bulk-action-cards">
+          <!-- Assign Card -->
+          <div class="bulk-card bulk-card--assign">
+            <div class="bulk-card-header">
+              <div class="bulk-card-icon bulk-card-icon--assign"><i class="ti ti-user-plus" aria-hidden="true"></i></div>
+              <div class="bulk-card-header-text">
+                <span class="bulk-card-label">Assign To</span>
+                <span class="bulk-card-hint">Route tickets to an agent</span>
+              </div>
+            </div>
+            <div class="bulk-card-content">
+              <label for="bulkAssignUser" class="visually-hidden">Choose an agent</label>
+              <select id="bulkAssignUser" class="form-select form-select-sm bulk-select"><option value="">Choose an agent...</option></select>
+              <button type="button" class="btn btn-sm bulk-card-btn bulk-card-btn--assign" id="bulkAssignBtn">
+                <i class="ti ti-check me-1" aria-hidden="true"></i>Assign
+              </button>
+            </div>
+          </div>
+
+          <!-- Status Card -->
+          <div class="bulk-card bulk-card--status">
+            <div class="bulk-card-header">
+              <div class="bulk-card-icon bulk-card-icon--status"><i class="ti ti-toggle-right" aria-hidden="true"></i></div>
+              <div class="bulk-card-header-text">
+                <span class="bulk-card-label">Change Status</span>
+                <span class="bulk-card-hint">Update workflow state</span>
+              </div>
+            </div>
+            <div class="bulk-card-content">
+              <label for="bulkStatusSelect" class="visually-hidden">Choose a status</label>
+              <select id="bulkStatusSelect" class="form-select form-select-sm bulk-select"><option value="">Choose a status...</option></select>
+              <button type="button" class="btn btn-sm bulk-card-btn bulk-card-btn--status" id="bulkStatusBtn">
+                <i class="ti ti-check me-1" aria-hidden="true"></i>Apply
+              </button>
+            </div>
+          </div>
+
+          <!-- Priority Card -->
+          <div class="bulk-card bulk-card--priority">
+            <div class="bulk-card-header">
+              <div class="bulk-card-icon bulk-card-icon--priority"><i class="ti ti-flag-3" aria-hidden="true"></i></div>
+              <div class="bulk-card-header-text">
+                <span class="bulk-card-label">Change Priority</span>
+                <span class="bulk-card-hint">Set urgency level</span>
+              </div>
+            </div>
+            <div class="bulk-card-content">
+              <label for="bulkPrioritySelect" class="visually-hidden">Choose a priority</label>
+              <select id="bulkPrioritySelect" class="form-select form-select-sm bulk-select">
+                <option value="">Choose a priority...</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+              <button type="button" class="btn btn-sm bulk-card-btn bulk-card-btn--priority" id="bulkPriorityBtn">
+                <i class="ti ti-check me-1" aria-hidden="true"></i>Apply
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Danger zone -->
+        <div class="bulk-danger-zone">
+          <div class="bulk-danger-inner">
+            <div class="bulk-danger-info">
+              <div class="bulk-danger-icon"><i class="ti ti-alert-triangle" aria-hidden="true"></i></div>
+              <div>
+                <span class="bulk-danger-label">Danger Zone</span>
+                <span class="bulk-danger-hint">This action cannot be undone</span>
+              </div>
+            </div>
+            <button type="button" class="btn btn-sm bulk-delete-btn" id="bulkDeleteBtn">
+              <i class="ti ti-trash me-1" aria-hidden="true"></i>Delete Tickets
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="bulk-modal-footer">
+        <button type="button" class="btn btn-sm bulk-footer-btn" id="bulkClearBtn" data-bs-dismiss="modal">
+          <i class="ti ti-deselect me-1" aria-hidden="true"></i>Clear Selection
+        </button>
+        <button type="button" class="btn btn-sm bulk-footer-close" data-bs-dismiss="modal">
+          Done
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -108,35 +281,55 @@
 (function() {
   'use strict';
 
-  const PAGE_SIZE = 25;
-  let currentPage = 1;
-  let totalCount = 0;
-
+  /* ── Constants ── */
+  var PAGE_SIZE = 25;
+  var SEARCH_DEBOUNCE_MS = 400;
   var PRIORITY_COLORS = { urgent: '#EF4444', high: '#F97316', medium: '#F59E0B', low: '#10B981' };
   var PRIORITY_BG_LIGHT = { urgent: '#FEF2F2', high: '#FFF7ED', medium: '#FFFBEB', low: '#ECFDF5' };
   var PRIORITY_BG_DARK = { urgent: 'rgba(239,68,68,0.12)', high: 'rgba(249,115,22,0.12)', medium: 'rgba(245,158,11,0.12)', low: 'rgba(16,185,129,0.12)' };
   var PRIORITY_TEXT_DARK = { urgent: '#FCA5A5', high: '#FDBA74', medium: '#FCD34D', low: '#6EE7B7' };
+
+  /* ── State ── */
+  var currentPage = 1;
+  var totalCount = 0;
+  var statusesData = [];
+  var usersData = [];
+
+  /* ── Cached DOM References ── */
+  var dom = {
+    statOpen: document.getElementById('statOpen'),
+    statProgress: document.getElementById('statProgress'),
+    statUrgent: document.getElementById('statUrgent'),
+    statTotal: document.getElementById('statTotal'),
+    filterStatus: document.getElementById('filterStatus'),
+    filterPriority: document.getElementById('filterPriority'),
+    filterQueue: document.getElementById('filterQueue'),
+    filterAssignee: document.getElementById('filterAssignee'),
+    filterCategory: document.getElementById('filterCategory'),
+    filterSearch: document.getElementById('filterSearch'),
+    clearFiltersBtn: document.getElementById('clearFiltersBtn'),
+    ticketsList: document.getElementById('ticketsList'),
+    emptyState: document.getElementById('emptyState'),
+    selectAllCheckbox: document.getElementById('selectAllCheckbox'),
+    paginationNav: document.getElementById('paginationNav'),
+    paginationInfo: document.getElementById('paginationInfo'),
+    paginationControls: document.getElementById('paginationControls'),
+    selectedCount: document.getElementById('selectedCount'),
+    currentViewName: document.getElementById('currentViewName'),
+    savedViewsList: document.getElementById('savedViewsList'),
+    bulkAssignUser: document.getElementById('bulkAssignUser'),
+    bulkStatusSelect: document.getElementById('bulkStatusSelect'),
+    bulkPrioritySelect: document.getElementById('bulkPrioritySelect'),
+    bulkActionsModal: document.getElementById('bulkActionsModal'),
+    bulkToolbar: document.getElementById('bulkToolbar'),
+    bulkToolbarCount: document.getElementById('bulkToolbarCount'),
+    statTabs: document.querySelectorAll('.tl-stat-tab')
+  };
+
+  /* ── Utility Functions ── */
   function isDark() { return document.documentElement.getAttribute('data-bs-theme') === 'dark'; }
   function getPriorityBg(p) { return (isDark() ? PRIORITY_BG_DARK : PRIORITY_BG_LIGHT)[p] || (isDark() ? PRIORITY_BG_DARK : PRIORITY_BG_LIGHT).low; }
   function getPriorityText(p) { return isDark() ? (PRIORITY_TEXT_DARK[p] || PRIORITY_TEXT_DARK.low) : (PRIORITY_COLORS[p] || PRIORITY_COLORS.low); }
-
-  // Load stat strip
-  Api.get('/api/v1/analytics/dashboard/').then(function(data) {
-    var s = data.ticket_stats || {};
-    var byStatus = s.by_status || {};
-    var byPriority = s.by_priority || {};
-    document.getElementById('statOpen').textContent = s.open_count || 0;
-    document.getElementById('statProgress').textContent = byStatus['In Progress'] || 0;
-    document.getElementById('statUrgent').textContent = byPriority['urgent'] || 0;
-    document.getElementById('statTotal').textContent = (s.open_count || 0) + (s.closed_count || 0);
-  }).catch(function() {});
-
-  Api.get('/api/v1/tickets/ticket-statuses/')
-    .then(function(data) {
-      var statuses = data.results || data;
-      var select = document.getElementById('filterStatus');
-      statuses.forEach(function(s) { var o = document.createElement('option'); o.value = s.slug; o.textContent = s.name; select.appendChild(o); });
-    }).catch(function() {});
 
   function formatDate(dateStr) {
     if (!dateStr) return '--';
@@ -148,129 +341,677 @@
     if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
-  function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-  function buildQueryParams() {
-    var params = new URLSearchParams(); params.set('page', currentPage); params.set('page_size', PAGE_SIZE);
-    var s = document.getElementById('filterStatus').value; if (s) params.set('status_slug', s);
-    var p = document.getElementById('filterPriority').value; if (p) params.set('priority', p);
-    var q = document.getElementById('filterSearch').value.trim(); if (q) params.set('search', q);
-    return params.toString();
+  function escapeHtml(s) {
+    if (!s) return '';
+    var d = document.createElement('div');
+    d.textContent = s;
+    return d.innerHTML;
   }
-
-  function updateClearBtn() {
-    var hasFilters = document.getElementById('filterStatus').value || document.getElementById('filterPriority').value || document.getElementById('filterSearch').value.trim();
-    document.getElementById('clearFiltersBtn').classList.toggle('d-none', !hasFilters);
-  }
-
-  document.getElementById('clearFiltersBtn').addEventListener('click', function() {
-    document.getElementById('filterStatus').value = '';
-    document.getElementById('filterPriority').value = '';
-    document.getElementById('filterSearch').value = '';
-    this.classList.add('d-none');
-    currentPage = 1;
-    loadTickets();
-  });
 
   function getInitials(name) {
     if (!name) return '?';
     return name.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
   }
 
+  function capitalize(str) {
+    return str ? str.charAt(0).toUpperCase() + str.slice(1) : '--';
+  }
+
+  /* ── Load Stats ── */
+  Api.get('/api/v1/analytics/dashboard/').then(function(data) {
+    var s = data.ticket_stats || {};
+    var byStatus = s.by_status || {};
+    var byPriority = s.by_priority || {};
+    dom.statOpen.textContent = s.open_count || 0;
+    dom.statProgress.textContent = byStatus['In Progress'] || 0;
+    dom.statUrgent.textContent = byPriority['urgent'] || 0;
+    dom.statTotal.textContent = (s.open_count || 0) + (s.closed_count || 0);
+  }).catch(function() {});
+
+  /* ── Load Statuses ── */
+  Api.get('/api/v1/tickets/ticket-statuses/').then(function(data) {
+    statusesData = data.results || data;
+    statusesData.forEach(function(s) {
+      var o = document.createElement('option');
+      o.value = s.slug; o.textContent = s.name;
+      dom.filterStatus.appendChild(o);
+      var o2 = document.createElement('option');
+      o2.value = s.id; o2.textContent = s.name;
+      dom.bulkStatusSelect.appendChild(o2);
+    });
+  }).catch(function() {});
+
+  /* ── Load Users for Bulk Assign + Assignee Filter ── */
+  Api.get('/api/v1/tickets/tickets/teammates/').then(function(data) {
+    usersData = data.results || data;
+    usersData.forEach(function(u) {
+      var o = document.createElement('option');
+      o.value = u.id; o.textContent = u.full_name || u.email;
+      dom.bulkAssignUser.appendChild(o);
+      var o2 = document.createElement('option');
+      o2.value = u.id; o2.textContent = u.full_name || u.email;
+      dom.filterAssignee.appendChild(o2);
+    });
+  }).catch(function() {});
+
+  /* ── Load Queues ── */
+  Api.get('/api/v1/tickets/queues/').then(function(data) {
+    var queues = data.results || data;
+    queues.forEach(function(q) {
+      var o = document.createElement('option');
+      o.value = q.id; o.textContent = q.name;
+      dom.filterQueue.appendChild(o);
+    });
+  }).catch(function() {});
+
+  /* ── Load Categories ── */
+  Api.get('/api/v1/tickets/ticket-categories/').then(function(data) {
+    var categories = data.results || data;
+    categories.forEach(function(c) {
+      var o = document.createElement('option');
+      o.value = c.name; o.textContent = c.name;
+      dom.filterCategory.appendChild(o);
+    });
+  }).catch(function() {});
+
+  /* ── Query Building & Filter State ── */
+  function buildQueryParams() {
+    var params = new URLSearchParams();
+    params.set('page', currentPage);
+    params.set('page_size', PAGE_SIZE);
+    var s = dom.filterStatus.value;
+    if (s) params.set('status_slug', s);
+    var p = dom.filterPriority.value;
+    if (p) params.set('priority', p);
+    var qu = dom.filterQueue.value;
+    if (qu) params.set('queue', qu);
+    var a = dom.filterAssignee.value;
+    if (a) params.set('assignee', a);
+    var c = dom.filterCategory.value;
+    if (c) params.set('category', c);
+    var q = dom.filterSearch.value.trim();
+    if (q) params.set('search', q);
+    return params.toString();
+  }
+
+  function updateClearBtn() {
+    var hasFilters = dom.filterStatus.value || dom.filterPriority.value || dom.filterQueue.value || dom.filterAssignee.value || dom.filterCategory.value || dom.filterSearch.value.trim();
+    dom.clearFiltersBtn.classList.toggle('d-none', !hasFilters);
+  }
+
+  /* ── Render Ticket Table Rows ── */
   function renderTickets(tickets) {
-    var container = document.getElementById('ticketsList');
-    container.innerHTML = '';
+    dom.ticketsList.textContent = '';
+
     if (!tickets || tickets.length === 0) {
-      container.classList.add('d-none');
-      document.getElementById('emptyState').classList.remove('d-none');
-      document.getElementById('paginationNav').classList.add('d-none');
+      dom.ticketsList.classList.add('d-none');
+      dom.emptyState.classList.remove('d-none');
+      dom.paginationNav.classList.add('d-none');
       return;
     }
-    container.classList.remove('d-none');
-    document.getElementById('emptyState').classList.add('d-none');
+
+    dom.ticketsList.classList.remove('d-none');
+    dom.emptyState.classList.add('d-none');
+
+    var fragment = document.createDocumentFragment();
 
     tickets.forEach(function(t) {
       var pColor = PRIORITY_COLORS[t.priority] || PRIORITY_COLORS.low;
-      var pBg = getPriorityBg(t.priority);
-      var pText = getPriorityText(t.priority);
-      var statusStyle = t.status_color ? 'background:' + t.status_color + ';color:#fff;' : 'background:#94A3B8;color:#fff;';
-      var assigneeHtml = t.assignee_name
-        ? '<div class="tl-card-assignee"><div class="tl-card-avatar">' + getInitials(t.assignee_name) + '</div><span>' + escapeHtml(t.assignee_name) + '</span></div>'
-        : '<span class="tl-card-unassigned">Unassigned</span>';
+      var statusName = escapeHtml(t.status_name || 'Unknown');
+      var statusColor = t.status_color || '';
 
-      var card = document.createElement('a');
-      card.className = 'tl-ticket-card';
-      card.href = '/tickets/' + t.number + '/';
-      card.innerHTML =
-        '<div class="tl-card-priority-bar" style="background:' + pColor + ';"></div>' +
-        '<div class="tl-card-body">' +
-          '<div class="tl-card-top">' +
-            '<span class="tl-card-number">#' + t.number + '</span>' +
-            '<span class="tl-card-time">' + formatDate(t.created_at) + '</span>' +
-          '</div>' +
-          '<h6 class="tl-card-subject">' + escapeHtml(t.subject) + '</h6>' +
-          '<div class="tl-card-bottom">' +
-            '<div class="tl-card-tags">' +
-              '<span class="tl-card-status" style="' + statusStyle + '">' + escapeHtml(t.status_name || 'Unknown') + '</span>' +
-              '<span class="tl-card-priority-badge" style="background:' + pBg + ';color:' + pText + ';">' +
-                '<span class="tl-priority-dot" style="background:' + pColor + ';"></span>' +
-                (t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : '--') +
-              '</span>' +
-            '</div>' +
-            assigneeHtml +
-          '</div>' +
-        '</div>';
-      container.appendChild(card);
+      var dateFormatted = '';
+      if (t.created_at) {
+        var d = new Date(t.created_at);
+        dateFormatted = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' - ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }).toLowerCase();
+      }
+
+      /* Build row using DOM API */
+      var row = document.createElement('a');
+      row.className = 'tl-table-row';
+      row.href = '/tickets/' + encodeURIComponent(t.number) + '/';
+      row.setAttribute('data-ticket-id', t.id);
+      row.setAttribute('role', 'listitem');
+
+      /* Checkbox column */
+      var colCheck = document.createElement('div');
+      colCheck.className = 'tl-col tl-col-check';
+      colCheck.addEventListener('click', function(e) { e.stopPropagation(); if (e.target !== checkbox) e.preventDefault(); });
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'tl-row-checkbox ticket-checkbox';
+      checkbox.dataset.ticketId = t.id;
+      checkbox.setAttribute('aria-label', 'Select ticket #' + t.number);
+      if (BulkActions.selectedTickets.has(t.id)) checkbox.checked = true;
+      colCheck.appendChild(checkbox);
+
+      /* Subject column */
+      var colSubject = document.createElement('div');
+      colSubject.className = 'tl-col tl-col-subject';
+      var numSpan = document.createElement('span');
+      numSpan.className = 'tl-cell-number';
+      numSpan.textContent = '#' + t.number;
+      var subjSpan = document.createElement('span');
+      subjSpan.className = 'tl-cell-subject';
+      subjSpan.textContent = t.subject || '';
+      colSubject.appendChild(numSpan);
+      colSubject.appendChild(subjSpan);
+
+      /* Requester column */
+      var colReq = document.createElement('div');
+      colReq.className = 'tl-col tl-col-requester';
+      var reqSpan = document.createElement('span');
+      if (t.contact_name) {
+        reqSpan.className = 'tl-cell-requester';
+        reqSpan.textContent = t.contact_name;
+      } else {
+        reqSpan.className = 'tl-cell-unassigned';
+        reqSpan.textContent = '--';
+      }
+      colReq.appendChild(reqSpan);
+
+      /* Assignee column */
+      var colAssignee = document.createElement('div');
+      colAssignee.className = 'tl-col tl-col-assignee';
+      if (t.assignee_name) {
+        var assigneeWrap = document.createElement('span');
+        assigneeWrap.className = 'tl-cell-assignee';
+        var avatar = document.createElement('span');
+        avatar.className = 'tl-cell-avatar';
+        avatar.textContent = getInitials(t.assignee_name);
+        var aName = document.createElement('span');
+        aName.textContent = t.assignee_name;
+        assigneeWrap.appendChild(avatar);
+        assigneeWrap.appendChild(aName);
+        colAssignee.appendChild(assigneeWrap);
+      } else {
+        var unassigned = document.createElement('span');
+        unassigned.className = 'tl-cell-unassigned';
+        unassigned.textContent = 'Unassigned';
+        colAssignee.appendChild(unassigned);
+      }
+
+      /* Status column */
+      var colStatus = document.createElement('div');
+      colStatus.className = 'tl-col tl-col-status';
+      var statusBadge = document.createElement('span');
+      statusBadge.className = 'tl-cell-status';
+      statusBadge.textContent = statusName;
+      if (statusColor) {
+        statusBadge.style.background = statusColor + '1A';
+        statusBadge.style.color = statusColor;
+        statusBadge.style.border = '1px solid ' + statusColor + '33';
+      }
+      colStatus.appendChild(statusBadge);
+
+      /* Date column */
+      var colDate = document.createElement('div');
+      colDate.className = 'tl-col tl-col-date';
+      var dateSpan = document.createElement('span');
+      dateSpan.className = 'tl-cell-date';
+      dateSpan.textContent = dateFormatted;
+      colDate.appendChild(dateSpan);
+
+      /* Priority column */
+      var colPriority = document.createElement('div');
+      colPriority.className = 'tl-col tl-col-priority';
+      var priSpan = document.createElement('span');
+      priSpan.className = 'tl-cell-priority';
+      priSpan.style.color = pColor;
+      priSpan.style.background = pColor + '1A';
+      priSpan.style.border = '1px solid ' + pColor + '33';
+      priSpan.textContent = capitalize(t.priority);
+      colPriority.appendChild(priSpan);
+
+      /* Assemble row */
+      row.appendChild(colCheck);
+      row.appendChild(colSubject);
+      row.appendChild(colReq);
+      row.appendChild(colAssignee);
+      row.appendChild(colStatus);
+      row.appendChild(colDate);
+      row.appendChild(colPriority);
+
+      fragment.appendChild(row);
     });
+
+    dom.ticketsList.appendChild(fragment);
+
+    /* Bind checkbox events via delegation */
+    dom.ticketsList.addEventListener('change', handleTicketCheckboxChange);
+    dom.ticketsList.addEventListener('click', handleTicketCheckboxClick);
+
     updateClearBtn();
+    syncSelectAllCheckbox();
   }
 
+  function handleTicketCheckboxChange(e) {
+    if (e.target.classList.contains('ticket-checkbox')) {
+      e.stopPropagation();
+      BulkActions.handleCheckboxChange(e);
+    }
+  }
+
+  function handleTicketCheckboxClick(e) {
+    if (e.target.classList.contains('ticket-checkbox') || e.target.closest('.tl-card-checkbox')) {
+      e.stopPropagation();
+    }
+  }
+
+  function syncSelectAllCheckbox() {
+    var boxes = dom.ticketsList.querySelectorAll('.ticket-checkbox');
+    dom.selectAllCheckbox.checked = boxes.length > 0 && Array.from(boxes).every(function(cb) { return cb.checked; });
+  }
+
+  /* ── Pagination ── */
   function renderPagination() {
-    var nav = document.getElementById('paginationNav'), info = document.getElementById('paginationInfo'), controls = document.getElementById('paginationControls');
     var totalPages = Math.ceil(totalCount / PAGE_SIZE);
-    if (totalPages <= 1) { nav.classList.add('d-none'); return; }
-    nav.classList.remove('d-none');
-    info.textContent = 'Showing ' + ((currentPage - 1) * PAGE_SIZE + 1) + ' to ' + Math.min(currentPage * PAGE_SIZE, totalCount) + ' of ' + totalCount + ' tickets';
-    controls.innerHTML = '';
-    var prevLi = document.createElement('li'); prevLi.className = 'page-item' + (currentPage <= 1 ? ' disabled' : ''); prevLi.innerHTML = '<a class="page-link" href="#"><i class="ti ti-chevron-left"></i></a>';
+    if (totalPages <= 1) { dom.paginationNav.classList.add('d-none'); return; }
+
+    dom.paginationNav.classList.remove('d-none');
+    dom.paginationInfo.textContent = 'Showing ' + ((currentPage - 1) * PAGE_SIZE + 1) + ' to ' + Math.min(currentPage * PAGE_SIZE, totalCount) + ' of ' + totalCount + ' tickets';
+
+    var fragment = document.createDocumentFragment();
+
+    /* Previous */
+    var prevLi = createNavItem('prev', currentPage <= 1);
     if (currentPage > 1) prevLi.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); currentPage--; loadTickets(); });
-    controls.appendChild(prevLi);
-    var sp = Math.max(1, currentPage - 2), ep = Math.min(totalPages, currentPage + 2);
-    if (sp > 1) { controls.appendChild(createPageItem(1)); if (sp > 2) { var el = document.createElement('li'); el.className = 'page-item disabled'; el.innerHTML = '<span class="page-link">...</span>'; controls.appendChild(el); } }
-    for (var i = sp; i <= ep; i++) controls.appendChild(createPageItem(i));
-    if (ep < totalPages) { if (ep < totalPages - 1) { var el2 = document.createElement('li'); el2.className = 'page-item disabled'; el2.innerHTML = '<span class="page-link">...</span>'; controls.appendChild(el2); } controls.appendChild(createPageItem(totalPages)); }
-    var nextLi = document.createElement('li'); nextLi.className = 'page-item' + (currentPage >= totalPages ? ' disabled' : ''); nextLi.innerHTML = '<a class="page-link" href="#"><i class="ti ti-chevron-right"></i></a>';
+    fragment.appendChild(prevLi);
+
+    /* Page numbers */
+    var sp = Math.max(1, currentPage - 2);
+    var ep = Math.min(totalPages, currentPage + 2);
+    if (sp > 1) {
+      fragment.appendChild(createPageItem(1));
+      if (sp > 2) fragment.appendChild(createEllipsis());
+    }
+    for (var i = sp; i <= ep; i++) fragment.appendChild(createPageItem(i));
+    if (ep < totalPages) {
+      if (ep < totalPages - 1) fragment.appendChild(createEllipsis());
+      fragment.appendChild(createPageItem(totalPages));
+    }
+
+    /* Next */
+    var nextLi = createNavItem('next', currentPage >= totalPages);
     if (currentPage < totalPages) nextLi.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); currentPage++; loadTickets(); });
-    controls.appendChild(nextLi);
+    fragment.appendChild(nextLi);
+
+    dom.paginationControls.innerHTML = '';
+    dom.paginationControls.appendChild(fragment);
   }
 
   function createPageItem(page) {
-    var li = document.createElement('li'); li.className = 'page-item' + (page === currentPage ? ' active' : ''); li.innerHTML = '<a class="page-link" href="#">' + page + '</a>';
+    var li = document.createElement('li');
+    li.className = 'page-item' + (page === currentPage ? ' active' : '');
+    li.innerHTML = '<a class="page-link" href="#">' + page + '</a>';
     li.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); currentPage = page; loadTickets(); });
     return li;
   }
 
-  function loadTickets() {
-    var container = document.getElementById('ticketsList');
-    container.innerHTML = '<div class="tl-loading"><div class="spinner-border spinner-border-sm text-primary" role="status"></div><span>Loading tickets...</span></div>';
-    container.classList.remove('d-none');
-    document.getElementById('emptyState').classList.add('d-none');
-
-    Api.get('/api/v1/tickets/tickets/?' + buildQueryParams()).then(function(data) {
-      totalCount = data.count || 0; var results = data.results || data;
-      if (Array.isArray(data)) { totalCount = data.length; results = data; }
-      renderTickets(results); renderPagination();
-    }).catch(function() {
-      container.innerHTML = '<div class="tl-loading text-danger"><i class="ti ti-alert-triangle me-2"></i>Failed to load tickets.</div>';
-    });
+  function createNavItem(direction, disabled) {
+    var li = document.createElement('li');
+    li.className = 'page-item' + (disabled ? ' disabled' : '');
+    var icon = direction === 'prev' ? 'ti-chevron-left' : 'ti-chevron-right';
+    var label = direction === 'prev' ? 'Previous page' : 'Next page';
+    li.innerHTML = '<a class="page-link" href="#" aria-label="' + label + '"><i class="ti ' + icon + '" aria-hidden="true"></i></a>';
+    return li;
   }
 
+  function createEllipsis() {
+    var li = document.createElement('li');
+    li.className = 'page-item disabled';
+    li.innerHTML = '<span class="page-link">&hellip;</span>';
+    return li;
+  }
+
+  /* ── Load Tickets ── */
+  window.loadTickets = function() {
+    dom.ticketsList.textContent = '';
+    var loadingDiv = document.createElement('div');
+    loadingDiv.className = 'tl-loading';
+    loadingDiv.setAttribute('role', 'status');
+    var spinner = document.createElement('div');
+    spinner.className = 'spinner-border spinner-border-sm text-primary';
+    spinner.setAttribute('aria-hidden', 'true');
+    var loadingText = document.createElement('span');
+    loadingText.textContent = 'Loading tickets...';
+    loadingDiv.appendChild(spinner);
+    loadingDiv.appendChild(loadingText);
+    dom.ticketsList.appendChild(loadingDiv);
+    dom.ticketsList.classList.remove('d-none');
+    dom.emptyState.classList.add('d-none');
+
+    Api.get('/api/v1/tickets/tickets/?' + buildQueryParams()).then(function(data) {
+      totalCount = data.count || 0;
+      var results = data.results || data;
+      if (Array.isArray(data)) { totalCount = data.length; results = data; }
+      renderTickets(results);
+      renderPagination();
+    }).catch(function() {
+      dom.ticketsList.textContent = '';
+      var errDiv = document.createElement('div');
+      errDiv.className = 'tl-loading text-danger';
+      errDiv.textContent = 'Failed to load tickets.';
+      dom.ticketsList.appendChild(errDiv);
+    });
+  };
+  var loadTickets = window.loadTickets;
+
+  /* ── Filter Event Listeners ── */
   document.getElementById('filterForm').addEventListener('submit', function(e) { e.preventDefault(); currentPage = 1; loadTickets(); });
+
   var searchTimeout;
-  document.getElementById('filterSearch').addEventListener('input', function() { clearTimeout(searchTimeout); searchTimeout = setTimeout(function() { currentPage = 1; loadTickets(); }, 400); updateClearBtn(); });
-  document.getElementById('filterStatus').addEventListener('change', function() { currentPage = 1; loadTickets(); updateClearBtn(); });
-  document.getElementById('filterPriority').addEventListener('change', function() { currentPage = 1; loadTickets(); updateClearBtn(); });
+  dom.filterSearch.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(function() { currentPage = 1; loadTickets(); }, SEARCH_DEBOUNCE_MS);
+    updateClearBtn();
+  });
+  dom.filterStatus.addEventListener('change', function() { currentPage = 1; loadTickets(); updateClearBtn(); });
+  dom.filterPriority.addEventListener('change', function() { currentPage = 1; loadTickets(); updateClearBtn(); });
+  dom.filterQueue.addEventListener('change', function() { currentPage = 1; loadTickets(); updateClearBtn(); });
+  dom.filterAssignee.addEventListener('change', function() { currentPage = 1; loadTickets(); updateClearBtn(); });
+  dom.filterCategory.addEventListener('change', function() { currentPage = 1; loadTickets(); updateClearBtn(); });
+
+  dom.clearFiltersBtn.addEventListener('click', function() {
+    dom.filterStatus.value = '';
+    dom.filterPriority.value = '';
+    dom.filterQueue.value = '';
+    dom.filterAssignee.value = '';
+    dom.filterCategory.value = '';
+    dom.filterSearch.value = '';
+    this.classList.add('d-none');
+    currentPage = 1;
+    loadTickets();
+  });
+
+  /* ============================================================
+     Bulk Actions
+     ============================================================ */
+  window.BulkActions = {
+    selectedTickets: new Set(),
+    _modal: null,
+
+    getModal: function() {
+      if (!this._modal) this._modal = new bootstrap.Modal(dom.bulkActionsModal);
+      return this._modal;
+    },
+
+    handleCheckboxChange: function(e) {
+      var id = e.target.dataset.ticketId;
+      if (e.target.checked) this.selectedTickets.add(id);
+      else this.selectedTickets.delete(id);
+      this.updateUI();
+    },
+
+    updateUI: function() {
+      var count = this.selectedTickets.size;
+      dom.selectedCount.textContent = count;
+      dom.bulkToolbarCount.textContent = count;
+      if (count > 0) {
+        dom.bulkToolbar.classList.remove('d-none');
+      } else {
+        dom.bulkToolbar.classList.add('d-none');
+        this.getModal().hide();
+      }
+    },
+
+    clearSelection: function() {
+      this.selectedTickets.clear();
+      dom.ticketsList.querySelectorAll('.ticket-checkbox').forEach(function(cb) { cb.checked = false; });
+      dom.selectAllCheckbox.checked = false;
+      dom.selectedCount.textContent = '0';
+      dom.bulkToolbarCount.textContent = '0';
+      dom.bulkToolbar.classList.add('d-none');
+      dom.bulkAssignUser.value = '';
+      dom.bulkStatusSelect.value = '';
+      dom.bulkPrioritySelect.value = '';
+    },
+
+    executeBulkAction: async function(action, params) {
+      if (this.selectedTickets.size === 0) return;
+      try {
+        var data = await Api.post('/api/v1/tickets/tickets/bulk-action/', {
+          action: action,
+          ticket_ids: Array.from(this.selectedTickets),
+          params: params || {}
+        });
+        this.getModal().hide();
+        Toast.success('Updated ' + data.tickets_updated + ' ticket(s)');
+        this.clearSelection();
+        loadTickets();
+      } catch(e) {
+        Toast.error((e && e.error) || 'Bulk action failed');
+      }
+    },
+
+    executeAssign: function() {
+      var userId = dom.bulkAssignUser.value;
+      if (!userId) { Toast.error('Select a user'); return; }
+      this.executeBulkAction('assign', { user_id: userId });
+    },
+
+    executeStatus: function() {
+      var statusId = dom.bulkStatusSelect.value;
+      if (!statusId) { Toast.error('Select a status'); return; }
+      this.executeBulkAction('change_status', { status_id: statusId });
+    },
+
+    executePriority: function() {
+      var priority = dom.bulkPrioritySelect.value;
+      if (!priority) { Toast.error('Select a priority'); return; }
+      this.executeBulkAction('change_priority', { priority: priority });
+    },
+
+    confirmDelete: function() {
+      if (confirm('Delete ' + this.selectedTickets.size + ' ticket(s)? This cannot be undone.')) {
+        this.executeBulkAction('delete');
+      }
+    }
+  };
+
+  /* Bulk action button listeners */
+  document.getElementById('bulkAssignBtn').addEventListener('click', function() { BulkActions.executeAssign(); });
+  document.getElementById('bulkStatusBtn').addEventListener('click', function() { BulkActions.executeStatus(); });
+  document.getElementById('bulkPriorityBtn').addEventListener('click', function() { BulkActions.executePriority(); });
+  document.getElementById('bulkDeleteBtn').addEventListener('click', function() { BulkActions.confirmDelete(); });
+  document.getElementById('bulkClearBtn').addEventListener('click', function() { BulkActions.clearSelection(); });
+
+  /* Select All */
+  dom.selectAllCheckbox.addEventListener('change', function(e) {
+    var checked = e.target.checked;
+    dom.ticketsList.querySelectorAll('.ticket-checkbox').forEach(function(cb) {
+      cb.checked = checked;
+      var id = cb.dataset.ticketId;
+      if (checked) BulkActions.selectedTickets.add(id);
+      else BulkActions.selectedTickets.delete(id);
+    });
+    BulkActions.updateUI();
+  });
+
+  /* Toolbar button listeners */
+  document.getElementById('bulkToolbarActionsBtn').addEventListener('click', function() {
+    BulkActions.getModal().show();
+  });
+  document.getElementById('bulkToolbarClearBtn').addEventListener('click', function() {
+    BulkActions.clearSelection();
+  });
+
+  /* ============================================================
+     Saved Views
+     ============================================================ */
+  window.SavedViews = {
+    currentView: null,
+    resourceType: 'ticket',
+    _viewsCache: null,
+
+    init: async function() {
+      var data = await this._fetchViews();
+      this.renderViewsList(data);
+      var defaultView = data.find(function(v) { return v.is_default; });
+      if (defaultView) this.applyView(defaultView);
+    },
+
+    _fetchViews: async function() {
+      try {
+        var data = await Api.get('/api/v1/tickets/saved-views/?resource_type=' + this.resourceType);
+        this._viewsCache = data.results || data;
+        return this._viewsCache;
+      } catch(e) {
+        console.error('Failed to load saved views:', e);
+        return [];
+      }
+    },
+
+    renderViewsList: function(views) {
+      dom.savedViewsList.innerHTML = '';
+      if (!views.length) {
+        dom.savedViewsList.innerHTML = '<span class="dropdown-item text-muted" style="font-size:0.8rem;">No saved views</span>';
+        return;
+      }
+      var self = this;
+      views.forEach(function(view) {
+        var item = document.createElement('a');
+        item.className = 'dropdown-item d-flex justify-content-between align-items-center';
+        item.href = '#';
+
+        var pinIcon = view.is_pinned ? '<i class="ti ti-pin-filled text-primary me-1" style="font-size:0.7rem;" aria-hidden="true"></i>' : '';
+        var sharedBadge = view.user === null ? '<span class="badge bg-info ms-1" style="font-size:0.6rem;">Shared</span>' : '';
+        var defaultBadge = view.is_default ? '<span class="badge bg-success ms-1" style="font-size:0.6rem;">Default</span>' : '';
+
+        item.innerHTML =
+          '<span>' + pinIcon + escapeHtml(view.name) + sharedBadge + defaultBadge + '</span>' +
+          '<span class="view-actions">' +
+            '<i class="ti ti-trash text-danger view-delete-btn" data-view-id="' + view.id + '" style="font-size:0.8rem;cursor:pointer;" role="button" aria-label="Delete view ' + escapeHtml(view.name) + '"></i>' +
+          '</span>';
+
+        item.addEventListener('click', function(e) {
+          e.preventDefault();
+          if (e.target.classList.contains('view-delete-btn') || e.target.closest('.view-delete-btn')) return;
+          self.applyView(view);
+        });
+
+        var delBtn = item.querySelector('.view-delete-btn');
+        if (delBtn) {
+          delBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            self.deleteView(view.id);
+          });
+        }
+
+        dom.savedViewsList.appendChild(item);
+      });
+    },
+
+    applyView: function(view) {
+      this.currentView = view;
+      dom.currentViewName.textContent = view.name;
+      var filters = view.filters || {};
+      if (filters.status) dom.filterStatus.value = filters.status;
+      if (filters.priority) dom.filterPriority.value = filters.priority;
+      if (filters.queue) dom.filterQueue.value = filters.queue;
+      if (filters.assignee) dom.filterAssignee.value = filters.assignee;
+      if (filters.category) dom.filterCategory.value = filters.category;
+      if (filters.search) dom.filterSearch.value = filters.search;
+      currentPage = 1;
+      loadTickets();
+    },
+
+    clearView: function() {
+      this.currentView = null;
+      dom.currentViewName.textContent = 'All Tickets';
+      dom.filterStatus.value = '';
+      dom.filterPriority.value = '';
+      dom.filterQueue.value = '';
+      dom.filterAssignee.value = '';
+      dom.filterCategory.value = '';
+      dom.filterSearch.value = '';
+      dom.clearFiltersBtn.classList.add('d-none');
+      currentPage = 1;
+      loadTickets();
+    },
+
+    getCurrentFilters: function() {
+      var filters = {};
+      var s = dom.filterStatus.value;
+      var p = dom.filterPriority.value;
+      var qu = dom.filterQueue.value;
+      var a = dom.filterAssignee.value;
+      var c = dom.filterCategory.value;
+      var q = dom.filterSearch.value.trim();
+      if (s) filters.status = s;
+      if (p) filters.priority = p;
+      if (qu) filters.queue = qu;
+      if (a) filters.assignee = a;
+      if (c) filters.category = c;
+      if (q) filters.search = q;
+      return filters;
+    },
+
+    saveCurrentView: async function() {
+      var name = prompt('Enter a name for this view:');
+      if (!name) return;
+      try {
+        await Api.post('/api/v1/tickets/saved-views/', {
+          name: name,
+          resource_type: this.resourceType,
+          filters: this.getCurrentFilters(),
+          sort_field: '-created_at'
+        });
+        Toast.success('View saved');
+        var views = await this._fetchViews();
+        this.renderViewsList(views);
+      } catch(e) {
+        Toast.error((e && e.name) ? (Array.isArray(e.name) ? e.name[0] : e.name) : 'Failed to save view');
+      }
+    },
+
+    deleteView: async function(viewId) {
+      if (!confirm('Delete this saved view?')) return;
+      try {
+        await Api.delete('/api/v1/tickets/saved-views/' + viewId + '/');
+        Toast.success('View deleted');
+        if (this.currentView && this.currentView.id === viewId) this.clearView();
+        var views = await this._fetchViews();
+        this.renderViewsList(views);
+      } catch(e) { Toast.error('Failed to delete view'); }
+    }
+  };
+
+  /* Saved views button listeners */
+  document.getElementById('clearViewBtn').addEventListener('click', function(e) { e.preventDefault(); SavedViews.clearView(); });
+  document.getElementById('saveViewBtn').addEventListener('click', function(e) { e.preventDefault(); SavedViews.saveCurrentView(); });
+
+  /* ── Stat Tab Clicks ── */
+  dom.statTabs.forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      dom.statTabs.forEach(function(t) { t.classList.remove('tl-stat-tab--active'); t.setAttribute('aria-selected', 'false'); });
+      tab.classList.add('tl-stat-tab--active');
+      tab.setAttribute('aria-selected', 'true');
+      var filter = tab.dataset.filter;
+      dom.filterQueue.value = '';
+      dom.filterAssignee.value = '';
+      dom.filterCategory.value = '';
+      if (filter === 'urgent') {
+        dom.filterStatus.value = '';
+        dom.filterPriority.value = 'urgent';
+      } else if (filter) {
+        dom.filterStatus.value = filter;
+        dom.filterPriority.value = '';
+      } else {
+        dom.filterStatus.value = '';
+        dom.filterPriority.value = '';
+      }
+      currentPage = 1;
+      loadTickets();
+      updateClearBtn();
+    });
+  });
+
+  /* ── Init ── */
   loadTickets();
+  SavedViews.init();
 })();
 </script>
 {% endblock %}

@@ -10,7 +10,6 @@ permission backend.
 import logging
 
 from django.contrib.contenttypes.models import ContentType
-from rest_framework import serializers as drf_serializers
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -28,8 +27,10 @@ from apps.comments.serializers import (
 from apps.comments.services import log_activity
 from apps.tickets.filters import TicketFilter
 from apps.tickets.models import (
+    CannedResponse,
     EscalationRule,
     Queue,
+    SavedView,
     SLAPolicy,
     Ticket,
     TicketAssignment,
@@ -45,15 +46,20 @@ from apps.tickets.services import (
     log_ticket_comment,
 )
 from apps.tickets.serializers import (
+    CannedResponseSerializer,
     EscalationRuleSerializer,
     QueueSerializer,
+    SavedViewSerializer,
     SLAPolicySerializer,
     TicketActivitySerializer,
     TicketAssignmentSerializer,
     TicketCategorySerializer,
     TicketCreateSerializer,
     TicketDetailSerializer,
+    TicketEmailListSerializer,
+    TicketLinkEmailSerializer,
     TicketListSerializer,
+    TicketSendEmailSerializer,
     TicketStatusSerializer,
 )
 
@@ -74,6 +80,13 @@ class TicketStatusViewSet(ModelViewSet):
     search_fields = ["name", "slug"]
     ordering_fields = ["order", "name", "created_at"]
     ordering = ["order"]
+
+    def get_permissions(self):
+        # Listing/retrieving statuses is allowed for any authenticated user
+        # since they are lookup data needed by all roles.
+        if self.action in ("list", "retrieve"):
+            return [IsAuthenticated()]
+        return super().get_permissions()
 
     def get_queryset(self):
         return TicketStatus.objects.all()
@@ -112,6 +125,11 @@ class TicketCategoryViewSet(ModelViewSet):
     search_fields = ["name", "slug"]
     ordering_fields = ["order", "name", "created_at"]
     ordering = ["order", "name"]
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [IsAuthenticated()]
+        return super().get_permissions()
 
     def get_queryset(self):
         qs = TicketCategory.objects.all()
@@ -235,6 +253,9 @@ class TicketViewSet(ModelViewSet):
     # ------------------------------------------------------------------
 
     def perform_create(self, serializer):
+        from apps.billing.services import PlanLimitChecker
+
+        PlanLimitChecker(self.request.tenant).check_can_create_ticket()
         instance = serializer.save()
         create_ticket_activity(instance, self.request.user, request=self.request)
 
@@ -602,6 +623,15 @@ class TicketViewSet(ModelViewSet):
                 .prefetch_related("mentions__mentioned_user")
                 .order_by("created_at")
             )
+
+            # Hide internal notes from non-admin/manager users
+            if not request.user.is_superuser:
+                from apps.accounts.permissions import _get_membership
+
+                tenant = getattr(request, "tenant", None)
+                membership = _get_membership(request, tenant) if tenant else None
+                if not membership or membership.role.hierarchy_level > 20:
+                    comments_qs = comments_qs.exclude(is_internal=True)
             page = self.paginate_queryset(comments_qs)
             if page is not None:
                 serializer = CommentSerializer(page, many=True)
@@ -635,6 +665,17 @@ class TicketViewSet(ModelViewSet):
         from apps.tickets.services import record_first_response
 
         record_first_response(ticket, request.user)
+
+        # Fire signal so the notification system can notify relevant users
+        from apps.notifications.signal_handlers import ticket_comment_created
+
+        ticket_comment_created.send(
+            sender=comment.__class__,
+            instance=comment,
+            tenant=ticket.tenant,
+            ticket=ticket,
+            author=request.user,
+        )
 
         return Response(
             CommentSerializer(comment).data, status=status.HTTP_201_CREATED
@@ -680,3 +721,355 @@ class TicketViewSet(ModelViewSet):
             return self.get_paginated_response(serializer.data)
         serializer = TicketActivitySerializer(timeline_qs, many=True)
         return Response(serializer.data)
+
+    # ------------------------------------------------------------------
+    # Bulk actions
+    # ------------------------------------------------------------------
+
+    @action(detail=False, methods=["post"], url_path="bulk-action")
+    def bulk_action(self, request):
+        """
+        Apply an action to multiple tickets at once.
+
+        POST /api/v1/tickets/tickets/bulk-action/
+        {
+            "action": "assign|change_status|change_priority|add_tag|delete",
+            "ticket_ids": ["uuid1", "uuid2", ...],
+            "params": { ... }
+        }
+        """
+        action_name = request.data.get("action")
+        ticket_ids = request.data.get("ticket_ids", [])
+        params = request.data.get("params", {})
+
+        if not action_name or not ticket_ids:
+            return Response(
+                {"error": "action and ticket_ids are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tickets = Ticket.objects.filter(id__in=ticket_ids)
+        if tickets.count() != len(ticket_ids):
+            return Response(
+                {"error": "Some tickets not found or access denied."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from apps.tickets.services import bulk_update_tickets
+
+        result = bulk_update_tickets(tickets, action_name, params, request.user, request)
+
+        return Response(
+            {
+                "success": True,
+                "tickets_updated": result["count"],
+                "action": action_name,
+                "details": result["details"],
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    # ------------------------------------------------------------------
+    # Email actions
+    # ------------------------------------------------------------------
+
+    @action(detail=True, methods=["get"], url_path="emails")
+    def emails(self, request, pk=None):
+        """
+        List inbound/outbound emails linked to this ticket.
+
+        GET /api/v1/tickets/tickets/{id}/emails/
+        """
+        ticket = self.get_object()
+        from apps.inbound_email.models import InboundEmail
+
+        emails_qs = (
+            InboundEmail.objects.filter(ticket=ticket)
+            .order_by("-created_at")
+        )
+        serializer = TicketEmailListSerializer(emails_qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="send-email")
+    def send_email(self, request, pk=None):
+        """
+        Send an email from this ticket to a recipient.
+
+        The email includes [#N] in the subject for threading and sets
+        the Reply-To to the tenant's inbound address so replies come
+        back as inbound emails linked to this ticket.
+
+        POST /api/v1/tickets/tickets/{id}/send-email/
+        {"to": "customer@example.com", "subject": "...", "body": "..."}
+        """
+        ticket = self.get_object()
+        serializer = TicketSendEmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response(
+                {"detail": "Tenant context required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        to_email = serializer.validated_data["to"]
+        subject = serializer.validated_data["subject"]
+        body = serializer.validated_data["body"]
+        agent_name = request.user.get_full_name() or request.user.email
+
+        # Ensure subject contains ticket reference for threading
+        ticket_ref = f"[#{ticket.number}]"
+        if ticket_ref not in subject:
+            subject = f"{ticket_ref} {subject}"
+
+        from apps.tickets.email_service import (
+            _generate_message_id,
+            _get_from_address,
+            _get_reply_to_address,
+            _record_outbound_message_id,
+        )
+
+        from django.core.mail import EmailMultiAlternatives
+
+        reply_to = _get_reply_to_address(tenant)
+        from_address = _get_from_address(tenant)
+        message_id = _generate_message_id(tenant, ticket)
+
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=body,
+            from_email=from_address,
+            to=[to_email],
+            reply_to=[reply_to],
+            headers={
+                "Message-ID": message_id,
+                "X-Ticket-Number": str(ticket.number),
+                "X-Tenant-Slug": tenant.slug,
+                "X-Agent": agent_name,
+            },
+        )
+
+        try:
+            from django.conf import settings as django_settings
+
+            email.send(fail_silently=False)
+            _record_outbound_message_id(tenant, ticket, message_id, to_email)
+
+            # Log to ticket timeline + audit
+            from apps.tickets.models import TicketActivity as TA
+
+            TA.objects.create(
+                tenant=tenant, ticket=ticket, actor=request.user,
+                event=TA.Event.COMMENTED,
+                message=f"Email sent to {to_email}: {subject}",
+            )
+            log_activity(
+                tenant=tenant, actor=request.user, content_object=ticket,
+                action=ActivityLog.Action.FIELD_CHANGED,
+                description=f"Sent email to {to_email}",
+                request=request,
+            )
+
+            logger.info(
+                "Agent %s sent email to %s for ticket #%d",
+                request.user.email, to_email, ticket.number,
+            )
+            return Response(
+                {"detail": "Email sent.", "message_id": message_id},
+                status=status.HTTP_200_OK,
+            )
+        except Exception as exc:
+            logger.exception(
+                "Failed to send email for ticket #%d to %s",
+                ticket.number, to_email,
+            )
+            return Response(
+                {"detail": f"Failed to send email: {exc}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+    @action(detail=True, methods=["post"], url_path="link-email")
+    def link_email(self, request, pk=None):
+        """
+        Link an existing inbound email to this ticket.
+
+        Agents can attach unlinked or misrouted emails to the correct
+        ticket for follow-up tracking.
+
+        POST /api/v1/tickets/tickets/{id}/link-email/
+        {"email_id": "<uuid>"}
+        """
+        ticket = self.get_object()
+        serializer = TicketLinkEmailSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        from apps.inbound_email.models import InboundEmail
+
+        email_id = serializer.validated_data["email_id"]
+        tenant = getattr(request, "tenant", None)
+
+        try:
+            inbound = InboundEmail.objects.get(pk=email_id, tenant=tenant)
+        except InboundEmail.DoesNotExist:
+            return Response(
+                {"detail": "Email not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        old_ticket = inbound.ticket
+        inbound.ticket = ticket
+        inbound.save(update_fields=["ticket", "updated_at"])
+
+        from apps.tickets.models import TicketActivity as TA
+
+        TA.objects.create(
+            tenant=tenant, ticket=ticket, actor=request.user,
+            event=TA.Event.COMMENTED,
+            message=f"Linked email from {inbound.sender_email}: {inbound.subject}",
+        )
+        log_activity(
+            tenant=tenant, actor=request.user, content_object=ticket,
+            action=ActivityLog.Action.FIELD_CHANGED,
+            description=f"Linked inbound email {email_id} to ticket",
+            request=request,
+        )
+
+        logger.info(
+            "Agent %s linked email %s to ticket #%d (was: %s)",
+            request.user.email,
+            email_id,
+            ticket.number,
+            f"#{old_ticket.number}" if old_ticket else "unlinked",
+        )
+
+        return Response(
+            {"detail": "Email linked to ticket.", "email_id": str(email_id)},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=["get"], url_path="unlinked-emails")
+    def unlinked_emails(self, request):
+        """
+        List inbound emails that are not yet linked to any ticket.
+
+        Agents can browse these and link them to the appropriate ticket.
+
+        GET /api/v1/tickets/tickets/unlinked-emails/
+        """
+        from apps.inbound_email.models import InboundEmail
+
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response([], status=status.HTTP_200_OK)
+
+        emails_qs = (
+            InboundEmail.objects.filter(tenant=tenant, ticket__isnull=True)
+            .exclude(status=InboundEmail.Status.REJECTED)
+            .order_by("-created_at")[:50]
+        )
+        serializer = TicketEmailListSerializer(emails_qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# CannedResponse
+# ---------------------------------------------------------------------------
+
+
+class CannedResponseViewSet(ModelViewSet):
+    """
+    CRUD for canned response templates.
+
+    Agents see shared responses plus their own personal ones.
+    """
+
+    serializer_class = CannedResponseSerializer
+    permission_classes = [IsAuthenticated]
+    search_fields = ["title", "content", "shortcut"]
+    ordering_fields = ["title", "category", "usage_count", "created_at"]
+    ordering = ["category", "title"]
+
+    def get_queryset(self):
+        from django.db.models import Q
+
+        return CannedResponse.objects.filter(
+            Q(is_shared=True) | Q(created_by=self.request.user)
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def render(self, request, pk=None):
+        """
+        Render a canned response with template variables for the given ticket.
+
+        POST /api/v1/tickets/canned-responses/{id}/render/
+        {"ticket_id": "<uuid>"}
+        """
+        response_obj = self.get_object()
+        ticket_id = request.data.get("ticket_id")
+        if not ticket_id:
+            return Response(
+                {"error": "ticket_id is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            ticket = Ticket.objects.select_related("contact").get(id=ticket_id)
+        except Ticket.DoesNotExist:
+            return Response(
+                {"error": "Ticket not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from apps.tickets.utils import render_canned_response
+
+        content = render_canned_response(response_obj, ticket, request.user)
+        return Response({"content": content})
+
+
+# ---------------------------------------------------------------------------
+# SavedView
+# ---------------------------------------------------------------------------
+
+
+class SavedViewViewSet(ModelViewSet):
+    """
+    CRUD for saved filter views (tickets / contacts).
+
+    Users see shared views (user=NULL) plus their own personal views.
+    """
+
+    serializer_class = SavedViewSerializer
+    permission_classes = [IsAuthenticated]
+    search_fields = ["name"]
+    ordering = ["-is_pinned", "name"]
+
+    def get_queryset(self):
+        from django.db.models import Q
+
+        qs = SavedView.objects.filter(
+            Q(user=self.request.user) | Q(user__isnull=True)
+        )
+        resource_type = self.request.query_params.get("resource_type")
+        if resource_type:
+            qs = qs.filter(resource_type=resource_type)
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=["post"], url_path="set-default")
+    def set_default(self, request, pk=None):
+        """Set this view as the default for its resource type."""
+        view = self.get_object()
+        # Unset other defaults for same user + resource_type
+        SavedView.objects.filter(
+            user=request.user,
+            resource_type=view.resource_type,
+            is_default=True,
+        ).update(is_default=False)
+        view.is_default = True
+        view.save(update_fields=["is_default", "updated_at"])
+        return Response({"status": "default set"})

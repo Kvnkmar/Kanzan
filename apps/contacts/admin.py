@@ -7,11 +7,13 @@ search, and filter options for administrative use.
 
 from django.contrib import admin
 
+from main.admin import TenantFilteredAdmin
+
 from apps.contacts.models import Company, Contact, ContactGroup
 
 
 @admin.register(Company)
-class CompanyAdmin(admin.ModelAdmin):
+class CompanyAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "name",
         "domain",
@@ -28,7 +30,7 @@ class CompanyAdmin(admin.ModelAdmin):
 
 
 @admin.register(Contact)
-class ContactAdmin(admin.ModelAdmin):
+class ContactAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "full_name",
         "email",
@@ -56,7 +58,7 @@ class ContactAdmin(admin.ModelAdmin):
 
 
 @admin.register(ContactGroup)
-class ContactGroupAdmin(admin.ModelAdmin):
+class ContactGroupAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "name",
         "contact_count",

@@ -67,9 +67,9 @@ const Api = {
   /**
    * Upload a file via multipart form data.
    */
-  async upload(url, formData) {
+  async upload(url, formData, method = 'POST') {
     const response = await fetch(url, {
-      method: 'POST',
+      method: method,
       headers: { 'X-CSRFToken': this.getCsrfToken() },
       credentials: 'same-origin',
       body: formData,

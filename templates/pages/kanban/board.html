@@ -258,15 +258,10 @@
     return div.innerHTML;
   }
 
-  function formatRelativeTime(dateStr) {
+  function formatShortDate(dateStr) {
     if (!dateStr) return '';
-    var now = new Date(), d = new Date(dateStr), ms = now - d;
-    var mins = Math.floor(ms / 60000), hrs = Math.floor(ms / 3600000), days = Math.floor(ms / 86400000);
-    if (mins < 1) return 'just now';
-    if (mins < 60) return mins + 'm ago';
-    if (hrs < 24) return hrs + 'h ago';
-    if (days < 30) return days + 'd ago';
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    var d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { day: 'numeric', month: 'short' });
   }
 
   function showLoading() {
@@ -329,28 +324,61 @@
     var initials = getInitials(assigneeName);
     var bgColor = avatarColor(assigneeName);
 
-    var assigneeHtml = assigneeName
-      ? '<div class="kanban-card-assignee"><div class="mini-avatar" style="background:' + bgColor + ';" title="' + escapeHtml(assigneeName) + '">' + initials + '</div><span>' + escapeHtml(assigneeName) + '</span></div>'
-      : '<div class="kanban-card-assignee"><div class="mini-avatar mini-avatar-empty" title="Unassigned">?</div><span class="text-muted">Unassigned</span></div>';
+    // Header: #number + priority badge
+    if (ticket.number || ticket.priority) {
+      var header = document.createElement('div');
+      header.className = 'kanban-card-header';
+      if (ticket.number) {
+        var numSpan = document.createElement('span');
+        numSpan.className = 'kanban-card-number';
+        numSpan.textContent = '#' + ticket.number;
+        header.appendChild(numSpan);
+      }
+      var priorityLabel = ticket.priority ? ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) : '';
+      if (priorityLabel) {
+        var badge = document.createElement('span');
+        badge.className = 'priority-badge priority-badge-' + ticket.priority;
+        badge.textContent = priorityLabel;
+        header.appendChild(badge);
+      }
+      card.appendChild(header);
+    }
 
-    var numberHtml = ticket.number
-      ? '<span class="kanban-card-number">#' + ticket.number + '</span>'
-      : '';
+    // Title
+    var title = document.createElement('div');
+    title.className = 'kanban-card-title';
+    title.textContent = ticket.subject || 'Untitled';
+    card.appendChild(title);
 
-    var timeHtml = ticket.created_at
-      ? '<span class="kanban-card-date">' + formatRelativeTime(ticket.created_at) + '</span>'
-      : '';
+    // Footer: avatar + name + date
+    var footer = document.createElement('div');
+    footer.className = 'kanban-card-footer';
 
-    card.innerHTML =
-      '<div class="kanban-card-header">' +
-        numberHtml +
-        '<span class="priority-dot" style="background:' + prColor + ';"></span>' +
-      '</div>' +
-      '<h6 class="kanban-card-title">' + escapeHtml(ticket.subject || 'Untitled') + '</h6>' +
-      '<div class="kanban-card-footer">' +
-        assigneeHtml +
-        timeHtml +
-      '</div>';
+    var assigneeDiv = document.createElement('div');
+    assigneeDiv.className = 'kanban-card-assignee';
+
+    var avatar = document.createElement('div');
+    avatar.className = assigneeName ? 'mini-avatar' : 'mini-avatar mini-avatar-empty';
+    avatar.title = assigneeName || 'Unassigned';
+    if (assigneeName) avatar.style.background = bgColor;
+    avatar.textContent = assigneeName ? initials : '?';
+    assigneeDiv.appendChild(avatar);
+
+    var nameSpan = document.createElement('span');
+    nameSpan.textContent = assigneeName || 'Unassigned';
+    if (!assigneeName) nameSpan.style.color = 'var(--crm-text-muted)';
+    assigneeDiv.appendChild(nameSpan);
+
+    footer.appendChild(assigneeDiv);
+
+    if (ticket.created_at) {
+      var dateSpan = document.createElement('span');
+      dateSpan.className = 'kanban-card-date';
+      dateSpan.textContent = formatShortDate(ticket.created_at);
+      footer.appendChild(dateSpan);
+    }
+
+    card.appendChild(footer);
 
     card.addEventListener('click', function(e) {
       if (ticket.number) {
@@ -395,36 +423,72 @@
     col.dataset.columnId = column.id;
 
     var cards = column.cards || [];
-    var colColor = column.color || '#6c757d';
+    var colColor = column.color || '#94A3B8';
 
-    col.innerHTML =
-      '<div class="kanban-column-header">' +
-        '<div class="column-header-left">' +
-          '<span class="column-dot" style="background:' + escapeHtml(colColor) + ';"></span>' +
-          '<h6 class="column-title">' + escapeHtml(column.name || 'Untitled') + '</h6>' +
-          '<span class="column-count">' + cards.length + '</span>' +
-        '</div>' +
-      '</div>' +
-      '<div class="kanban-column-body" data-column-id="' + column.id + '"></div>';
+    // Header
+    var headerDiv = document.createElement('div');
+    headerDiv.className = 'kanban-column-header';
 
-    var body = col.querySelector('.kanban-column-body');
-    if (cards.length === 0) {
-      body.innerHTML = '<div class="kanban-empty-placeholder kanban-empty-state">' +
-        '<i class="ti ti-inbox d-block mb-1" style="font-size:1.25rem;opacity:0.4;"></i>' +
-        '<span>No tickets</span><br><span class="small text-muted">Drag tickets here</span></div>';
-    } else {
-      body.innerHTML = '<div class="kanban-empty-state d-none kanban-empty-placeholder">' +
-        '<i class="ti ti-inbox d-block mb-1" style="font-size:1.25rem;opacity:0.4;"></i>' +
-        '<span>No tickets</span><br><span class="small text-muted">Drag tickets here</span></div>';
-      cards.forEach(function(card) {
-        var ticket = card.data || {};
-        ticket.id = card.object_id;
-        ticket.subject = ticket.title || ticket.subject || 'Untitled';
-        ticket._cardId = card.id;
-        body.appendChild(createCard(ticket));
-      });
-    }
+    var headerLeft = document.createElement('div');
+    headerLeft.className = 'column-header-left';
 
+    var dot = document.createElement('span');
+    dot.className = 'column-dot';
+    dot.style.background = colColor;
+    headerLeft.appendChild(dot);
+
+    var titleEl = document.createElement('h6');
+    titleEl.className = 'column-title';
+    titleEl.textContent = column.name || 'Untitled';
+    headerLeft.appendChild(titleEl);
+
+    var countEl = document.createElement('span');
+    countEl.className = 'column-count';
+    countEl.textContent = cards.length;
+    headerLeft.appendChild(countEl);
+
+    headerDiv.appendChild(headerLeft);
+
+    // "+" button in column header
+    var addBtn = document.createElement('button');
+    addBtn.className = 'kanban-col-add-btn';
+    addBtn.title = 'Create ticket';
+    var addIcon = document.createElement('i');
+    addIcon.className = 'ti ti-plus';
+    addBtn.appendChild(addIcon);
+    addBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      window.location.href = '/tickets/new/';
+    });
+    headerDiv.appendChild(addBtn);
+
+    col.appendChild(headerDiv);
+
+    // Card body
+    var body = document.createElement('div');
+    body.className = 'kanban-column-body';
+    body.dataset.columnId = column.id;
+
+    // Empty placeholder
+    var emptyDiv = document.createElement('div');
+    emptyDiv.className = 'kanban-empty-state kanban-empty-placeholder';
+    if (cards.length > 0) emptyDiv.classList.add('d-none');
+
+    var emptyText = document.createElement('span');
+    emptyText.textContent = 'Drop here';
+    emptyDiv.appendChild(emptyText);
+
+    body.appendChild(emptyDiv);
+
+    cards.forEach(function(card) {
+      var ticket = card.data || {};
+      ticket.id = card.object_id;
+      ticket.subject = ticket.title || ticket.subject || 'Untitled';
+      ticket._cardId = card.id;
+      body.appendChild(createCard(ticket));
+    });
+
+    col.appendChild(body);
     return col;
   }
 

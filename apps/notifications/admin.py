@@ -4,11 +4,13 @@ Django admin configuration for the notifications app.
 
 from django.contrib import admin
 
+from main.admin import TenantFilteredAdmin
+
 from apps.notifications.models import Notification, NotificationPreference
 
 
 @admin.register(Notification)
-class NotificationAdmin(admin.ModelAdmin):
+class NotificationAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = (
         "title",
         "type",
@@ -60,7 +62,7 @@ class NotificationAdmin(admin.ModelAdmin):
 
 
 @admin.register(NotificationPreference)
-class NotificationPreferenceAdmin(admin.ModelAdmin):
+class NotificationPreferenceAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = (
         "user",
         "tenant",

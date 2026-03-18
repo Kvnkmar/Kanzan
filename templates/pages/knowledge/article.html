@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+{% block title %}Article - Kanzen Suite{% endblock %}
+
+{% block content %}
+<!-- Back Navigation -->
+<div class="kb-back-nav">
+  <a href="{% url 'frontend:knowledge-list' %}" class="kb-back-link">
+    <i class="ti ti-arrow-left me-1"></i> Back to Knowledge Base
+  </a>
+</div>
+
+<!-- Article Container -->
+<div class="kb-article-container" id="articleContainer">
+  <div id="articleLoading" class="kb-loading">
+    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+    <span class="ms-2">Loading article...</span>
+  </div>
+
+  <div id="articleContent" style="display:none;">
+    <!-- Header -->
+    <div class="kb-article-header">
+      <div class="kb-article-badges">
+        <span class="kb-article-category-badge" id="articleCategoryBadge" style="display:none;"></span>
+        <span class="badge bg-warning" id="articleDraftBadge" style="display:none;">Draft</span>
+        <span class="kb-pinned-indicator" id="articlePinnedBadge" style="display:none;"><i class="ti ti-pin me-1"></i>Pinned</span>
+      </div>
+      <h1 class="kb-article-title" id="articleTitle"></h1>
+      <div class="kb-article-meta">
+        <span class="kb-article-author"><i class="ti ti-user me-1"></i><span id="articleAuthor"></span></span>
+        <span class="kb-article-date"><i class="ti ti-calendar me-1"></i><span id="articleDate"></span></span>
+        <span class="kb-article-views"><i class="ti ti-eye me-1"></i><span id="articleViews"></span> views</span>
+      </div>
+      {% if is_admin_or_manager %}
+      <div class="kb-article-actions">
+        <button class="btn btn-sm btn-outline-primary" onclick="editArticle()"><i class="ti ti-edit me-1"></i>Edit</button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteArticle()"><i class="ti ti-trash me-1"></i>Delete</button>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="kb-article-tags" id="articleTags"></div>
+    <div id="articleFileBox" class="kb-file-link-box" style="display:none;">
+      <a id="articleFileLink" href="#" target="_blank" class="kb-file-link-item">
+        <i class="ti ti-file-text kb-file-link-icon"></i>
+        <span class="kb-file-link-name" id="articleFileLabel"></span>
+        <span class="kb-file-link-hint">Click to preview</span>
+        <i class="ti ti-external-link kb-file-link-arrow"></i>
+      </a>
+    </div>
+    <div class="kb-article-body" id="articleBody"></div>
+  </div>
+
+  <div id="articleNotFound" style="display:none;" class="kb-empty-state">
+    <div class="kb-empty-icon"><i class="ti ti-file-off"></i></div>
+    <h6>Article not found</h6>
+    <p>This article may have been removed or is no longer available</p>
+    <a href="{% url 'frontend:knowledge-list' %}" class="btn btn-primary btn-sm mt-2">Back to Knowledge Base</a>
+  </div>
+</div>
+
+<!-- Edit Modal (admin/manager only) -->
+{% if is_admin_or_manager %}
+<div class="modal fade" id="editArticleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Edit Article</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="editArticleForm">
+          <input type="hidden" id="editArticleId">
+          <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" id="editArticleTitle" class="form-control" required>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Category</label>
+              <select id="editArticleCategory" class="form-select"><option value="">No Category</option></select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Status</label>
+              <select id="editArticleStatus" class="form-select">
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Excerpt</label>
+            <textarea id="editArticleExcerpt" class="form-control" rows="2"></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Content</label>
+            <textarea id="editArticleContent" class="form-control" rows="12" required></textarea>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Tags (comma-separated)</label>
+              <input type="text" id="editArticleTags" class="form-control">
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+              <div class="form-check">
+                <input type="checkbox" id="editArticlePinned" class="form-check-input">
+                <label class="form-check-label" for="editArticlePinned">Pin this article</label>
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Attach File</label>
+            <input type="file" id="editArticleFile" class="form-control">
+            <div id="editArticleFileInfo" class="small text-muted mt-1" style="display:none;">
+              <i class="ti ti-file me-1"></i><span id="editArticleFileName"></span>
+              <a id="editArticleFileView" href="#" target="_blank" class="btn btn-link btn-sm p-0 ms-2"><i class="ti ti-eye"></i> View</a>
+              <button type="button" class="btn btn-link btn-sm text-danger p-0 ms-2" onclick="removeArticleFile()"><i class="ti ti-x"></i> Remove</button>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" onclick="saveEditArticle()">Save Changes</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  const API = '/api/v1/knowledge';
+  const slug = '{{ article_slug|escapejs }}';
+  let article = null;
+
+  document.addEventListener('DOMContentLoaded', loadArticle);
+
+  async function loadArticle() {
+    const ld = document.getElementById('articleLoading'), ct = document.getElementById('articleContent'), nf = document.getElementById('articleNotFound');
+    try {
+      const r = await Api.get(`${API}/articles/?slug=${slug}`);
+      const list = r.results || r;
+      if (!list || !list.length) { ld.style.display = 'none'; nf.style.display = 'flex'; return; }
+      article = await Api.get(`${API}/articles/${list[0].id}/`);
+      Api.post(`${API}/articles/${article.id}/record-view/`).catch(() => {});
+      render(article);
+      ld.style.display = 'none';
+      ct.style.display = 'block';
+      document.title = `${article.title} - Knowledge Base`;
+    } catch(e) { ld.style.display = 'none'; nf.style.display = 'flex'; }
+  }
+
+  function render(a) {
+    document.getElementById('articleTitle').textContent = a.title;
+    document.getElementById('articleAuthor').textContent = a.author_name || 'Unknown';
+    document.getElementById('articleViews').textContent = a.view_count || 0;
+    document.getElementById('articleDate').textContent = a.published_at
+      ? new Date(a.published_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+      : 'Not published';
+
+    const cb = document.getElementById('articleCategoryBadge');
+    if (a.category_detail) { cb.innerHTML = `<i class="${a.category_detail.icon || 'ti ti-folder'} me-1"></i>${esc(a.category_detail.name)}`; cb.style.display = 'inline-flex'; }
+    if (a.status === 'draft') document.getElementById('articleDraftBadge').style.display = 'inline';
+    if (a.is_pinned) document.getElementById('articlePinnedBadge').style.display = 'inline-flex';
+
+    const tags = document.getElementById('articleTags');
+    if (a.tags && a.tags.length) tags.innerHTML = a.tags.map(t => `<span class="kb-tag">${esc(t)}</span>`).join('');
+    else tags.style.display = 'none';
+
+    if (a.file) {
+      document.getElementById('articleFileLink').href = `${API}/articles/${a.id}/preview-file/`;
+      document.getElementById('articleFileLabel').textContent = a.file_name || 'Attachment';
+      document.getElementById('articleFileBox').style.display = 'block';
+    }
+
+    document.getElementById('articleBody').innerHTML = fmtContent(a.content);
+    loadCatsForEdit();
+  }
+
+  function fmtContent(c) {
+    if (!c) return '';
+    if (!c.includes('<')) return c.split('\n\n').map(p => `<p>${esc(p).replace(/\n/g, '<br>')}</p>`).join('');
+    return c;
+  }
+
+  async function loadCatsForEdit() {
+    const sel = document.getElementById('editArticleCategory');
+    if (!sel) return;
+    try {
+      const r = await Api.get(`${API}/categories/?active_only=true&page_size=50`);
+      const cats = r.results || r;
+      sel.innerHTML = '<option value="">No Category</option>' + cats.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+    } catch(e) {}
+  }
+
+  window.editArticle = function() {
+    if (!article) return;
+    document.getElementById('editArticleId').value = article.id;
+    document.getElementById('editArticleTitle').value = article.title;
+    document.getElementById('editArticleCategory').value = article.category || '';
+    document.getElementById('editArticleStatus').value = article.status;
+    document.getElementById('editArticleExcerpt').value = article.excerpt || '';
+    document.getElementById('editArticleContent').value = article.content || '';
+    document.getElementById('editArticleTags').value = (article.tags || []).join(', ');
+    document.getElementById('editArticlePinned').checked = article.is_pinned;
+    document.getElementById('editArticleFile').value = '';
+    var fileInfo = document.getElementById('editArticleFileInfo');
+    if (article.file_name && article.file) {
+      document.getElementById('editArticleFileName').textContent = article.file_name;
+      document.getElementById('editArticleFileView').href = `${API}/articles/${article.id}/preview-file/`;
+      fileInfo.style.display = 'block';
+    } else {
+      fileInfo.style.display = 'none';
+    }
+    new bootstrap.Modal(document.getElementById('editArticleModal')).show();
+  };
+
+  window.removeArticleFile = async function() {
+    if (!article) return;
+    try { await Api.post(`${API}/articles/${article.id}/remove-file/`); } catch(e) {}
+    document.getElementById('editArticleFile').value = '';
+    document.getElementById('editArticleFileInfo').style.display = 'none';
+  };
+
+  window.saveEditArticle = async function() {
+    const id = document.getElementById('editArticleId').value;
+    const tags = document.getElementById('editArticleTags').value.split(',').map(t => t.trim()).filter(Boolean);
+    const fileInput = document.getElementById('editArticleFile');
+    const hasFile = fileInput.files && fileInput.files.length > 0;
+
+    try {
+      if (hasFile) {
+        const fd = new FormData();
+        fd.append('title', document.getElementById('editArticleTitle').value);
+        fd.append('content', document.getElementById('editArticleContent').value);
+        fd.append('excerpt', document.getElementById('editArticleExcerpt').value);
+        fd.append('status', document.getElementById('editArticleStatus').value);
+        fd.append('is_pinned', document.getElementById('editArticlePinned').checked);
+        const cat = document.getElementById('editArticleCategory').value;
+        if (cat) fd.append('category', cat);
+        tags.forEach(t => fd.append('tags', t));
+        fd.append('file', fileInput.files[0]);
+        fd.append('file_name', fileInput.files[0].name);
+        await Api.upload(`${API}/articles/${id}/`, fd, 'PATCH');
+      } else {
+        const data = {
+          title: document.getElementById('editArticleTitle').value,
+          category: document.getElementById('editArticleCategory').value || null,
+          status: document.getElementById('editArticleStatus').value,
+          excerpt: document.getElementById('editArticleExcerpt').value,
+          content: document.getElementById('editArticleContent').value,
+          tags, is_pinned: document.getElementById('editArticlePinned').checked,
+        };
+        await Api.patch(`${API}/articles/${id}/`, data);
+      }
+      Toast.success('Article updated');
+      bootstrap.Modal.getInstance(document.getElementById('editArticleModal')).hide();
+      article = await Api.get(`${API}/articles/${id}/`);
+      render(article);
+    } catch(e) { Toast.error(e.detail || 'Failed to update'); }
+  };
+
+  window.deleteArticle = async function() {
+    if (!article || !confirm('Delete this article permanently?')) return;
+    try { await Api.delete(`${API}/articles/${article.id}/`); Toast.success('Article deleted'); window.location.href = '/knowledge/'; }
+    catch(e) { Toast.error(e.detail || 'Failed to delete'); }
+  };
+
+  function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+})();
+</script>
+{% endblock %}

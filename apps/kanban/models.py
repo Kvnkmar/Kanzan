@@ -5,8 +5,6 @@ Provides Board, Column, and CardPosition models for managing kanban-style
 boards that can track tickets, deals, or other entities via generic foreign keys.
 """
 
-import uuid
-
 from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -101,7 +99,7 @@ class Column(TenantScopedModel):
         return f"{self.board.name} - {self.name} (#{self.order})"
 
 
-class CardPosition(models.Model):
+class CardPosition(TenantScopedModel):
     """
     Tracks the position of an entity (ticket, deal, etc.) within a kanban column.
 
@@ -109,11 +107,6 @@ class CardPosition(models.Model):
     model instance can be placed on a board.
     """
 
-    id = models.UUIDField(
-        primary_key=True,
-        default=uuid.uuid4,
-        editable=False,
-    )
     column = models.ForeignKey(
         Column,
         on_delete=models.CASCADE,

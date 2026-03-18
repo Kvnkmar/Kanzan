@@ -42,11 +42,6 @@ def tenant_context(request):
             is_admin = user_role.hierarchy_level <= 10
             is_admin_or_manager = user_role.hierarchy_level <= 20
 
-        # Superusers always get admin-level access
-        if request.user.is_superuser:
-            is_admin = True
-            is_admin_or_manager = True
-
     return {
         "tenant": tenant,
         "membership": membership,

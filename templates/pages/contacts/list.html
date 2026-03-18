@@ -18,6 +18,25 @@
   </div>
 </div>
 
+<!-- Saved Views Bar -->
+<div class="saved-views-bar">
+  <div class="dropdown">
+    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="viewSelector" data-bs-toggle="dropdown" aria-expanded="false">
+      <i class="ti ti-funnel me-1"></i> <span id="currentViewName">All Contacts</span>
+    </button>
+    <ul class="dropdown-menu" id="viewDropdown">
+      <li><a class="dropdown-item" href="#" onclick="ContactSavedViews.clearView(); return false;"><i class="ti ti-list me-1"></i> All Contacts</a></li>
+      <li><hr class="dropdown-divider"></li>
+      <li><h6 class="dropdown-header">Saved Views</h6></li>
+      <div id="savedViewsList"></div>
+      <li><hr class="dropdown-divider"></li>
+      <li><a class="dropdown-item text-primary" href="#" onclick="ContactSavedViews.saveCurrentView(); return false;">
+        <i class="ti ti-plus-circle me-1"></i> Save Current View
+      </a></li>
+    </ul>
+  </div>
+</div>
+
 <!-- Search / Filter Bar -->
 <div class="filter-bar">
   <div class="filter-bar-inner">
@@ -25,7 +44,7 @@
       <label for="contactSearch" class="filter-label">Search</label>
       <div class="input-group input-group-sm">
         <span class="input-group-text"><i class="ti ti-search"></i></span>
-        <input type="text" id="contactSearch" class="form-control" placeholder="Search contacts by name, email, or company...">
+        <input type="text" id="contactSearch" name="search" class="form-control" placeholder="Search contacts by name, email, or company...">
       </div>
     </div>
   </div>
@@ -37,7 +56,8 @@
     <table class="table table-hover align-middle mb-0">
       <thead>
         <tr>
-          <th class="ps-3">Name</th>
+          <th style="width:40px;" class="ps-3"><input type="checkbox" id="selectAllContacts"></th>
+          <th>Name</th>
           <th>Email</th>
           <th>Phone</th>
           <th>Company</th>
@@ -46,7 +66,7 @@
       </thead>
       <tbody id="contactsTableBody">
         <tr id="loadingRow">
-          <td colspan="5" class="text-center py-5">
+          <td colspan="6" class="text-center py-5">
             <div class="loading-spinner">
               <div class="spinner-border spinner-border-sm text-primary" role="status">
                 <span class="visually-hidden">Loading...</span>
@@ -81,6 +101,15 @@
     <ul id="paginationControls" class="pagination pagination-sm mb-0"></ul>
   </div>
 </nav>
+
+<!-- Bulk Action Bar -->
+<div id="contactBulkBar" class="bulk-action-bar" style="display:none;">
+  <span class="bulk-count"><span id="contactSelectedCount">0</span> selected</span>
+  <button class="btn btn-sm btn-outline-danger" onclick="ContactBulk.confirmDelete()">
+    <i class="ti ti-trash me-1"></i>Delete
+  </button>
+  <button class="btn btn-sm btn-link text-muted ms-auto" onclick="ContactBulk.clearSelection()">Clear</button>
+</div>
 
 <!-- Add Contact Modal -->
 <div class="modal fade" id="addContactModal" tabindex="-1" aria-hidden="true">
@@ -157,7 +186,7 @@
   function loadContacts() {
     var tbody = document.getElementById('contactsTableBody');
     document.getElementById('contactsTableCard').classList.remove('d-none'); document.getElementById('emptyState').classList.add('d-none');
-    tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5"><div class="loading-spinner"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div><span class="loading-text">Loading contacts...</span></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5"><div class="loading-spinner"><div class="spinner-border spinner-border-sm text-primary" role="status"><span class="visually-hidden">Loading...</span></div><span class="loading-text">Loading contacts...</span></div></td></tr>';
     var params = new URLSearchParams(); params.set('page', currentPage); params.set('page_size', PAGE_SIZE);
     var q = document.getElementById('contactSearch').value.trim(); if (q) params.set('search', q);
     Api.get('/api/v1/contacts/contacts/?' + params.toString()).then(function(data) {
@@ -172,21 +201,34 @@
         var row = document.createElement('tr');
         row.className = 'table-row-clickable';
         row.style.cursor = 'pointer';
-        row.addEventListener('click', function(e) {
-          if (e.target.tagName === 'A') return;
-          window.location.href = '/contacts/' + c.id + '/';
-        });
         var fn = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
         var ini = fn ? fn.split(' ').map(function(n) { return n.charAt(0); }).join('').substring(0, 2).toUpperCase() : '?';
         var comp = c.company ? (typeof c.company === 'object' ? (c.company.name || '') : (c.company_name || '')) : '';
         var bgColor = avatarColor(fn);
-        row.innerHTML = '<td class="ps-3"><div class="d-flex align-items-center gap-3"><div class="avatar avatar-sm" style="background:' + bgColor + ';color:#fff;">' + ini + '</div><span class="fw-medium">' + escapeHtml(fn || 'Unnamed') + '</span></div></td>' +
+        row.innerHTML = '<td class="ps-3"><input type="checkbox" class="contact-checkbox" data-contact-id="' + c.id + '"></td>' +
+          '<td><div class="d-flex align-items-center gap-3"><div class="avatar avatar-sm" style="background:' + bgColor + ';color:#fff;">' + ini + '</div><span class="fw-medium">' + escapeHtml(fn || 'Unnamed') + '</span></div></td>' +
           '<td>' + (c.email ? '<a href="mailto:' + escapeHtml(c.email) + '" class="text-decoration-none text-primary">' + escapeHtml(c.email) + '</a>' : '<span class="text-muted">--</span>') + '</td>' +
           '<td>' + (c.phone ? escapeHtml(c.phone) : '<span class="text-muted">--</span>') + '</td>' +
           '<td>' + (comp ? escapeHtml(comp) : '<span class="text-muted">--</span>') + '</td>' +
           '<td class="pe-3 text-muted small">' + formatDate(c.created_at) + '</td>';
+        row.addEventListener('click', function(e) {
+          if (e.target.tagName === 'A' || e.target.tagName === 'INPUT') return;
+          window.location.href = '/contacts/' + c.id + '/';
+        });
         tbody.appendChild(row);
       });
+      // Bind checkboxes
+      tbody.querySelectorAll('.contact-checkbox').forEach(function(cb) {
+        cb.checked = ContactBulk.selected.has(cb.dataset.contactId);
+        cb.addEventListener('change', function(e) {
+          e.stopPropagation();
+          var id = this.dataset.contactId;
+          if (this.checked) ContactBulk.selected.add(id);
+          else ContactBulk.selected.delete(id);
+          ContactBulk.updateUI();
+        });
+      });
+      // Pagination
       var nav = document.getElementById('paginationNav'), totalPages = Math.ceil(totalCount / PAGE_SIZE);
       if (totalPages <= 1) { nav.classList.add('d-none'); return; }
       nav.classList.remove('d-none');
@@ -203,8 +245,9 @@
       var next = document.createElement('li'); next.className = 'page-item' + (currentPage >= totalPages ? ' disabled' : ''); next.innerHTML = '<a class="page-link" href="#"><i class="ti ti-chevron-right"></i></a>';
       if (currentPage < totalPages) next.querySelector('a').addEventListener('click', function(e) { e.preventDefault(); currentPage++; loadContacts(); });
       controls.appendChild(next);
-    }).catch(function(err) { tbody.innerHTML = '<tr><td colspan="5" class="text-center py-5"><div class="text-danger"><i class="ti ti-alert-triangle me-2"></i>Failed to load contacts.</div></td></tr>'; });
+    }).catch(function(err) { tbody.innerHTML = '<tr><td colspan="6" class="text-center py-5"><div class="text-danger"><i class="ti ti-alert-triangle me-2"></i>Failed to load contacts.</div></td></tr>'; });
   }
+  window.loadContacts = loadContacts;
 
   Api.get('/api/v1/contacts/companies/').then(function(data) { var s = document.getElementById('contactCompany'); (data.results || data).forEach(function(c) { var o = document.createElement('option'); o.value = c.id; o.textContent = c.name; s.appendChild(o); }); }).catch(function() {});
 
@@ -232,7 +275,140 @@
     });
   });
 
+  // ============================================================
+  // Contact Bulk Actions
+  // ============================================================
+  window.ContactBulk = {
+    selected: new Set(),
+
+    updateUI: function() {
+      var count = this.selected.size;
+      var bar = document.getElementById('contactBulkBar');
+      document.getElementById('contactSelectedCount').textContent = count;
+      bar.style.display = count > 0 ? 'flex' : 'none';
+    },
+
+    clearSelection: function() {
+      this.selected.clear();
+      document.querySelectorAll('.contact-checkbox').forEach(function(cb) { cb.checked = false; });
+      document.getElementById('selectAllContacts').checked = false;
+      this.updateUI();
+    },
+
+    confirmDelete: function() {
+      if (!confirm('Delete ' + this.selected.size + ' contact(s)? This cannot be undone.')) return;
+      Api.post('/api/v1/contacts/contacts/bulk-action/', {
+        action: 'delete',
+        contact_ids: Array.from(this.selected)
+      }).then(function(data) {
+        Toast.success('Deleted ' + data.contacts_updated + ' contact(s)');
+        ContactBulk.clearSelection();
+        loadContacts();
+      }).catch(function(e) {
+        Toast.error((e && e.error) || 'Bulk delete failed');
+      });
+    }
+  };
+
+  document.getElementById('selectAllContacts').addEventListener('change', function(e) {
+    var checked = e.target.checked;
+    document.querySelectorAll('.contact-checkbox').forEach(function(cb) {
+      cb.checked = checked;
+      var id = cb.dataset.contactId;
+      if (checked) ContactBulk.selected.add(id);
+      else ContactBulk.selected.delete(id);
+    });
+    ContactBulk.updateUI();
+  });
+
+  // ============================================================
+  // Contact Saved Views
+  // ============================================================
+  window.ContactSavedViews = {
+    currentView: null,
+    resourceType: 'contact',
+
+    async init() {
+      await this.loadSavedViews();
+    },
+
+    async loadSavedViews() {
+      try {
+        var data = await Api.get('/api/v1/tickets/saved-views/?resource_type=contact');
+        var views = data.results || data;
+        this.renderViewsList(views);
+      } catch(e) {}
+    },
+
+    renderViewsList: function(views) {
+      var container = document.getElementById('savedViewsList');
+      container.innerHTML = '';
+      if (!views.length) {
+        container.innerHTML = '<li><span class="dropdown-item text-muted" style="font-size:0.8rem;">No saved views</span></li>';
+        return;
+      }
+      var self = this;
+      views.forEach(function(view) {
+        var li = document.createElement('li');
+        li.innerHTML = '<a class="dropdown-item d-flex justify-content-between align-items-center" href="#">' +
+          '<span>' + escapeHtml(view.name) + (view.is_default ? ' <span class="badge bg-success" style="font-size:0.6rem;">Default</span>' : '') + '</span>' +
+          '<span class="view-actions"><i class="ti ti-trash text-danger" data-view-delete="' + view.id + '" style="font-size:0.8rem;cursor:pointer;"></i></span></a>';
+        li.querySelector('a').addEventListener('click', function(e) {
+          e.preventDefault();
+          if (e.target.hasAttribute('data-view-delete')) return;
+          self.applyView(view);
+        });
+        var delBtn = li.querySelector('[data-view-delete]');
+        if (delBtn) delBtn.addEventListener('click', function(e) { e.preventDefault(); e.stopPropagation(); self.deleteView(view.id); });
+        container.appendChild(li);
+      });
+    },
+
+    applyView: function(view) {
+      this.currentView = view;
+      document.getElementById('currentViewName').textContent = view.name;
+      var filters = view.filters || {};
+      if (filters.search) document.getElementById('contactSearch').value = filters.search;
+      currentPage = 1;
+      loadContacts();
+    },
+
+    clearView: function() {
+      this.currentView = null;
+      document.getElementById('currentViewName').textContent = 'All Contacts';
+      document.getElementById('contactSearch').value = '';
+      currentPage = 1;
+      loadContacts();
+    },
+
+    async saveCurrentView() {
+      var name = prompt('Enter a name for this view:');
+      if (!name) return;
+      var filters = {};
+      var q = document.getElementById('contactSearch').value.trim();
+      if (q) filters.search = q;
+      try {
+        await Api.post('/api/v1/tickets/saved-views/', {
+          name: name, resource_type: 'contact', filters: filters, sort_field: '-created_at'
+        });
+        Toast.success('View saved');
+        await this.loadSavedViews();
+      } catch(e) { Toast.error('Failed to save view'); }
+    },
+
+    async deleteView(viewId) {
+      if (!confirm('Delete this saved view?')) return;
+      try {
+        await Api.delete('/api/v1/tickets/saved-views/' + viewId + '/');
+        Toast.success('View deleted');
+        if (this.currentView && this.currentView.id === viewId) this.clearView();
+        await this.loadSavedViews();
+      } catch(e) { Toast.error('Failed to delete view'); }
+    }
+  };
+
   loadContacts();
+  ContactSavedViews.init();
 })();
 </script>
 {% endblock %}

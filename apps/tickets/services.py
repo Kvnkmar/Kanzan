@@ -430,6 +430,73 @@ def log_ticket_comment(ticket, actor, is_internal=False):
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# Bulk update
+# ---------------------------------------------------------------------------
+
+
+@transaction.atomic
+def bulk_update_tickets(tickets, action, params, user, request=None):
+    """
+    Execute a bulk action on a queryset of tickets with activity logging.
+
+    Supported actions: assign, change_status, change_priority, add_tag, delete.
+    """
+    count = 0
+    details = []
+
+    for ticket in tickets:
+        try:
+            if action == "assign":
+                from django.contrib.auth import get_user_model
+
+                User = get_user_model()
+                assignee = User.objects.get(pk=params["user_id"])
+                assign_ticket(ticket, assignee, user, request=request)
+
+            elif action == "change_status":
+                from apps.tickets.models import TicketStatus
+
+                new_status = TicketStatus.objects.get(pk=params["status_id"])
+                change_ticket_status(ticket, new_status, user, request=request)
+
+            elif action == "change_priority":
+                change_ticket_priority(ticket, params["priority"], user, request=request)
+
+            elif action == "add_tag":
+                tags = params.get("tags", [])
+                existing_tags = ticket.tags or []
+                ticket.tags = list(set(existing_tags + tags))
+                ticket.save(update_fields=["tags", "updated_at"])
+                log_activity(
+                    tenant=ticket.tenant,
+                    actor=user,
+                    content_object=ticket,
+                    action=ActivityLog.Action.FIELD_CHANGED,
+                    description=f"Added tags: {', '.join(tags)}",
+                    changes={"tags": [existing_tags, ticket.tags]},
+                    request=request,
+                )
+
+            elif action == "delete":
+                ticket_number = ticket.number
+                ticket.delete()
+                details.append(f"Deleted ticket #{ticket_number}")
+                count += 1
+                continue
+
+            else:
+                raise ValueError(f"Unknown action: {action}")
+
+            count += 1
+            details.append(f"Updated ticket #{ticket.number}")
+
+        except Exception as e:
+            details.append(f"Failed to update ticket #{ticket.number}: {str(e)}")
+
+    return {"count": count, "details": details}
+
+
 def record_first_response(ticket, actor):
     """
     Stamp ``first_responded_at`` on the ticket if not already set.

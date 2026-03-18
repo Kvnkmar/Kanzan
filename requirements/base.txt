@@ -31,6 +31,7 @@ django-celery-results>=2.5,<3
 python-magic>=0.4,<0.5
 Pillow>=11,<12
 whitenoise>=6.8,<7
+mammoth>=1.12,<2
 
 # Security & Config
 django-environ>=0.12,<1

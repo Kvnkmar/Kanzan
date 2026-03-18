@@ -85,13 +85,19 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
-    @action(detail=False, methods=["get", "post"], url_path="my-status")
+    @action(
+        detail=False,
+        methods=["get", "post", "patch"],
+        url_path="my-status",
+        permission_classes=[IsAuthenticated],
+    )
     def my_status(self, request):
         """
-        Get or update the current user's availability status.
+        Get or update the current user's availability status and settings.
 
-        GET  /agents/my-status/  → returns current availability (creates if missing)
-        POST /agents/my-status/  → {"status": "online"|"offline"} updates status
+        GET   /agents/my-status/  → returns current availability (creates if missing)
+        POST  /agents/my-status/  → {"status": "online"|"offline"} updates status
+        PATCH /agents/my-status/  → {"max_concurrent_tickets": 5, ...} updates settings
         """
         agent, created = AgentAvailability.objects.get_or_create(
             user=request.user,
@@ -115,6 +121,21 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
                 old_status,
                 new_status,
             )
+
+        elif request.method == "PATCH":
+            update_fields = ["updated_at"]
+            if "max_concurrent_tickets" in request.data:
+                val = int(request.data["max_concurrent_tickets"])
+                agent.max_concurrent_tickets = max(1, min(val, 50))
+                update_fields.append("max_concurrent_tickets")
+            if "status" in request.data:
+                agent.status = request.data["status"]
+                agent.last_activity = timezone.now()
+                update_fields.extend(["status", "last_activity"])
+            if "status_message" in request.data:
+                agent.status_message = request.data["status_message"] or ""
+                update_fields.append("status_message")
+            agent.save(update_fields=update_fields)
 
         return Response(
             AgentAvailabilitySerializer(agent, context={"request": request}).data,

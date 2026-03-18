@@ -120,6 +120,15 @@ class AttachmentViewSet(
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        # Enforce storage limits before saving the file
+        from apps.billing.services import PlanLimitChecker
+
+        uploaded_file = request.FILES.get("file")
+        if uploaded_file:
+            size_mb = uploaded_file.size / (1024 * 1024)
+            PlanLimitChecker(request.tenant).check_storage(size_mb)
+
         attachment = serializer.save()
 
         # Log to ticket timeline if this attachment targets a ticket

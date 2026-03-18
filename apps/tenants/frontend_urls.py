@@ -31,5 +31,8 @@ urlpatterns = [
     path("settings/", views.settings_page, name="settings"),
     path("billing/", views.billing_page, name="billing"),
     path("agents/", views.agents_page, name="agents"),
+    path("knowledge/", views.knowledge_list_page, name="knowledge-list"),
+    path("knowledge/<str:article_slug>/", views.knowledge_article_page, name="knowledge-article"),
     path("profile/", views.profile_page, name="profile"),
+    path("inbound-email/", views.inbound_email_page, name="inbound-email"),
 ]

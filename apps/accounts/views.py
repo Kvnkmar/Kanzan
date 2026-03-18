@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
+from rest_framework.parsers import MultiPartParser
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -196,6 +197,28 @@ class ProfileViewSet(
         serializer = self.get_serializer(profile)
         return Response(serializer.data)
 
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="upload-avatar",
+        parser_classes=[MultiPartParser],
+    )
+    def upload_avatar(self, request):
+        """Upload or replace the current user's avatar."""
+        avatar_file = request.FILES.get("avatar")
+        if not avatar_file:
+            return Response(
+                {"detail": "No avatar file provided."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        user = request.user
+        # Delete old avatar file if it exists
+        if user.avatar:
+            user.avatar.delete(save=False)
+        user.avatar = avatar_file
+        user.save(update_fields=["avatar"])
+        return Response({"avatar": user.avatar.url})
+
 
 # ---------------------------------------------------------------------------
 # Role ViewSet
@@ -259,6 +282,10 @@ class InvitationViewSet(
         return Invitation.objects.filter(tenant=tenant)
 
     def perform_create(self, serializer):
+        from apps.billing.services import PlanLimitChecker
+
+        PlanLimitChecker(self.request.tenant).check_can_add_user()
+
         # Validate that the inviter can only assign roles at or below their level
         role = serializer.validated_data.get("role")
         if role:
@@ -402,6 +429,51 @@ class AuthViewSet(viewsets.GenericViewSet):
             )
         return Response(
             {"detail": "Successfully logged out."},
+            status=status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=False,
+        methods=["post"],
+        url_path="change-password",
+        permission_classes=[IsAuthenticated],
+    )
+    def change_password(self, request):
+        """Change the authenticated user's password."""
+        current_password = request.data.get("current_password", "")
+        new_password = request.data.get("new_password", "")
+        confirm_password = request.data.get("confirm_password", "")
+
+        if not current_password or not new_password:
+            return Response(
+                {"detail": "Current password and new password are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if new_password != confirm_password:
+            return Response(
+                {"detail": "New passwords do not match."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if len(new_password) < 8:
+            return Response(
+                {"detail": "New password must be at least 8 characters."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = request.user
+        if not user.check_password(current_password):
+            return Response(
+                {"detail": "Current password is incorrect."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
+
+        return Response(
+            {"detail": "Password changed successfully."},
             status=status.HTTP_200_OK,
         )
 

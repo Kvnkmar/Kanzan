@@ -5,13 +5,14 @@ Provides lightweight list, full detail, and validated create/update
 serializers for tickets plus standard serializers for supporting models.
 """
 
-from django.utils import timezone
 from rest_framework import serializers
 
 from apps.contacts.models import Contact
 from apps.tickets.models import (
+    CannedResponse,
     EscalationRule,
     Queue,
+    SavedView,
     SLAPolicy,
     Ticket,
     TicketActivity,
@@ -499,3 +500,131 @@ class TicketActivitySerializer(serializers.ModelSerializer):
             full = f"{obj.actor.first_name} {obj.actor.last_name}".strip()
             return full or str(obj.actor)
         return "System"
+
+
+# ---------------------------------------------------------------------------
+# CannedResponse
+# ---------------------------------------------------------------------------
+
+
+class CannedResponseSerializer(serializers.ModelSerializer):
+    """Serializer for canned response CRUD."""
+
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CannedResponse
+        fields = [
+            "id",
+            "title",
+            "content",
+            "category",
+            "shortcut",
+            "is_shared",
+            "usage_count",
+            "created_by",
+            "created_by_name",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "usage_count", "created_by", "created_at", "updated_at"]
+
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            full = f"{obj.created_by.first_name} {obj.created_by.last_name}".strip()
+            return full or obj.created_by.email
+        return None
+
+    def validate_shortcut(self, value):
+        if not value:
+            return ""
+        value = value.strip()
+        if not value.startswith("/"):
+            value = f"/{value}"
+        # Check uniqueness within tenant
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None) if request else None
+        qs = CannedResponse.objects.filter(tenant=tenant, shortcut=value)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                "This shortcut is already in use within your workspace."
+            )
+        return value
+
+
+# ---------------------------------------------------------------------------
+# SavedView
+# ---------------------------------------------------------------------------
+
+
+class SavedViewSerializer(serializers.ModelSerializer):
+    """Serializer for saved view CRUD."""
+
+    class Meta:
+        model = SavedView
+        fields = [
+            "id",
+            "name",
+            "resource_type",
+            "filters",
+            "sort_field",
+            "user",
+            "is_default",
+            "is_pinned",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "user", "created_at", "updated_at"]
+
+    def validate_name(self, value):
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None) if request else None
+        resource_type = self.initial_data.get(
+            "resource_type",
+            self.instance.resource_type if self.instance else None,
+        )
+        qs = SavedView.objects.filter(
+            tenant=tenant, user=request.user, name=value, resource_type=resource_type,
+        )
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                "You already have a saved view with this name for this resource type."
+            )
+        return value
+
+
+# ---------------------------------------------------------------------------
+# Email (send from ticket, link to ticket)
+# ---------------------------------------------------------------------------
+
+
+class TicketSendEmailSerializer(serializers.Serializer):
+    """Validates an agent's request to send an email from a ticket."""
+
+    to = serializers.EmailField()
+    subject = serializers.CharField(max_length=998)
+    body = serializers.CharField()
+
+
+class TicketLinkEmailSerializer(serializers.Serializer):
+    """Validates a request to link an existing inbound email to a ticket."""
+
+    email_id = serializers.UUIDField()
+
+
+class TicketEmailListSerializer(serializers.Serializer):
+    """Read-only serializer for emails linked to a ticket."""
+
+    id = serializers.UUIDField()
+    message_id = serializers.CharField()
+    sender_email = serializers.EmailField()
+    sender_name = serializers.CharField()
+    recipient_email = serializers.EmailField()
+    subject = serializers.CharField()
+    body_text = serializers.CharField()
+    status = serializers.CharField()
+    created_at = serializers.DateTimeField()

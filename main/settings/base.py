@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from datetime import timedelta
 
@@ -16,6 +15,7 @@ SECRET_KEY = env("DJANGO_SECRET_KEY")
 DEBUG = env.bool("DJANGO_DEBUG", default=False)
 
 BASE_DOMAIN = env("BASE_DOMAIN", default="localhost")
+BASE_PORT = env("BASE_PORT", default="8001")
 
 ALLOWED_HOSTS = [
     "localhost",
@@ -64,6 +64,9 @@ INSTALLED_APPS = [
     "apps.analytics",
     "apps.agents",
     "apps.custom_fields",
+    "apps.knowledge",
+    "apps.notes",
+    "apps.inbound_email",
 ]
 
 MIDDLEWARE = [
@@ -266,12 +269,20 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.notifications.tasks.cleanup_old_notifications",
         "schedule": 86400.0,
     },
+    "check-overdue-tickets": {
+        "task": "apps.tickets.tasks.check_overdue_tickets",
+        "schedule": 900.0,  # Every 15 minutes
+    },
 }
 
 # Stripe
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")
 STRIPE_PUBLISHABLE_KEY = env("STRIPE_PUBLISHABLE_KEY", default="")
 STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
+
+# Inbound Email
+INBOUND_EMAIL_WEBHOOK_SECRET = env("INBOUND_EMAIL_WEBHOOK_SECRET", default="")
+MAILGUN_API_KEY = env("MAILGUN_API_KEY", default="")
 
 # Email
 EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
@@ -376,6 +387,8 @@ JAZZMIN_SETTINGS = {
         "analytics.ExportJob": "fas fa-download",
         "agents.AgentAvailability": "fas fa-headset",
         "custom_fields.CustomFieldDefinition": "fas fa-puzzle-piece",
+        "knowledge.Category": "fas fa-folder",
+        "knowledge.Article": "fas fa-book",
     },
     "default_icon_parents": "fas fa-folder",
     "default_icon_children": "fas fa-circle",

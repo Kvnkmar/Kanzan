@@ -7,11 +7,13 @@ display, search, and filter options for administrative use.
 
 from django.contrib import admin
 
+from main.admin import TenantFilteredAdmin
+
 from apps.custom_fields.models import CustomFieldDefinition, CustomFieldValue
 
 
 @admin.register(CustomFieldDefinition)
-class CustomFieldDefinitionAdmin(admin.ModelAdmin):
+class CustomFieldDefinitionAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "name",
         "slug",
@@ -31,7 +33,7 @@ class CustomFieldDefinitionAdmin(admin.ModelAdmin):
 
 
 @admin.register(CustomFieldValue)
-class CustomFieldValueAdmin(admin.ModelAdmin):
+class CustomFieldValueAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "field",
         "content_type",

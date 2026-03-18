@@ -5,6 +5,11 @@ Tasks:
     check_sla_breaches
         Periodic scan for SLA violations and escalation rule execution.
         Runs every 2 minutes via Celery Beat.
+
+    check_overdue_tickets
+        Periodic scan for tickets past their due_date. Sends TICKET_OVERDUE
+        notifications to assignees and admins. Deduplicates per ticket per day.
+        Runs every 15 minutes via Celery Beat.
 """
 
 import logging
@@ -247,6 +252,141 @@ def _check_escalation_rules(ticket, policy, tenant, tenant_settings, now):
         _execute_rule(rule, ticket, tenant, now)
 
 
+@shared_task(bind=True, max_retries=1, acks_late=True)
+def check_overdue_tickets(self):
+    """
+    Periodic scan for overdue tickets across all active tenants.
+
+    For each tenant:
+    1. Find open tickets whose ``due_date`` has passed.
+    2. Send a TICKET_OVERDUE notification to the assignee.
+    3. Notify tenant admins/managers (up to 5).
+    4. Dedup: only one overdue notification per ticket per day (checks
+       existing Notification records for today).
+
+    Uses ``Model.unscoped`` since Celery tasks lack thread-local tenant
+    context.
+    """
+    from apps.tenants.models import Tenant
+
+    now = timezone.now()
+    active_tenants = (
+        Tenant.objects.filter(is_active=True).select_related("settings")
+    )
+
+    for tenant in active_tenants:
+        try:
+            _check_tenant_overdue(tenant, now)
+        except Exception:
+            logger.exception(
+                "Overdue ticket check failed for tenant %s", tenant.slug
+            )
+
+
+def _check_tenant_overdue(tenant, now):
+    """Send overdue reminders for a single tenant."""
+    from apps.accounts.models import TenantMembership
+    from apps.notifications.models import Notification, NotificationType
+    from apps.notifications.services import send_notification
+    from apps.tickets.models import Ticket, TicketActivity, TicketStatus
+
+    closed_status_ids = list(
+        TicketStatus.unscoped.filter(tenant=tenant, is_closed=True)
+        .values_list("id", flat=True)
+    )
+
+    overdue_tickets = (
+        Ticket.unscoped.filter(
+            tenant=tenant,
+            due_date__lt=now,
+            due_date__isnull=False,
+        )
+        .exclude(status_id__in=closed_status_ids)
+        .select_related("status", "assignee")
+    )
+
+    if not overdue_tickets.exists():
+        return
+
+    # Dedup window: start of today (UTC)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Pre-fetch ticket IDs that already received an overdue notification today
+    already_notified_ids = set(
+        Notification.unscoped.filter(
+            tenant=tenant,
+            type=NotificationType.TICKET_OVERDUE,
+            created_at__gte=today_start,
+        )
+        .values_list("data__ticket_id", flat=True)
+    )
+
+    # Cache admin memberships for the tenant
+    admin_memberships = list(
+        TenantMembership.objects.filter(
+            tenant=tenant, is_active=True, role__hierarchy_level__lte=20,
+        ).select_related("user")[:5]
+    )
+
+    for ticket in overdue_tickets:
+        ticket_id_str = str(ticket.id)
+        if ticket_id_str in already_notified_ids:
+            continue
+
+        overdue_delta = now - ticket.due_date
+        overdue_hours = int(overdue_delta.total_seconds() / 3600)
+        if overdue_hours < 1:
+            overdue_label = f"{int(overdue_delta.total_seconds() / 60)}m"
+        elif overdue_hours < 24:
+            overdue_label = f"{overdue_hours}h"
+        else:
+            overdue_label = f"{overdue_hours // 24}d {overdue_hours % 24}h"
+
+        notif_data = {
+            "ticket_id": ticket_id_str,
+            "ticket_number": ticket.number,
+            "overdue_by": overdue_label,
+        }
+
+        # Notify assignee
+        if ticket.assignee:
+            send_notification(
+                tenant=tenant,
+                recipient=ticket.assignee,
+                notification_type=NotificationType.TICKET_OVERDUE,
+                title=f"Overdue: Ticket #{ticket.number}",
+                body=(
+                    f'"{ticket.subject}" is overdue by {overdue_label}. '
+                    f"It was due {ticket.due_date.strftime('%b %d, %Y %H:%M')}."
+                ),
+                data=notif_data,
+            )
+
+        # Notify admins/managers (excluding assignee)
+        for membership in admin_memberships:
+            if ticket.assignee_id and membership.user_id == ticket.assignee_id:
+                continue
+            send_notification(
+                tenant=tenant,
+                recipient=membership.user,
+                notification_type=NotificationType.TICKET_OVERDUE,
+                title=f"Overdue: Ticket #{ticket.number}",
+                body=(
+                    f'"{ticket.subject}" assigned to '
+                    f"{ticket.assignee.get_full_name() if ticket.assignee else 'Unassigned'} "
+                    f"is overdue by {overdue_label}."
+                ),
+                data=notif_data,
+            )
+
+        logger.info(
+            "Overdue notification sent for ticket #%s (tenant: %s, overdue by: %s)",
+            ticket.number,
+            tenant.slug,
+            overdue_label,
+        )
+
+
 def _execute_rule(rule, ticket, tenant, now):
     """Execute a single escalation rule action."""
     from apps.accounts.models import TenantMembership
@@ -358,3 +498,78 @@ def _execute_rule(rule, ticket, tenant, now):
         ticket.number,
         tenant.slug,
     )
+
+
+# ---------------------------------------------------------------------------
+# Outbound email tasks
+# ---------------------------------------------------------------------------
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=30,
+    acks_late=True,
+)
+def send_ticket_reply_email_task(self, ticket_id, comment_body, agent_name, tenant_id):
+    """
+    Send an outbound email to the ticket's contact when an agent replies.
+
+    This is queued asynchronously so the agent doesn't wait for email delivery.
+    """
+    from apps.tenants.models import Tenant
+    from apps.tickets.email_service import send_ticket_reply_email
+    from apps.tickets.models import Ticket
+
+    try:
+        ticket = Ticket.unscoped.select_related("contact").get(pk=ticket_id)
+        tenant = Tenant.objects.get(pk=tenant_id)
+    except (Ticket.DoesNotExist, Tenant.DoesNotExist) as exc:
+        logger.error(
+            "send_ticket_reply_email_task: ticket %s or tenant %s not found.",
+            ticket_id, tenant_id,
+        )
+        return
+
+    try:
+        send_ticket_reply_email(ticket, comment_body, agent_name, tenant)
+    except Exception as exc:
+        logger.exception(
+            "Failed to send reply email for ticket %s (attempt %d/%d)",
+            ticket_id, self.request.retries + 1, self.max_retries + 1,
+        )
+        raise self.retry(exc=exc)
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=30,
+    acks_late=True,
+)
+def send_ticket_created_email_task(self, ticket_id, tenant_id):
+    """
+    Send a confirmation email to the contact when a ticket is created via email.
+    """
+    from apps.tenants.models import Tenant
+    from apps.tickets.email_service import send_ticket_created_email
+    from apps.tickets.models import Ticket
+
+    try:
+        ticket = Ticket.unscoped.select_related("contact").get(pk=ticket_id)
+        tenant = Tenant.objects.get(pk=tenant_id)
+    except (Ticket.DoesNotExist, Tenant.DoesNotExist):
+        logger.error(
+            "send_ticket_created_email_task: ticket %s or tenant %s not found.",
+            ticket_id, tenant_id,
+        )
+        return
+
+    try:
+        send_ticket_created_email(ticket, tenant)
+    except Exception as exc:
+        logger.exception(
+            "Failed to send ticket created email for ticket %s (attempt %d/%d)",
+            ticket_id, self.request.retries + 1, self.max_retries + 1,
+        )
+        raise self.retry(exc=exc)

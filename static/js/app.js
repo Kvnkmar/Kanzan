@@ -32,6 +32,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Desktop sidebar collapse toggle
   initSidebarCollapse();
 
+  // Navbar scroll effect (backdrop blur border)
+  initNavbarScroll();
+
   // Initialize notification WebSocket if user is authenticated
   if (document.getElementById('notifDropdown')) {
     initNotifications();
@@ -69,13 +72,29 @@ function initSidebarCollapse() {
   });
 }
 
+/**
+ * Navbar scroll effect — adds 'scrolled' class for border/shadow on scroll.
+ */
+function initNavbarScroll() {
+  var header = document.getElementById('contentHeader');
+  if (!header) return;
+
+  window.addEventListener('scroll', function() {
+    if (window.scrollY > 8) {
+      header.classList.add('scrolled');
+    } else {
+      header.classList.remove('scrolled');
+    }
+  }, { passive: true });
+}
+
 // -----------------------------------------------------------------------
 // Notification type config: icons, colors, friendly labels
 // -----------------------------------------------------------------------
 var NOTIF_TYPE_CONFIG = {
-  ticket_assigned:      { icon: 'ti ti-user-check',           color: '#4F46E5', label: 'Assigned' },
+  ticket_assigned:      { icon: 'ti ti-user-check',           color: '#2563EB', label: 'Assigned' },
   ticket_updated:       { icon: 'ti ti-edit',                 color: '#3B82F6', label: 'Updated' },
-  ticket_comment:       { icon: 'ti ti-message',              color: '#6366F1', label: 'Comment' },
+  ticket_comment:       { icon: 'ti ti-message',              color: '#2563EB', label: 'Comment' },
   mention:              { icon: 'ti ti-at',                   color: '#8B5CF6', label: 'Mention' },
   message:              { icon: 'ti ti-message',              color: '#06B6D4', label: 'Message' },
   sla_breach:           { icon: 'ti ti-alert-triangle',       color: '#EF4444', label: 'SLA Alert' },
@@ -237,7 +256,7 @@ const Toast = {
     success: '#10B981',
     danger:  '#EF4444',
     warning: '#F59E0B',
-    info:    '#4F46E5',
+    info:    '#2563EB',
   },
 
   show(message, type = 'success', duration = 4500) {

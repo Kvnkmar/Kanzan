@@ -21,6 +21,12 @@ urlpatterns = [
     path("api/v1/analytics/", include("apps.analytics.urls")),
     path("api/v1/agents/", include("apps.agents.urls")),
     path("api/v1/custom-fields/", include("apps.custom_fields.urls")),
+    path("api/v1/knowledge/", include("apps.knowledge.urls")),
+    path("api/v1/notes/", include("apps.notes.urls")),
+    path("api/v1/inbound-email/", include("apps.inbound_email.api_urls")),
+
+    # Inbound email webhooks (provider callbacks, not tenant-scoped API)
+    path("inbound/email/", include("apps.inbound_email.urls")),
 
     # API Schema / Docs
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

@@ -7,9 +7,13 @@ search fields for back-office administration.
 
 from django.contrib import admin
 
+from main.admin import TenantFilteredAdmin
+
 from apps.tickets.models import (
+    CannedResponse,
     EscalationRule,
     Queue,
+    SavedView,
     SLAPolicy,
     Ticket,
     TicketAssignment,
@@ -19,7 +23,7 @@ from apps.tickets.models import (
 
 
 @admin.register(TicketStatus)
-class TicketStatusAdmin(admin.ModelAdmin):
+class TicketStatusAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = ["name", "slug", "color", "order", "is_closed", "is_default", "tenant"]
     list_filter = ["is_closed", "is_default", "tenant"]
     search_fields = ["name", "slug"]
@@ -27,7 +31,7 @@ class TicketStatusAdmin(admin.ModelAdmin):
 
 
 @admin.register(Queue)
-class QueueAdmin(admin.ModelAdmin):
+class QueueAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = ["name", "default_assignee", "auto_assign", "tenant"]
     list_filter = ["auto_assign", "tenant"]
     search_fields = ["name"]
@@ -35,7 +39,7 @@ class QueueAdmin(admin.ModelAdmin):
 
 
 @admin.register(TicketCategory)
-class TicketCategoryAdmin(admin.ModelAdmin):
+class TicketCategoryAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = ["name", "slug", "color", "order", "is_active", "tenant"]
     list_filter = ["is_active", "tenant"]
     search_fields = ["name", "slug"]
@@ -44,7 +48,7 @@ class TicketCategoryAdmin(admin.ModelAdmin):
 
 
 @admin.register(Ticket)
-class TicketAdmin(admin.ModelAdmin):
+class TicketAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "number",
         "subject",
@@ -64,7 +68,7 @@ class TicketAdmin(admin.ModelAdmin):
 
 
 @admin.register(SLAPolicy)
-class SLAPolicyAdmin(admin.ModelAdmin):
+class SLAPolicyAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "name",
         "priority",
@@ -80,7 +84,7 @@ class SLAPolicyAdmin(admin.ModelAdmin):
 
 
 @admin.register(EscalationRule)
-class EscalationRuleAdmin(admin.ModelAdmin):
+class EscalationRuleAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "sla_policy",
         "trigger",
@@ -96,10 +100,28 @@ class EscalationRuleAdmin(admin.ModelAdmin):
 
 
 @admin.register(TicketAssignment)
-class TicketAssignmentAdmin(admin.ModelAdmin):
+class TicketAssignmentAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = ["ticket", "assigned_to", "assigned_by", "created_at", "tenant"]
     list_filter = ["tenant"]
     search_fields = ["ticket__subject", "ticket__number"]
     readonly_fields = ["created_at"]
     ordering = ["tenant", "-created_at"]
     raw_id_fields = ["ticket", "assigned_to", "assigned_by"]
+
+
+@admin.register(CannedResponse)
+class CannedResponseAdmin(TenantFilteredAdmin, admin.ModelAdmin):
+    list_display = ["title", "category", "shortcut", "is_shared", "usage_count", "created_by", "tenant"]
+    list_filter = ["category", "is_shared", "tenant"]
+    search_fields = ["title", "content", "shortcut"]
+    ordering = ["-usage_count"]
+    raw_id_fields = ["created_by"]
+
+
+@admin.register(SavedView)
+class SavedViewAdmin(TenantFilteredAdmin, admin.ModelAdmin):
+    list_display = ["name", "resource_type", "user", "is_default", "is_pinned", "tenant"]
+    list_filter = ["resource_type", "is_default", "is_pinned", "tenant"]
+    search_fields = ["name"]
+    ordering = ["tenant", "resource_type", "name"]
+    raw_id_fields = ["user"]

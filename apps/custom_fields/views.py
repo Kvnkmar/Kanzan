@@ -55,6 +55,10 @@ class CustomFieldDefinitionViewSet(viewsets.ModelViewSet):
         return CustomFieldDefinitionSerializer
 
     def perform_create(self, serializer):
+        from apps.billing.services import PlanLimitChecker
+
+        module = serializer.validated_data.get("module", "")
+        PlanLimitChecker(self.request.tenant).check_can_add_custom_field(module)
         serializer.save()
 
     # ------------------------------------------------------------------

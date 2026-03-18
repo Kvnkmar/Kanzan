@@ -3,11 +3,155 @@
 {% block title %}Calendar - Kanzen Suite{% endblock %}
 
 {% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
 .fcw-event--dark { background: transparent !important; color: #FFFFFF !important; }
 .fcw-event--dark:hover { background: rgba(255,255,255,0.06) !important; }
 .fcd-tl-event--dark { background: transparent !important; color: #FFFFFF !important; }
 .fcd-tl-event--dark:hover { background: rgba(255,255,255,0.06) !important; }
+
+/* ================================================================
+   Flatpickr — Theme-aware (light default, dark override)
+   ================================================================ */
+.flatpickr-calendar {
+  font-family: 'Inter', sans-serif !important;
+  border-radius: 14px !important;
+  overflow: hidden;
+  border: 1px solid #E2E8F0 !important;
+  background: #fff !important;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.10) !important;
+  padding: 0;
+}
+.flatpickr-calendar.arrowTop::before,
+.flatpickr-calendar.arrowTop::after { display: none !important; }
+.flatpickr-months .flatpickr-month { background: transparent !important; }
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month { fill: #6B7280 !important; color: #6B7280 !important; border-radius: 8px; transition: all 0.15s; }
+.flatpickr-months .flatpickr-prev-month:hover,
+.flatpickr-months .flatpickr-next-month:hover { background: #F3F4F6 !important; fill: #111827 !important; }
+.flatpickr-current-month { color: #111827 !important; font-weight: 700 !important; }
+.flatpickr-current-month .flatpickr-monthDropdown-months,
+.flatpickr-current-month input.cur-year { color: #111827 !important; font-weight: 700 !important; }
+.flatpickr-current-month .flatpickr-monthDropdown-months option { background: #fff; color: #111827; }
+.flatpickr-weekdays { background: transparent !important; }
+span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important; font-size: 0.6875rem !important; text-transform: uppercase; letter-spacing: 0.04em; }
+.flatpickr-day { color: #374151 !important; border-radius: 10px !important; border: 2px solid transparent; transition: all 0.12s; }
+.flatpickr-day:hover { background: #F3F4F6 !important; border-color: transparent !important; color: #111827 !important; }
+.flatpickr-day.today { border-color: var(--crm-primary, #DC2626) !important; background: transparent !important; color: var(--crm-primary, #DC2626) !important; font-weight: 700; }
+.flatpickr-day.today:hover { background: rgba(220,38,38,0.08) !important; }
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover { background: var(--crm-primary, #DC2626) !important; border-color: var(--crm-primary, #DC2626) !important; color: #fff !important; }
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay { color: #D1D5DB !important; }
+.flatpickr-day.prevMonthDay:hover,
+.flatpickr-day.nextMonthDay:hover { background: #F9FAFB !important; color: #9CA3AF !important; }
+.flatpickr-time { border-top: 1px solid #E5E7EB !important; background: #F9FAFB !important; }
+.flatpickr-time input { color: #374151 !important; font-weight: 600 !important; }
+.flatpickr-time input:hover,
+.flatpickr-time input:focus { background: #EEF2FF !important; }
+.flatpickr-time .flatpickr-am-pm { color: var(--crm-primary, #DC2626) !important; font-weight: 700 !important; }
+.flatpickr-time .flatpickr-am-pm:hover { background: #EEF2FF !important; }
+.flatpickr-time .flatpickr-time-separator { color: #D1D5DB !important; }
+.numInputWrapper span { border: none !important; opacity: 0; transition: opacity 0.15s; }
+.numInputWrapper:hover span { opacity: 1; }
+.numInputWrapper span:hover { background: rgba(0,0,0,0.05) !important; }
+
+/* -- Dark-mode overrides -- */
+[data-bs-theme="dark"] .flatpickr-calendar { background: #1A2030 !important; border-color: rgba(255,255,255,0.08) !important; box-shadow: 0 16px 48px rgba(0,0,0,0.45) !important; }
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-prev-month,
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month { fill: #94A3B8 !important; color: #94A3B8 !important; }
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-prev-month:hover,
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month:hover { background: rgba(255,255,255,0.08) !important; fill: #F1F5F9 !important; }
+[data-bs-theme="dark"] .flatpickr-current-month,
+[data-bs-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months,
+[data-bs-theme="dark"] .flatpickr-current-month input.cur-year { color: #F1F5F9 !important; }
+[data-bs-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months option { background: #1A2030; color: #F1F5F9; }
+[data-bs-theme="dark"] span.flatpickr-weekday { color: #64748B !important; }
+[data-bs-theme="dark"] .flatpickr-day { color: #E2E8F0 !important; }
+[data-bs-theme="dark"] .flatpickr-day:hover { background: rgba(255,255,255,0.08) !important; color: #FFFFFF !important; }
+[data-bs-theme="dark"] .flatpickr-day.today { color: var(--crm-primary) !important; background: rgba(220,38,38,0.12) !important; }
+[data-bs-theme="dark"] .flatpickr-day.prevMonthDay,
+[data-bs-theme="dark"] .flatpickr-day.nextMonthDay { color: #475569 !important; }
+[data-bs-theme="dark"] .flatpickr-day.prevMonthDay:hover,
+[data-bs-theme="dark"] .flatpickr-day.nextMonthDay:hover { background: rgba(255,255,255,0.04) !important; color: #94A3B8 !important; }
+[data-bs-theme="dark"] .flatpickr-time { background: #151A23 !important; border-top-color: rgba(255,255,255,0.06) !important; }
+[data-bs-theme="dark"] .flatpickr-time input { color: #E2E8F0 !important; }
+[data-bs-theme="dark"] .flatpickr-time input:hover,
+[data-bs-theme="dark"] .flatpickr-time input:focus { background: rgba(255,255,255,0.06) !important; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm { color: #94A3B8 !important; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm:hover { background: rgba(255,255,255,0.06) !important; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-time-separator { color: #475569 !important; }
+[data-bs-theme="dark"] .numInputWrapper span:hover { background: rgba(255,255,255,0.08) !important; }
+
+/* Input wrapper with icon */
+.fp-input-wrap {
+  position: relative;
+}
+.fp-input-wrap .form-control {
+  padding-right: 2.25rem;
+  cursor: pointer;
+}
+.fp-input-wrap .fp-icon {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #64748b;
+  pointer-events: none;
+  font-size: 1rem;
+}
+
+/* Event type pills */
+.cal-type-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border-radius: 999px;
+  border: 1px solid var(--crm-border);
+  background: transparent;
+  color: var(--crm-text-muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.cal-type-pill:hover {
+  border-color: var(--crm-text-secondary);
+  color: var(--crm-text-secondary);
+}
+.cal-type-pill.active {
+  background: var(--crm-primary);
+  border-color: var(--crm-primary);
+  color: #fff;
+}
+
+/* Color picker dots */
+.cal-color-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: all 0.15s ease;
+  position: relative;
+}
+.cal-color-dot:first-child {
+  background: var(--crm-bg-secondary, rgba(255,255,255,0.06));
+  border-color: var(--crm-border);
+}
+.cal-color-dot:hover {
+  transform: scale(1.15);
+}
+.cal-color-dot.active {
+  box-shadow: 0 0 0 2px var(--crm-bg), 0 0 0 4px currentColor;
+}
+.cal-color-dot:first-child.active {
+  box-shadow: 0 0 0 2px var(--crm-bg), 0 0 0 4px var(--crm-text-muted);
+}
 </style>
 {% endblock %}
 
@@ -59,50 +203,111 @@
   </div>
 </div>
 
-<!-- Add Event Modal -->
+<!-- Add/Edit Event Modal -->
 <div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="addEventModalLabel">Add Event</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <form id="addEventForm">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:520px;">
+    <div class="modal-content" style="border:none;border-radius:0.75rem;overflow:hidden;">
+      <!-- Colored top accent bar -->
+      <div id="eventModalAccent" style="height:4px;background:var(--crm-primary);"></div>
+      <div class="modal-body p-4">
+        <div class="d-flex align-items-center justify-content-between mb-4">
+          <h5 class="modal-title fw-bold mb-0" id="addEventModalLabel" style="font-size:1.125rem;">New Event</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <form id="addEventForm" autocomplete="off">
+          <!-- Title -->
           <div class="mb-3">
-            <label for="eventTitle" class="form-label">Title <span class="text-danger">*</span></label>
-            <input type="text" class="form-control" id="eventTitle" placeholder="Event title" required>
+            <input type="text" class="form-control form-control-lg" id="eventTitle" placeholder="Event title" required
+              style="font-size:1rem;font-weight:600;border:none;border-bottom:2px solid var(--crm-border);border-radius:0;padding-left:0;background:transparent;">
           </div>
-          <div class="row g-3 mb-3">
-            <div class="col-sm-6">
-              <label for="eventDate" class="form-label">Date <span class="text-danger">*</span></label>
-              <input type="date" class="form-control" id="eventDate" required>
+
+          <!-- Event type pills -->
+          <div class="mb-3">
+            <div class="d-flex flex-wrap gap-2" id="eventTypePills">
+              <button type="button" class="cal-type-pill" data-type="meeting"><i class="ti ti-users me-1"></i>Meeting</button>
+              <button type="button" class="cal-type-pill" data-type="call"><i class="ti ti-phone me-1"></i>Call</button>
+              <button type="button" class="cal-type-pill" data-type="task"><i class="ti ti-checkbox me-1"></i>Task</button>
+              <button type="button" class="cal-type-pill" data-type="reminder"><i class="ti ti-bell me-1"></i>Reminder</button>
+              <button type="button" class="cal-type-pill active" data-type="other"><i class="ti ti-dots me-1"></i>Other</button>
             </div>
-            <div class="col-sm-6">
-              <label for="eventTime" class="form-label">Time</label>
-              <input type="time" class="form-control" id="eventTime">
+            <input type="hidden" id="eventType" value="other">
+          </div>
+
+          <!-- All day toggle -->
+          <div class="mb-3 d-flex align-items-center gap-2">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" id="eventAllDay" role="switch">
+              <label class="form-check-label small fw-medium" for="eventAllDay">All day</label>
             </div>
           </div>
-          <div class="mb-3">
-            <label for="eventType" class="form-label">Type</label>
-            <select class="form-select" id="eventType">
-              <option value="meeting">Meeting</option>
-              <option value="call">Call</option>
-              <option value="task">Task</option>
-              <option value="reminder">Reminder</option>
-              <option value="other" selected>Other</option>
-            </select>
+
+          <!-- Start date/time row -->
+          <div class="row g-2 mb-2">
+            <div class="col">
+              <label class="form-label small text-muted mb-1"><i class="ti ti-calendar me-1"></i>Start</label>
+              <div class="fp-input-wrap">
+                <input type="text" class="form-control form-control-sm" id="eventDate" placeholder="Date" required readonly>
+              </div>
+            </div>
+            <div class="col" id="startTimeCol">
+              <label class="form-label small text-muted mb-1">&nbsp;</label>
+              <div class="fp-input-wrap">
+                <input type="text" class="form-control form-control-sm" id="eventTime" placeholder="Time" readonly>
+              </div>
+            </div>
           </div>
+
+          <!-- End date/time row -->
+          <div class="row g-2 mb-3">
+            <div class="col">
+              <label class="form-label small text-muted mb-1"><i class="ti ti-calendar-event me-1"></i>End</label>
+              <div class="fp-input-wrap">
+                <input type="text" class="form-control form-control-sm" id="eventEndDate" placeholder="End date (optional)" readonly>
+              </div>
+            </div>
+            <div class="col" id="endTimeCol">
+              <label class="form-label small text-muted mb-1">&nbsp;</label>
+              <div class="fp-input-wrap">
+                <input type="text" class="form-control form-control-sm" id="eventEndTime" placeholder="End time" readonly>
+              </div>
+            </div>
+          </div>
+
+          <!-- Location -->
           <div class="mb-3">
-            <label for="eventDescription" class="form-label">Description</label>
-            <textarea class="form-control" id="eventDescription" rows="3" placeholder="Optional description"></textarea>
+            <div class="input-group input-group-sm">
+              <span class="input-group-text" style="background:transparent;border-right:none;"><i class="ti ti-map-pin text-muted"></i></span>
+              <input type="text" class="form-control form-control-sm" id="eventLocation" placeholder="Add location" style="border-left:none;">
+            </div>
+          </div>
+
+          <!-- Color picker -->
+          <div class="mb-3">
+            <label class="form-label small text-muted mb-1"><i class="ti ti-palette me-1"></i>Color</label>
+            <div class="d-flex gap-2" id="eventColorPicker">
+              <button type="button" class="cal-color-dot active" data-color="" title="Default"><i class="ti ti-circle-filled" style="color:var(--crm-text-muted);font-size:0.5rem;"></i></button>
+              <button type="button" class="cal-color-dot" data-color="#EF4444" title="Red" style="background:#EF4444;"></button>
+              <button type="button" class="cal-color-dot" data-color="#F59E0B" title="Amber" style="background:#F59E0B;"></button>
+              <button type="button" class="cal-color-dot" data-color="#10B981" title="Green" style="background:#10B981;"></button>
+              <button type="button" class="cal-color-dot" data-color="#3B82F6" title="Blue" style="background:#3B82F6;"></button>
+              <button type="button" class="cal-color-dot" data-color="#8B5CF6" title="Purple" style="background:#8B5CF6;"></button>
+              <button type="button" class="cal-color-dot" data-color="#EC4899" title="Pink" style="background:#EC4899;"></button>
+              <button type="button" class="cal-color-dot" data-color="#2563EB" title="Blue" style="background:#2563EB;"></button>
+            </div>
+            <input type="hidden" id="eventColor" value="">
+          </div>
+
+          <!-- Description -->
+          <div class="mb-1">
+            <textarea class="form-control form-control-sm" id="eventDescription" rows="2" placeholder="Add notes or description..." style="resize:vertical;"></textarea>
           </div>
         </form>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-sm btn-primary" id="saveEventBtn">
-          <span class="spinner-border spinner-border-sm d-none" id="saveEventSpinner"></span>
+      <div class="modal-footer px-4 py-3" style="border-top:1px solid var(--crm-border);">
+        <button type="button" class="btn btn-sm btn-ghost" data-bs-dismiss="modal" style="color:var(--crm-text-muted);">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary px-4" id="saveEventBtn">
+          <span class="spinner-border spinner-border-sm d-none me-1" id="saveEventSpinner"></span>
           <span id="saveEventBtnText">Save Event</span>
         </button>
       </div>
@@ -112,6 +317,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
 (function() {
   "use strict";
@@ -133,29 +339,29 @@
   var DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   var EVENT_COLORS = {
-    'ticket':         '#6366F1',
+    'ticket':         '#2563EB',
     'meeting':        '#F59E0B',
     'call':           '#3B82F6',
     'task':           '#F59E0B',
-    'reminder':       '#8B5CF6',
+    'reminder':       '#7C3AED',
     'other':          '#666666',
     'default':        '#666666'
   };
 
   var EVENT_BAR_COLORS_LIGHT = {
-    'ticket':         { bg: '#EEF2FF', border: '#6366F1', text: '#4338CA' },
+    'ticket':         { bg: '#EFF6FF', border: '#2563EB', text: '#1E40AF' },
     'meeting':        { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E' },
     'call':           { bg: '#EFF6FF', border: '#3B82F6', text: '#1E40AF' },
     'task':           { bg: '#FFFBEB', border: '#F59E0B', text: '#92400E' },
-    'reminder':       { bg: '#F5F3FF', border: '#8B5CF6', text: '#5B21B6' },
+    'reminder':       { bg: '#F5F3FF', border: '#7C3AED', text: '#5B21B6' },
     'other':          { bg: '#F1F5F9', border: '#6B7280', text: '#374151' }
   };
   var EVENT_BAR_COLORS_DARK = {
-    'ticket':         { bg: 'rgba(99,102,241,0.12)', border: '#6366F1', text: '#A5B4FC' },
+    'ticket':         { bg: 'rgba(37,99,235,0.12)', border: '#2563EB', text: '#93C5FD' },
     'meeting':        { bg: 'rgba(245,158,11,0.12)', border: '#F59E0B', text: '#FCD34D' },
     'call':           { bg: 'rgba(59,130,246,0.12)', border: '#3B82F6', text: '#93C5FD' },
     'task':           { bg: 'rgba(245,158,11,0.12)', border: '#F59E0B', text: '#FCD34D' },
-    'reminder':       { bg: 'rgba(139,92,246,0.12)', border: '#8B5CF6', text: '#C4B5FD' },
+    'reminder':       { bg: 'rgba(124,58,237,0.12)', border: '#7C3AED', text: '#C4B5FD' },
     'other':          { bg: 'rgba(255,255,255,0.06)', border: '#6B7280', text: '#9CA3AF' }
   };
   var DEFAULT_BAR_LIGHT = { bg: '#F1F5F9', border: '#6B7280', text: '#374151' };
@@ -277,7 +483,8 @@
         events[dk].push({
           type: ce.event_type,
           label: ce.title,
-          time: ce.event_time ? ce.event_time.substring(0, 5) : null,
+          time: (ce.is_all_day ? null : (ce.event_time ? ce.event_time.substring(0, 5) : null)),
+          customColor: ce.color || '',
           calEvent: ce
         });
       });
@@ -311,36 +518,88 @@
       titleEl.textContent = '#' + t.number + ' ' + (t.subject || '');
 
       // Status + Priority badges
-      html += '<div class="d-flex align-items-center gap-2 mb-3">';
+      html += '<div class="d-flex align-items-center flex-wrap gap-2 mb-3">';
       if (t.status_name) {
         html += '<span class="badge" style="background-color:' + (t.status_color || '#94A3B8') + ';font-size:0.75rem;">' + escapeHtml(t.status_name) + '</span>';
       }
       if (t.priority) {
-        html += '<span class="badge badge-priority-' + t.priority + '" style="font-size:0.75rem;">' + escapeHtml(t.priority.charAt(0).toUpperCase() + t.priority.slice(1)) + '</span>';
+        var priColors = { urgent: '#EF4444', high: '#F59E0B', medium: '#3B82F6', low: '#64748B' };
+        var priColor = priColors[t.priority] || '#64748B';
+        html += '<span class="badge" style="background-color:' + priColor + ';font-size:0.75rem;">' + escapeHtml(t.priority.charAt(0).toUpperCase() + t.priority.slice(1)) + '</span>';
+      }
+      if (t.category) {
+        html += '<span class="badge" style="background:rgba(139,92,246,0.15);color:#C4B5FD;font-size:0.7rem;">' + escapeHtml(t.category) + '</span>';
+      }
+      if (t.is_closed) {
+        html += '<span class="badge" style="background:rgba(16,185,129,0.15);color:#6EE7B7;font-size:0.7rem;"><i class="ti ti-check me-1"></i>Closed</span>';
       }
       html += '</div>';
 
+      // SLA breach warnings
+      if (t.sla_response_breached || t.sla_resolution_breached) {
+        html += '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 12px;margin-bottom:12px;">';
+        html += '<div style="display:flex;align-items:center;gap:6px;">';
+        html += '<i class="ti ti-alert-triangle" style="color:#EF4444;font-size:0.875rem;"></i>';
+        html += '<span style="font-size:0.8125rem;color:#FCA5A5;font-weight:500;">SLA Breached</span>';
+        html += '</div>';
+        if (t.sla_response_breached) {
+          html += '<div style="font-size:0.75rem;color:#FCA5A5;margin-left:22px;margin-top:2px;">Response time exceeded</div>';
+        }
+        if (t.sla_resolution_breached) {
+          html += '<div style="font-size:0.75rem;color:#FCA5A5;margin-left:22px;margin-top:2px;">Resolution time exceeded</div>';
+        }
+        html += '</div>';
+      }
+
+      // Description preview
+      if (t.description) {
+        var descText = t.description.length > 200 ? t.description.substring(0, 200) + '...' : t.description;
+        html += '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:0.8125rem;color:var(--crm-text-secondary,#94A3B8);line-height:1.5;">' + escapeHtml(descText) + '</div>';
+      }
+
       // Info rows
-      function infoRow(icon, label, value) {
-        return '<div class="d-flex align-items-center gap-2 mb-2">' +
-          '<i class="ti ti-' + icon + ' text-muted" style="font-size:0.875rem;width:16px;text-align:center;"></i>' +
-          '<span class="text-muted" style="font-size:0.8125rem;">' + escapeHtml(label) + '</span>' +
-          '<span style="font-size:0.8125rem;margin-left:auto;text-align:right;">' + escapeHtml(value) + '</span>' +
+      function infoRow(icon, label, value, valueColor) {
+        return '<div class="d-flex align-items-center gap-2 mb-2" style="padding:4px 0;">' +
+          '<i class="ti ti-' + icon + ' text-muted" style="font-size:0.875rem;width:16px;text-align:center;flex-shrink:0;"></i>' +
+          '<span class="text-muted" style="font-size:0.8125rem;white-space:nowrap;">' + escapeHtml(label) + '</span>' +
+          '<span style="font-size:0.8125rem;margin-left:auto;text-align:right;' + (valueColor ? 'color:' + valueColor + ';' : '') + '">' + escapeHtml(value) + '</span>' +
           '</div>';
       }
 
+      html += '<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:10px;">';
       if (t.assignee_name) {
-        html += infoRow('ti-user', 'Assignee', t.assignee_name);
+        html += infoRow('user', 'Assignee', t.assignee_name);
+      } else {
+        html += infoRow('user-x', 'Assignee', 'Unassigned', '#64748B');
       }
       if (t.queue_name) {
-        html += infoRow('ti-inbox', 'Queue', t.queue_name);
+        html += infoRow('inbox', 'Queue', t.queue_name);
       }
       if (t.contact_name) {
-        html += infoRow('ti-building', 'Contact', t.contact_name);
+        html += infoRow('address-book', 'Contact', t.contact_name);
       }
-      html += infoRow('ti-calendar-plus', 'Created', formatDateTime(t.created_at));
+      html += infoRow('calendar-plus', 'Created', formatDateTime(t.created_at));
       if (t.due_date) {
-        html += infoRow('ti-calendar-event', 'Due', formatDateTime(t.due_date));
+        var now = new Date();
+        var dueDate = new Date(t.due_date);
+        var isOverdue = !t.is_closed && dueDate < now;
+        html += infoRow('calendar-event', 'Due', formatDateTime(t.due_date), isOverdue ? '#EF4444' : '');
+      }
+      if (t.updated_at && t.updated_at !== t.created_at) {
+        html += infoRow('refresh', 'Updated', formatDateTime(t.updated_at));
+      }
+      html += '</div>';
+
+      // Tags
+      if (t.tags && t.tags.length > 0) {
+        html += '<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:10px;margin-top:4px;">';
+        html += '<div class="d-flex align-items-center flex-wrap gap-1">';
+        html += '<i class="ti ti-tags text-muted" style="font-size:0.875rem;margin-right:4px;"></i>';
+        var tagList = Array.isArray(t.tags) ? t.tags : [];
+        tagList.forEach(function(tag) {
+          html += '<span style="font-size:0.7rem;padding:2px 8px;border-radius:10px;background:rgba(99,102,241,0.12);color:#A5B4FC;">' + escapeHtml(tag) + '</span>';
+        });
+        html += '</div></div>';
       }
 
       body.innerHTML = html;
@@ -352,7 +611,8 @@
       footer.style.display = '';
     } else {
       // ── Calendar event detail view ──
-      var color = EVENT_COLORS[ev.type] || EVENT_COLORS['default'];
+      var ce = ev.calEvent || {};
+      var color = ce.color || EVENT_COLORS[ev.type] || EVENT_COLORS['default'];
       var typeLabel = EVENT_TYPE_LABELS[ev.type] || ev.type.replace(/_/g, ' ');
 
       titleEl.textContent = 'Event Details';
@@ -365,17 +625,27 @@
       html += '</div>';
       html += '</div>';
 
-      if (ev.time) {
-        html += '<div class="d-flex align-items-center gap-2 mb-2">';
-        html += '<i class="ti ti-clock text-muted" style="font-size:0.875rem;"></i>';
-        html += '<span style="font-size:0.8125rem;">' + escapeHtml(ev.time) + '</span>';
-        html += '</div>';
+      // Time / duration
+      if (ce.is_all_day) {
+        var timeStr = 'All day';
+        if (ce.end_date && ce.end_date !== ce.event_date) timeStr += ' \u2013 ' + ce.end_date;
+        html += '<div class="d-flex align-items-center gap-2 mb-2"><i class="ti ti-clock text-muted" style="font-size:0.875rem;"></i><span style="font-size:0.8125rem;">' + escapeHtml(timeStr) + '</span></div>';
+      } else if (ev.time) {
+        var timeDisplay = ev.time;
+        if (ce.end_time) timeDisplay += ' \u2013 ' + ce.end_time.substring(0, 5);
+        if (ce.end_date && ce.end_date !== ce.event_date) timeDisplay += ' (' + ce.end_date + ')';
+        html += '<div class="d-flex align-items-center gap-2 mb-2"><i class="ti ti-clock text-muted" style="font-size:0.875rem;"></i><span style="font-size:0.8125rem;">' + escapeHtml(timeDisplay) + '</span></div>';
       }
 
-      if (ev.calEvent && ev.calEvent.description) {
+      // Location
+      if (ce.location) {
+        html += '<div class="d-flex align-items-center gap-2 mb-2"><i class="ti ti-map-pin text-muted" style="font-size:0.875rem;"></i><span style="font-size:0.8125rem;">' + escapeHtml(ce.location) + '</span></div>';
+      }
+
+      if (ce.description) {
         html += '<div class="d-flex align-items-start gap-2 mb-2">';
         html += '<i class="ti ti-align-left text-muted" style="font-size:0.875rem;margin-top:2px;"></i>';
-        html += '<span style="font-size:0.8125rem;">' + escapeHtml(ev.calEvent.description) + '</span>';
+        html += '<span style="font-size:0.8125rem;">' + escapeHtml(ce.description) + '</span>';
         html += '</div>';
       }
 
@@ -491,7 +761,7 @@
         dayEvents.slice(0, maxShow).forEach(function(ev) {
           var dot = document.createElement('div');
           dot.className = 'fc-event';
-          dot.style.borderLeftColor = EVENT_COLORS[ev.type] || EVENT_COLORS['default'];
+          dot.style.borderLeftColor = ev.customColor || EVENT_COLORS[ev.type] || EVENT_COLORS['default'];
           var timePrefix = ev.time ? ev.time + ' ' : '';
           dot.textContent = timePrefix + ev.label;
           dot.addEventListener('click', function(e) {
@@ -593,7 +863,7 @@
           var colors = getBarColors()[ev.type] || getDefaultBar();
           var bar = document.createElement('div');
           bar.className = isDarkMode() ? 'fcw-event fcw-event--dark' : 'fcw-event';
-          bar.style.borderLeftColor = colors.border;
+          bar.style.borderLeftColor = ev.customColor || colors.border;
           if (!isDarkMode()) {
             bar.style.background = colors.bg;
             bar.style.color = colors.text;
@@ -693,8 +963,7 @@
         openAddEventModal(dk);
         // Pre-fill time after modal opens
         setTimeout(function() {
-          var timeInput = document.getElementById('eventTime');
-          if (timeInput) timeInput.value = pad(h) + ':00';
+          if (fpTime) fpTime.setDate(pad(h) + ':00', true);
         }, 100);
       });
     });
@@ -722,7 +991,7 @@
           var colors = getBarColors()[ev.type] || getDefaultBar();
           var chip = document.createElement('div');
           chip.className = isDarkMode() ? 'fcd-tl-event fcd-tl-event--allday fcd-tl-event--dark' : 'fcd-tl-event fcd-tl-event--allday';
-          chip.style.borderLeftColor = colors.border;
+          chip.style.borderLeftColor = ev.customColor || colors.border;
           if (!isDarkMode()) {
             chip.style.background = colors.bg;
             chip.style.color = colors.text;
@@ -751,7 +1020,7 @@
         var block = document.createElement('div');
         block.className = isDarkMode() ? 'fcd-tl-event fcd-tl-event--dark' : 'fcd-tl-event';
         block.style.top = topOffset + 'px';
-        block.style.borderLeftColor = colors.border;
+        block.style.borderLeftColor = ev.customColor || colors.border;
         if (!isDarkMode()) {
           block.style.background = colors.bg;
           block.style.color = colors.text;
@@ -821,26 +1090,104 @@
     addEventModal = new bootstrap.Modal(modalEl);
   }
 
+  // -- Type pills --
+  var typePills = document.querySelectorAll('#eventTypePills .cal-type-pill');
+  typePills.forEach(function(pill) {
+    pill.addEventListener('click', function() {
+      typePills.forEach(function(p) { p.classList.remove('active'); });
+      pill.classList.add('active');
+      document.getElementById('eventType').value = pill.dataset.type;
+    });
+  });
+
+  // -- Color picker --
+  var colorDots = document.querySelectorAll('#eventColorPicker .cal-color-dot');
+  colorDots.forEach(function(dot) {
+    dot.addEventListener('click', function() {
+      colorDots.forEach(function(d) { d.classList.remove('active'); });
+      dot.classList.add('active');
+      document.getElementById('eventColor').value = dot.dataset.color || '';
+      var accent = document.getElementById('eventModalAccent');
+      if (dot.dataset.color) accent.style.background = dot.dataset.color;
+      else accent.style.background = 'var(--crm-primary)';
+    });
+  });
+
+  // -- All-day toggle --
+  var allDayCheck = document.getElementById('eventAllDay');
+  allDayCheck.addEventListener('change', function() {
+    var hide = this.checked;
+    document.getElementById('startTimeCol').style.display = hide ? 'none' : '';
+    document.getElementById('endTimeCol').style.display = hide ? 'none' : '';
+    if (hide) {
+      if (fpTime) fpTime.clear();
+      if (fpEndTime) fpEndTime.clear();
+    }
+  });
+
+  function resetModal() {
+    document.getElementById('eventTitle').value = '';
+    document.getElementById('eventType').value = 'other';
+    document.getElementById('eventDescription').value = '';
+    document.getElementById('eventLocation').value = '';
+    document.getElementById('eventColor').value = '';
+    document.getElementById('eventAllDay').checked = false;
+    document.getElementById('startTimeCol').style.display = '';
+    document.getElementById('endTimeCol').style.display = '';
+    document.getElementById('eventModalAccent').style.background = 'var(--crm-primary)';
+    typePills.forEach(function(p) { p.classList.remove('active'); });
+    document.querySelector('.cal-type-pill[data-type="other"]').classList.add('active');
+    colorDots.forEach(function(d) { d.classList.remove('active'); });
+    document.querySelector('.cal-color-dot[data-color=""]').classList.add('active');
+    if (fpDate) fpDate.clear();
+    if (fpTime) fpTime.clear();
+    if (fpEndDate) fpEndDate.clear();
+    if (fpEndTime) fpEndTime.clear();
+  }
+
   function openAddEventModal(dateStr) {
     if (!addEventModal) return;
     editingEventId = null;
-    document.getElementById('eventTitle').value = '';
-    document.getElementById('eventDate').value = dateStr || '';
-    document.getElementById('eventTime').value = '';
-    document.getElementById('eventType').value = 'other';
-    document.getElementById('eventDescription').value = '';
-    document.getElementById('addEventModalLabel').textContent = dateStr ? 'Add Event \u2014 ' + dateStr : 'Add Event';
+    resetModal();
+    if (dateStr && fpDate) fpDate.setDate(dateStr, true);
+    var formattedDate = dateStr ? fpDate.formatDate(fpDate.parseDate(dateStr, 'Y-m-d'), 'F j, Y') : '';
+    document.getElementById('addEventModalLabel').textContent = dateStr ? 'New Event \u2014 ' + formattedDate : 'New Event';
     document.getElementById('saveEventBtnText').textContent = 'Save Event';
     addEventModal.show();
+    setTimeout(function() { document.getElementById('eventTitle').focus(); }, 200);
   }
 
   function openEditEventModal(calEvent) {
     if (!addEventModal) return;
     editingEventId = calEvent.id;
+    resetModal();
     document.getElementById('eventTitle').value = calEvent.title || '';
-    document.getElementById('eventDate').value = calEvent.event_date || '';
-    document.getElementById('eventTime').value = calEvent.event_time ? calEvent.event_time.substring(0, 5) : '';
-    document.getElementById('eventType').value = calEvent.event_type || 'other';
+    if (fpDate) fpDate.setDate(calEvent.event_date || '', true);
+    if (fpTime && calEvent.event_time) fpTime.setDate(calEvent.event_time.substring(0, 5), true);
+    if (fpEndDate && calEvent.end_date) fpEndDate.setDate(calEvent.end_date, true);
+    if (fpEndTime && calEvent.end_time) fpEndTime.setDate(calEvent.end_time.substring(0, 5), true);
+    // Set type pill
+    var typeVal = calEvent.event_type || 'other';
+    document.getElementById('eventType').value = typeVal;
+    typePills.forEach(function(p) { p.classList.remove('active'); });
+    var activePill = document.querySelector('.cal-type-pill[data-type="' + typeVal + '"]');
+    if (activePill) activePill.classList.add('active');
+    // Set all-day
+    if (calEvent.is_all_day) {
+      document.getElementById('eventAllDay').checked = true;
+      document.getElementById('startTimeCol').style.display = 'none';
+      document.getElementById('endTimeCol').style.display = 'none';
+    }
+    // Set location
+    document.getElementById('eventLocation').value = calEvent.location || '';
+    // Set color
+    var colorVal = calEvent.color || '';
+    document.getElementById('eventColor').value = colorVal;
+    colorDots.forEach(function(d) { d.classList.remove('active'); });
+    var activeDot = document.querySelector('.cal-color-dot[data-color="' + colorVal + '"]');
+    if (activeDot) activeDot.classList.add('active');
+    if (colorVal) document.getElementById('eventModalAccent').style.background = colorVal;
+    // Set description
     document.getElementById('eventDescription').value = calEvent.description || '';
     document.getElementById('addEventModalLabel').textContent = 'Edit Event';
     document.getElementById('saveEventBtnText').textContent = 'Update Event';
@@ -860,7 +1207,12 @@
       var title = document.getElementById('eventTitle').value.trim();
       var date = document.getElementById('eventDate').value;
       var time = document.getElementById('eventTime').value || null;
+      var endDate = document.getElementById('eventEndDate').value || null;
+      var endTime = document.getElementById('eventEndTime').value || null;
       var type = document.getElementById('eventType').value;
+      var isAllDay = document.getElementById('eventAllDay').checked;
+      var location = document.getElementById('eventLocation').value.trim();
+      var color = document.getElementById('eventColor').value;
       var description = document.getElementById('eventDescription').value.trim();
 
       if (!title) {
@@ -880,8 +1232,13 @@
       var payload = {
         title: title,
         event_date: date,
-        event_time: time,
+        event_time: isAllDay ? null : time,
+        end_date: endDate,
+        end_time: isAllDay ? null : endTime,
         event_type: type,
+        is_all_day: isAllDay,
+        location: location,
+        color: color,
         description: description
       };
 
@@ -907,6 +1264,53 @@
       });
     });
   }
+
+  /* ------------------------------------------------------------------ */
+  /*  Flatpickr Date & Time Pickers                                      */
+  /* ------------------------------------------------------------------ */
+  var fpDate = flatpickr('#eventDate', {
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'M j, Y',
+    disableMobile: true,
+    allowInput: false,
+    theme: 'dark'
+  });
+
+  var fpTime = flatpickr('#eventTime', {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: 'H:i',
+    altInput: true,
+    altFormat: 'h:i K',
+    disableMobile: true,
+    allowInput: false,
+    time_24hr: false,
+    minuteIncrement: 15,
+    theme: 'dark'
+  });
+
+  var fpEndDate = flatpickr('#eventEndDate', {
+    dateFormat: 'Y-m-d',
+    altInput: true,
+    altFormat: 'M j, Y',
+    disableMobile: true,
+    allowInput: false,
+    theme: 'dark'
+  });
+
+  var fpEndTime = flatpickr('#eventEndTime', {
+    enableTime: true,
+    noCalendar: true,
+    dateFormat: 'H:i',
+    altInput: true,
+    altFormat: 'h:i K',
+    disableMobile: true,
+    allowInput: false,
+    time_24hr: false,
+    minuteIncrement: 15,
+    theme: 'dark'
+  });
 
   /* ------------------------------------------------------------------ */
   /*  Initial render                                                     */

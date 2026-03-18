@@ -2,128 +2,381 @@
 {% block title %}Profile - Kanzen Suite{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Profile</h1>
-    <p class="page-subtitle">Manage your personal information and preferences</p>
+<!-- Profile Header Card -->
+<div class="pf-header">
+  <div class="pf-header-accent"></div>
+  <div class="pf-header-body">
+    <div class="pf-header-left">
+      <div class="pf-avatar-wrap">
+        <div class="pf-avatar" id="profileAvatar"></div>
+        <label class="pf-avatar-edit" for="avatarInput" title="Change photo">
+          <i class="ti ti-camera"></i>
+        </label>
+        <input type="file" id="avatarInput" accept="image/jpeg,image/png,image/webp" class="d-none">
+      </div>
+      <div class="pf-header-info">
+        <h1 class="pf-hero-name" id="profileFullName">--</h1>
+        <p class="pf-hero-email" id="profileEmail">--</p>
+      </div>
+    </div>
+    <div class="pf-header-right">
+      <span class="pf-role-badge" id="profileRoleBadge">--</span>
+      <div class="pf-header-details">
+        <span class="pf-meta-item"><i class="ti ti-briefcase"></i> <span id="profileTitleDisplay">--</span></span>
+        <span class="pf-meta-dot"></span>
+        <span class="pf-meta-item"><i class="ti ti-building"></i> <span id="profileDeptDisplay">--</span></span>
+        <span class="pf-meta-dot"></span>
+        <span class="pf-meta-item"><i class="ti ti-calendar"></i> Joined <span id="profileJoined">--</span></span>
+      </div>
+    </div>
   </div>
 </div>
 
-<div class="row g-4">
-  <!-- Left Column: Avatar & Info Card -->
-  <div class="col-lg-4">
-    <div class="card">
-      <div class="card-body text-center py-4">
-        <div class="profile-avatar-lg mx-auto mb-3" id="profileAvatar"></div>
-        <h5 class="mb-1" id="profileFullName">--</h5>
-        <p class="text-muted small mb-2" id="profileEmail">--</p>
-        <span class="badge badge-role-agent" id="profileRoleBadge">--</span>
-        <hr class="my-3">
-        <div class="text-start">
-          <div class="d-flex justify-content-between py-2">
-            <span class="text-muted small">Department</span>
-            <span class="small fw-medium" id="profileDeptDisplay">--</span>
+<!-- Tab Navigation -->
+<div class="pf-tabs">
+  <button class="pf-tab active" data-tab="personal" type="button">
+    <i class="ti ti-user"></i> Personal Info
+  </button>
+  <button class="pf-tab" data-tab="work" type="button">
+    <i class="ti ti-briefcase"></i> Work Info
+  </button>
+  <button class="pf-tab" data-tab="availability" type="button">
+    <i class="ti ti-activity"></i> Availability
+  </button>
+  <button class="pf-tab" data-tab="notifications" type="button">
+    <i class="ti ti-bell"></i> Notifications
+  </button>
+  <button class="pf-tab" data-tab="preferences" type="button">
+    <i class="ti ti-adjustments"></i> Preferences
+  </button>
+  <button class="pf-tab" data-tab="security" type="button">
+    <i class="ti ti-shield-lock"></i> Security
+  </button>
+</div>
+
+<!-- Tab Panels -->
+<div class="pf-panels">
+
+  <!-- ═══ Personal Information ═══ -->
+  <div class="pf-panel active" id="panel-personal">
+    <div class="pf-section">
+      <div class="pf-section-header">
+        <div>
+          <h3 class="pf-section-title">Personal Information</h3>
+          <p class="pf-section-desc">Update your name and contact details</p>
+        </div>
+      </div>
+      <div id="personalAlert"></div>
+      <form id="personalForm">
+        <div class="pf-form-grid">
+          <div class="pf-field">
+            <label for="firstName" class="pf-label">First Name</label>
+            <input type="text" class="form-control" id="firstName" placeholder="Your first name">
           </div>
-          <div class="d-flex justify-content-between py-2">
-            <span class="text-muted small">Job Title</span>
-            <span class="small fw-medium" id="profileTitleDisplay">--</span>
+          <div class="pf-field">
+            <label for="lastName" class="pf-label">Last Name</label>
+            <input type="text" class="form-control" id="lastName" placeholder="Your last name">
           </div>
-          <div class="d-flex justify-content-between py-2">
-            <span class="text-muted small">Member Since</span>
-            <span class="small fw-medium" id="profileJoined">--</span>
+          <div class="pf-field">
+            <label for="emailField" class="pf-label">Email Address</label>
+            <div class="pf-input-locked">
+              <input type="email" class="form-control" id="emailField" disabled>
+              <span class="pf-locked-icon" title="Email cannot be changed"><i class="ti ti-lock"></i></span>
+            </div>
           </div>
+          <div class="pf-field">
+            <label for="phoneField" class="pf-label">Phone Number</label>
+            <input type="text" class="form-control" id="phoneField" placeholder="+1 (555) 000-0000">
+          </div>
+        </div>
+        <div class="pf-form-actions">
+          <button type="submit" class="btn btn-primary" id="savePersonalBtn">
+            <span class="spinner-border spinner-border-sm d-none me-1" id="personalSpinner" role="status"></span>
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ Work Information ═══ -->
+  <div class="pf-panel" id="panel-work">
+    <div class="pf-section">
+      <div class="pf-section-header">
+        <div>
+          <h3 class="pf-section-title">Work Information</h3>
+          <p class="pf-section-desc">Your role and team details</p>
+        </div>
+      </div>
+      <div id="workAlert"></div>
+      <form id="workForm">
+        <div class="pf-form-grid">
+          <div class="pf-field">
+            <label for="jobTitle" class="pf-label">Job Title</label>
+            <input type="text" class="form-control" id="jobTitle" placeholder="e.g. Support Engineer">
+          </div>
+          <div class="pf-field">
+            <label for="department" class="pf-label">Department</label>
+            <input type="text" class="form-control" id="department" placeholder="e.g. Customer Support">
+          </div>
+          <div class="pf-field pf-field--full">
+            <label for="bio" class="pf-label">Bio</label>
+            <textarea class="form-control" id="bio" rows="4" placeholder="Tell your team a little about yourself..."></textarea>
+          </div>
+          <div class="pf-field pf-field--full">
+            <label for="signature" class="pf-label">Reply Signature</label>
+            <textarea class="form-control" id="signature" rows="3" placeholder="e.g. Best regards, John — Support Team"></textarea>
+            <div class="form-text">Appended to your ticket replies.</div>
+          </div>
+        </div>
+        <div class="pf-form-actions">
+          <button type="submit" class="btn btn-primary" id="saveWorkBtn">
+            <span class="spinner-border spinner-border-sm d-none me-1" id="workSpinner" role="status"></span>
+            Save Changes
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ Availability & Workload ═══ -->
+  <div class="pf-panel" id="panel-availability">
+    <div class="pf-section">
+      <div class="pf-section-header">
+        <div>
+          <h3 class="pf-section-title">Availability & Workload</h3>
+          <p class="pf-section-desc">Manage your status and ticket capacity</p>
+        </div>
+      </div>
+
+      <!-- Status Picker -->
+      <div class="pf-avail-row">
+        <div class="pf-avail-label">
+          <span class="pf-label">Current Status</span>
+          <span class="pf-section-desc">Your team can see your status</span>
+        </div>
+        <div class="pf-status-picker" id="statusPicker">
+          <button type="button" class="pf-status-btn pf-status-btn--online" data-status="online">
+            <span class="pf-status-dot" style="background:#10B981;"></span> Online
+          </button>
+          <button type="button" class="pf-status-btn pf-status-btn--away" data-status="away">
+            <span class="pf-status-dot" style="background:#F59E0B;"></span> Away
+          </button>
+          <button type="button" class="pf-status-btn pf-status-btn--busy" data-status="busy">
+            <span class="pf-status-dot" style="background:#EF4444;"></span> Busy
+          </button>
+          <button type="button" class="pf-status-btn pf-status-btn--offline" data-status="offline">
+            <span class="pf-status-dot" style="background:#94A3B8;"></span> Offline
+          </button>
+        </div>
+      </div>
+
+      <!-- Status Message -->
+      <div class="pf-avail-row">
+        <div class="pf-avail-label">
+          <span class="pf-label">Status Message</span>
+          <span class="pf-section-desc">Let your team know what you're doing</span>
+        </div>
+        <div class="pf-avail-control" style="flex:1;max-width:320px;">
+          <input type="text" class="form-control form-control-sm" id="statusMessage" placeholder="e.g. In a meeting until 3pm" maxlength="100">
+        </div>
+      </div>
+
+      <!-- Workload Capacity -->
+      <div class="pf-avail-row">
+        <div class="pf-avail-label">
+          <span class="pf-label">Ticket Capacity</span>
+          <span class="pf-section-desc">Max tickets you can handle at once</span>
+        </div>
+        <div class="pf-capacity-control">
+          <button type="button" class="pf-capacity-btn" id="capacityDown"><i class="ti ti-minus"></i></button>
+          <span class="pf-capacity-value" id="capacityValue">10</span>
+          <button type="button" class="pf-capacity-btn" id="capacityUp"><i class="ti ti-plus"></i></button>
+        </div>
+      </div>
+
+      <!-- Current Workload -->
+      <div class="pf-avail-row">
+        <div class="pf-avail-label">
+          <span class="pf-label">Current Workload</span>
+          <span class="pf-section-desc">Active tickets assigned to you</span>
+        </div>
+        <div class="pf-workload-bar">
+          <div class="pf-workload-track">
+            <div class="pf-workload-fill" id="workloadFill" style="width:0%"></div>
+          </div>
+          <span class="pf-workload-text" id="workloadText">0 / 10</span>
+        </div>
+      </div>
+
+      <div class="pf-form-actions">
+        <button type="button" class="btn btn-primary" id="saveAvailBtn">
+          <span class="spinner-border spinner-border-sm d-none me-1" id="availSpinner" role="status"></span>
+          Save Changes
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Notifications ═══ -->
+  <div class="pf-panel" id="panel-notifications">
+    <div class="pf-section">
+      <div class="pf-section-header">
+        <div>
+          <h3 class="pf-section-title">Notification Preferences</h3>
+          <p class="pf-section-desc">Choose how and when you get notified</p>
+        </div>
+      </div>
+
+      <!-- Granular per-type preferences -->
+      <div class="pf-notif-table">
+        <div class="pf-notif-table-head">
+          <span class="pf-notif-table-type">Notification Type</span>
+          <span class="pf-notif-table-ch">In-App</span>
+          <span class="pf-notif-table-ch">Email</span>
+        </div>
+        <div id="notifPrefList">
+          <!-- Populated by JS -->
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Right Column: Edit Forms -->
-  <div class="col-lg-8">
-    <!-- Personal Information -->
-    <div class="card mb-4">
-      <div class="card-header">
-        <h6 class="mb-0 fw-semibold">Personal Information</h6>
+  <!-- ═══ Preferences (Phase 2) ═══ -->
+  <div class="pf-panel" id="panel-preferences">
+    <div class="pf-section">
+      <div class="pf-section-header">
+        <div>
+          <h3 class="pf-section-title">Preferences</h3>
+          <p class="pf-section-desc">Customize your workspace experience</p>
+        </div>
       </div>
-      <div class="card-body">
-        <div id="personalAlert"></div>
-        <form id="personalForm">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label for="firstName" class="form-label">First Name</label>
-              <input type="text" class="form-control" id="firstName" placeholder="Your first name">
-            </div>
-            <div class="col-md-6">
-              <label for="lastName" class="form-label">Last Name</label>
-              <input type="text" class="form-control" id="lastName" placeholder="Your last name">
-            </div>
-            <div class="col-md-6">
-              <label for="emailField" class="form-label">Email</label>
-              <input type="email" class="form-control" id="emailField" disabled>
-              <div class="form-text">Email cannot be changed.</div>
-            </div>
-            <div class="col-md-6">
-              <label for="phoneField" class="form-label">Phone</label>
-              <input type="text" class="form-control" id="phoneField" placeholder="+1 (555) 000-0000">
-            </div>
+      <div id="prefAlert"></div>
+      <form id="prefForm">
+        <div class="pf-form-grid">
+          <div class="pf-field">
+            <label for="prefTimezone" class="pf-label">Timezone</label>
+            <select class="form-select" id="prefTimezone">
+              <option value="UTC">UTC</option>
+              <option value="Asia/Kuala_Lumpur">Asia/Kuala Lumpur (GMT+8)</option>
+              <option value="Asia/Singapore">Asia/Singapore (GMT+8)</option>
+              <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
+              <option value="Asia/Shanghai">Asia/Shanghai (GMT+8)</option>
+              <option value="Asia/Kolkata">Asia/Kolkata (GMT+5:30)</option>
+              <option value="Asia/Dubai">Asia/Dubai (GMT+4)</option>
+              <option value="Europe/London">Europe/London (GMT+0)</option>
+              <option value="Europe/Paris">Europe/Paris (GMT+1)</option>
+              <option value="Europe/Berlin">Europe/Berlin (GMT+1)</option>
+              <option value="America/New_York">America/New York (GMT-5)</option>
+              <option value="America/Chicago">America/Chicago (GMT-6)</option>
+              <option value="America/Denver">America/Denver (GMT-7)</option>
+              <option value="America/Los_Angeles">America/Los Angeles (GMT-8)</option>
+              <option value="Australia/Sydney">Australia/Sydney (GMT+11)</option>
+              <option value="Pacific/Auckland">Pacific/Auckland (GMT+13)</option>
+            </select>
           </div>
-          <div class="mt-3 text-end">
-            <button type="submit" class="btn btn-primary btn-sm" id="savePersonalBtn">
-              <span class="spinner-border spinner-border-sm d-none me-1" id="personalSpinner" role="status"></span>
-              Save Changes
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Work Information -->
-    <div class="card mb-4">
-      <div class="card-header">
-        <h6 class="mb-0 fw-semibold">Work Information</h6>
-      </div>
-      <div class="card-body">
-        <div id="workAlert"></div>
-        <form id="workForm">
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label for="jobTitle" class="form-label">Job Title</label>
-              <input type="text" class="form-control" id="jobTitle" placeholder="e.g. Support Engineer">
-            </div>
-            <div class="col-md-6">
-              <label for="department" class="form-label">Department</label>
-              <input type="text" class="form-control" id="department" placeholder="e.g. Customer Support">
-            </div>
-            <div class="col-12">
-              <label for="bio" class="form-label">Bio</label>
-              <textarea class="form-control" id="bio" rows="3" placeholder="A short bio about yourself..."></textarea>
-            </div>
-          </div>
-          <div class="mt-3 text-end">
-            <button type="submit" class="btn btn-primary btn-sm" id="saveWorkBtn">
-              <span class="spinner-border spinner-border-sm d-none me-1" id="workSpinner" role="status"></span>
-              Save Changes
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Notification Preferences -->
-    <div class="card">
-      <div class="card-header">
-        <h6 class="mb-0 fw-semibold">Notification Preferences</h6>
-      </div>
-      <div class="card-body">
-        <div id="notifPrefAlert"></div>
-        <div class="d-flex align-items-center justify-content-between py-2">
-          <div>
-            <span class="fw-medium">Email Notifications</span>
-            <p class="text-muted small mb-0">Receive email alerts for ticket updates, mentions, and assignments.</p>
-          </div>
-          <div class="form-check form-switch">
-            <input class="form-check-input" type="checkbox" id="notifEmail" checked>
+          <div class="pf-field">
+            <label for="prefLanguage" class="pf-label">Language</label>
+            <select class="form-select" id="prefLanguage">
+              <option value="en">English</option>
+              <option value="ms">Bahasa Melayu</option>
+              <option value="zh">Chinese</option>
+              <option value="ja">Japanese</option>
+              <option value="ko">Korean</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="es">Spanish</option>
+            </select>
           </div>
         </div>
+
+        <!-- Quiet Hours -->
+        <div class="pf-quiet-section">
+          <div class="pf-quiet-header">
+            <div>
+              <span class="pf-label">Quiet Hours (Do Not Disturb)</span>
+              <span class="pf-section-desc">Suppress notifications during set hours</span>
+            </div>
+            <div class="form-check form-switch">
+              <input class="form-check-input" type="checkbox" id="dndEnabled">
+            </div>
+          </div>
+          <div class="pf-quiet-times" id="dndTimesWrap">
+            <div class="pf-field">
+              <label for="dndStart" class="pf-label">Start Time</label>
+              <input type="time" class="form-control" id="dndStart" value="22:00">
+            </div>
+            <div class="pf-field">
+              <label for="dndEnd" class="pf-label">End Time</label>
+              <input type="time" class="form-control" id="dndEnd" value="08:00">
+            </div>
+          </div>
+        </div>
+
+        <div class="pf-form-actions">
+          <button type="submit" class="btn btn-primary" id="savePrefBtn">
+            <span class="spinner-border spinner-border-sm d-none me-1" id="prefSpinner" role="status"></span>
+            Save Preferences
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ═══ Security ═══ -->
+  <div class="pf-panel" id="panel-security">
+    <div class="pf-section">
+      <div class="pf-section-header">
+        <div>
+          <h3 class="pf-section-title">Security</h3>
+          <p class="pf-section-desc">Manage your password and account security</p>
+        </div>
+      </div>
+      <div class="pf-security-item" id="passwordSection">
+        <div class="pf-security-icon"><i class="ti ti-key"></i></div>
+        <div class="pf-security-info">
+          <span class="pf-security-label">Password</span>
+          <span class="pf-security-desc">Change your password to keep your account secure.</span>
+        </div>
+        <button class="btn btn-outline-secondary btn-sm" type="button" id="showPasswordFormBtn">
+          Change Password
+        </button>
+      </div>
+
+      <div class="pf-password-form d-none" id="passwordFormWrap">
+        <div id="passwordAlert"></div>
+        <form id="passwordForm">
+          <div class="pf-form-grid">
+            <div class="pf-field pf-field--full">
+              <label for="currentPassword" class="pf-label">Current Password</label>
+              <input type="password" class="form-control" id="currentPassword" placeholder="Enter current password" required>
+            </div>
+            <div class="pf-field">
+              <label for="newPassword" class="pf-label">New Password</label>
+              <input type="password" class="form-control" id="newPassword" placeholder="Min. 8 characters" required minlength="8">
+            </div>
+            <div class="pf-field">
+              <label for="confirmPassword" class="pf-label">Confirm New Password</label>
+              <input type="password" class="form-control" id="confirmPassword" placeholder="Re-enter new password" required minlength="8">
+            </div>
+          </div>
+          <div class="pf-form-actions">
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="cancelPasswordBtn">Cancel</button>
+            <button type="submit" class="btn btn-primary btn-sm" id="savePasswordBtn">
+              <span class="spinner-border spinner-border-sm d-none me-1" id="passwordSpinner" role="status"></span>
+              Update Password
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="pf-security-item">
+        <div class="pf-security-icon"><i class="ti ti-devices"></i></div>
+        <div class="pf-security-info">
+          <span class="pf-security-label">Active Sessions</span>
+          <span class="pf-security-desc">You are currently signed in on this device.</span>
+        </div>
+        <span class="pf-security-status"><i class="ti ti-circle-filled"></i> Active</span>
       </div>
     </div>
   </div>
@@ -137,9 +390,12 @@
 
   var PROFILE_API = '/api/v1/accounts/profiles/me/';
   var USERS_API = '/api/v1/accounts/users/';
+  var AGENTS_API = '/api/v1/agents/agents/my-status/';
+  var NOTIF_PREF_API = '/api/v1/notifications/notification-preferences/';
   var profileData = null;
+  var agentData = null;
 
-  var AVATAR_COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  var AVATAR_COLORS = ['#2563EB','#1D4ED8','#0891B2','#059669','#10B981','#F59E0B','#7C3AED','#EC4899','#3B82F6','#14B8A6'];
   function avatarColor(name) {
     if (!name) return AVATAR_COLORS[0];
     for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
@@ -149,32 +405,58 @@
     if (!n) return '?';
     return n.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
   }
-  function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
   function formatDate(d) { if (!d) return '--'; return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
 
   function getRoleBadgeClass(roleName) {
     var rn = (roleName || '').toLowerCase();
-    if (rn === 'admin' || rn === 'administrator') return 'badge-role-admin';
-    if (rn === 'manager') return 'badge-role-manager';
-    if (rn === 'agent') return 'badge-role-agent';
-    return 'badge-role-viewer';
+    if (rn === 'admin' || rn === 'administrator') return 'pf-role-badge--admin';
+    if (rn === 'manager') return 'pf-role-badge--manager';
+    if (rn === 'agent') return 'pf-role-badge--agent';
+    return 'pf-role-badge--viewer';
   }
 
   function showAlert(id, msg, type) {
-    document.getElementById(id).innerHTML = '<div class="alert alert-' + (type || 'info') + ' alert-dismissible fade show py-2 small" role="alert">' + escapeHtml(msg) + '<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button></div>';
+    var el = document.getElementById(id);
+    el.textContent = '';
+    var alert = document.createElement('div');
+    alert.className = 'alert alert-' + (type || 'info') + ' alert-dismissible fade show py-2 small';
+    alert.setAttribute('role', 'alert');
+    alert.textContent = msg;
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'btn-close btn-close-sm';
+    closeBtn.setAttribute('data-bs-dismiss', 'alert');
+    alert.appendChild(closeBtn);
+    el.appendChild(alert);
   }
 
+  // ═══ Tab switching ═══
+  document.querySelectorAll('.pf-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.pf-tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.pf-panel').forEach(function(p) { p.classList.remove('active'); });
+      this.classList.add('active');
+      var panel = document.getElementById('panel-' + this.getAttribute('data-tab'));
+      if (panel) panel.classList.add('active');
+    });
+  });
+
+  // ═══ Load Profile ═══
   function loadProfile() {
     Api.get(PROFILE_API).then(function(data) {
       profileData = data;
       var user = data.user || {};
 
-      // Left card
       var fullName = user.full_name || ((user.first_name || '') + ' ' + (user.last_name || '')).trim() || user.email;
       var avatarEl = document.getElementById('profileAvatar');
-      var bg = avatarColor(fullName);
-      avatarEl.style.background = bg;
-      avatarEl.textContent = getInitials(fullName);
+
+      if (user.avatar) {
+        avatarEl.textContent = '';
+        avatarEl.style.background = 'url(' + user.avatar + ') center/cover no-repeat';
+      } else {
+        avatarEl.style.background = avatarColor(fullName);
+        avatarEl.textContent = getInitials(fullName);
+      }
 
       document.getElementById('profileFullName').textContent = fullName;
       document.getElementById('profileEmail').textContent = user.email || '--';
@@ -182,102 +464,306 @@
       document.getElementById('profileTitleDisplay').textContent = data.job_title || '--';
       document.getElementById('profileJoined').textContent = formatDate(user.date_joined);
 
-      // Role badge
       var roleBadge = document.getElementById('profileRoleBadge');
       var roleName = '{{ user_role.name|default:"Member" }}';
       roleBadge.textContent = roleName;
-      roleBadge.className = 'badge ' + getRoleBadgeClass(roleName);
+      roleBadge.className = 'pf-role-badge ' + getRoleBadgeClass(roleName);
 
-      // Personal info form
+      // Forms
       document.getElementById('firstName').value = user.first_name || '';
       document.getElementById('lastName').value = user.last_name || '';
       document.getElementById('emailField').value = user.email || '';
       document.getElementById('phoneField').value = user.phone || '';
-
-      // Work info form
       document.getElementById('jobTitle').value = data.job_title || '';
       document.getElementById('department').value = data.department || '';
       document.getElementById('bio').value = data.bio || '';
+      document.getElementById('signature').value = data.signature || '';
 
-      // Notification prefs
-      document.getElementById('notifEmail').checked = data.notification_email !== false;
+      // Preferences
+      document.getElementById('prefTimezone').value = data.timezone || 'UTC';
+      document.getElementById('prefLanguage').value = data.language || 'en';
+      document.getElementById('dndEnabled').checked = !!data.dnd_enabled;
+      document.getElementById('dndStart').value = data.dnd_start || '22:00';
+      document.getElementById('dndEnd').value = data.dnd_end || '08:00';
+      toggleDndTimes();
     }).catch(function() {
       Toast.error('Failed to load profile data.');
     });
   }
 
-  // Save personal info (user fields)
+  // ═══ Load Agent Availability ═══
+  function loadAvailability() {
+    Api.get(AGENTS_API).then(function(data) {
+      agentData = data;
+      updateStatusPicker(data.status);
+      document.getElementById('statusMessage').value = data.status_message || '';
+      document.getElementById('capacityValue').textContent = data.max_concurrent_tickets;
+      updateWorkloadBar(data.current_ticket_count, data.max_concurrent_tickets);
+    }).catch(function() {});
+  }
+
+  function updateStatusPicker(status) {
+    document.querySelectorAll('.pf-status-btn').forEach(function(btn) {
+      btn.classList.toggle('active', btn.getAttribute('data-status') === status);
+    });
+  }
+
+  function updateWorkloadBar(current, max) {
+    var pct = max > 0 ? Math.min(100, (current / max) * 100) : 0;
+    document.getElementById('workloadFill').style.width = pct + '%';
+    document.getElementById('workloadText').textContent = current + ' / ' + max;
+
+    var fill = document.getElementById('workloadFill');
+    fill.style.background = pct > 80 ? '#EF4444' : pct > 50 ? '#F59E0B' : '#10B981';
+  }
+
+  // ═══ Load Notification Preferences ═══
+  var NOTIF_ICONS = {
+    'ticket_assigned': 'ti-user-check',
+    'ticket_updated': 'ti-edit',
+    'ticket_comment': 'ti-message',
+    'mention': 'ti-at',
+    'message': 'ti-message-dots',
+    'sla_breach': 'ti-alert-triangle',
+    'payment_failed': 'ti-credit-card-off',
+    'subscription_change': 'ti-crown',
+    'invitation': 'ti-mail-forward'
+  };
+
+  function loadNotifPrefs() {
+    Api.get(NOTIF_PREF_API).then(function(prefs) {
+      var list = document.getElementById('notifPrefList');
+      list.textContent = '';
+
+      prefs.forEach(function(pref) {
+        var row = document.createElement('div');
+        row.className = 'pf-notif-table-row';
+        row.setAttribute('data-type', pref.notification_type);
+
+        var typeCell = document.createElement('div');
+        typeCell.className = 'pf-notif-table-type';
+        var icon = document.createElement('i');
+        icon.className = 'ti ' + (NOTIF_ICONS[pref.notification_type] || 'ti-bell');
+        typeCell.appendChild(icon);
+        var label = document.createElement('span');
+        label.textContent = pref.notification_type_display || pref.notification_type;
+        typeCell.appendChild(label);
+
+        var inAppCell = document.createElement('div');
+        inAppCell.className = 'pf-notif-table-ch';
+        var inAppSwitch = document.createElement('input');
+        inAppSwitch.type = 'checkbox';
+        inAppSwitch.className = 'form-check-input';
+        inAppSwitch.checked = pref.in_app;
+        inAppSwitch.addEventListener('change', function() {
+          saveNotifPref(pref.notification_type, this.checked, null);
+        });
+        inAppCell.appendChild(inAppSwitch);
+
+        var emailCell = document.createElement('div');
+        emailCell.className = 'pf-notif-table-ch';
+        var emailSwitch = document.createElement('input');
+        emailSwitch.type = 'checkbox';
+        emailSwitch.className = 'form-check-input';
+        emailSwitch.checked = pref.email;
+        emailSwitch.addEventListener('change', function() {
+          saveNotifPref(pref.notification_type, null, this.checked);
+        });
+        emailCell.appendChild(emailSwitch);
+
+        row.appendChild(typeCell);
+        row.appendChild(inAppCell);
+        row.appendChild(emailCell);
+        list.appendChild(row);
+      });
+    }).catch(function() {});
+  }
+
+  function saveNotifPref(type, inApp, email) {
+    // The ViewSet does update_or_create keyed on notification_type
+    // We need to send both values; read current from the UI
+    var row = document.querySelector('.pf-notif-table-row[data-type="' + type + '"]');
+    var switches = row ? row.querySelectorAll('.form-check-input') : [];
+    var payload = {
+      notification_type: type,
+      in_app: inApp !== null ? inApp : (switches[0] ? switches[0].checked : true),
+      email: email !== null ? email : (switches[1] ? switches[1].checked : true)
+    };
+    Api.put(NOTIF_PREF_API + '0/', payload).catch(function() {
+      Toast.error('Failed to update preference');
+      loadNotifPrefs();
+    });
+  }
+
+  // ═══ Avatar Upload ═══
+  document.getElementById('avatarInput').addEventListener('change', function() {
+    var file = this.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) { Toast.warning('Image must be under 5MB'); return; }
+    if (!profileData || !profileData.user) return;
+
+    var fd = new FormData();
+    fd.append('avatar', file);
+    Api.upload('/api/v1/accounts/profiles/upload-avatar/', fd).then(function() {
+      Toast.success('Avatar updated');
+      loadProfile();
+    }).catch(function(err) {
+      var msg = 'Failed to upload avatar';
+      if (err) {
+        if (err.avatar) msg = Array.isArray(err.avatar) ? err.avatar[0] : err.avatar;
+        else if (err.detail) msg = err.detail;
+        else if (err.non_field_errors) msg = Array.isArray(err.non_field_errors) ? err.non_field_errors[0] : err.non_field_errors;
+      }
+      Toast.error(msg);
+    });
+  });
+
+  // ═══ Save Personal Info ═══
   document.getElementById('personalForm').addEventListener('submit', function(e) {
     e.preventDefault();
     if (!profileData || !profileData.user) return;
-
     var btn = document.getElementById('savePersonalBtn');
     var spinner = document.getElementById('personalSpinner');
-    btn.disabled = true;
-    spinner.classList.remove('d-none');
+    btn.disabled = true; spinner.classList.remove('d-none');
 
-    var payload = {
+    Api.patch(USERS_API + profileData.user.id + '/', {
       first_name: document.getElementById('firstName').value.trim(),
       last_name: document.getElementById('lastName').value.trim(),
       phone: document.getElementById('phoneField').value.trim()
-    };
-
-    Api.patch(USERS_API + profileData.user.id + '/', payload).then(function() {
-      showAlert('personalAlert', 'Personal information updated.', 'success');
+    }).then(function() {
       Toast.success('Personal information saved');
       loadProfile();
     }).catch(function(err) {
-      var msg = err.detail || 'Failed to update personal information.';
-      showAlert('personalAlert', msg, 'danger');
-      Toast.error(msg);
-    }).finally(function() {
-      btn.disabled = false;
-      spinner.classList.add('d-none');
-    });
+      Toast.error(err.detail || 'Failed to update');
+    }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
   });
 
-  // Save work info (profile fields)
+  // ═══ Save Work Info ═══
   document.getElementById('workForm').addEventListener('submit', function(e) {
     e.preventDefault();
-
     var btn = document.getElementById('saveWorkBtn');
     var spinner = document.getElementById('workSpinner');
-    btn.disabled = true;
-    spinner.classList.remove('d-none');
+    btn.disabled = true; spinner.classList.remove('d-none');
 
-    var payload = {
+    Api.patch(PROFILE_API, {
       job_title: document.getElementById('jobTitle').value.trim(),
       department: document.getElementById('department').value.trim(),
-      bio: document.getElementById('bio').value.trim()
-    };
-
-    Api.patch(PROFILE_API, payload).then(function() {
-      showAlert('workAlert', 'Work information updated.', 'success');
+      bio: document.getElementById('bio').value.trim(),
+      signature: document.getElementById('signature').value.trim()
+    }).then(function() {
       Toast.success('Work information saved');
       loadProfile();
     }).catch(function(err) {
-      var msg = err.detail || 'Failed to update work information.';
-      showAlert('workAlert', msg, 'danger');
-      Toast.error(msg);
-    }).finally(function() {
-      btn.disabled = false;
-      spinner.classList.add('d-none');
+      Toast.error(err.detail || 'Failed to update');
+    }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
+  });
+
+  // ═══ Availability Controls ═══
+  document.querySelectorAll('.pf-status-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      updateStatusPicker(this.getAttribute('data-status'));
     });
   });
 
-  // Notification email toggle
-  document.getElementById('notifEmail').addEventListener('change', function() {
-    var checked = this.checked;
-    Api.patch(PROFILE_API, { notification_email: checked }).then(function() {
-      Toast.success('Notification preference updated');
+  var capacityVal = 10;
+  document.getElementById('capacityDown').addEventListener('click', function() {
+    capacityVal = Math.max(1, capacityVal - 1);
+    document.getElementById('capacityValue').textContent = capacityVal;
+  });
+  document.getElementById('capacityUp').addEventListener('click', function() {
+    capacityVal = Math.min(50, capacityVal + 1);
+    document.getElementById('capacityValue').textContent = capacityVal;
+  });
+
+  document.getElementById('saveAvailBtn').addEventListener('click', function() {
+    var btn = this;
+    var spinner = document.getElementById('availSpinner');
+    btn.disabled = true; spinner.classList.remove('d-none');
+
+    var activeBtn = document.querySelector('.pf-status-btn.active');
+    var status = activeBtn ? activeBtn.getAttribute('data-status') : 'offline';
+
+    Api.patch(AGENTS_API, {
+      status: status,
+      status_message: document.getElementById('statusMessage').value.trim(),
+      max_concurrent_tickets: parseInt(document.getElementById('capacityValue').textContent)
+    }).then(function(data) {
+      agentData = data;
+      Toast.success('Availability updated');
+      updateWorkloadBar(data.current_ticket_count, data.max_concurrent_tickets);
     }).catch(function() {
-      document.getElementById('notifEmail').checked = !checked;
-      Toast.error('Failed to update notification preference');
-    });
+      Toast.error('Failed to update availability');
+    }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
   });
 
-  // Initial load
+  // ═══ Save Preferences ═══
+  function toggleDndTimes() {
+    var wrap = document.getElementById('dndTimesWrap');
+    wrap.style.display = document.getElementById('dndEnabled').checked ? 'grid' : 'none';
+  }
+  document.getElementById('dndEnabled').addEventListener('change', toggleDndTimes);
+
+  document.getElementById('prefForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var btn = document.getElementById('savePrefBtn');
+    var spinner = document.getElementById('prefSpinner');
+    btn.disabled = true; spinner.classList.remove('d-none');
+
+    Api.patch(PROFILE_API, {
+      timezone: document.getElementById('prefTimezone').value,
+      language: document.getElementById('prefLanguage').value,
+      dnd_enabled: document.getElementById('dndEnabled').checked,
+      dnd_start: document.getElementById('dndStart').value || null,
+      dnd_end: document.getElementById('dndEnd').value || null
+    }).then(function() {
+      Toast.success('Preferences saved');
+    }).catch(function(err) {
+      Toast.error(err.detail || 'Failed to update preferences');
+    }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
+  });
+
+  // ═══ Password Change ═══
+  document.getElementById('showPasswordFormBtn').addEventListener('click', function() {
+    document.getElementById('passwordFormWrap').classList.remove('d-none');
+    document.getElementById('passwordSection').classList.add('d-none');
+    document.getElementById('currentPassword').focus();
+  });
+  document.getElementById('cancelPasswordBtn').addEventListener('click', function() {
+    document.getElementById('passwordFormWrap').classList.add('d-none');
+    document.getElementById('passwordSection').classList.remove('d-none');
+    document.getElementById('passwordForm').reset();
+  });
+  document.getElementById('passwordForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var newPw = document.getElementById('newPassword').value;
+    var confirmPw = document.getElementById('confirmPassword').value;
+    if (newPw !== confirmPw) { showAlert('passwordAlert', 'Passwords do not match.', 'danger'); return; }
+    if (newPw.length < 8) { showAlert('passwordAlert', 'Min 8 characters.', 'danger'); return; }
+
+    var btn = document.getElementById('savePasswordBtn');
+    var spinner = document.getElementById('passwordSpinner');
+    btn.disabled = true; spinner.classList.remove('d-none');
+
+    Api.post('/api/v1/accounts/auth/change-password/', {
+      current_password: document.getElementById('currentPassword').value,
+      new_password: newPw, confirm_password: confirmPw
+    }).then(function() {
+      Toast.success('Password changed');
+      document.getElementById('passwordFormWrap').classList.add('d-none');
+      document.getElementById('passwordSection').classList.remove('d-none');
+      document.getElementById('passwordForm').reset();
+    }).catch(function(err) {
+      showAlert('passwordAlert', err.detail || 'Failed to change password', 'danger');
+    }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
+  });
+
+  // ═══ Init ═══
   loadProfile();
+  loadAvailability();
+  loadNotifPrefs();
+
+  // Sync capacity value from loaded data
+  Api.get(AGENTS_API).then(function(d) { capacityVal = d.max_concurrent_tickets || 10; }).catch(function(){});
 })();
 </script>
 {% endblock %}

@@ -184,36 +184,49 @@
     </div>
   </div>
 
-  <!-- Right Column: SLA Compliance -->
+  <!-- Right Column: SLA Compliance (admin/manager) or Due Today (agent) — JS-driven -->
   <div class="col-lg-4 d-flex">
     <div class="card flex-fill">
-      <div class="card-header">
-        <h5 class="card-title">SLA Compliance</h5>
+      <div class="card-header d-flex align-items-center justify-content-between" id="rightWidgetHeader">
+        <h5 class="card-title mb-0">
+          <span class="skeleton skeleton-text" style="width:120px;">&nbsp;</span>
+        </h5>
       </div>
-      <div class="card-body" id="slaContainer">
-        <div class="sla-loading">
-          <div class="d-flex align-items-center gap-3 mb-3">
-            <div class="skeleton skeleton-circle" style="width:56px;height:56px;"></div>
-            <div>
-              <div class="skeleton skeleton-text mb-1" style="width:120px;">&nbsp;</div>
-              <div class="skeleton skeleton-text" style="width:80px;">&nbsp;</div>
-            </div>
-          </div>
-          <div class="d-flex align-items-center gap-3 mb-3">
-            <div class="skeleton skeleton-circle" style="width:56px;height:56px;"></div>
-            <div>
-              <div class="skeleton skeleton-text mb-1" style="width:120px;">&nbsp;</div>
-              <div class="skeleton skeleton-text" style="width:80px;">&nbsp;</div>
-            </div>
-          </div>
-          <div class="d-flex align-items-center gap-3">
-            <div class="skeleton skeleton-circle" style="width:56px;height:56px;"></div>
-            <div>
-              <div class="skeleton skeleton-text mb-1" style="width:120px;">&nbsp;</div>
-              <div class="skeleton skeleton-text" style="width:80px;">&nbsp;</div>
-            </div>
+      <div class="card-body" id="rightWidgetBody">
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="skeleton skeleton-circle" style="width:56px;height:56px;"></div>
+          <div>
+            <div class="skeleton skeleton-text mb-1" style="width:120px;">&nbsp;</div>
+            <div class="skeleton skeleton-text" style="width:80px;">&nbsp;</div>
           </div>
         </div>
+        <div class="d-flex align-items-center gap-3 mb-3">
+          <div class="skeleton skeleton-circle" style="width:56px;height:56px;"></div>
+          <div>
+            <div class="skeleton skeleton-text mb-1" style="width:120px;">&nbsp;</div>
+            <div class="skeleton skeleton-text" style="width:80px;">&nbsp;</div>
+          </div>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <div class="skeleton skeleton-circle" style="width:56px;height:56px;"></div>
+          <div>
+            <div class="skeleton skeleton-text mb-1" style="width:120px;">&nbsp;</div>
+            <div class="skeleton skeleton-text" style="width:80px;">&nbsp;</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Overdue Tickets -->
+<div class="row g-4 mb-4">
+  <div class="col-12">
+    <div class="card" id="overdueCard" style="display:none;">
+      <div class="card-header d-flex align-items-center justify-content-between" id="overdueHeader">
+        <h5 class="card-title mb-0">Overdue Tickets</h5>
+      </div>
+      <div class="card-body" id="overdueBody" style="overflow-y:auto;max-height:320px;">
       </div>
     </div>
   </div>
@@ -601,7 +614,9 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#1E293B',
+            backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--crm-surface-elevated').trim() || '#1E293B',
+            titleColor: getComputedStyle(document.documentElement).getPropertyValue('--crm-text').trim() || '#F9FAFB',
+            bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--crm-text-secondary').trim() || '#94A3B8',
             titleFont: { family: 'Inter', size: 12, weight: '600' },
             bodyFont: { family: 'Inter', size: 11 },
             padding: 10,
@@ -609,7 +624,9 @@
             displayColors: true,
             boxWidth: 8,
             boxHeight: 8,
-            boxPadding: 4
+            boxPadding: 4,
+            borderColor: getComputedStyle(document.documentElement).getPropertyValue('--crm-border').trim() || 'transparent',
+            borderWidth: 1
           }
         }
       }
@@ -692,10 +709,32 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /*  Render: SLA Compliance                                             */
+  /*  Render: Right Widget (SLA or Due Today based on API role flag)      */
   /* ------------------------------------------------------------------ */
-  function renderSlaCompliance(slaData) {
-    var container = document.getElementById('slaContainer');
+  function renderRightWidget(data) {
+    var header = document.getElementById('rightWidgetHeader');
+    var body = document.getElementById('rightWidgetBody');
+    if (!header || !body) return;
+
+    if (data.is_admin_or_manager) {
+      // SLA Compliance for admin/manager
+      header.innerHTML = '<h5 class="card-title mb-0">SLA Compliance</h5>';
+      renderSlaCompliance(body, data.sla_compliance || {});
+    } else {
+      // Due Today for agents
+      var dueTodayData = data.due_today || { count: 0, tickets: [] };
+      var count = dueTodayData.count || 0;
+      var badgeHtml = count > 0
+        ? ' <span class="badge badge-soft-danger">' + count + '</span>'
+        : '';
+      header.innerHTML = '<h5 class="card-title mb-0">Due Today</h5>' + badgeHtml;
+      body.style.overflowY = 'auto';
+      body.style.maxHeight = '320px';
+      renderDueToday(body, dueTodayData);
+    }
+  }
+
+  function renderSlaCompliance(container, slaData) {
     var policies = slaData.policies || [];
 
     if (policies.length === 0) {
@@ -725,6 +764,151 @@
     });
 
     container.innerHTML = html;
+  }
+
+  function renderDueToday(container, dueTodayData) {
+    var tickets = dueTodayData.tickets || [];
+    var count = dueTodayData.count || 0;
+
+    if (tickets.length === 0) {
+      showEmpty(container, 'calendar-check', 'No tickets due today.');
+      return;
+    }
+
+    var html = '';
+    tickets.forEach(function(t) {
+      var prLabel = PRIORITY_LABELS[t.priority] || t.priority || 'Low';
+      var dueTime = '';
+      if (t.due_date) {
+        var d = new Date(t.due_date);
+        dueTime = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+
+      html +=
+        '<a href="/tickets/' + t.number + '/" class="due-today-item">' +
+          '<div class="d-flex align-items-center justify-content-between">' +
+            '<div class="d-flex align-items-center gap-2" style="min-width:0;">' +
+              '<span class="text-muted fw-medium" style="font-size:0.75rem;">#' + t.number + '</span>' +
+              '<span class="fw-medium text-truncate">' + escapeHtml(t.subject) + '</span>' +
+            '</div>' +
+            '<div class="d-flex align-items-center gap-2 flex-shrink-0">' +
+              '<span class="badge badge-priority-' + (t.priority || 'low') + '" style="font-size:0.625rem;">' + escapeHtml(prLabel) + '</span>' +
+              (dueTime ? '<span class="text-muted" style="font-size:0.75rem;"><i class="ti ti-clock" style="font-size:0.75rem;"></i> ' + dueTime + '</span>' : '') +
+            '</div>' +
+          '</div>' +
+        '</a>';
+    });
+
+    if (count > tickets.length) {
+      html += '<div class="text-center mt-2"><a href="/tickets/?due=today" class="text-muted" style="font-size:0.8125rem;">View all ' + count + ' tickets</a></div>';
+    }
+
+    container.innerHTML = html;
+  }
+
+  /* ------------------------------------------------------------------ */
+  /*  Render: Overdue Tickets                                            */
+  /* ------------------------------------------------------------------ */
+  function renderOverdueTickets(overdueData) {
+    var card = document.getElementById('overdueCard');
+    var header = document.getElementById('overdueHeader');
+    var body = document.getElementById('overdueBody');
+    if (!card || !body) return;
+
+    var tickets = overdueData.tickets || [];
+    var count = overdueData.count || 0;
+
+    if (count === 0) {
+      card.style.display = 'none';
+      return;
+    }
+
+    card.style.display = '';
+
+    // Build header safely
+    while (header.firstChild) header.removeChild(header.firstChild);
+    var h5 = document.createElement('h5');
+    h5.className = 'card-title mb-0';
+    var icon = document.createElement('i');
+    icon.className = 'ti ti-alert-triangle text-danger';
+    icon.style.fontSize = '1.1rem';
+    h5.appendChild(icon);
+    h5.appendChild(document.createTextNode(' Overdue Tickets '));
+    var badge = document.createElement('span');
+    badge.className = 'badge bg-danger';
+    badge.textContent = String(count);
+    h5.appendChild(badge);
+    header.appendChild(h5);
+
+    // Build ticket list
+    var fragment = document.createDocumentFragment();
+    tickets.forEach(function(t) {
+      var prLabel = PRIORITY_LABELS[t.priority] || t.priority || 'Low';
+
+      var link = document.createElement('a');
+      link.href = '/tickets/' + t.number + '/';
+      link.className = 'due-today-item';
+      link.style.borderLeft = '3px solid #EF4444';
+
+      var row = document.createElement('div');
+      row.className = 'd-flex align-items-center justify-content-between';
+
+      var left = document.createElement('div');
+      left.className = 'd-flex align-items-center gap-2';
+      left.style.minWidth = '0';
+
+      var numSpan = document.createElement('span');
+      numSpan.className = 'text-muted fw-medium';
+      numSpan.style.fontSize = '0.75rem';
+      numSpan.textContent = '#' + t.number;
+      left.appendChild(numSpan);
+
+      var subSpan = document.createElement('span');
+      subSpan.className = 'fw-medium text-truncate';
+      subSpan.textContent = t.subject || '';
+      left.appendChild(subSpan);
+
+      var right = document.createElement('div');
+      right.className = 'd-flex align-items-center gap-2 flex-shrink-0';
+
+      var prBadge = document.createElement('span');
+      prBadge.className = 'badge badge-priority-' + (t.priority || 'low');
+      prBadge.style.fontSize = '0.625rem';
+      prBadge.textContent = prLabel;
+      right.appendChild(prBadge);
+
+      var odBadge = document.createElement('span');
+      odBadge.className = 'badge bg-danger';
+      odBadge.style.fontSize = '0.625rem';
+      odBadge.textContent = t.overdue_by || '';
+      right.appendChild(odBadge);
+
+      var assignee = document.createElement('span');
+      assignee.className = 'text-muted';
+      assignee.style.fontSize = '0.75rem';
+      assignee.textContent = t.assignee_name || '';
+      right.appendChild(assignee);
+
+      row.appendChild(left);
+      row.appendChild(right);
+      link.appendChild(row);
+      fragment.appendChild(link);
+    });
+
+    if (count > tickets.length) {
+      var more = document.createElement('div');
+      more.className = 'text-center mt-2';
+      var moreLink = document.createElement('a');
+      moreLink.href = '/tickets/?status=overdue';
+      moreLink.className = 'text-muted';
+      moreLink.style.fontSize = '0.8125rem';
+      moreLink.textContent = 'View all ' + count + ' overdue tickets';
+      more.appendChild(moreLink);
+      fragment.appendChild(more);
+    }
+
+    while (body.firstChild) body.removeChild(body.firstChild);
+    body.appendChild(fragment);
   }
 
   /* ------------------------------------------------------------------ */
@@ -948,8 +1132,11 @@
         // Ticket overview
         renderTicketOverview(byStatus, stats.by_priority || {}, totalCount);
 
-        // SLA compliance
-        renderSlaCompliance(data.sla_compliance || {});
+        // Right widget: SLA (admin/manager) or Due Today (agent) — driven by API
+        renderRightWidget(data);
+
+        // Overdue tickets
+        renderOverdueTickets(data.overdue_tickets || { count: 0, tickets: [] });
 
         // Team performance (admin/manager only)
         if (document.getElementById('teamTable')) {
@@ -971,8 +1158,11 @@
         var overviewEl = document.getElementById('ticketOverviewContent');
         if (overviewEl) showError(overviewEl, 'Unable to load ticket data.');
 
-        var slaEl = document.getElementById('slaContainer');
-        if (slaEl) showError(slaEl, 'Unable to load SLA data.');
+        var rightBody = document.getElementById('rightWidgetBody');
+        if (rightBody) showError(rightBody, 'Unable to load data.');
+
+        var overdueCard = document.getElementById('overdueCard');
+        if (overdueCard) overdueCard.style.display = 'none';
 
         var teamEl = document.getElementById('teamTable');
         if (teamEl) showError(teamEl, 'Unable to load team data.');
@@ -1026,23 +1216,23 @@
     var MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
     var EVENT_BAR_LIGHT = {
-      'ticket_created': { bg: '#EEF2FF', border: '#6366F1', text: '#4338CA' },
+      'ticket_created': { bg: '#EFF6FF', border: '#2563EB', text: '#1E40AF' },
       'ticket_closed':  { bg: '#ECFDF5', border: '#10B981', text: '#065F46' },
-      'ticket_due':     { bg: '#EEF2FF', border: '#818CF8', text: '#4338CA' },
+      'ticket_due':     { bg: '#EFF6FF', border: '#60A5FA', text: '#1E40AF' },
       'meeting':        { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E' },
       'call':           { bg: '#EFF6FF', border: '#3B82F6', text: '#1E40AF' },
       'task':           { bg: '#FFFBEB', border: '#F59E0B', text: '#92400E' },
-      'reminder':       { bg: '#F5F3FF', border: '#8B5CF6', text: '#5B21B6' },
+      'reminder':       { bg: '#F5F3FF', border: '#7C3AED', text: '#5B21B6' },
       'other':          { bg: '#F1F5F9', border: '#6B7280', text: '#374151' }
     };
     var EVENT_BAR_DARK = {
-      'ticket_created': { bg: 'rgba(99,102,241,0.12)', border: '#6366F1', text: '#A5B4FC' },
+      'ticket_created': { bg: 'rgba(37,99,235,0.12)', border: '#2563EB', text: '#93C5FD' },
       'ticket_closed':  { bg: 'rgba(16,185,129,0.12)', border: '#10B981', text: '#6EE7B7' },
-      'ticket_due':     { bg: 'rgba(129,140,248,0.12)', border: '#818CF8', text: '#C7D2FE' },
+      'ticket_due':     { bg: 'rgba(96,165,250,0.12)', border: '#60A5FA', text: '#BFDBFE' },
       'meeting':        { bg: 'rgba(245,158,11,0.12)', border: '#F59E0B', text: '#FCD34D' },
       'call':           { bg: 'rgba(59,130,246,0.12)', border: '#3B82F6', text: '#93C5FD' },
       'task':           { bg: 'rgba(245,158,11,0.12)', border: '#F59E0B', text: '#FCD34D' },
-      'reminder':       { bg: 'rgba(139,92,246,0.12)', border: '#8B5CF6', text: '#C4B5FD' },
+      'reminder':       { bg: 'rgba(124,58,237,0.12)', border: '#7C3AED', text: '#C4B5FD' },
       'other':          { bg: 'rgba(255,255,255,0.06)', border: '#6B7280', text: '#9CA3AF' }
     };
     var DEFAULT_BAR_LIGHT = { bg: '#F1F5F9', border: '#6B7280', text: '#374151' };

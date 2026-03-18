@@ -4,6 +4,8 @@ Django admin configuration for the billing app.
 
 from django.contrib import admin
 
+from main.admin import TenantFilteredAdmin
+
 from apps.billing.models import Invoice, Plan, Subscription, UsageTracker
 
 
@@ -86,7 +88,7 @@ class PlanAdmin(admin.ModelAdmin):
 
 
 @admin.register(Subscription)
-class SubscriptionAdmin(admin.ModelAdmin):
+class SubscriptionAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = (
         "tenant",
         "plan",
@@ -205,7 +207,7 @@ class InvoiceAdmin(admin.ModelAdmin):
 
 
 @admin.register(UsageTracker)
-class UsageTrackerAdmin(admin.ModelAdmin):
+class UsageTrackerAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = (
         "tenant",
         "period_start",

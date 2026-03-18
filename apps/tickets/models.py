@@ -382,6 +382,106 @@ class TicketActivity(TenantScopedModel):
         return f"[#{self.ticket.number}] {actor_str}: {self.get_event_display()}"
 
 
+class CannedResponse(TenantScopedModel):
+    """
+    Pre-written response templates for agent productivity.
+
+    Agents create reusable reply snippets (optionally with a ``/shortcut``
+    trigger) that can be inserted into the comment composer on the ticket
+    detail page. Template variables like ``{{ticket.number}}`` are replaced
+    at render time.
+    """
+
+    title = models.CharField(max_length=200, help_text="Display name for the response")
+    content = models.TextField(
+        help_text="Response content. Supports template variables like {{ticket.number}}."
+    )
+    category = models.CharField(
+        max_length=100, blank=True, default="",
+        help_text="Grouping label, e.g. 'Billing', 'Technical', 'General'.",
+    )
+    shortcut = models.CharField(
+        max_length=20, blank=True, default="",
+        help_text="Quick trigger like '/thanks' or '/refund'.",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="canned_responses",
+    )
+    is_shared = models.BooleanField(
+        default=True,
+        help_text="False = personal to creator only.",
+    )
+    usage_count = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["category", "title"]
+        indexes = [
+            models.Index(fields=["tenant", "is_shared"]),
+            models.Index(fields=["shortcut"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "shortcut"],
+                condition=~models.Q(shortcut=""),
+                name="unique_shortcut_per_tenant",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.title} ({self.shortcut or 'no shortcut'})"
+
+
+class SavedView(TenantScopedModel):
+    """
+    Saved filter configurations for tickets and contacts.
+
+    Users can save their current filter state as a named view to avoid
+    re-applying filters on every page load. Views can be personal (linked
+    to a user) or shared (``user=NULL``).
+    """
+
+    class ResourceType(models.TextChoices):
+        TICKET = "ticket", "Tickets"
+        CONTACT = "contact", "Contacts"
+
+    name = models.CharField(max_length=100)
+    resource_type = models.CharField(max_length=20, choices=ResourceType.choices)
+    filters = models.JSONField(default=dict, help_text="Filter parameters as JSON")
+    sort_field = models.CharField(max_length=50, default="-created_at")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="saved_views",
+        help_text="null = shared view visible to all tenant members.",
+    )
+    is_default = models.BooleanField(
+        default=False, help_text="Load this view by default."
+    )
+    is_pinned = models.BooleanField(
+        default=False, help_text="Pin to top of view selector."
+    )
+
+    class Meta:
+        ordering = ["-is_pinned", "name"]
+        indexes = [
+            models.Index(fields=["tenant", "resource_type", "user"]),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant", "user", "name", "resource_type"],
+                name="unique_view_per_user_resource",
+            ),
+        ]
+
+    def __str__(self):
+        scope = "Shared" if self.user is None else f"Personal ({self.user.email})"
+        return f"{self.name} - {self.get_resource_type_display()} ({scope})"
+
+
 class TicketAssignment(TenantScopedModel):
     """
     Immutable log of every ticket assignment change.

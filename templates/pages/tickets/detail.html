@@ -106,21 +106,21 @@ span.flatpickr-weekday {
   color: #111827;
 }
 .flatpickr-day.today {
-  border-color: #4F46E5;
+  border-color: #2563EB;
   background: transparent;
-  color: #4F46E5;
+  color: #2563EB;
   font-weight: 700;
 }
 .flatpickr-day.today:hover {
   background: #EEF2FF;
-  border-color: #4F46E5;
+  border-color: #2563EB;
   color: #4338CA;
 }
 .flatpickr-day.selected,
 .flatpickr-day.selected:hover,
 .flatpickr-day.selected:focus {
-  background: #4F46E5;
-  border-color: #4F46E5;
+  background: #2563EB;
+  border-color: #2563EB;
   color: #fff;
   font-weight: 600;
 }
@@ -184,7 +184,7 @@ span.flatpickr-weekday {
   font-weight: 500;
 }
 .flatpickr-time .flatpickr-am-pm {
-  color: #4F46E5;
+  color: #2563EB;
   font-weight: 700;
   font-size: 0.75rem;
   border-radius: 8px;
@@ -214,7 +214,7 @@ span.flatpickr-weekday {
   font-weight: 600;
   font-family: 'Inter', sans-serif;
   color: #fff;
-  background: #4F46E5;
+  background: #2563EB;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -240,10 +240,10 @@ span.flatpickr-weekday {
 [data-bs-theme="dark"] span.flatpickr-weekday { color: #6B7280; }
 [data-bs-theme="dark"] .flatpickr-day { color: #D1D5DB; }
 [data-bs-theme="dark"] .flatpickr-day:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.08); color: #F9FAFB; }
-[data-bs-theme="dark"] .flatpickr-day.today { border-color: var(--crm-primary, #6366F1); color: var(--crm-primary, #6366F1); }
+[data-bs-theme="dark"] .flatpickr-day.today { border-color: var(--crm-primary, #2563EB); color: var(--crm-primary, #2563EB); }
 [data-bs-theme="dark"] .flatpickr-day.today:hover { background: rgba(99,102,241,0.12); }
 [data-bs-theme="dark"] .flatpickr-day.selected,
-[data-bs-theme="dark"] .flatpickr-day.selected:hover { background: var(--crm-primary, #6366F1); border-color: var(--crm-primary, #6366F1); color: #fff; }
+[data-bs-theme="dark"] .flatpickr-day.selected:hover { background: var(--crm-primary, #2563EB); border-color: var(--crm-primary, #2563EB); color: #fff; }
 [data-bs-theme="dark"] .flatpickr-day.prevMonthDay,
 [data-bs-theme="dark"] .flatpickr-day.nextMonthDay { color: #4B5563; }
 [data-bs-theme="dark"] .flatpickr-time { background: #111827; border-top-color: rgba(255,255,255,0.08); }
@@ -254,13 +254,13 @@ span.flatpickr-weekday {
 [data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm { color: #D1D5DB; }
 [data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm:hover { background: rgba(255,255,255,0.06); color: #F9FAFB; }
 [data-bs-theme="dark"] .flatpickr-confirm { background: #111827; border-top-color: rgba(255,255,255,0.08); }
-[data-bs-theme="dark"] .flatpickr-confirm-btn { background: var(--crm-primary, #6366F1); color: #fff; }
+[data-bs-theme="dark"] .flatpickr-confirm-btn { background: var(--crm-primary, #2563EB); color: #fff; }
 </style>
 {% endblock %}
 
 {% block content %}
 <!-- Skeleton Loading State -->
-<div id="ticketLoading" class="td-page">
+<div id="ticketLoading" class="td-page" role="status" aria-label="Loading ticket">
   <div class="td-skeleton-bc td-skeleton-line"></div>
   <div class="td-skeleton-subject td-skeleton-line"></div>
   <div class="td-skeleton-meta td-skeleton-line"></div>
@@ -275,12 +275,12 @@ span.flatpickr-weekday {
 </div>
 
 <!-- Error State -->
-<div id="ticketError" class="d-none">
+<div id="ticketError" class="d-none" role="alert">
   <div class="empty-state">
-    <div class="empty-icon text-danger"><i class="ti ti-alert-triangle"></i></div>
+    <div class="empty-icon text-danger"><i class="ti ti-alert-triangle" aria-hidden="true"></i></div>
     <h5 class="empty-title" id="ticketErrorMessage">Failed to load ticket.</h5>
     <a href="{% url 'frontend:ticket-list' %}" class="btn btn-outline-secondary btn-sm mt-2">
-      <i class="ti ti-arrow-left me-1"></i>Back to Tickets
+      <i class="ti ti-arrow-left me-1" aria-hidden="true"></i>Back to Tickets
     </a>
   </div>
 </div>
@@ -290,18 +290,18 @@ span.flatpickr-weekday {
 
   <!-- Hero Banner -->
   <div class="td-hero">
-    <div class="td-breadcrumb">
-      <a href="{% url 'frontend:ticket-list' %}"><i class="ti ti-arrow-left me-1"></i>Tickets</a>
-      <span class="td-bc-sep"><i class="ti ti-chevron-right"></i></span>
-      <span class="td-bc-current">#{{ ticket_number }}</span>
-    </div>
+    <nav class="td-breadcrumb" aria-label="Breadcrumb">
+      <a href="{% url 'frontend:ticket-list' %}"><i class="ti ti-arrow-left me-1" aria-hidden="true"></i>Tickets</a>
+      <span class="td-bc-sep" aria-hidden="true"><i class="ti ti-chevron-right"></i></span>
+      <span class="td-bc-current" aria-current="page">#{{ ticket_number }}</span>
+    </nav>
 
     <div class="td-header">
       <div class="td-header-row">
-        <h1 class="td-subject" id="ticketSubject" contenteditable="true" spellcheck="false"></h1>
+        <h1 class="td-subject" id="ticketSubject" contenteditable="true" spellcheck="false" role="textbox" aria-label="Ticket subject (click to edit)"></h1>
         <div class="td-header-actions">
-          <button id="deleteTicketBtn" class="td-btn-icon td-btn-danger" title="Delete ticket">
-            <i class="ti ti-trash"></i>
+          <button type="button" id="deleteTicketBtn" class="td-btn-icon td-btn-danger" title="Delete ticket" aria-label="Delete ticket">
+            <i class="ti ti-trash" aria-hidden="true"></i>
           </button>
         </div>
       </div>
@@ -312,8 +312,8 @@ span.flatpickr-weekday {
           <span class="td-dot" id="statusDot"></span>
           <span id="ticketStatusText">--</span>
         </span>
-        <span class="td-meta-divider"></span>
-        <span class="td-meta-item"><i class="ti ti-clock"></i> <span id="ticketCreated">--</span></span>
+        <span class="td-meta-divider" aria-hidden="true"></span>
+        <span class="td-meta-item"><i class="ti ti-clock" aria-hidden="true"></i> <span id="ticketCreated">--</span></span>
       </div>
     </div>
   </div>
@@ -327,16 +327,16 @@ span.flatpickr-weekday {
       <!-- Description -->
       <div class="td-card">
         <div class="td-card-header">
-          <div class="td-card-icon td-card-icon--blue"><i class="ti ti-align-left"></i></div>
+          <div class="td-card-icon td-card-icon--blue"><i class="ti ti-align-left" aria-hidden="true"></i></div>
           <span class="td-card-title">Description</span>
-          <button id="editTicketBtn" class="td-block-action" title="Edit description"><i class="ti ti-pencil"></i></button>
+          <button type="button" id="editTicketBtn" class="td-block-action" title="Edit description" aria-label="Edit description"><i class="ti ti-pencil" aria-hidden="true"></i></button>
         </div>
         <div id="ticketDescriptionView" class="td-description text-muted">No description provided.</div>
         <div id="ticketDescriptionEdit" class="d-none">
           <div id="ticketDescriptionInputEditor"></div>
           <div class="d-flex gap-2 mt-2">
-            <button type="button" id="saveDescriptionBtn" class="td-post-btn" style="font-size:0.75rem;padding:0.3rem 0.75rem;">Save</button>
-            <button type="button" id="cancelDescriptionBtn" class="btn btn-sm btn-outline-secondary" style="font-size:0.75rem;">Cancel</button>
+            <button type="button" id="saveDescriptionBtn" class="td-post-btn td-post-btn--sm">Save</button>
+            <button type="button" id="cancelDescriptionBtn" class="btn btn-sm btn-outline-secondary td-cancel-btn--sm">Cancel</button>
           </div>
         </div>
       </div>
@@ -344,15 +344,15 @@ span.flatpickr-weekday {
       <!-- Attachments -->
       <div class="td-card">
         <div class="td-card-header">
-          <div class="td-card-icon td-card-icon--amber"><i class="ti ti-paperclip"></i></div>
+          <div class="td-card-icon td-card-icon--amber"><i class="ti ti-paperclip" aria-hidden="true"></i></div>
           <span class="td-card-title">Attachments</span>
           <span id="attachmentCount" class="td-count">0</span>
-          <button type="button" id="addAttachmentBtn" class="td-block-action" title="Add attachment"><i class="ti ti-plus"></i></button>
+          <button type="button" id="addAttachmentBtn" class="td-block-action" title="Add attachment" aria-label="Add attachment"><i class="ti ti-plus" aria-hidden="true"></i></button>
           <input type="file" id="ticketAttachmentInput" multiple class="d-none" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp">
         </div>
         <div id="ticketAttachmentsEmpty" class="td-attachment-empty">
           <div class="td-attachment-dropzone">
-            <i class="ti ti-cloud-upload"></i>
+            <i class="ti ti-cloud-upload" aria-hidden="true"></i>
             <span>No attachments yet</span>
             <small>Drag files here or click + to upload</small>
           </div>
@@ -363,23 +363,27 @@ span.flatpickr-weekday {
 
       <!-- Conversation Area -->
       <div class="td-card td-card--conversation">
-        <div class="td-tabs">
-          <button class="td-tab active" data-td-tab="comments">
-            <i class="ti ti-message"></i>
+        <div class="td-tabs" role="tablist">
+          <button class="td-tab active" data-td-tab="comments" role="tab" aria-selected="true" aria-controls="tabComments">
+            <i class="ti ti-message" aria-hidden="true"></i>
             Comments <span id="commentCount" class="td-count">0</span>
           </button>
-          <button class="td-tab" data-td-tab="activity">
-            <i class="ti ti-history"></i>
+          <button class="td-tab" data-td-tab="emails" role="tab" aria-selected="false" aria-controls="tabEmails">
+            <i class="ti ti-mail" aria-hidden="true"></i>
+            Emails <span id="emailCount" class="td-count">0</span>
+          </button>
+          <button class="td-tab" data-td-tab="activity" role="tab" aria-selected="false" aria-controls="tabActivity">
+            <i class="ti ti-history" aria-hidden="true"></i>
             Activity
           </button>
         </div>
 
         <!-- Comments Panel -->
-        <div class="td-tab-panel active" id="tabComments">
+        <div class="td-tab-panel active" id="tabComments" role="tabpanel">
           <div id="commentsContainer">
             <div id="commentsEmpty" class="td-comment-empty">
               <div class="td-empty-illustration">
-                <i class="ti ti-message"></i>
+                <i class="ti ti-message" aria-hidden="true"></i>
               </div>
               <span>No comments yet</span>
               <small>Start the conversation below</small>
@@ -390,6 +394,7 @@ span.flatpickr-weekday {
           <!-- Composer -->
           <div class="td-composer">
             <form id="addCommentForm">
+              <div id="cannedPickerDropdown" class="canned-picker-dropdown d-none"></div>
               <div id="commentBodyEditor"></div>
               <div id="commentFileList" class="mb-2"></div>
               <input type="file" id="commentFiles" multiple class="d-none" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp">
@@ -397,25 +402,85 @@ span.flatpickr-weekday {
                 <div class="d-flex align-items-center gap-2">
                   <label class="td-composer-toggle">
                     <input type="checkbox" id="commentInternal">
-                    <i class="ti ti-lock"></i> Internal
+                    <i class="ti ti-lock" aria-hidden="true"></i> Internal
                   </label>
-                  <button type="button" id="commentAttachBtn" class="td-composer-icon-btn" title="Attach files">
-                    <i class="ti ti-paperclip"></i>
+                  <button type="button" id="commentAttachBtn" class="td-composer-icon-btn" title="Attach files" aria-label="Attach files">
+                    <i class="ti ti-paperclip" aria-hidden="true"></i>
+                  </button>
+                  <button type="button" id="cannedResponseBtn" class="td-composer-icon-btn" title="Insert canned response" aria-label="Insert canned response">
+                    <i class="ti ti-message-chatbot" aria-hidden="true"></i>
                   </button>
                 </div>
                 <button type="submit" class="td-post-btn">
-                  <i class="ti ti-send me-1"></i>Post
+                  <i class="ti ti-send me-1" aria-hidden="true"></i>Post
                 </button>
               </div>
             </form>
           </div>
         </div>
 
+        <!-- Emails Panel -->
+        <div class="td-tab-panel" id="tabEmails" role="tabpanel">
+          <div id="emailsEmpty" class="td-comment-empty">
+            <div class="td-empty-illustration">
+              <i class="ti ti-mail" aria-hidden="true"></i>
+            </div>
+            <span>No emails linked to this ticket</span>
+            <small>Send an email or link an existing one below</small>
+          </div>
+          <div id="emailsList"></div>
+
+          <!-- Compose Email -->
+          <div class="td-composer">
+            <form id="sendEmailForm">
+              <div class="mb-2">
+                <input type="email" id="emailTo" class="form-control form-control-sm" placeholder="Recipient email address" required>
+              </div>
+              <div class="mb-2">
+                <input type="text" id="emailSubject" class="form-control form-control-sm" placeholder="Subject">
+              </div>
+              <div class="mb-2">
+                <textarea id="emailBody" class="form-control form-control-sm" rows="4" placeholder="Write your email..." required></textarea>
+              </div>
+              <div class="td-composer-actions">
+                <div class="d-flex align-items-center gap-2">
+                  <button type="button" id="linkEmailBtn" class="btn btn-sm btn-outline-secondary" title="Link an existing email to this ticket">
+                    <i class="ti ti-link me-1" aria-hidden="true"></i>Link Email
+                  </button>
+                </div>
+                <button type="submit" class="td-post-btn">
+                  <i class="ti ti-send me-1" aria-hidden="true"></i>Send Email
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <!-- Link Email Modal -->
+        <div class="modal fade" id="linkEmailModal" tabindex="-1" aria-labelledby="linkEmailModalLabel" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title" id="linkEmailModalLabel">Link Email to Ticket</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body">
+                <p class="text-muted small mb-2">Select an unlinked inbound email to attach to this ticket.</p>
+                <div id="unlinkEmailsLoading" class="text-center py-3">
+                  <div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>
+                </div>
+                <div id="unlinkEmailsList"></div>
+                <div id="unlinkEmailsEmpty" class="text-center text-muted py-3 d-none">No unlinked emails found.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Activity Panel -->
-        <div class="td-tab-panel" id="tabActivity">
+        <div class="td-tab-panel" id="tabActivity" role="tabpanel">
           <div id="activityEmpty" class="td-comment-empty">
             <div class="td-empty-illustration">
-              <i class="ti ti-history"></i>
+              <i class="ti ti-history" aria-hidden="true"></i>
             </div>
             <span>No activity recorded yet</span>
           </div>
@@ -425,20 +490,20 @@ span.flatpickr-weekday {
     </div>
 
     <!-- Sidebar -->
-    <div class="td-sidebar">
+    <aside class="td-sidebar">
 
       <!-- Properties -->
       <div class="td-sb-section">
         <div class="td-sb-label">
-          <div class="td-sb-icon td-sb-icon--crimson"><i class="ti ti-adjustments-horizontal"></i></div>
+          <div class="td-sb-icon td-sb-icon--crimson"><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i></div>
           Properties
         </div>
         <div class="td-prop-row">
-          <span class="td-prop-row-label"><i class="ti ti-circle-filled td-prop-icon"></i> Status</span>
+          <label class="td-prop-row-label" for="ticketStatus"><i class="ti ti-circle-filled td-prop-icon" aria-hidden="true"></i> Status</label>
           <select id="ticketStatus" class="td-prop-select"></select>
         </div>
         <div class="td-prop-row">
-          <span class="td-prop-row-label"><i class="ti ti-flag-filled td-prop-icon"></i> Priority</span>
+          <label class="td-prop-row-label" for="ticketPrioritySelect"><i class="ti ti-flag-filled td-prop-icon" aria-hidden="true"></i> Priority</label>
           <select id="ticketPrioritySelect" class="td-prop-select">
             <option value="low">Low</option>
             <option value="medium">Medium</option>
@@ -447,22 +512,22 @@ span.flatpickr-weekday {
           </select>
         </div>
         <div class="td-prop-row">
-          <span class="td-prop-row-label"><i class="ti ti-user-filled td-prop-icon"></i> Assignee</span>
+          <label class="td-prop-row-label" for="ticketAssignee"><i class="ti ti-user-filled td-prop-icon" aria-hidden="true"></i> Assignee</label>
           <select id="ticketAssignee" class="td-prop-select">
             <option value="">Unassigned</option>
           </select>
         </div>
         <div class="td-prop-row">
-          <span class="td-prop-row-label"><i class="ti ti-inbox td-prop-icon"></i> Queue</span>
+          <label class="td-prop-row-label" for="ticketQueueSelect"><i class="ti ti-inbox td-prop-icon" aria-hidden="true"></i> Queue</label>
           <select id="ticketQueueSelect" class="td-prop-select">
             <option value="">None</option>
           </select>
         </div>
         <div class="td-prop-row">
-          <span class="td-prop-row-label"><i class="ti ti-calendar-event td-prop-icon"></i> Due date</span>
+          <label class="td-prop-row-label" for="ticketDueDateInput"><i class="ti ti-calendar-event td-prop-icon" aria-hidden="true"></i> Due date</label>
           <div class="td-due-date-wrap">
             <input type="text" id="ticketDueDateInput" class="td-flatpickr-input" placeholder="Not set" readonly>
-            <button type="button" id="clearDueDateBtn" class="td-due-date-clear d-none" title="Clear due date"><i class="ti ti-x"></i></button>
+            <button type="button" id="clearDueDateBtn" class="td-due-date-clear d-none" title="Clear due date" aria-label="Clear due date"><i class="ti ti-x" aria-hidden="true"></i></button>
           </div>
         </div>
       </div>
@@ -470,15 +535,16 @@ span.flatpickr-weekday {
       <!-- Contact -->
       <div class="td-sb-section">
         <div class="td-sb-label">
-          <div class="td-sb-icon td-sb-icon--emerald"><i class="ti ti-address-book"></i></div>
+          <div class="td-sb-icon td-sb-icon--emerald"><i class="ti ti-address-book" aria-hidden="true"></i></div>
           Contact
-          <button type="button" id="linkContactBtn" class="td-section-action ms-auto" title="Link contact">
-            <i class="ti ti-plus"></i>
+          <button type="button" id="linkContactBtn" class="td-section-action ms-auto" title="Link contact" aria-label="Link or unlink contact">
+            <i class="ti ti-plus" aria-hidden="true"></i>
           </button>
         </div>
         <div id="contactSearch" class="d-none mb-2">
           <div class="td-contact-search">
-            <i class="ti ti-search"></i>
+            <i class="ti ti-search" aria-hidden="true"></i>
+            <label for="contactSearchInput" class="visually-hidden">Search contacts</label>
             <input type="text" id="contactSearchInput" placeholder="Search contacts..." autocomplete="off">
           </div>
           <div id="contactSearchResults" class="td-contact-results d-none"></div>
@@ -491,33 +557,33 @@ span.flatpickr-weekday {
       <!-- Details -->
       <div class="td-sb-section">
         <div class="td-sb-label">
-          <div class="td-sb-icon td-sb-icon--slate"><i class="ti ti-info-circle"></i></div>
+          <div class="td-sb-icon td-sb-icon--slate"><i class="ti ti-info-circle" aria-hidden="true"></i></div>
           Details
         </div>
         <div class="td-prop-row">
-          <span class="td-prop-row-label"><i class="ti ti-tag-filled td-prop-icon"></i> Category</span>
+          <label class="td-prop-row-label" for="ticketCategorySelect"><i class="ti ti-tag-filled td-prop-icon" aria-hidden="true"></i> Category</label>
           <select id="ticketCategorySelect" class="td-prop-select">
             <option value="">None</option>
           </select>
         </div>
         <div class="td-prop-row">
-          <span class="td-prop-row-label"><i class="ti ti-building td-prop-icon"></i> Company</span>
+          <span class="td-prop-row-label"><i class="ti ti-building td-prop-icon" aria-hidden="true"></i> Company</span>
           <span id="ticketCompany" class="td-prop-value-text">--</span>
         </div>
         <div class="td-prop-row">
-          <span class="td-prop-row-label"><i class="ti ti-user td-prop-icon"></i> Created by</span>
+          <span class="td-prop-row-label"><i class="ti ti-user td-prop-icon" aria-hidden="true"></i> Created by</span>
           <span id="ticketCreatedBy" class="td-prop-value-text">--</span>
         </div>
         <div class="td-prop-row">
-          <span class="td-prop-row-label"><i class="ti ti-tags td-prop-icon"></i> Tags</span>
+          <span class="td-prop-row-label"><i class="ti ti-tags td-prop-icon" aria-hidden="true"></i> Tags</span>
           <div id="ticketTags" class="td-tags"><span class="td-prop-value-text">--</span></div>
         </div>
       </div>
 
       <!-- SLA Status -->
-      <div class="td-sb-section" id="slaSectionWrap" style="display:none;">
+      <div class="td-sb-section d-none" id="slaSectionWrap">
         <div class="td-sb-label">
-          <div class="td-sb-icon td-sb-icon--rose"><i class="ti ti-shield-check"></i></div>
+          <div class="td-sb-icon td-sb-icon--rose"><i class="ti ti-shield-check" aria-hidden="true"></i></div>
           SLA Status
         </div>
         <div id="slaStatusContent"></div>
@@ -526,7 +592,7 @@ span.flatpickr-weekday {
       <!-- Timeline -->
       <div class="td-sb-section">
         <div class="td-sb-label">
-          <div class="td-sb-icon td-sb-icon--amber"><i class="ti ti-history"></i></div>
+          <div class="td-sb-icon td-sb-icon--amber"><i class="ti ti-history" aria-hidden="true"></i></div>
           Timeline
         </div>
         <div class="td-prop-row">
@@ -539,17 +605,17 @@ span.flatpickr-weekday {
         </div>
       </div>
 
-    </div>
+    </aside>
   </div>
 </div>
 
 <!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalTitle" aria-hidden="true">
   <div class="modal-dialog modal-sm modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h6 class="modal-title fw-semibold">Delete Ticket</h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <h6 class="modal-title fw-semibold" id="deleteModalTitle">Delete Ticket</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <p class="mb-0 text-secondary small">Are you sure you want to delete this ticket? This action cannot be undone.</p>
@@ -557,7 +623,7 @@ span.flatpickr-weekday {
       <div class="modal-footer">
         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" id="confirmDeleteBtn" class="btn btn-sm btn-danger">
-          <i class="ti ti-trash me-1"></i>Delete
+          <i class="ti ti-trash me-1" aria-hidden="true"></i>Delete
         </button>
       </div>
     </div>
@@ -591,25 +657,79 @@ window.dispatchEvent(new Event('tiptap-ready'));
 (function() {
   'use strict';
 
+  /* ── Constants ── */
+  var AUTOSAVE_DEBOUNCE_MS = 600;
+  var CONTACT_SEARCH_DEBOUNCE_MS = 300;
+  var MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
+  var AVATAR_COLORS = ['#2563EB','#2563EB','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  var SLA_ICON_FONT_SIZE = '0.625rem';
+
+  /* ── State ── */
   var ticketNumber = '{{ ticket_number }}';
   var ticketId = null;
   var currentSubject = '';
   var statusesLoaded = false;
-  var usersLoaded = false;
-
-  // Rich text editors
   var commentEditor = null;
   var descriptionEditor = null;
+  var currentContact = null;
+  var contactSearchTimeout = null;
+  var commentSelectedFiles = [];
+  var saveTimers = {};
 
+  /* ── Cached DOM References ── */
+  var dom = {
+    loading: document.getElementById('ticketLoading'),
+    content: document.getElementById('ticketContent'),
+    error: document.getElementById('ticketError'),
+    errorMessage: document.getElementById('ticketErrorMessage'),
+    subject: document.getElementById('ticketSubject'),
+    statusText: document.getElementById('ticketStatusText'),
+    statusDot: document.getElementById('statusDot'),
+    statusSelect: document.getElementById('ticketStatus'),
+    priorityBadge: document.getElementById('ticketPriorityBadge'),
+    prioritySelect: document.getElementById('ticketPrioritySelect'),
+    assigneeSelect: document.getElementById('ticketAssignee'),
+    queueSelect: document.getElementById('ticketQueueSelect'),
+    categorySelect: document.getElementById('ticketCategorySelect'),
+    dueDateInput: document.getElementById('ticketDueDateInput'),
+    clearDueDateBtn: document.getElementById('clearDueDateBtn'),
+    descView: document.getElementById('ticketDescriptionView'),
+    descEdit: document.getElementById('ticketDescriptionEdit'),
+    company: document.getElementById('ticketCompany'),
+    createdBy: document.getElementById('ticketCreatedBy'),
+    tags: document.getElementById('ticketTags'),
+    created: document.getElementById('ticketCreated'),
+    created2: document.getElementById('ticketCreated2'),
+    updated: document.getElementById('ticketUpdated'),
+    slaSectionWrap: document.getElementById('slaSectionWrap'),
+    slaContent: document.getElementById('slaStatusContent'),
+    commentsList: document.getElementById('commentsList'),
+    commentsEmpty: document.getElementById('commentsEmpty'),
+    commentCount: document.getElementById('commentCount'),
+    activityList: document.getElementById('activityList'),
+    activityEmpty: document.getElementById('activityEmpty'),
+    attachmentsList: document.getElementById('ticketAttachmentsList'),
+    attachmentImages: document.getElementById('ticketAttachmentImages'),
+    attachmentsEmpty: document.getElementById('ticketAttachmentsEmpty'),
+    attachmentCount: document.getElementById('attachmentCount'),
+    contactCard: document.getElementById('contactCard'),
+    linkContactBtn: document.getElementById('linkContactBtn'),
+    contactSearch: document.getElementById('contactSearch'),
+    contactSearchInput: document.getElementById('contactSearchInput'),
+    contactSearchResults: document.getElementById('contactSearchResults'),
+    commentInternal: document.getElementById('commentInternal'),
+    commentFileList: document.getElementById('commentFileList'),
+    cannedDropdown: document.getElementById('cannedPickerDropdown'),
+    cannedToggleBtn: document.getElementById('cannedResponseBtn'),
+    emailsList: document.getElementById('emailsList'),
+    emailsEmpty: document.getElementById('emailsEmpty'),
+    emailCount: document.getElementById('emailCount')
+  };
+
+  /* ── Rich Text Editors ── */
   function initRichEditors() {
-    commentEditor = createRichEditor('#commentBodyEditor', {
-      placeholder: 'Write a comment...',
-      content: ''
-    });
-    descriptionEditor = createRichEditor('#ticketDescriptionInputEditor', {
-      placeholder: 'Edit description...',
-      content: ''
-    });
+    commentEditor = createRichEditor('#commentBodyEditor', { placeholder: 'Write a comment...', content: '' });
+    descriptionEditor = createRichEditor('#ticketDescriptionInputEditor', { placeholder: 'Edit description...', content: '' });
   }
 
   if (window.tiptap) {
@@ -619,35 +739,68 @@ window.dispatchEvent(new Event('tiptap-ready'));
     setTimeout(function() { if (!commentEditor) initRichEditors(); }, 5000);
   }
 
-  var AVATAR_COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
-  function avatarColor(name) { var h = 0; for (var i = 0; i < (name||'').length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
+  /* ── Utility Functions ── */
+  function avatarColor(name) {
+    var h = 0;
+    for (var i = 0; i < (name || '').length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+    return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+  }
 
   function formatDateTime(dateStr) {
     if (!dateStr) return '--';
     var d = new Date(dateStr);
     return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   }
+
   function formatDate(dateStr) {
     if (!dateStr) return '--';
     return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
+
   function formatRelativeTime(dateStr) {
     if (!dateStr) return '';
-    var now = new Date(), d = new Date(dateStr), ms = now - d;
+    var ms = new Date() - new Date(dateStr);
     var mins = Math.floor(ms / 60000), hrs = Math.floor(ms / 3600000), days = Math.floor(ms / 86400000);
-    if (mins < 1) return 'just now'; if (mins < 60) return mins + 'm ago'; if (hrs < 24) return hrs + 'h ago'; if (days < 30) return days + 'd ago';
+    if (mins < 1) return 'just now';
+    if (mins < 60) return mins + 'm ago';
+    if (hrs < 24) return hrs + 'h ago';
+    if (days < 30) return days + 'd ago';
     return formatDate(dateStr);
   }
-  function escapeHtml(str) { if (!str) return ''; var div = document.createElement('div'); div.textContent = str; return div.innerHTML; }
 
-  function showLoading() { document.getElementById('ticketLoading').style.display = ''; document.getElementById('ticketContent').classList.add('d-none'); document.getElementById('ticketError').classList.add('d-none'); }
-  function showContent() { document.getElementById('ticketLoading').style.display = 'none'; document.getElementById('ticketContent').classList.remove('d-none'); document.getElementById('ticketError').classList.add('d-none'); }
-  function showError(msg) { document.getElementById('ticketLoading').style.display = 'none'; document.getElementById('ticketContent').classList.add('d-none'); document.getElementById('ticketError').classList.remove('d-none'); document.getElementById('ticketErrorMessage').textContent = msg; }
+  function escapeHtml(str) {
+    if (!str) return '';
+    var div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
 
-  // ============================================================
-  // Auto-save with debounce
-  // ============================================================
-  var saveTimers = {};
+  function getInitials(name) {
+    if (!name) return '?';
+    return name.split(' ').map(function(n) { return n.charAt(0); }).join('').substring(0, 2).toUpperCase();
+  }
+
+  /* ── View State Management ── */
+  function showLoading() {
+    dom.loading.style.display = '';
+    dom.content.classList.add('d-none');
+    dom.error.classList.add('d-none');
+  }
+
+  function showContent() {
+    dom.loading.style.display = 'none';
+    dom.content.classList.remove('d-none');
+    dom.error.classList.add('d-none');
+  }
+
+  function showError(msg) {
+    dom.loading.style.display = 'none';
+    dom.content.classList.add('d-none');
+    dom.error.classList.remove('d-none');
+    dom.errorMessage.textContent = msg;
+  }
+
+  /* ── Auto-save with debounce ── */
   function autoSaveField(field, value) {
     clearTimeout(saveTimers[field]);
     saveTimers[field] = setTimeout(function() {
@@ -656,97 +809,85 @@ window.dispatchEvent(new Event('tiptap-ready'));
       Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', payload)
         .then(function(ticket) {
           var label = field.replace(/_/g, ' ');
-          label = label.charAt(0).toUpperCase() + label.slice(1);
-          Toast.success(label + ' updated');
+          Toast.success(label.charAt(0).toUpperCase() + label.slice(1) + ' updated');
           loadActivity();
           if (field === 'status' && ticket.status) {
             var statusObj = typeof ticket.status === 'object' ? ticket.status : null;
             if (statusObj) {
-              document.getElementById('ticketStatusText').textContent = statusObj.name || '--';
-              document.getElementById('statusDot').style.background = statusObj.color || '#94A3B8';
+              dom.statusText.textContent = statusObj.name || '--';
+              dom.statusDot.style.background = statusObj.color || '#94A3B8';
             }
           }
           if (field === 'priority') {
             var prLabel = value.charAt(0).toUpperCase() + value.slice(1);
-            document.getElementById('ticketPriorityBadge').innerHTML = '<span class="badge badge-priority-' + value + '">' + prLabel + '</span>';
+            dom.priorityBadge.innerHTML = '<span class="badge badge-priority-' + value + '">' + prLabel + '</span>';
           }
         })
-        .catch(function(err) {
-          Toast.error('Failed to update ' + field);
-        });
-    }, 600);
+        .catch(function() { Toast.error('Failed to update ' + field); });
+    }, AUTOSAVE_DEBOUNCE_MS);
   }
 
-  // ============================================================
-  // Contact card
-  // ============================================================
-  var currentContact = null;
-  var contactSearchTimeout = null;
-
+  /* ── Contact Card ── */
   function renderContactCard(contact) {
-    var container = document.getElementById('contactCard');
-    var linkBtn = document.getElementById('linkContactBtn');
     if (!contact) {
-      container.innerHTML = '<div class="td-empty-hint"><i class="ti ti-user-plus"></i><span>No contact linked</span></div>';
-      linkBtn.innerHTML = '<i class="ti ti-plus"></i>';
-      linkBtn.title = 'Link contact';
+      dom.contactCard.innerHTML = '<div class="td-empty-hint"><i class="ti ti-user-plus" aria-hidden="true"></i><span>No contact linked</span></div>';
+      dom.linkContactBtn.innerHTML = '<i class="ti ti-plus" aria-hidden="true"></i>';
+      dom.linkContactBtn.title = 'Link contact';
       return;
     }
-    linkBtn.innerHTML = '<i class="ti ti-x"></i>';
-    linkBtn.title = 'Unlink contact';
+    dom.linkContactBtn.innerHTML = '<i class="ti ti-x" aria-hidden="true"></i>';
+    dom.linkContactBtn.title = 'Unlink contact';
     var initials = ((contact.first_name || '').charAt(0) + (contact.last_name || '').charAt(0)).toUpperCase() || '?';
     var bgColor = avatarColor(contact.full_name || '');
     var html = '<div class="td-contact-card">';
     html += '<div class="td-contact-card-header">';
-    html += '<div class="avatar avatar-sm" style="background:' + bgColor + '15;color:' + bgColor + ';width:32px;height:32px;font-size:0.6875rem;border:2px solid ' + bgColor + '25;">' + initials + '</div>';
+    html += '<div class="avatar avatar-sm td-contact-avatar" style="background:' + bgColor + '15;color:' + bgColor + ';border-color:' + bgColor + '25;">' + initials + '</div>';
     html += '<div><div class="td-contact-card-name">' + escapeHtml(contact.full_name || '') + '</div>';
     if (contact.job_title) html += '<div class="td-contact-card-role">' + escapeHtml(contact.job_title) + '</div>';
     html += '</div></div>';
-    if (contact.email) html += '<div class="td-contact-card-row"><i class="ti ti-mail"></i><a href="mailto:' + escapeHtml(contact.email) + '">' + escapeHtml(contact.email) + '</a></div>';
-    if (contact.phone) html += '<div class="td-contact-card-row"><i class="ti ti-phone"></i><span>' + escapeHtml(contact.phone) + '</span></div>';
-    if (contact.company_name) html += '<div class="td-contact-card-row"><i class="ti ti-building"></i><span>' + escapeHtml(contact.company_name) + '</span></div>';
+    if (contact.email) html += '<div class="td-contact-card-row"><i class="ti ti-mail" aria-hidden="true"></i><a href="mailto:' + escapeHtml(contact.email) + '">' + escapeHtml(contact.email) + '</a></div>';
+    if (contact.phone) html += '<div class="td-contact-card-row"><i class="ti ti-phone" aria-hidden="true"></i><span>' + escapeHtml(contact.phone) + '</span></div>';
+    if (contact.company_name) html += '<div class="td-contact-card-row"><i class="ti ti-building" aria-hidden="true"></i><span>' + escapeHtml(contact.company_name) + '</span></div>';
     html += '</div>';
-    container.innerHTML = html;
+    dom.contactCard.innerHTML = html;
   }
 
-  document.getElementById('linkContactBtn').addEventListener('click', function() {
+  dom.linkContactBtn.addEventListener('click', function() {
     if (currentContact) {
       if (!confirm('Unlink this contact from the ticket?')) return;
       Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', { contact: null }).then(function() {
         currentContact = null;
         renderContactCard(null);
-        document.getElementById('contactSearch').classList.add('d-none');
+        dom.contactSearch.classList.add('d-none');
         Toast.success('Contact unlinked');
         loadActivity();
       }).catch(function() { Toast.error('Failed to unlink contact'); });
     } else {
-      var searchEl = document.getElementById('contactSearch');
-      searchEl.classList.toggle('d-none');
-      if (!searchEl.classList.contains('d-none')) {
-        document.getElementById('contactSearchInput').value = '';
-        document.getElementById('contactSearchResults').classList.add('d-none');
-        document.getElementById('contactSearchInput').focus();
+      dom.contactSearch.classList.toggle('d-none');
+      if (!dom.contactSearch.classList.contains('d-none')) {
+        dom.contactSearchInput.value = '';
+        dom.contactSearchResults.classList.add('d-none');
+        dom.contactSearchInput.focus();
       }
     }
   });
 
-  document.getElementById('contactSearchInput').addEventListener('input', function() {
+  dom.contactSearchInput.addEventListener('input', function() {
     var query = this.value.trim();
-    var resultsEl = document.getElementById('contactSearchResults');
     clearTimeout(contactSearchTimeout);
-    if (query.length < 2) { resultsEl.classList.add('d-none'); return; }
+    if (query.length < 2) { dom.contactSearchResults.classList.add('d-none'); return; }
     contactSearchTimeout = setTimeout(function() {
       Api.get('/api/v1/contacts/contacts/?search=' + encodeURIComponent(query) + '&page_size=8').then(function(data) {
         var contacts = data.results || data;
         if (!contacts.length) {
-          resultsEl.innerHTML = '<div class="td-contact-result-empty">No contacts found</div>';
-          resultsEl.classList.remove('d-none');
+          dom.contactSearchResults.innerHTML = '<div class="td-contact-result-empty">No contacts found</div>';
+          dom.contactSearchResults.classList.remove('d-none');
           return;
         }
         var html = '';
         contacts.forEach(function(c) {
           var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email;
-          var initials = ((c.first_name || '').charAt(0) + (c.last_name || '').charAt(0)).toUpperCase() || '?';
+          var initials = getInitials(name);
           var bgColor = avatarColor(name);
           html += '<div class="td-contact-result-item" data-contact-id="' + c.id + '">' +
             '<div class="td-contact-result-avatar" style="background:' + bgColor + '12;color:' + bgColor + ';">' + initials + '</div>' +
@@ -754,115 +895,103 @@ window.dispatchEvent(new Event('tiptap-ready'));
             (c.email ? '<div class="td-contact-result-email">' + escapeHtml(c.email) + '</div>' : '') +
             '</div></div>';
         });
-        resultsEl.innerHTML = html;
-        resultsEl.classList.remove('d-none');
-        resultsEl.querySelectorAll('.td-contact-result-item').forEach(function(item) {
-          item.addEventListener('click', function() {
-            var contactId = this.getAttribute('data-contact-id');
-            Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', { contact: contactId }).then(function() {
-              document.getElementById('contactSearch').classList.add('d-none');
-              Toast.success('Contact linked');
-              Api.get('/api/v1/tickets/tickets/' + ticketId + '/').then(function(ticket) {
-                currentContact = ticket.contact_detail || null;
-                renderContactCard(currentContact);
-                loadActivity();
-              });
-            }).catch(function() { Toast.error('Failed to link contact'); });
-          });
-        });
-      }).catch(function() { resultsEl.classList.add('d-none'); });
-    }, 300);
+        dom.contactSearchResults.innerHTML = html;
+        dom.contactSearchResults.classList.remove('d-none');
+
+        /* Use event delegation for contact results */
+        dom.contactSearchResults.onclick = function(e) {
+          var item = e.target.closest('.td-contact-result-item');
+          if (!item) return;
+          var contactId = item.getAttribute('data-contact-id');
+          Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', { contact: contactId }).then(function() {
+            dom.contactSearch.classList.add('d-none');
+            Toast.success('Contact linked');
+            Api.get('/api/v1/tickets/tickets/' + ticketId + '/').then(function(ticket) {
+              currentContact = ticket.contact_detail || null;
+              renderContactCard(currentContact);
+              loadActivity();
+            });
+          }).catch(function() { Toast.error('Failed to link contact'); });
+        };
+      }).catch(function() { dom.contactSearchResults.classList.add('d-none'); });
+    }, CONTACT_SEARCH_DEBOUNCE_MS);
   });
 
-  // ============================================================
-  // Render ticket
-  // ============================================================
+  /* ── Render Ticket ── */
+  function setSelectValue(selectEl, value, fallbackText) {
+    if (!value) { selectEl.value = ''; return; }
+    selectEl.value = value;
+    if (selectEl.value !== String(value)) {
+      var o = document.createElement('option');
+      o.value = value;
+      o.textContent = fallbackText || value;
+      selectEl.appendChild(o);
+      selectEl.value = value;
+    }
+  }
+
   function renderTicket(ticket) {
     ticketId = ticket.id;
-
-    var subjectEl = document.getElementById('ticketSubject');
-    subjectEl.textContent = ticket.subject || 'Untitled';
     currentSubject = ticket.subject || 'Untitled';
+    dom.subject.textContent = currentSubject;
 
-    var descEl = document.getElementById('ticketDescriptionView');
-    if (ticket.description && ticket.description.trim()) { descEl.textContent = ticket.description; descEl.classList.remove('text-muted'); }
-    else { descEl.textContent = 'No description provided.'; descEl.classList.add('text-muted'); }
+    if (ticket.description && ticket.description.trim()) {
+      dom.descView.innerHTML = ticket.description;
+      dom.descView.classList.remove('text-muted');
+    } else {
+      dom.descView.textContent = 'No description provided.';
+      dom.descView.classList.add('text-muted');
+    }
 
     var statusName = '--', statusColor = '#94A3B8', statusId = null;
     if (typeof ticket.status === 'object' && ticket.status) {
       statusId = ticket.status.id;
       statusName = ticket.status.name || '--';
       statusColor = ticket.status.color || '#94A3B8';
-    } else { statusId = ticket.status; }
+    } else {
+      statusId = ticket.status;
+    }
     window._currentTicketStatus = statusId;
-    document.getElementById('ticketStatusText').textContent = statusName;
-    document.getElementById('statusDot').style.background = statusColor;
-    if (statusesLoaded && statusId) document.getElementById('ticketStatus').value = statusId;
+    dom.statusText.textContent = statusName;
+    dom.statusDot.style.background = statusColor;
+    if (statusesLoaded && statusId) dom.statusSelect.value = statusId;
 
     var prLabel = ticket.priority ? ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) : 'None';
-    document.getElementById('ticketPriorityBadge').innerHTML = '<span class="badge badge-priority-' + (ticket.priority || 'low') + '">' + prLabel + '</span>';
+    dom.priorityBadge.innerHTML = '<span class="badge badge-priority-' + (ticket.priority || 'low') + '">' + prLabel + '</span>';
+    dom.prioritySelect.value = ticket.priority || 'medium';
 
-    document.getElementById('ticketPrioritySelect').value = ticket.priority || 'medium';
-
-    var qSelect = document.getElementById('ticketQueueSelect');
-    if (ticket.queue) {
-      qSelect.value = ticket.queue;
-      if (qSelect.value !== ticket.queue) {
-        var qo = document.createElement('option'); qo.value = ticket.queue; qo.textContent = ticket.queue_name || 'Queue'; qSelect.appendChild(qo); qSelect.value = ticket.queue;
-      }
-    } else { qSelect.value = ''; }
+    setSelectValue(dom.queueSelect, ticket.queue, ticket.queue_name || 'Queue');
+    setSelectValue(dom.assigneeSelect, ticket.assignee, ticket.assignee_name || 'Assigned');
+    setSelectValue(dom.categorySelect, ticket.category, ticket.category_name || ticket.category);
 
     var dueDate = ticket.due_date ? ticket.due_date.substring(0, 16) : '';
-    if (window._dueDatePicker) {
-      window._dueDatePicker.setDate(dueDate, false);
-    } else {
-      document.getElementById('ticketDueDateInput').value = dueDate;
-    }
-    document.getElementById('clearDueDateBtn').classList.toggle('d-none', !dueDate);
-
-    var aSelect = document.getElementById('ticketAssignee');
-    if (ticket.assignee) {
-      aSelect.value = ticket.assignee;
-      if (aSelect.value !== ticket.assignee) {
-        var o = document.createElement('option'); o.value = ticket.assignee; o.textContent = ticket.assignee_name || 'Assigned'; aSelect.appendChild(o); aSelect.value = ticket.assignee;
-      }
-    } else { aSelect.value = ''; }
-
-    var catSelect = document.getElementById('ticketCategorySelect');
-    if (ticket.category) {
-      catSelect.value = ticket.category;
-      if (catSelect.value !== String(ticket.category)) {
-        var co = document.createElement('option'); co.value = ticket.category; co.textContent = ticket.category_name || ticket.category; catSelect.appendChild(co); catSelect.value = ticket.category;
-      }
-    } else { catSelect.value = ''; }
+    if (window._dueDatePicker) window._dueDatePicker.setDate(dueDate, false);
+    else dom.dueDateInput.value = dueDate;
+    dom.clearDueDateBtn.classList.toggle('d-none', !dueDate);
 
     var companyName = '--';
-    if (ticket.contact_detail && ticket.contact_detail.company_name) {
-      companyName = ticket.contact_detail.company_name;
-    } else if (ticket.company_name) {
-      companyName = ticket.company_name;
-    }
-    document.getElementById('ticketCompany').textContent = companyName;
-    document.getElementById('ticketCreatedBy').textContent = ticket.created_by_name || '--';
+    if (ticket.contact_detail && ticket.contact_detail.company_name) companyName = ticket.contact_detail.company_name;
+    else if (ticket.company_name) companyName = ticket.company_name;
+    dom.company.textContent = companyName;
+    dom.createdBy.textContent = ticket.created_by_name || '--';
 
-    var tagsContainer = document.getElementById('ticketTags');
     if (ticket.tags && ticket.tags.length > 0) {
-      tagsContainer.innerHTML = ticket.tags.map(function(t) { return '<span class="td-tag">' + escapeHtml(t) + '</span>'; }).join('');
-    } else { tagsContainer.innerHTML = '<span class="td-prop-value-text">--</span>'; }
+      dom.tags.innerHTML = ticket.tags.map(function(t) { return '<span class="td-tag">' + escapeHtml(t) + '</span>'; }).join('');
+    } else {
+      dom.tags.innerHTML = '<span class="td-prop-value-text">--</span>';
+    }
 
     currentContact = ticket.contact_detail || null;
     renderContactCard(currentContact);
 
-    document.getElementById('ticketCreated').textContent = formatRelativeTime(ticket.created_at);
-    document.getElementById('ticketCreated2').textContent = formatDateTime(ticket.created_at);
-    document.getElementById('ticketUpdated').textContent = formatDateTime(ticket.updated_at);
+    dom.created.textContent = formatRelativeTime(ticket.created_at);
+    dom.created2.textContent = formatDateTime(ticket.created_at);
+    dom.updated.textContent = formatDateTime(ticket.updated_at);
 
-    // SLA Status
-    var slaWrap = document.getElementById('slaSectionWrap');
-    var slaContent = document.getElementById('slaStatusContent');
+    /* SLA Status */
     if (ticket.sla_status) {
       var sla = ticket.sla_status;
-      slaWrap.style.display = '';
+      dom.slaSectionWrap.classList.remove('d-none');
       var respBreached = sla.response_breached;
       var resBreached = sla.resolution_breached;
       var respClass = respBreached ? 'text-danger' : 'text-success';
@@ -871,101 +1000,121 @@ window.dispatchEvent(new Event('tiptap-ready'));
       var resClass = resBreached ? 'text-danger' : 'text-success';
       var resIcon = resBreached ? 'ti-circle-x-filled' : 'ti-circle-check-filled';
       var resLabel = Math.round(sla.resolution_elapsed_minutes) + ' / ' + sla.resolution_target_minutes + ' min';
-      slaContent.innerHTML =
+      dom.slaContent.innerHTML =
         '<div class="td-prop-row"><span class="td-prop-row-label">Policy</span>' +
         '<span class="td-prop-value-text">' + escapeHtml(sla.policy_name) + '</span></div>' +
         '<div class="td-prop-row"><span class="td-prop-row-label">' +
-        '<i class="ti ti-' + respIcon + ' ' + respClass + '" style="font-size:0.625rem;"></i> Response</span>' +
+        '<i class="ti ti-' + respIcon + ' ' + respClass + ' td-sla-icon" aria-hidden="true"></i> Response</span>' +
         '<span class="td-prop-value-text ' + respClass + '">' + respLabel + '</span></div>' +
         '<div class="td-prop-row"><span class="td-prop-row-label">' +
-        '<i class="ti ti-' + resIcon + ' ' + resClass + '" style="font-size:0.625rem;"></i> Resolution</span>' +
+        '<i class="ti ti-' + resIcon + ' ' + resClass + ' td-sla-icon" aria-hidden="true"></i> Resolution</span>' +
         '<span class="td-prop-value-text ' + resClass + '">' + resLabel + '</span></div>';
     } else {
-      slaWrap.style.display = 'none';
+      dom.slaSectionWrap.classList.add('d-none');
     }
 
     showContent();
   }
 
-  // ============================================================
-  // Comments
-  // ============================================================
+  /* ── Comments ── */
   function deleteComment(commentId) {
     if (!confirm('Delete this comment?')) return;
     Api.delete('/api/v1/comments/comments/' + commentId + '/').then(function() {
-      Toast.success('Comment deleted'); loadComments(); loadActivity();
+      Toast.success('Comment deleted');
+      loadComments();
+      loadActivity();
     }).catch(function() { Toast.error('Failed to delete comment'); });
   }
 
   function renderComments(comments) {
-    var container = document.getElementById('commentsList'), emptyMsg = document.getElementById('commentsEmpty'), countBadge = document.getElementById('commentCount');
-    container.innerHTML = '';
-    countBadge.textContent = (comments && comments.length) ? comments.length : '0';
-    if (!comments || comments.length === 0) { emptyMsg.classList.remove('d-none'); return; }
-    emptyMsg.classList.add('d-none');
+    dom.commentsList.innerHTML = '';
+    dom.commentCount.textContent = (comments && comments.length) ? comments.length : '0';
+    if (!comments || comments.length === 0) { dom.commentsEmpty.classList.remove('d-none'); return; }
+    dom.commentsEmpty.classList.add('d-none');
+
+    var fragment = document.createDocumentFragment();
 
     comments.forEach(function(c) {
       var authorName = 'Unknown';
       if (c.author) authorName = typeof c.author === 'object' ? (c.author.full_name || c.author.email || 'Unknown') : c.author;
-      var initials = authorName.split(' ').map(function(n) { return n.charAt(0); }).join('').substring(0, 2).toUpperCase();
+      var initials = getInitials(authorName);
       var color = avatarColor(authorName);
-      var internalBadge = c.is_internal ? ' <span class="td-internal-badge"><i class="ti ti-lock-filled"></i> Internal</span>' : '';
-      var deleteBtn = '<button class="btn btn-link btn-sm p-0 ms-2 text-danger comment-delete-btn" data-comment-id="' + c.id + '" title="Delete" style="font-size:0.6875rem;line-height:1;opacity:0;transition:opacity 0.15s;"><i class="ti ti-trash"></i></button>';
+      var internalBadge = c.is_internal ? ' <span class="td-internal-badge"><i class="ti ti-lock-filled" aria-hidden="true"></i> Internal</span>' : '';
 
       var attachHtml = '';
       if (c.attachments && c.attachments.length > 0) {
         attachHtml = '<div class="td-comment-attachments">';
         c.attachments.forEach(function(a) {
           if (a.mime_type && a.mime_type.startsWith('image/')) {
-            attachHtml += '<div class="mt-1"><a href="' + escapeHtml(a.file_url) + '" target="_blank"><img src="' + escapeHtml(a.file_url) + '" alt="' + escapeHtml(a.original_name) + '" class="td-comment-img"></a></div>';
+            attachHtml += '<div class="mt-1"><a href="' + escapeHtml(a.file_url) + '" target="_blank" rel="noopener"><img src="' + escapeHtml(a.file_url) + '" alt="' + escapeHtml(a.original_name) + '" class="td-comment-img"></a></div>';
           } else {
-            attachHtml += '<div class="td-comment-file"><i class="ti ti-file"></i><a href="' + escapeHtml(a.file_url) + '" target="_blank">' + escapeHtml(a.original_name) + '</a><span class="text-muted">(' + escapeHtml(a.size_display) + ')</span></div>';
+            attachHtml += '<div class="td-comment-file"><i class="ti ti-file" aria-hidden="true"></i><a href="' + escapeHtml(a.file_url) + '" target="_blank" rel="noopener">' + escapeHtml(a.original_name) + '</a><span class="text-muted">(' + escapeHtml(a.size_display) + ')</span></div>';
           }
         });
         attachHtml += '</div>';
       }
 
-      container.insertAdjacentHTML('beforeend',
-        '<div class="td-comment' + (c.is_internal ? ' td-comment--internal' : '') + '">' +
-          '<div class="td-comment-avatar" style="background:' + color + '15;color:' + color + ';border:2px solid ' + color + '20;">' + initials + '</div>' +
-          '<div class="td-comment-body">' +
-            '<div class="td-comment-header"><strong>' + escapeHtml(authorName) + '</strong>' + internalBadge + '<span class="td-comment-time">' + formatRelativeTime(c.created_at) + deleteBtn + '</span></div>' +
-            '<div class="td-comment-text">' + escapeHtml(c.body || '') + '</div>' +
-            attachHtml +
+      var div = document.createElement('div');
+      div.className = 'td-comment' + (c.is_internal ? ' td-comment--internal' : '');
+      div.innerHTML =
+        '<div class="td-comment-avatar" style="background:' + color + '15;color:' + color + ';border:2px solid ' + color + '20;">' + initials + '</div>' +
+        '<div class="td-comment-body">' +
+          '<div class="td-comment-header"><strong>' + escapeHtml(authorName) + '</strong>' + internalBadge +
+            '<span class="td-comment-time">' + formatRelativeTime(c.created_at) +
+              '<button type="button" class="btn btn-link btn-sm p-0 ms-2 text-danger comment-delete-btn td-comment-delete-btn" data-comment-id="' + c.id + '" title="Delete comment" aria-label="Delete comment"><i class="ti ti-trash" aria-hidden="true"></i></button>' +
+            '</span>' +
           '</div>' +
-        '</div>');
+          '<div class="td-comment-text">' + (c.body || '') + '</div>' +
+          attachHtml +
+        '</div>';
+      fragment.appendChild(div);
     });
 
-    container.querySelectorAll('.td-comment').forEach(function(item) {
-      item.addEventListener('mouseenter', function() { var btn = this.querySelector('.comment-delete-btn'); if (btn) btn.style.opacity = '1'; });
-      item.addEventListener('mouseleave', function() { var btn = this.querySelector('.comment-delete-btn'); if (btn) btn.style.opacity = '0'; });
+    dom.commentsList.appendChild(fragment);
+
+    /* Event delegation for comment actions */
+    dom.commentsList.onmouseenter = null;
+    dom.commentsList.addEventListener('mouseover', function(e) {
+      var comment = e.target.closest('.td-comment');
+      if (comment) {
+        var btn = comment.querySelector('.comment-delete-btn');
+        if (btn) btn.style.opacity = '1';
+      }
     });
-    container.querySelectorAll('.comment-delete-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() { deleteComment(this.getAttribute('data-comment-id')); });
+    dom.commentsList.addEventListener('mouseout', function(e) {
+      var comment = e.target.closest('.td-comment');
+      if (comment && !comment.contains(e.relatedTarget)) {
+        var btn = comment.querySelector('.comment-delete-btn');
+        if (btn) btn.style.opacity = '0';
+      }
+    });
+    dom.commentsList.addEventListener('click', function(e) {
+      var deleteBtn = e.target.closest('.comment-delete-btn');
+      if (deleteBtn) deleteComment(deleteBtn.getAttribute('data-comment-id'));
     });
   }
 
-  // ============================================================
-  // Activity
-  // ============================================================
+  /* ── Activity ── */
+  var ACTIVITY_DOT_MAP = {
+    created: 'td-activity-dot--primary',
+    status_changed: 'td-activity-dot--info',
+    assigned: 'td-activity-dot--primary',
+    commented: 'td-activity-dot--success',
+    deleted: 'td-activity-dot--danger',
+    field_changed: 'td-activity-dot--warning',
+    updated: 'td-activity-dot--warning',
+    attachment_added: 'td-activity-dot--info',
+    attachment_removed: 'td-activity-dot--danger'
+  };
+
   function renderActivity(activities) {
-    var list = document.getElementById('activityList'), emptyMsg = document.getElementById('activityEmpty');
-    list.innerHTML = '';
-    if (!activities || activities.length === 0) { emptyMsg.classList.remove('d-none'); return; }
-    emptyMsg.classList.add('d-none');
+    dom.activityList.innerHTML = '';
+    if (!activities || activities.length === 0) { dom.activityEmpty.classList.remove('d-none'); return; }
+    dom.activityEmpty.classList.add('d-none');
 
     var html = '<div class="td-activity-list">';
     activities.forEach(function(a) {
-      var dotClass = 'td-activity-dot--muted';
-      var iconClass = 'ti-circle';
-      if (a.action === 'created') { dotClass = 'td-activity-dot--primary'; iconClass = 'ti-circle-plus-filled'; }
-      else if (a.action === 'status_changed') { dotClass = 'td-activity-dot--info'; iconClass = 'ti-refresh'; }
-      else if (a.action === 'assigned') { dotClass = 'td-activity-dot--primary'; iconClass = 'ti-user-filled'; }
-      else if (a.action === 'commented') { dotClass = 'td-activity-dot--success'; iconClass = 'ti-message-filled'; }
-      else if (a.action === 'deleted') { dotClass = 'td-activity-dot--danger'; iconClass = 'ti-trash-filled'; }
-      else if (a.action === 'field_changed' || a.action === 'updated') { dotClass = 'td-activity-dot--warning'; iconClass = 'ti-pencil'; }
-      else if (a.action === 'attachment_added') { dotClass = 'td-activity-dot--info'; iconClass = 'ti-paperclip'; }
-      else if (a.action === 'attachment_removed') { dotClass = 'td-activity-dot--danger'; iconClass = 'ti-circle-x-filled'; }
+      var dotClass = ACTIVITY_DOT_MAP[a.action] || 'td-activity-dot--muted';
 
       var changesHtml = '';
       if (a.changes && typeof a.changes === 'object' && Object.keys(a.changes).length > 0) {
@@ -973,7 +1122,12 @@ window.dispatchEvent(new Event('tiptap-ready'));
         Object.keys(a.changes).forEach(function(field) {
           var vals = a.changes[field];
           if (Array.isArray(vals) && vals.length === 2) {
-            parts.push('<span class="text-capitalize">' + escapeHtml(field.replace(/_/g, ' ')) + '</span>: <span class="td-change-old">' + escapeHtml(String(vals[0] || '(empty)')) + '</span> <i class="ti ti-arrow-right" style="font-size:0.5625rem;opacity:0.5;"></i> <span class="td-change-new">' + escapeHtml(String(vals[1] || '(empty)')) + '</span>');
+            parts.push(
+              '<span class="text-capitalize">' + escapeHtml(field.replace(/_/g, ' ')) + '</span>: ' +
+              '<span class="td-change-old">' + escapeHtml(String(vals[0] || '(empty)')) + '</span> ' +
+              '<i class="ti ti-arrow-right td-change-arrow" aria-hidden="true"></i> ' +
+              '<span class="td-change-new">' + escapeHtml(String(vals[1] || '(empty)')) + '</span>'
+            );
           }
         });
         if (parts.length > 0) changesHtml = '<div class="td-activity-changes">' + parts.join('; ') + '</div>';
@@ -988,110 +1142,102 @@ window.dispatchEvent(new Event('tiptap-ready'));
         '</div></div>';
     });
     html += '</div>';
-    list.innerHTML = html;
+    dom.activityList.innerHTML = html;
   }
 
-  // ============================================================
-  // Tab switching
-  // ============================================================
+  /* ── Tab Switching ── */
   document.querySelectorAll('.td-tab').forEach(function(tab) {
     tab.addEventListener('click', function() {
-      document.querySelectorAll('.td-tab').forEach(function(t) { t.classList.remove('active'); });
+      document.querySelectorAll('.td-tab').forEach(function(t) {
+        t.classList.remove('active');
+        t.setAttribute('aria-selected', 'false');
+      });
       document.querySelectorAll('.td-tab-panel').forEach(function(p) { p.classList.remove('active'); });
       this.classList.add('active');
+      this.setAttribute('aria-selected', 'true');
       var target = this.getAttribute('data-td-tab');
-      if (target === 'comments') document.getElementById('tabComments').classList.add('active');
-      else document.getElementById('tabActivity').classList.add('active');
+      var panelMap = { comments: 'tabComments', emails: 'tabEmails', activity: 'tabActivity' };
+      var panel = document.getElementById(panelMap[target]);
+      if (panel) panel.classList.add('active');
+      if (target === 'emails') loadEmails();
     });
   });
 
-  // ============================================================
-  // Property auto-save listeners
-  // ============================================================
-  document.getElementById('ticketStatus').addEventListener('change', function() {
-    autoSaveField('status', this.value);
-  });
-  document.getElementById('ticketPrioritySelect').addEventListener('change', function() {
-    autoSaveField('priority', this.value);
-  });
-  document.getElementById('ticketAssignee').addEventListener('change', function() {
-    autoSaveField('assignee', this.value || null);
-  });
-  document.getElementById('ticketQueueSelect').addEventListener('change', function() {
-    autoSaveField('queue', this.value || null);
-  });
-  // Due date change is handled by flatpickr onChange callback (see below)
-  document.getElementById('clearDueDateBtn').addEventListener('click', function() {
-    if (window._dueDatePicker) {
-      window._dueDatePicker.clear();
-    }
+  /* ── Property Auto-save Listeners ── */
+  dom.statusSelect.addEventListener('change', function() { autoSaveField('status', this.value); });
+  dom.prioritySelect.addEventListener('change', function() { autoSaveField('priority', this.value); });
+  dom.assigneeSelect.addEventListener('change', function() { autoSaveField('assignee', this.value || null); });
+  dom.queueSelect.addEventListener('change', function() { autoSaveField('queue', this.value || null); });
+  dom.categorySelect.addEventListener('change', function() { autoSaveField('category', this.value || null); });
+  dom.clearDueDateBtn.addEventListener('click', function() {
+    if (window._dueDatePicker) window._dueDatePicker.clear();
     autoSaveField('due_date', null);
     this.classList.add('d-none');
   });
-  document.getElementById('ticketCategorySelect').addEventListener('change', function() {
-    autoSaveField('category', this.value || null);
-  });
 
-  // ============================================================
-  // Inline subject editing
-  // ============================================================
-  var subjectEl = document.getElementById('ticketSubject');
-  subjectEl.addEventListener('blur', function() {
+  /* ── Inline Subject Editing ── */
+  dom.subject.addEventListener('blur', function() {
     var newSubject = this.textContent.trim();
-    if (!newSubject) {
-      this.textContent = currentSubject;
-      return;
-    }
+    if (!newSubject) { this.textContent = currentSubject; return; }
     if (newSubject !== currentSubject) {
       Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', { subject: newSubject })
         .then(function() { currentSubject = newSubject; Toast.success('Subject updated'); loadActivity(); })
-        .catch(function() { subjectEl.textContent = currentSubject; Toast.error('Failed to update subject'); });
+        .catch(function() { dom.subject.textContent = currentSubject; Toast.error('Failed to update subject'); });
     }
   });
-  subjectEl.addEventListener('keydown', function(e) {
+  dom.subject.addEventListener('keydown', function(e) {
     if (e.key === 'Enter') { e.preventDefault(); this.blur(); }
     if (e.key === 'Escape') { this.textContent = currentSubject; this.blur(); }
   });
 
-  // ============================================================
-  // Load data
-  // ============================================================
+  /* ── Data Loading ── */
   function loadStatuses() {
     Api.get('/api/v1/tickets/ticket-statuses/').then(function(data) {
-      var select = document.getElementById('ticketStatus'); var statuses = data.results || data; select.innerHTML = '';
-      statuses.forEach(function(s) { var o = document.createElement('option'); o.value = s.id; o.textContent = s.name; select.appendChild(o); });
+      var statuses = data.results || data;
+      dom.statusSelect.innerHTML = '';
+      statuses.forEach(function(s) {
+        var o = document.createElement('option');
+        o.value = s.id; o.textContent = s.name;
+        dom.statusSelect.appendChild(o);
+      });
       statusesLoaded = true;
-      if (ticketId && window._currentTicketStatus) { select.value = window._currentTicketStatus; }
+      if (ticketId && window._currentTicketStatus) dom.statusSelect.value = window._currentTicketStatus;
     }).catch(function(err) { console.error('Error loading statuses:', err); });
   }
 
   function loadUsers() {
     Api.get('/api/v1/accounts/users/').then(function(data) {
-      var select = document.getElementById('ticketAssignee'); var users = data.results || data;
-      while (select.options.length > 1) select.remove(1);
-      users.forEach(function(u) { var name = ((u.first_name || '') + ' ' + (u.last_name || '')).trim() || u.email; var o = document.createElement('option'); o.value = u.id; o.textContent = name; select.appendChild(o); });
-      usersLoaded = true;
+      var users = data.results || data;
+      while (dom.assigneeSelect.options.length > 1) dom.assigneeSelect.remove(1);
+      users.forEach(function(u) {
+        var name = ((u.first_name || '') + ' ' + (u.last_name || '')).trim() || u.email;
+        var o = document.createElement('option');
+        o.value = u.id; o.textContent = name;
+        dom.assigneeSelect.appendChild(o);
+      });
     }).catch(function(err) { console.error('Error loading users:', err); });
   }
 
   function loadCategories() {
     Api.get('/api/v1/tickets/ticket-categories/').then(function(data) {
-      var select = document.getElementById('ticketCategorySelect');
       var categories = data.results || data;
-      while (select.options.length > 1) select.remove(1);
+      while (dom.categorySelect.options.length > 1) dom.categorySelect.remove(1);
       categories.forEach(function(c) {
-        var o = document.createElement('option'); o.value = c.id; o.textContent = c.name; select.appendChild(o);
+        var o = document.createElement('option');
+        o.value = c.id; o.textContent = c.name;
+        dom.categorySelect.appendChild(o);
       });
     }).catch(function(err) { console.error('Error loading categories:', err); });
   }
 
   function loadQueues() {
     Api.get('/api/v1/tickets/queues/').then(function(data) {
-      var select = document.getElementById('ticketQueueSelect');
       var queues = data.results || data;
-      while (select.options.length > 1) select.remove(1);
+      while (dom.queueSelect.options.length > 1) dom.queueSelect.remove(1);
       queues.forEach(function(q) {
-        var o = document.createElement('option'); o.value = q.id; o.textContent = q.name; select.appendChild(o);
+        var o = document.createElement('option');
+        o.value = q.id; o.textContent = q.name;
+        dom.queueSelect.appendChild(o);
       });
     }).catch(function(err) { console.error('Error loading queues:', err); });
   }
@@ -1107,19 +1253,39 @@ window.dispatchEvent(new Event('tiptap-ready'));
       return Api.get('/api/v1/tickets/tickets/' + match.id + '/');
     }).then(function(ticket) {
       if (!ticket) return;
+      currentTicket = ticket;
       renderTicket(ticket);
       loadComments();
       loadTicketAttachments();
       loadActivity();
+      prefillEmailTo();
     }).catch(function() { showError('Failed to load ticket.'); });
   }
 
-  function loadComments() { if (!ticketId) return; Api.get('/api/v1/tickets/tickets/' + ticketId + '/comments/').then(function(data) { renderComments(data.results || data); }).catch(function(err) { console.error('Error:', err); }); }
-  function loadActivity() { if (!ticketId) return; Api.get('/api/v1/tickets/tickets/' + ticketId + '/activity/').then(function(data) { renderActivity(data.results || data); }).catch(function(err) { console.error('Error:', err); }); }
+  function loadComments() {
+    if (!ticketId) return;
+    Api.get('/api/v1/tickets/tickets/' + ticketId + '/comments/').then(function(data) {
+      renderComments(data.results || data);
+    }).catch(function(err) { console.error('Error:', err); });
+  }
 
-  // ============================================================
-  // Attachments
-  // ============================================================
+  function loadActivity() {
+    if (!ticketId) return;
+    Api.get('/api/v1/tickets/tickets/' + ticketId + '/activity/').then(function(data) {
+      renderActivity(data.results || data);
+    }).catch(function(err) { console.error('Error:', err); });
+  }
+
+  /* ── Attachments ── */
+  function deleteAttachment(attachmentId) {
+    if (!confirm('Delete this attachment?')) return;
+    Api.delete('/api/v1/attachments/attachments/' + attachmentId + '/').then(function() {
+      Toast.success('Attachment deleted');
+      loadTicketAttachments();
+      loadActivity();
+    }).catch(function() { Toast.error('Failed to delete attachment'); });
+  }
+
   function loadTicketAttachments() {
     if (!ticketId) return;
     Api.get('/api/v1/attachments/attachments/?content_type=tickets.ticket&object_id=' + ticketId).then(function(data) {
@@ -1128,14 +1294,11 @@ window.dispatchEvent(new Event('tiptap-ready'));
   }
 
   function renderTicketAttachments(attachments) {
-    var list = document.getElementById('ticketAttachmentsList');
-    var imgGrid = document.getElementById('ticketAttachmentImages');
-    var emptyMsg = document.getElementById('ticketAttachmentsEmpty');
-    var countBadge = document.getElementById('attachmentCount');
-    list.innerHTML = ''; imgGrid.innerHTML = '';
-    countBadge.textContent = attachments.length || '0';
-    if (!attachments || attachments.length === 0) { emptyMsg.classList.remove('d-none'); return; }
-    emptyMsg.classList.add('d-none');
+    dom.attachmentsList.innerHTML = '';
+    dom.attachmentImages.innerHTML = '';
+    dom.attachmentCount.textContent = attachments.length || '0';
+    if (!attachments || attachments.length === 0) { dom.attachmentsEmpty.classList.remove('d-none'); return; }
+    dom.attachmentsEmpty.classList.add('d-none');
 
     var images = [], files = [];
     attachments.forEach(function(a) {
@@ -1147,56 +1310,46 @@ window.dispatchEvent(new Event('tiptap-ready'));
       var gridHtml = '';
       images.forEach(function(a) {
         gridHtml += '<div class="attachment-thumb-wrap">' +
-          '<a href="' + escapeHtml(a.file_url) + '" target="_blank" class="attachment-thumb">' +
+          '<a href="' + escapeHtml(a.file_url) + '" target="_blank" rel="noopener" class="attachment-thumb">' +
           '<img src="' + escapeHtml(a.file_url) + '" alt="' + escapeHtml(a.original_name) + '">' +
           '</a>' +
-          '<button class="attachment-thumb-delete" data-attachment-id="' + a.id + '" title="Remove"><i class="ti ti-x"></i></button>' +
+          '<button type="button" class="attachment-thumb-delete" data-attachment-id="' + a.id + '" title="Remove" aria-label="Remove ' + escapeHtml(a.original_name) + '"><i class="ti ti-x" aria-hidden="true"></i></button>' +
           '</div>';
       });
-      imgGrid.innerHTML = gridHtml;
+      dom.attachmentImages.innerHTML = gridHtml;
     }
 
     files.forEach(function(a) {
-      list.insertAdjacentHTML('beforeend',
+      dom.attachmentsList.insertAdjacentHTML('beforeend',
         '<div class="attachment-file-item">' +
-          '<i class="ti ti-file text-muted"></i>' +
-          '<a href="' + escapeHtml(a.file_url) + '" target="_blank" class="flex-grow-1 text-truncate text-decoration-none small" style="color:var(--crm-info);">' + escapeHtml(a.original_name) + '</a>' +
-          '<span class="text-muted" style="font-size:0.6875rem;">' + escapeHtml(a.size_display) + '</span>' +
-          '<button class="btn btn-link btn-sm p-0 text-danger attachment-delete-btn" data-attachment-id="' + a.id + '" title="Delete" style="font-size:0.75rem;line-height:1;"><i class="ti ti-x"></i></button>' +
+          '<i class="ti ti-file text-muted" aria-hidden="true"></i>' +
+          '<a href="' + escapeHtml(a.file_url) + '" target="_blank" rel="noopener" class="td-attachment-link">' + escapeHtml(a.original_name) + '</a>' +
+          '<span class="td-attachment-size">' + escapeHtml(a.size_display) + '</span>' +
+          '<button type="button" class="btn btn-link btn-sm p-0 text-danger attachment-delete-btn td-attachment-delete-btn" data-attachment-id="' + a.id + '" title="Delete" aria-label="Delete ' + escapeHtml(a.original_name) + '"><i class="ti ti-x" aria-hidden="true"></i></button>' +
         '</div>');
     });
 
-    imgGrid.querySelectorAll('.attachment-thumb-delete').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var aid = this.getAttribute('data-attachment-id');
-        if (confirm('Delete this attachment?')) {
-          Api.delete('/api/v1/attachments/attachments/' + aid + '/').then(function() {
-            Toast.success('Attachment deleted'); loadTicketAttachments(); loadActivity();
-          }).catch(function() { Toast.error('Failed to delete attachment'); });
-        }
-      });
-    });
-    list.querySelectorAll('.attachment-delete-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        var aid = this.getAttribute('data-attachment-id');
-        if (confirm('Delete this attachment?')) {
-          Api.delete('/api/v1/attachments/attachments/' + aid + '/').then(function() {
-            Toast.success('Attachment deleted'); loadTicketAttachments(); loadActivity();
-          }).catch(function() { Toast.error('Failed to delete attachment'); });
-        }
-      });
-    });
+    /* Event delegation for attachment delete buttons */
+    dom.attachmentImages.onclick = function(e) {
+      var btn = e.target.closest('[data-attachment-id]');
+      if (btn) deleteAttachment(btn.getAttribute('data-attachment-id'));
+    };
+    dom.attachmentsList.onclick = function(e) {
+      var btn = e.target.closest('[data-attachment-id]');
+      if (btn) deleteAttachment(btn.getAttribute('data-attachment-id'));
+    };
   }
 
   document.getElementById('addAttachmentBtn').addEventListener('click', function() {
     document.getElementById('ticketAttachmentInput').click();
   });
+
   document.getElementById('ticketAttachmentInput').addEventListener('change', function() {
     if (!ticketId || !this.files.length) return;
     var files = Array.from(this.files);
     this.value = '';
     var uploads = files.map(function(file) {
-      if (file.size > 25 * 1024 * 1024) { Toast.warning(file.name + ' exceeds 25 MB limit'); return Promise.resolve(); }
+      if (file.size > MAX_FILE_SIZE) { Toast.warning(file.name + ' exceeds 25 MB limit'); return Promise.resolve(); }
       var fd = new FormData();
       fd.append('file', file);
       fd.append('content_type', 'tickets.ticket');
@@ -1206,16 +1359,14 @@ window.dispatchEvent(new Event('tiptap-ready'));
     Promise.all(uploads).then(function() { Toast.success('Attachment(s) uploaded'); loadTicketAttachments(); loadActivity(); });
   });
 
-  // ============================================================
-  // Comment attachments
-  // ============================================================
-  var commentSelectedFiles = [];
+  /* ── Comment Attachments ── */
   document.getElementById('commentAttachBtn').addEventListener('click', function() {
     document.getElementById('commentFiles').click();
   });
+
   document.getElementById('commentFiles').addEventListener('change', function() {
     for (var i = 0; i < this.files.length; i++) {
-      if (this.files[i].size > 25 * 1024 * 1024) { Toast.warning(this.files[i].name + ' exceeds 25 MB limit'); continue; }
+      if (this.files[i].size > MAX_FILE_SIZE) { Toast.warning(this.files[i].name + ' exceeds 25 MB limit'); continue; }
       commentSelectedFiles.push(this.files[i]);
     }
     this.value = '';
@@ -1223,35 +1374,37 @@ window.dispatchEvent(new Event('tiptap-ready'));
   });
 
   function renderCommentFileList() {
-    var container = document.getElementById('commentFileList');
-    container.innerHTML = '';
+    dom.commentFileList.innerHTML = '';
     if (commentSelectedFiles.length === 0) return;
     commentSelectedFiles.forEach(function(f, i) {
       var sizeStr = f.size < 1048576 ? (f.size / 1024).toFixed(1) + ' KB' : (f.size / 1048576).toFixed(1) + ' MB';
-      container.insertAdjacentHTML('beforeend',
-        '<div class="d-flex align-items-center gap-2 py-1 px-2 rounded mb-1 small" style="background:var(--crm-bg);">' +
-          '<i class="ti ti-paperclip text-muted"></i>' +
+      dom.commentFileList.insertAdjacentHTML('beforeend',
+        '<div class="d-flex align-items-center gap-2 py-1 px-2 rounded mb-1 small td-comment-file-row">' +
+          '<i class="ti ti-paperclip text-muted" aria-hidden="true"></i>' +
           '<span class="flex-grow-1 text-truncate">' + escapeHtml(f.name) + '</span>' +
           '<span class="text-muted">' + sizeStr + '</span>' +
-          '<button type="button" class="btn btn-link btn-sm p-0 text-danger comment-file-remove" data-idx="' + i + '" style="font-size:0.75rem;line-height:1;"><i class="ti ti-x"></i></button>' +
+          '<button type="button" class="btn btn-link btn-sm p-0 text-danger comment-file-remove td-comment-file-remove" data-idx="' + i + '" title="Remove file" aria-label="Remove ' + escapeHtml(f.name) + '"><i class="ti ti-x" aria-hidden="true"></i></button>' +
         '</div>');
     });
-    container.querySelectorAll('.comment-file-remove').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        commentSelectedFiles.splice(parseInt(this.getAttribute('data-idx')), 1);
+    dom.commentFileList.onclick = function(e) {
+      var btn = e.target.closest('.comment-file-remove');
+      if (btn) {
+        commentSelectedFiles.splice(parseInt(btn.getAttribute('data-idx')), 1);
         renderCommentFileList();
-      });
-    });
+      }
+    };
   }
 
-  // ============================================================
-  // Comment form
-  // ============================================================
+  /* ── Comment Form ── */
   document.getElementById('addCommentForm').addEventListener('submit', function(e) {
-    e.preventDefault(); if (!ticketId) return;
-    var body = commentEditor ? commentEditor.getHTML() : ''; if (!body || body === '<p></p>') return;
-    var isInternal = document.getElementById('commentInternal').checked;
-    var btn = this.querySelector('button[type="submit"]'); btn.disabled = true;
+    e.preventDefault();
+    if (!ticketId) return;
+    var body = commentEditor ? commentEditor.getHTML() : '';
+    if (!body || body === '<p></p>') return;
+    var isInternal = dom.commentInternal.checked;
+    var btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+
     Api.post('/api/v1/tickets/tickets/' + ticketId + '/comments/', { body: body, is_internal: isInternal }).then(function(comment) {
       if (commentSelectedFiles.length === 0) { finishComment(btn); return; }
       var uploads = commentSelectedFiles.map(function(file) {
@@ -1271,7 +1424,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
 
   function finishComment(btn) {
     if (commentEditor) commentEditor.setContent('');
-    document.getElementById('commentInternal').checked = false;
+    dom.commentInternal.checked = false;
     commentSelectedFiles = [];
     renderCommentFileList();
     btn.disabled = false;
@@ -1280,39 +1433,44 @@ window.dispatchEvent(new Event('tiptap-ready'));
     loadActivity();
   }
 
-  // ============================================================
-  // Delete ticket
-  // ============================================================
-  document.getElementById('deleteTicketBtn').addEventListener('click', function() { new bootstrap.Modal(document.getElementById('deleteModal')).show(); });
+  /* ── Delete Ticket ── */
+  var deleteModal = null;
+  document.getElementById('deleteTicketBtn').addEventListener('click', function() {
+    if (!deleteModal) deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    deleteModal.show();
+  });
   document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
-    if (!ticketId) return; this.disabled = true;
-    Api.delete('/api/v1/tickets/tickets/' + ticketId + '/').then(function() { Toast.success('Ticket deleted'); window.location.href = '/tickets/'; }).catch(function() { document.getElementById('confirmDeleteBtn').disabled = false; Toast.error('Failed to delete ticket'); });
+    if (!ticketId) return;
+    this.disabled = true;
+    Api.delete('/api/v1/tickets/tickets/' + ticketId + '/').then(function() {
+      Toast.success('Ticket deleted');
+      window.location.href = '/tickets/';
+    }).catch(function() {
+      document.getElementById('confirmDeleteBtn').disabled = false;
+      Toast.error('Failed to delete ticket');
+    });
   });
 
-  // ============================================================
-  // Edit description
-  // ============================================================
+  /* ── Edit Description ── */
   document.getElementById('editTicketBtn').addEventListener('click', function() {
-    var descView = document.getElementById('ticketDescriptionView');
-    var descEdit = document.getElementById('ticketDescriptionEdit');
-    if (descEdit.classList.contains('d-none')) {
-      var currentContent = descView.classList.contains('text-muted') ? '' : descView.innerHTML;
+    if (dom.descEdit.classList.contains('d-none')) {
+      var currentContent = dom.descView.classList.contains('text-muted') ? '' : dom.descView.innerHTML;
       if (descriptionEditor) descriptionEditor.setContent(currentContent);
-      descView.classList.add('d-none');
-      descEdit.classList.remove('d-none');
+      dom.descView.classList.add('d-none');
+      dom.descEdit.classList.remove('d-none');
     }
   });
 
   document.getElementById('saveDescriptionBtn').addEventListener('click', function() {
     var newDesc = descriptionEditor ? descriptionEditor.getHTML() : '';
     if (newDesc === '<p></p>') newDesc = '';
-    var btn = this; btn.disabled = true;
+    var btn = this;
+    btn.disabled = true;
     Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', { description: newDesc }).then(function() {
-      var descView = document.getElementById('ticketDescriptionView');
-      if (newDesc) { descView.innerHTML = newDesc; descView.classList.remove('text-muted'); }
-      else { descView.textContent = 'No description provided.'; descView.classList.add('text-muted'); }
-      descView.classList.remove('d-none');
-      document.getElementById('ticketDescriptionEdit').classList.add('d-none');
+      if (newDesc) { dom.descView.innerHTML = newDesc; dom.descView.classList.remove('text-muted'); }
+      else { dom.descView.textContent = 'No description provided.'; dom.descView.classList.add('text-muted'); }
+      dom.descView.classList.remove('d-none');
+      dom.descEdit.classList.add('d-none');
       btn.disabled = false;
       Toast.success('Description updated');
       loadActivity();
@@ -1320,22 +1478,13 @@ window.dispatchEvent(new Event('tiptap-ready'));
   });
 
   document.getElementById('cancelDescriptionBtn').addEventListener('click', function() {
-    document.getElementById('ticketDescriptionView').classList.remove('d-none');
-    document.getElementById('ticketDescriptionEdit').classList.add('d-none');
+    dom.descView.classList.remove('d-none');
+    dom.descEdit.classList.add('d-none');
   });
 
-  // ============================================================
-  // Custom Select Dropdown — uses global KanzenSelect
-  // ============================================================
-
-  // ============================================================
-  // Flatpickr Due-Date Picker
-  // ============================================================
+  /* ── Flatpickr Due-Date Picker ── */
   (function() {
-    var input = document.getElementById('ticketDueDateInput');
-    var clearBtn = document.getElementById('clearDueDateBtn');
-
-    window._dueDatePicker = flatpickr(input, {
+    window._dueDatePicker = flatpickr(dom.dueDateInput, {
       enableTime: true,
       dateFormat: 'Y-m-d\\TH:i',
       altInput: true,
@@ -1346,12 +1495,10 @@ window.dispatchEvent(new Event('tiptap-ready'));
       closeOnSelect: false,
       placeholder: 'Not set',
       onReady: function(selectedDates, dateStr, instance) {
-        // Style the alt-input to match our theme
         if (instance.altInput) {
           instance.altInput.classList.add('td-flatpickr-input');
           instance.altInput.setAttribute('placeholder', 'Not set');
         }
-        // Add OK confirm button
         var footer = document.createElement('div');
         footer.className = 'flatpickr-confirm';
         var okBtn = document.createElement('button');
@@ -1359,11 +1506,10 @@ window.dispatchEvent(new Event('tiptap-ready'));
         okBtn.className = 'flatpickr-confirm-btn';
         okBtn.textContent = 'OK';
         okBtn.addEventListener('click', function() {
-          var dates = instance.selectedDates;
           var str = instance.input.value;
           instance.close();
           autoSaveField('due_date', str || null);
-          clearBtn.classList.toggle('d-none', !str);
+          dom.clearDueDateBtn.classList.toggle('d-none', !str);
         });
         footer.appendChild(okBtn);
         instance.calendarContainer.appendChild(footer);
@@ -1371,20 +1517,322 @@ window.dispatchEvent(new Event('tiptap-ready'));
     });
   })();
 
-  // ============================================================
-  // Upgrade all selects after load
-  // ============================================================
+  /* ── Upgrade Custom Selects ── */
   function upgradeAllSelects() {
     document.querySelectorAll('.td-prop-select').forEach(function(el) {
       KanzenSelect.upgrade(el, { searchable: false });
     });
   }
 
-  // ============================================================
-  // Init
-  // ============================================================
-  loadStatuses(); loadUsers(); loadQueues(); loadCategories(); loadTicket();
-  // Upgrade selects after a short delay so options are populated
+  /* ── Canned Response Picker ── */
+  (function() {
+    var allCanned = [];
+    var selectedIdx = -1;
+    var visible = false;
+
+    function show() { dom.cannedDropdown.classList.remove('d-none'); dom.cannedDropdown.style.display = 'block'; visible = true; }
+    function hide() { dom.cannedDropdown.classList.add('d-none'); dom.cannedDropdown.style.display = ''; visible = false; selectedIdx = -1; }
+
+    async function fetchCanned(query) {
+      try {
+        var url = '/api/v1/tickets/canned-responses/';
+        if (query) url += '?search=' + encodeURIComponent(query);
+        var data = await Api.get(url);
+        allCanned = data.results || data;
+      } catch(e) { allCanned = []; }
+    }
+
+    function renderDropdown(items) {
+      dom.cannedDropdown.innerHTML = '';
+      if (!items || !items.length) {
+        var emptyEl = document.createElement('div');
+        emptyEl.className = 'canned-picker-item';
+        emptyEl.style.textAlign = 'center';
+        emptyEl.style.color = 'var(--crm-text-muted)';
+        emptyEl.style.cursor = 'default';
+        emptyEl.textContent = 'No canned responses yet. Create one in Settings.';
+        dom.cannedDropdown.appendChild(emptyEl);
+        show();
+        return;
+      }
+      items.forEach(function(cr, idx) {
+        var el = document.createElement('div');
+        el.className = 'canned-picker-item' + (idx === selectedIdx ? ' active' : '');
+        el.innerHTML =
+          '<div class="canned-picker-title">' + escapeHtml(cr.title) +
+            (cr.shortcut ? ' <code>' + escapeHtml(cr.shortcut) + '</code>' : '') +
+          '</div>' +
+          '<div class="canned-picker-preview">' + escapeHtml(cr.content).substring(0, 80) + '</div>';
+        el.addEventListener('click', function() { selectCanned(cr); });
+        el.addEventListener('mouseenter', function() { selectedIdx = idx; highlightItem(); });
+        dom.cannedDropdown.appendChild(el);
+      });
+      show();
+    }
+
+    function highlightItem() {
+      dom.cannedDropdown.querySelectorAll('.canned-picker-item').forEach(function(el, i) {
+        el.classList.toggle('active', i === selectedIdx);
+      });
+    }
+
+    function renderCannedContent(content) {
+      // Replace template variables client-side
+      content = content.replace(/\{\{ticket\.number\}\}/g, ticketNumber || '');
+      content = content.replace(/\{\{ticket\.subject\}\}/g, currentSubject || '');
+      var contactName = dom.contactCard ? (dom.contactCard.querySelector('.fw-medium') || {}).textContent || '' : '';
+      content = content.replace(/\{\{contact\.name\}\}/g, contactName);
+      content = content.replace(/\{\{contact\.first_name\}\}/g, contactName.split(' ')[0] || '');
+      content = content.replace(/\{\{contact\.email\}\}/g, '');
+      content = content.replace(/\{\{agent\.name\}\}/g, '{{ request.user.get_full_name|escapejs }}');
+      content = content.replace(/\{\{agent\.first_name\}\}/g, '{{ request.user.first_name|escapejs }}');
+      content = content.replace(/\{\{agent\.email\}\}/g, '{{ request.user.email|escapejs }}');
+      return content;
+    }
+
+    async function selectCanned(cr) {
+      hide();
+      if (!commentEditor) return;
+      var content = renderCannedContent(cr.content || '');
+      var inner = commentEditor.editor || commentEditor;
+      if (inner.commands) {
+        inner.chain().focus().insertContent(content).run();
+      } else {
+        commentEditor.setContent(content);
+      }
+      Toast.info('Canned response inserted');
+      // Increment usage count in background
+      Api.post('/api/v1/tickets/canned-responses/' + cr.id + '/render/', { ticket_id: ticketId }).catch(function() {});
+    }
+
+    if (dom.cannedToggleBtn) {
+      dom.cannedToggleBtn.addEventListener('click', async function(e) {
+        e.preventDefault();
+        if (visible) { hide(); return; }
+        await fetchCanned('');
+        selectedIdx = -1;
+        renderDropdown(allCanned);
+      });
+    }
+
+    var editorContainer = document.getElementById('commentBodyEditor');
+    if (editorContainer) {
+      editorContainer.addEventListener('keydown', function(e) {
+        if (!visible) return;
+        var items = dom.cannedDropdown.querySelectorAll('.canned-picker-item');
+        if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, items.length - 1); highlightItem(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = Math.max(selectedIdx - 1, 0); highlightItem(); }
+        else if (e.key === 'Enter' && selectedIdx >= 0) { e.preventDefault(); if (allCanned[selectedIdx]) selectCanned(allCanned[selectedIdx]); }
+        else if (e.key === 'Escape') { e.preventDefault(); hide(); }
+      });
+    }
+
+    document.addEventListener('click', function(e) {
+      if (visible && !dom.cannedDropdown.contains(e.target) && e.target !== dom.cannedToggleBtn && !dom.cannedToggleBtn.contains(e.target)) {
+        hide();
+      }
+    });
+  })();
+
+  /* ── Emails ── */
+  function loadEmails() {
+    if (!ticketId) return;
+    Api.get('/api/v1/tickets/tickets/' + ticketId + '/emails/').then(function(data) {
+      var emails = data.results || data;
+      renderEmails(emails);
+    }).catch(function(err) { console.error('Error loading emails:', err); });
+  }
+
+  function renderEmails(emails) {
+    dom.emailsList.textContent = '';
+    dom.emailCount.textContent = (emails && emails.length) ? emails.length : '0';
+    if (!emails || emails.length === 0) { dom.emailsEmpty.classList.remove('d-none'); return; }
+    dom.emailsEmpty.classList.add('d-none');
+
+    var fragment = document.createDocumentFragment();
+    emails.forEach(function(e) {
+      var div = document.createElement('div');
+      div.className = 'td-comment';
+
+      /* Avatar icon */
+      var avatarDiv = document.createElement('div');
+      avatarDiv.className = 'td-comment-avatar';
+      avatarDiv.style.cssText = 'background:#3B82F615;color:#3B82F6;border:2px solid #3B82F620;';
+      var icon = document.createElement('i');
+      icon.className = 'ti ti-mail';
+      icon.setAttribute('aria-hidden', 'true');
+      avatarDiv.appendChild(icon);
+
+      /* Body wrapper */
+      var bodyDiv = document.createElement('div');
+      bodyDiv.className = 'td-comment-body';
+
+      /* Header: sender + badge + time */
+      var headerDiv = document.createElement('div');
+      headerDiv.className = 'td-comment-header';
+      var senderStrong = document.createElement('strong');
+      senderStrong.textContent = e.sender_name ? (e.sender_name + ' <' + e.sender_email + '>') : e.sender_email;
+      headerDiv.appendChild(senderStrong);
+
+      var badge = document.createElement('span');
+      var statusClass = e.status === 'ticket_created' ? 'bg-success' : e.status === 'reply_added' ? 'bg-info' : e.status === 'failed' ? 'bg-danger' : 'bg-secondary';
+      badge.className = 'badge ' + statusClass + ' bg-opacity-25 text-capitalize ms-2';
+      badge.style.fontSize = '0.65rem';
+      badge.textContent = e.status.replace(/_/g, ' ');
+      headerDiv.appendChild(badge);
+
+      var timeSpan = document.createElement('span');
+      timeSpan.className = 'td-comment-time';
+      timeSpan.textContent = formatRelativeTime(e.created_at);
+      headerDiv.appendChild(timeSpan);
+
+      /* Subject line */
+      var subjectDiv = document.createElement('div');
+      subjectDiv.className = 'td-comment-text';
+      var subjectB = document.createElement('strong');
+      subjectB.textContent = e.subject;
+      subjectDiv.appendChild(subjectB);
+
+      /* Body preview */
+      var bodyPreview = document.createElement('div');
+      bodyPreview.className = 'td-comment-text text-muted small mt-1';
+      bodyPreview.style.whiteSpace = 'pre-wrap';
+      bodyPreview.textContent = (e.body_text || '').substring(0, 500);
+
+      bodyDiv.appendChild(headerDiv);
+      bodyDiv.appendChild(subjectDiv);
+      bodyDiv.appendChild(bodyPreview);
+      div.appendChild(avatarDiv);
+      div.appendChild(bodyDiv);
+      fragment.appendChild(div);
+    });
+    dom.emailsList.appendChild(fragment);
+  }
+
+  /* Send email form */
+  document.getElementById('sendEmailForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!ticketId) return;
+    var toEl = document.getElementById('emailTo');
+    var subjectEl = document.getElementById('emailSubject');
+    var bodyEl = document.getElementById('emailBody');
+    var to = toEl.value.trim();
+    var subject = subjectEl.value.trim();
+    var body = bodyEl.value.trim();
+    if (!to || !body) return;
+    if (!subject) subject = 'Follow-up';
+
+    var btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true;
+
+    Api.post('/api/v1/tickets/tickets/' + ticketId + '/send-email/', {
+      to: to, subject: subject, body: body
+    }).then(function() {
+      Toast.success('Email sent');
+      toEl.value = '';
+      subjectEl.value = '';
+      bodyEl.value = '';
+      btn.disabled = false;
+      loadEmails();
+      loadActivity();
+    }).catch(function(err) {
+      btn.disabled = false;
+      var msg = 'Failed to send email';
+      if (err && err.detail) msg = err.detail;
+      Toast.error(msg);
+    });
+  });
+
+  /* Pre-fill email To field when contact is available */
+  var currentTicket = null;
+  function prefillEmailTo() {
+    var toEl = document.getElementById('emailTo');
+    if (toEl && !toEl.value && currentTicket && currentTicket.contact && currentTicket.contact.email) {
+      toEl.value = currentTicket.contact.email;
+    }
+  }
+
+  /* Link Email modal */
+  var linkEmailModal = null;
+  document.getElementById('linkEmailBtn').addEventListener('click', function() {
+    if (!linkEmailModal) linkEmailModal = new bootstrap.Modal(document.getElementById('linkEmailModal'));
+    linkEmailModal.show();
+
+    var listEl = document.getElementById('unlinkEmailsList');
+    var emptyEl = document.getElementById('unlinkEmailsEmpty');
+    var loadingEl = document.getElementById('unlinkEmailsLoading');
+    listEl.textContent = '';
+    emptyEl.classList.add('d-none');
+    loadingEl.classList.remove('d-none');
+
+    Api.get('/api/v1/tickets/tickets/unlinked-emails/').then(function(data) {
+      loadingEl.classList.add('d-none');
+      var emails = data.results || data;
+      if (!emails || emails.length === 0) { emptyEl.classList.remove('d-none'); return; }
+
+      emails.forEach(function(e) {
+        var row = document.createElement('div');
+        row.className = 'd-flex justify-content-between align-items-center border-bottom py-2';
+
+        var info = document.createElement('div');
+        info.className = 'flex-grow-1';
+        var nameDiv = document.createElement('div');
+        nameDiv.className = 'fw-semibold small';
+        nameDiv.textContent = e.sender_name || e.sender_email;
+        var subjDiv = document.createElement('div');
+        subjDiv.className = 'text-muted small';
+        subjDiv.textContent = e.subject;
+        var timeDiv = document.createElement('div');
+        timeDiv.className = 'text-muted';
+        timeDiv.style.fontSize = '0.7rem';
+        timeDiv.textContent = formatRelativeTime(e.created_at);
+        info.appendChild(nameDiv);
+        info.appendChild(subjDiv);
+        info.appendChild(timeDiv);
+
+        var linkBtn = document.createElement('button');
+        linkBtn.type = 'button';
+        linkBtn.className = 'btn btn-sm btn-outline-primary ms-2 link-email-action';
+        linkBtn.setAttribute('data-email-id', e.id);
+        var linkIcon = document.createElement('i');
+        linkIcon.className = 'ti ti-link me-1';
+        linkIcon.setAttribute('aria-hidden', 'true');
+        linkBtn.appendChild(linkIcon);
+        linkBtn.appendChild(document.createTextNode('Link'));
+
+        row.appendChild(info);
+        row.appendChild(linkBtn);
+        listEl.appendChild(row);
+      });
+
+      listEl.addEventListener('click', function(ev) {
+        var btn = ev.target.closest('.link-email-action');
+        if (!btn) return;
+        var emailId = btn.getAttribute('data-email-id');
+        btn.disabled = true;
+        Api.post('/api/v1/tickets/tickets/' + ticketId + '/link-email/', { email_id: emailId }).then(function() {
+          Toast.success('Email linked to ticket');
+          linkEmailModal.hide();
+          loadEmails();
+          loadActivity();
+        }).catch(function() {
+          btn.disabled = false;
+          Toast.error('Failed to link email');
+        });
+      });
+    }).catch(function() {
+      loadingEl.classList.add('d-none');
+      emptyEl.textContent = 'Failed to load emails.';
+      emptyEl.classList.remove('d-none');
+    });
+  });
+
+  /* ── Init ── */
+  loadStatuses();
+  loadUsers();
+  loadQueues();
+  loadCategories();
+  loadTicket();
   setTimeout(upgradeAllSelects, 800);
   setTimeout(upgradeAllSelects, 2000);
 })();

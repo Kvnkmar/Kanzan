@@ -1,5 +1,7 @@
 /**
  * Kanzen Custom Select — upgrades native <select> into styled dropdowns.
+ * Uses portal rendering (menu appended to document.body) to avoid
+ * overflow/clipping issues inside modals, cards, and other containers.
  *
  * Usage:
  *   KanzenSelect.upgrade(selectElement, { searchable: true });
@@ -27,24 +29,30 @@ window.KanzenSelect = (function() {
     selectEl.setAttribute('tabindex', '-1');
     selectEl.setAttribute('aria-hidden', 'true');
 
-    // Build wrapper
+    // Build wrapper (stays inline where the select was)
     var wrap = document.createElement('div');
     wrap.className = 'td-cselect';
     if (selectEl.classList.contains('form-select-sm')) wrap.classList.add('td-cselect--sm');
 
-    // Trigger button
+    // Trigger button — built with safe DOM methods
     var trigger = document.createElement('button');
     trigger.type = 'button';
     trigger.className = 'td-cselect-trigger';
     trigger.setAttribute('role', 'combobox');
     trigger.setAttribute('aria-haspopup', 'listbox');
     trigger.setAttribute('aria-expanded', 'false');
-    trigger.innerHTML = '<span class="td-cselect-text"></span>' +
-      '<i class="ti ti-chevron-down td-cselect-arrow"></i>';
 
-    // Menu
+    var triggerText = document.createElement('span');
+    triggerText.className = 'td-cselect-text';
+    trigger.appendChild(triggerText);
+
+    var triggerArrow = document.createElement('i');
+    triggerArrow.className = 'ti ti-chevron-down td-cselect-arrow';
+    trigger.appendChild(triggerArrow);
+
+    // Menu — will be portalled to document.body
     var menu = document.createElement('div');
-    menu.className = 'td-cselect-menu';
+    menu.className = 'td-cselect-menu td-cselect-portal';
     menu.setAttribute('role', 'listbox');
 
     // Search input (if searchable)
@@ -65,12 +73,13 @@ window.KanzenSelect = (function() {
     var optionsWrap = document.createElement('div');
     optionsWrap.className = 'td-cselect-options';
 
-    // Assemble
+    // Assemble trigger into wrap (inline)
+    wrap.appendChild(trigger);
+    selectEl.parentNode.insertBefore(wrap, selectEl.nextSibling);
+
+    // Assemble menu (portal — appended to body on open, hidden by default)
     if (searchWrap) menu.appendChild(searchWrap);
     menu.appendChild(optionsWrap);
-    wrap.appendChild(trigger);
-    wrap.appendChild(menu);
-    selectEl.parentNode.insertBefore(wrap, selectEl.nextSibling);
 
     // Copy width constraints from original select if inline
     if (selectEl.style.maxWidth) wrap.style.maxWidth = selectEl.style.maxWidth;
@@ -80,6 +89,7 @@ window.KanzenSelect = (function() {
     // Track focused option index for keyboard nav
     var focusedIdx = -1;
     var visibleItems = [];
+    var isOpen = false;
 
     function syncText() {
       var sel = selectEl.options[selectEl.selectedIndex];
@@ -97,7 +107,7 @@ window.KanzenSelect = (function() {
     }
 
     function buildOptions(filter) {
-      optionsWrap.innerHTML = '';
+      optionsWrap.textContent = '';
       visibleItems = [];
       var filterLower = (filter || '').toLowerCase().trim();
       var hasMatch = false;
@@ -106,8 +116,6 @@ window.KanzenSelect = (function() {
         var opt = selectEl.options[i];
         var text = opt.textContent;
 
-        // Skip options with empty value that serve as placeholders
-        // unless there's no filter and it's the first option
         if (filterLower && text.toLowerCase().indexOf(filterLower) === -1) continue;
 
         hasMatch = true;
@@ -115,7 +123,7 @@ window.KanzenSelect = (function() {
         item.className = 'td-cselect-option' + (opt.selected ? ' selected' : '');
         item.setAttribute('role', 'option');
         item.setAttribute('data-value', opt.value);
-        item.setAttribute('data-index', i);
+        item.setAttribute('data-index', String(i));
         item.textContent = text;
         optionsWrap.appendChild(item);
         visibleItems.push(item);
@@ -140,52 +148,87 @@ window.KanzenSelect = (function() {
       }
     }
 
+    /** Position the portal menu relative to the trigger using fixed coords */
+    function positionMenu() {
+      var triggerRect = trigger.getBoundingClientRect();
+      var menuH = menu.offsetHeight;
+      var viewH = window.innerHeight;
+      var viewW = window.innerWidth;
+
+      // Width: match trigger width, minimum 200px
+      var width = Math.max(triggerRect.width, 200);
+      menu.style.width = width + 'px';
+
+      // Horizontal: align left edge with trigger, clamp to viewport
+      var left = triggerRect.left;
+      if (left + width > viewW - 8) left = viewW - width - 8;
+      if (left < 8) left = 8;
+      menu.style.left = left + 'px';
+
+      // Vertical: prefer below, flip above if no room
+      var spaceBelow = viewH - triggerRect.bottom - 8;
+      var spaceAbove = triggerRect.top - 8;
+
+      if (spaceBelow >= menuH || spaceBelow >= spaceAbove) {
+        // Open below
+        menu.style.top = (triggerRect.bottom + 4) + 'px';
+        menu.style.bottom = 'auto';
+        menu.style.maxHeight = Math.min(260, spaceBelow) + 'px';
+      } else {
+        // Open above
+        menu.style.bottom = (viewH - triggerRect.top + 4) + 'px';
+        menu.style.top = 'auto';
+        menu.style.maxHeight = Math.min(260, spaceAbove) + 'px';
+      }
+    }
+
     function openMenu() {
       if (selectEl.disabled) return;
       buildOptions('');
+      isOpen = true;
       wrap.classList.add('open');
       trigger.setAttribute('aria-expanded', 'true');
 
+      // Portal: append menu to body
+      document.body.appendChild(menu);
+      menu.style.display = 'block';
+
       if (searchInput) {
         searchInput.value = '';
-        requestAnimationFrame(function() { searchInput.focus(); });
       }
 
-      // Position menu above if not enough space below
+      // Position after render
       requestAnimationFrame(function() {
-        var rect = wrap.getBoundingClientRect();
-        var menuH = menu.offsetHeight;
-        if (rect.bottom + menuH > window.innerHeight && rect.top > menuH) {
-          menu.style.bottom = '100%';
-          menu.style.top = 'auto';
-          menu.style.marginBottom = '4px';
-          menu.style.marginTop = '0';
-        } else {
-          menu.style.top = 'calc(100% + 4px)';
-          menu.style.bottom = 'auto';
-          menu.style.marginTop = '0';
-          menu.style.marginBottom = '0';
-        }
+        positionMenu();
+        if (searchInput) searchInput.focus();
       });
 
       document.addEventListener('click', closeOnOutside, true);
       document.addEventListener('keydown', handleKeydown, true);
+      window.addEventListener('resize', positionMenu, { passive: true });
+      window.addEventListener('scroll', positionMenu, true);
     }
 
     function closeMenu() {
+      isOpen = false;
       wrap.classList.remove('open');
       trigger.setAttribute('aria-expanded', 'false');
-      menu.style.top = '';
-      menu.style.bottom = '';
-      menu.style.marginTop = '';
-      menu.style.marginBottom = '';
       focusedIdx = -1;
+
+      // Remove portal menu from body
+      menu.style.display = 'none';
+      if (menu.parentNode === document.body) {
+        document.body.removeChild(menu);
+      }
+
       document.removeEventListener('click', closeOnOutside, true);
       document.removeEventListener('keydown', handleKeydown, true);
+      window.removeEventListener('resize', positionMenu);
+      window.removeEventListener('scroll', positionMenu, true);
     }
 
     function closeOnOutside(e) {
-      if (!wrap.contains(e.target)) closeMenu();
+      if (!wrap.contains(e.target) && !menu.contains(e.target)) closeMenu();
     }
 
     function selectItem(item) {
@@ -198,7 +241,7 @@ window.KanzenSelect = (function() {
     }
 
     function handleKeydown(e) {
-      if (!wrap.classList.contains('open')) return;
+      if (!isOpen) return;
 
       switch (e.key) {
         case 'ArrowDown':
@@ -229,14 +272,14 @@ window.KanzenSelect = (function() {
     // Events
     trigger.addEventListener('click', function(e) {
       e.stopPropagation();
-      if (wrap.classList.contains('open')) closeMenu();
+      if (isOpen) closeMenu();
       else openMenu();
     });
 
     trigger.addEventListener('keydown', function(e) {
       if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
         e.preventDefault();
-        if (!wrap.classList.contains('open')) openMenu();
+        if (!isOpen) openMenu();
       }
     });
 
@@ -257,6 +300,8 @@ window.KanzenSelect = (function() {
     if (searchInput) {
       searchInput.addEventListener('input', function() {
         buildOptions(this.value);
+        // Re-position in case height changed
+        requestAnimationFrame(positionMenu);
       });
       searchInput.addEventListener('click', function(e) {
         e.stopPropagation();
@@ -301,6 +346,7 @@ window.KanzenSelect = (function() {
       open: openMenu,
       close: closeMenu,
       destroy: function() {
+        if (isOpen) closeMenu();
         observer.disconnect();
         disabledObserver.disconnect();
         wrap.remove();

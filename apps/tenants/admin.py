@@ -4,6 +4,8 @@ Django admin configuration for the tenants app.
 
 from django.contrib import admin
 
+from main.admin import TenantFilteredAdmin
+
 from apps.tenants.models import Tenant, TenantSettings
 
 
@@ -42,6 +44,13 @@ class TenantSettingsInline(admin.StackedInline):
 
 @admin.register(Tenant)
 class TenantAdmin(admin.ModelAdmin):
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        tenant = getattr(request, "tenant", None)
+        if tenant is not None:
+            qs = qs.filter(pk=tenant.pk)
+        return qs
+
     list_display = ("name", "slug", "domain", "is_active", "created_at")
     list_filter = ("is_active",)
     search_fields = ("name", "slug", "domain")
@@ -67,7 +76,7 @@ class TenantAdmin(admin.ModelAdmin):
 
 
 @admin.register(TenantSettings)
-class TenantSettingsAdmin(admin.ModelAdmin):
+class TenantSettingsAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = ("tenant", "auth_method", "timezone", "primary_color")
     list_filter = ("auth_method", "sso_provider")
     search_fields = ("tenant__name", "tenant__slug")

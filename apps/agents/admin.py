@@ -7,11 +7,13 @@ options for administrative use.
 
 from django.contrib import admin
 
+from main.admin import TenantFilteredAdmin
+
 from apps.agents.models import AgentAvailability
 
 
 @admin.register(AgentAvailability)
-class AgentAvailabilityAdmin(admin.ModelAdmin):
+class AgentAvailabilityAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     list_display = [
         "user",
         "status",

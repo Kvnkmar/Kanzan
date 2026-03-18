@@ -22,6 +22,7 @@ class NotificationType(models.TextChoices):
     MENTION = "mention", "Mention"
     MESSAGE = "message", "Message"
     SLA_BREACH = "sla_breach", "SLA Breach"
+    TICKET_OVERDUE = "ticket_overdue", "Ticket Overdue"
     PAYMENT_FAILED = "payment_failed", "Payment Failed"
     SUBSCRIPTION_CHANGE = "subscription_change", "Subscription Change"
     INVITATION = "invitation", "Invitation"
