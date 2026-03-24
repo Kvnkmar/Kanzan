@@ -27,6 +27,11 @@ auth_urlpatterns = [
         AuthViewSet.as_view({"post": "accept_invitation"}),
         name="auth-accept-invitation",
     ),
+    path(
+        "change-password/",
+        AuthViewSet.as_view({"post": "change_password"}),
+        name="auth-change-password",
+    ),
 ]
 
 app_name = "accounts"

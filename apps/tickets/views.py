@@ -854,7 +854,9 @@ class TicketViewSet(ModelViewSet):
             from django.conf import settings as django_settings
 
             email.send(fail_silently=False)
-            _record_outbound_message_id(tenant, ticket, message_id, to_email)
+            _record_outbound_message_id(
+                tenant, ticket, message_id, to_email, body_text=body,
+            )
 
             # Log to ticket timeline + audit
             from apps.tickets.models import TicketActivity as TA

@@ -85,6 +85,14 @@ class InboundEmail(TimestampedModel):
         related_name="inbound_emails",
         help_text="The ticket this email created or was threaded to.",
     )
+    attachment_metadata = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "List of dicts describing attachments received with this email. "
+            "Each entry: {filename, content_type, size, storage_path}."
+        ),
+    )
 
     class Meta:
         ordering = ["-created_at"]

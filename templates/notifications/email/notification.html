@@ -1,0 +1,141 @@
+{% autoescape on %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ notification.title }}</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #f4f4f5;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #18181b;
+      line-height: 1.6;
+      -webkit-text-size-adjust: 100%;
+    }
+    .wrapper {
+      width: 100%;
+      padding: 32px 0;
+      background-color: #f4f4f5;
+    }
+    .container {
+      max-width: 560px;
+      margin: 0 auto;
+      background-color: #ffffff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+    .header {
+      background-color: #DC2626;
+      padding: 24px 32px;
+      text-align: center;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+      color: #ffffff;
+      letter-spacing: -0.02em;
+    }
+    .body {
+      padding: 32px;
+    }
+    .greeting {
+      font-size: 15px;
+      color: #52525b;
+      margin: 0 0 20px 0;
+    }
+    .notification-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: #18181b;
+      margin: 0 0 12px 0;
+    }
+    .notification-body {
+      font-size: 14px;
+      color: #3f3f46;
+      margin: 0 0 24px 0;
+      white-space: pre-wrap;
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: capitalize;
+      margin-bottom: 16px;
+    }
+    .badge-ticket_assigned { background-color: #dbeafe; color: #1e40af; }
+    .badge-ticket_updated  { background-color: #fef3c7; color: #92400e; }
+    .badge-ticket_comment  { background-color: #d1fae5; color: #065f46; }
+    .badge-mention         { background-color: #ede9fe; color: #5b21b6; }
+    .badge-message         { background-color: #e0f2fe; color: #0369a1; }
+    .badge-sla_breach      { background-color: #fee2e2; color: #991b1b; }
+    .badge-ticket_overdue  { background-color: #fee2e2; color: #991b1b; }
+    .badge-payment_failed  { background-color: #fee2e2; color: #991b1b; }
+    .badge-subscription_change { background-color: #fef3c7; color: #92400e; }
+    .badge-invitation      { background-color: #dbeafe; color: #1e40af; }
+    .cta {
+      display: inline-block;
+      padding: 10px 24px;
+      background-color: #DC2626;
+      color: #ffffff !important;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    .footer {
+      padding: 20px 32px;
+      text-align: center;
+      border-top: 1px solid #e4e4e7;
+    }
+    .footer p {
+      margin: 0;
+      font-size: 12px;
+      color: #a1a1aa;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+      <tr>
+        <td align="center">
+          <div class="container">
+            <div class="header">
+              <h1>{{ tenant.name }}</h1>
+            </div>
+            <div class="body">
+              <p class="greeting">Hi {{ recipient.first_name|default:recipient.email }},</p>
+
+              <span class="badge badge-{{ notification.type }}">{{ notification.get_type_display }}</span>
+
+              <p class="notification-title">{{ notification.title }}</p>
+
+              {% if notification.body %}
+              <p class="notification-body">{{ notification.body }}</p>
+              {% endif %}
+
+              {% if notification.data.url %}
+              <p>
+                <a href="{{ notification.data.url }}" class="cta">View Details</a>
+              </p>
+              {% endif %}
+            </div>
+            <div class="footer">
+              <p>You received this because notifications are enabled for your account at {{ tenant.name }}.</p>
+              <p>To manage your notification preferences, visit your account settings.</p>
+            </div>
+          </div>
+        </td>
+      </tr>
+    </table>
+  </div>
+</body>
+</html>
+{% endautoescape %}

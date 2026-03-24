@@ -15,12 +15,14 @@ def tenant_context(request):
         user_role           - the Role instance from the membership (or None)
         is_admin            - True if hierarchy_level <= 10 (Admin only)
         is_admin_or_manager - True if hierarchy_level <= 20 (Admin or Manager)
+        is_agent_or_above  - True if hierarchy_level <= 30 (Admin, Manager, or Agent)
     """
     tenant = getattr(request, "tenant", None)
     membership = None
     user_role = None
     is_admin = False
     is_admin_or_manager = False
+    is_agent_or_above = False
 
     if tenant and hasattr(request, "user") and request.user.is_authenticated:
         # Reuse cached membership if already resolved by DRF permissions
@@ -41,6 +43,7 @@ def tenant_context(request):
             user_role = membership.role
             is_admin = user_role.hierarchy_level <= 10
             is_admin_or_manager = user_role.hierarchy_level <= 20
+            is_agent_or_above = user_role.hierarchy_level <= 30
 
     return {
         "tenant": tenant,
@@ -48,4 +51,5 @@ def tenant_context(request):
         "user_role": user_role,
         "is_admin": is_admin,
         "is_admin_or_manager": is_admin_or_manager,
+        "is_agent_or_above": is_agent_or_above,
     }

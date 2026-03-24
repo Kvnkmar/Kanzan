@@ -57,18 +57,21 @@
       </a>
     </div>
 
-    <!-- Operations (Manager + Admin) -->
-    {% if is_admin_or_manager %}
+    <!-- Operations (Agent + Manager + Admin) -->
+    {% if is_agent_or_above %}
     <div class="nav-section">
       <span class="nav-section-label">Operations</span>
+      {% if is_admin_or_manager %}
       <a href="{% url 'frontend:analytics' %}" class="sidebar-link {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" data-sidebar-tooltip="Analytics">
         <i class="ti ti-chart-bar"></i>
         <span class="sidebar-link-text">Analytics</span>
       </a>
-      <a href="{% url 'frontend:agents' %}" class="sidebar-link {% if request.resolver_match.url_name == 'agents' %}active{% endif %}" data-sidebar-tooltip="Agents">
+      {% endif %}
+      <a href="{% url 'frontend:agents' %}" class="sidebar-link {% if request.resolver_match.url_name == 'agents' %}active{% endif %}" data-sidebar-tooltip="Agents & Email">
         <i class="ti ti-users"></i>
-        <span class="sidebar-link-text">Agents</span>
+        <span class="sidebar-link-text">Agents & Email</span>
       </a>
+      {% if is_admin_or_manager %}
       <a href="{% url 'frontend:inbound-email' %}" class="sidebar-link {% if request.resolver_match.url_name == 'inbound-email' %}active{% endif %}" data-sidebar-tooltip="Inbound Email">
         <i class="ti ti-mail-forward"></i>
         <span class="sidebar-link-text">Inbound Email</span>
@@ -77,6 +80,7 @@
         <i class="ti ti-user-cog"></i>
         <span class="sidebar-link-text">Users</span>
       </a>
+      {% endif %}
     </div>
     {% endif %}
 

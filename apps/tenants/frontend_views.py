@@ -298,7 +298,7 @@ def users_page(request):
     return render(request, "pages/users/list.html")
 
 
-@_role_required(20)
+@_role_required(30)
 def agents_page(request):
     return render(request, "pages/agents/list.html")
 

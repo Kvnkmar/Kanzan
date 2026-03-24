@@ -32,6 +32,8 @@ class AgentAvailabilitySerializer(serializers.ModelSerializer):
             "last_activity",
             "is_available",
             "remaining_capacity",
+            "working_hours",
+            "auto_away_outside_hours",
             "created_at",
             "updated_at",
         ]

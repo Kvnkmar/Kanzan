@@ -136,7 +136,9 @@ def send_ticket_reply_email(ticket, comment_body, agent_name, tenant):
         )
 
         # Store the outbound message_id so inbound replies can thread
-        _record_outbound_message_id(tenant, ticket, message_id, contact.email)
+        _record_outbound_message_id(
+            tenant, ticket, message_id, contact.email, body_text=plain_body,
+        )
 
         return True
     except Exception:
@@ -205,7 +207,9 @@ def send_ticket_created_email(ticket, tenant):
             "Sent ticket created notification for #%d to %s",
             ticket.number, contact.email,
         )
-        _record_outbound_message_id(tenant, ticket, message_id, contact.email)
+        _record_outbound_message_id(
+            tenant, ticket, message_id, contact.email, body_text=plain_body,
+        )
         return True
     except Exception:
         logger.exception(
@@ -215,7 +219,9 @@ def send_ticket_created_email(ticket, tenant):
         return False
 
 
-def _record_outbound_message_id(tenant, ticket, message_id, recipient_email):
+def _record_outbound_message_id(
+    tenant, ticket, message_id, recipient_email, body_text=""
+):
     """
     Store the outbound Message-ID as an InboundEmail record so that
     when the customer replies, the In-Reply-To / References headers
@@ -230,6 +236,7 @@ def _record_outbound_message_id(tenant, ticket, message_id, recipient_email):
             sender_email=settings.DEFAULT_FROM_EMAIL,
             recipient_email=recipient_email,
             subject=f"[#{ticket.number}] {ticket.subject}",
+            body_text=body_text,
             status=InboundEmail.Status.REPLY_ADDED,
             ticket=ticket,
         )

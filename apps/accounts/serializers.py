@@ -128,6 +128,11 @@ class ProfileSerializer(serializers.ModelSerializer):
             "dnd_enabled",
             "dnd_start",
             "dnd_end",
+            "theme",
+            "sidebar_collapsed",
+            "density",
+            "date_format",
+            "time_format",
             "created_at",
             "updated_at",
         ]

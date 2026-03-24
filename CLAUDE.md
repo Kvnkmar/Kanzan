@@ -11,19 +11,32 @@ Bootstrap 5.3 frontend with vanilla JS. PM2 process management. Row-level multi-
 ## Quick Reference
 
 ```
-Dev URL:        http://demo.localhost:8001
-Superuser:      admin@kanzan.local / Pl@nC-ICT_2024
-Demo tenant:    slug=demo
-Flower:         http://localhost:5556 (admin:changeme)
-API Docs:       http://demo.localhost:8001/api/docs/
+Superuser:      admin@epstein.local / Pl@nC-ICT_2024
 Django Admin:   http://localhost:8001/admin/
+
+Tenants:
+  DPAP:         http://dpap.localhost:8001      (domain: asmra.shop)
+    Admin:      admin@dpap.local
+    Manager:    kavinkumar291@gmail.com
+    Agents:     created@test.com, jeffry@company.com, user@company.com, admin@company.com
+    Plan:       Free (active)
+
+  Meeting:      http://meeting.localhost:8001
+    Admins:     admin@meeting.local, test@gmail.com
+    Agent:      test@yahoo.com
+
+  Debug:        http://debug-test.localhost:8001
+    Admin:      debug@test.com
+
+Flower:         http://localhost:5556 (admin:changeme)
+API Docs:       http://dpap.localhost:8001/api/docs/
 ```
 
 ## Project Structure
 
 ```
-/home/kavin/Kanzen Suite/
-├── apps/                          # 13 Django apps
+/home/kavin/Kanzan/
+├── apps/                          # 16 Django apps
 │   ├── accounts/                  # Users, RBAC, permissions, invitations
 │   ├── agents/                    # Agent availability/workload tracking
 │   ├── analytics/                 # Reports, dashboard widgets, exports
@@ -32,11 +45,14 @@ Django Admin:   http://localhost:8001/admin/
 │   ├── comments/                  # Comments + ActivityLog (audit trail)
 │   ├── contacts/                  # Contacts, companies, groups
 │   ├── custom_fields/             # EAV custom fields per tenant
+│   ├── inbound_email/             # Inbound email webhook processing → tickets
 │   ├── kanban/                    # Visual boards, columns, card positions
+│   ├── knowledge/                 # Knowledge base articles & categories
 │   ├── messaging/                 # Real-time conversations (WebSocket)
+│   ├── notes/                     # Quick sticky notes for agents
 │   ├── notifications/             # Notifications + preferences (WebSocket)
 │   ├── tenants/                   # Multi-tenant orgs, middleware, frontend views
-│   └── tickets/                   # Core ticketing, SLA, escalation
+│   └── tickets/                   # Core ticketing, SLA, escalation, email
 ├── main/                          # Django project root
 │   ├── settings/{base,dev,prod}.py
 │   ├── celery.py                  # Celery app + queue routing
@@ -46,7 +62,11 @@ Django Admin:   http://localhost:8001/admin/
 │   ├── context.py                 # Thread-local tenant context
 │   └── urls.py                    # Main URL router
 ├── templates/                     # base.html, includes/, pages/
-├── static/{css,js}/               # custom.css (1296 lines), api.js, app.js
+├── static/css/                    # custom.css (14K+ lines)
+├── static/js/                     # api.js, app.js, notes-panel.js, theme.js, etc.
+├── tests/                         # pytest test suite (18 test files)
+├── conftest.py                    # pytest fixtures & factories
+├── pytest.ini                     # pytest configuration
 ├── requirements/{base,dev,prod}.txt
 ├── ecosystem.config.js            # PM2: 4 processes
 ├── docs/architecture.md           # 44KB architecture doc
@@ -57,7 +77,7 @@ Django Admin:   http://localhost:8001/admin/
 
 ### Three-Layer Isolation
 
-1. **TenantMiddleware** (`apps/tenants/middleware.py`): Resolves tenant from subdomain (`{slug}.localhost`) or custom domain. Sets `request.tenant` and thread-local context. Exempt paths: `/admin/`, `/static/`, `/api/v1/accounts/auth/`, `/api/v1/billing/plans/`, `/api/v1/billing/webhook/`, `/api/docs/`, `/accounts/`.
+1. **TenantMiddleware** (`apps/tenants/middleware.py`): Resolves tenant from subdomain (`{slug}.localhost`) or custom domain. Sets `request.tenant` and thread-local context. Exempt paths: `/admin/`, `/static/`, `/api/v1/accounts/auth/`, `/api/v1/billing/plans/`, `/api/v1/billing/webhook/`, `/api/docs/`, `/accounts/`, `/inbound/email/`.
 
 2. **TenantAwareManager** (`main/managers.py`): Default `objects` manager auto-filters by `get_current_tenant()`. Use `Model.unscoped` for cross-tenant queries (admin, Celery tasks, management commands).
 
@@ -70,7 +90,7 @@ get_current_tenant()         # Used by manager/model
 clear_current_tenant()       # Cleanup in middleware finally block
 ```
 
-## Models (48 total)
+## Models (55+ total)
 
 ### Base Models (Abstract)
 - **TimestampedModel**: UUID PK + `created_at` + `updated_at`
@@ -78,15 +98,15 @@ clear_current_tenant()       # Cleanup in middleware finally block
 
 ### Key Models by App
 
-**tenants**: `Tenant` (name, slug, domain, is_active, logo), `TenantSettings` (1:1, auth_method, SSO config, branding)
+**tenants**: `Tenant` (name, slug, domain, is_active, logo), `TenantSettings` (1:1, auth_method, SSO config, branding, `inbound_email_address`, `business_days` JSON, `business_hours_start/end`, `accent_color`)
 
-**accounts**: `User` (email-based, no username, UUID PK), `Permission` (29 total, codename pattern: `resource.action`), `Role` (tenant-scoped, hierarchy_level: Admin=10, Manager=20, Agent=30, Viewer=40), `Profile` (tenant-specific user metadata), `TenantMembership` (User+Tenant+Role bridge), `Invitation` (token-based, expiring)
+**accounts**: `User` (email-based, no username, UUID PK), `Permission` (29 total, codename pattern: `resource.action`), `Role` (tenant-scoped, hierarchy_level: Admin=10, Manager=20, Agent=30, Viewer=40), `Profile` (tenant-specific: job_title, department, bio, notification_email, signature, timezone, language, DND settings, theme, sidebar_collapsed, density, date_format, time_format), `TenantMembership` (User+Tenant+Role bridge), `Invitation` (token-based, expiring)
 
-**tickets**: `Ticket` (auto-number per tenant, status, priority, assignee, contact, queue, tags JSON, custom_data JSON), `TicketStatus` (customizable per tenant, is_closed, is_default), `Queue` (default_assignee, auto_assign), `SLAPolicy` (response/resolution minutes per priority), `EscalationRule` (trigger+action+target), `TicketActivity` (timeline events), `TicketAssignment` (immutable audit trail)
+**tickets**: `Ticket` (auto-number per tenant, status, priority, assignee, contact, queue, tags JSON, custom_data JSON), `TicketStatus` (customizable per tenant, is_closed, is_default), `TicketCategory` (admin-configurable categories per tenant), `Queue` (default_assignee, auto_assign), `SLAPolicy` (response/resolution minutes per priority), `EscalationRule` (trigger+action+target), `TicketActivity` (timeline events), `TicketAssignment` (immutable audit trail), `CannedResponse` (pre-written templates with shortcuts e.g. `/thanks`, usage counting, shared/personal), `SavedView` (saved filter configs, sort ordering, default/pinned, personal/shared scope)
 
 **contacts**: `Contact` (email unique per tenant, company FK, groups M2M), `Company` (name unique per tenant), `ContactGroup` (M2M contacts)
 
-**kanban**: `Board` (resource_type: TICKET/DEAL), `Column` (status mapping, WIP limit), `CardPosition` (polymorphic GenericFK, ordered)
+**kanban**: `Board` (resource_type: TICKET/DEAL), `Column` (status mapping, WIP limit), `CardPosition` (polymorphic GenericFK, ordered, tenant-scoped)
 
 **comments**: `Comment` (polymorphic GenericFK, threaded via parent), `Mention` (FK comment+user), `ActivityLog` (immutable audit trail, GenericFK, stores diffs+IP)
 
@@ -98,9 +118,15 @@ clear_current_tenant()       # Cleanup in middleware finally block
 
 **analytics**: `ReportDefinition` (7 types), `DashboardWidget` (5 types), `ExportJob` (CSV/XLSX/PDF, async via Celery)
 
-**agents**: `AgentAvailability` (status: online/away/busy/offline, capacity tracking)
+**agents**: `AgentAvailability` (status: online/away/busy/offline, capacity tracking, `auto_away_outside_hours`)
 
 **custom_fields**: `CustomFieldDefinition` (8 field types, 3 modules, role-based visibility), `CustomFieldValue` (EAV with typed columns: value_text, value_number, value_date, value_bool)
+
+**knowledge**: `Category` (tenant-scoped, name, slug, description, ordering), `Article` (tenant-scoped, draft/published status, category FK, author, tags, view_count, pinned, file attachment support)
+
+**notes**: `QuickNote` (tenant-scoped, personal sticky notes with color choices: yellow/blue/green/pink/purple/orange, pinning, ordering)
+
+**inbound_email**: `InboundEmail` (extends TimestampedModel — NOT tenant-scoped at creation, tenant FK nullable; status: pending/processing/ticket_created/reply_added/rejected/failed; stores raw email data, sender, subject, body, attachment_metadata; links to ticket FK; Message-ID dedup)
 
 ## Polymorphic Models (GenericForeignKey)
 - Comment, ActivityLog, Attachment, CustomFieldValue, CardPosition
@@ -111,10 +137,12 @@ clear_current_tenant()       # Cleanup in middleware finally block
 **Hierarchy:** Admin(10) <= Manager(20) <= Agent(30) < Viewer(40)
 
 - `is_admin_or_manager`: `hierarchy_level <= 20` (context processor injects into all templates)
+- `is_admin`: `hierarchy_level <= 10`
+- `is_agent_or_above`: `hierarchy_level <= 30`
 - Agent+Viewer restriction (`level > 20`): sees only own tickets, linked contacts, filtered kanban cards
 - `IsTicketAccessible` permission in `accounts/permissions.py` blocks direct URL access
 - `_role_required(20)` decorator on admin-only frontend views (settings, users, billing)
-- Row-level filtering in: TicketViewSet, ContactViewSet, kanban BoardDetailSerializer, analytics services
+- Row-level filtering in: TicketViewSet, ContactViewSet, kanban BoardDetailSerializer, analytics services, InboundEmailViewSet
 
 ## Signals
 
@@ -146,6 +174,23 @@ clear_current_tenant()       # Cleanup in middleware finally block
 
 **Service layer** (`apps/tickets/services.py`): `create_ticket_activity()`, `assign_ticket()`, `change_ticket_status()`, `change_ticket_priority()`, `log_ticket_comment()` — all write to BOTH logs atomically.
 
+## Inbound/Outbound Email System
+
+### Inbound Email (`apps/inbound_email/`)
+- **Webhook receiver** at `/inbound/email/` (not tenant-scoped, CSRF-exempt)
+- Supports SendGrid, Mailgun, and generic webhook formats
+- **Tenant resolution** via 3 patterns: plus-addressing (`support+{slug}@domain`), subdomain routing, custom `TenantSettings.inbound_email_address`
+- **Ticket threading** via `[#N]` subject parsing and RFC 2822 In-Reply-To/Message-ID headers
+- **Processing pipeline**: parse email → resolve tenant → find/create contact → create ticket or add reply → create comment
+- **Async processing** via Celery task with transaction safety
+- Message-ID dedup prevents duplicate processing
+
+### Outbound Email (`apps/tickets/email_service.py`)
+- `send_ticket_reply_email()` — sends agent replies to contacts
+- `send_ticket_created_email()` — sends ticket confirmation
+- Proper email threading: generates RFC-compliant Message-IDs, sets In-Reply-To and Reply-To headers
+- HTML + plain text templates in `templates/tickets/email/`
+
 ## API Architecture
 
 ### Authentication
@@ -170,6 +215,14 @@ clear_current_tenant()       # Cleanup in middleware finally block
 /api/v1/analytics/        → DashboardView, ReportDefinitionViewSet, DashboardWidgetViewSet, ExportJobViewSet
 /api/v1/agents/           → AgentAvailabilityViewSet
 /api/v1/custom-fields/    → CustomFieldDefinitionViewSet, CustomFieldValueViewSet
+/api/v1/knowledge/        → CategoryViewSet, ArticleViewSet (list/detail/create)
+/api/v1/notes/            → QuickNoteViewSet
+/api/v1/inbound-email/    → InboundEmailViewSet (read-only, role-based filtering)
+```
+
+**Non-API Routes:**
+```
+/inbound/email/           → Inbound email webhook receiver (CSRF-exempt, not tenant-scoped)
 ```
 
 **Docs:** `/api/docs/` (Swagger UI), `/api/schema/` (OpenAPI 3.0 JSON)
@@ -182,20 +235,29 @@ clear_current_tenant()       # Cleanup in middleware finally block
 
 ### Frontend Routes (`apps/tenants/frontend_urls.py`)
 ```
-/                    → landing_page
-/login/              → login_page
-/register/           → register_page
-/logout/             → logout_page
-/dashboard/          → dashboard_page
-/tickets/            → ticket_list_page
-/tickets/new/        → ticket_create_page
-/tickets/<number>/   → ticket_detail_page
-/contacts/           → contact_list_page
-/kanban/             → kanban_page
-/messaging/          → messaging_page
-/users/              → users_page (@_role_required(20))
-/settings/           → settings_page (@_role_required(20))
-/billing/            → billing_page (@_role_required(20))
+/                              → landing_page
+/login/                        → login_page
+/register/                     → register_page
+/logout/                       → logout_page
+/dashboard/                    → dashboard_page
+/tickets/                      → ticket_list_page
+/tickets/new/                  → ticket_create_page
+/tickets/<number>/             → ticket_detail_page
+/contacts/                     → contact_list_page
+/contacts/create/              → contact_create_page
+/contacts/<contact_id>/        → contact_detail_page
+/calendar/                     → calendar_page
+/kanban/                       → kanban_page
+/messaging/                    → messaging_page
+/analytics/                    → analytics_page
+/users/                        → users_page (@_role_required(20))
+/settings/                     → settings_page (@_role_required(20))
+/billing/                      → billing_page (@_role_required(20))
+/agents/                       → agents_page
+/knowledge/                    → knowledge_list_page
+/knowledge/<article_slug>/     → knowledge_article_page
+/profile/                      → profile_page
+/inbound-email/                → inbound_email_page
 ```
 
 ## WebSocket Endpoints
@@ -224,6 +286,8 @@ apps.notifications.tasks.send_notification_email → kanzan_email
 1. **`send_notification_email`** (notifications): Sends email for a Notification. max_retries=3, retry_delay=60s, acks_late. Template: `notifications/email/notification.html` with plain text fallback.
 2. **`cleanup_old_notifications`** (notifications): Deletes read notifications older than N days (default 90). Candidate for Celery Beat.
 3. **`process_export_job`** (analytics): Generates CSV/XLSX export files. Supports tickets and contacts. max_retries=3. XLSX via openpyxl (optional, falls back to CSV).
+4. **`process_inbound_email`** (inbound_email): Async processing of received inbound emails.
+5. **Ticket email tasks** (tickets): Outbound email notifications for ticket replies and creation.
 
 ### PM2 Processes (`ecosystem.config.js`)
 1. `kanzan-django`: Gunicorn + Uvicorn workers (2), port 8001, 2GB limit
@@ -236,19 +300,30 @@ apps.notifications.tasks.send_notification_email → kanzan_email
 ### JavaScript (`static/js/`)
 - **api.js**: Centralized API client. CSRF from cookie, session credentials, JSON serialization, multipart upload support. Methods: `get()`, `post()`, `patch()`, `put()`, `delete()`, `upload()`.
 - **app.js**: Global init. Auto-dismiss alerts (5s). Notification WebSocket connection. Toast system (`Toast.success/error/warning/info`). Cross-page toasts via sessionStorage.
+- **notes-panel.js**: Quick notes UI panel (sticky notes CRUD, color selection, pinning).
+- **theme.js**: Theme switching (light/dark/system).
+- **agent-availability.js**: Agent status management UI.
+- **command-palette.js**: Command palette / quick search.
+- **custom-select.js**: Custom select dropdown component.
+- **rich-editor.js**: Rich text editor for comments/articles.
 
-### CSS (`static/css/custom.css` — 1296 lines)
+### CSS (`static/css/custom.css` — 14K+ lines)
 - Design system with CSS custom properties (crimson primary `#DC2626`, dark theme)
-- Components: sidebar (fixed, 250px), stat cards with left accent, soft badges, kanban cards with drag-and-drop, chat bubbles, timeline with dots, toast notifications
+- Components: sidebar (fixed, 250px), stat cards with left accent, soft badges, kanban cards with drag-and-drop, chat bubbles, timeline with dots, toast notifications, notes panel, knowledge base, calendar
 - Responsive: sidebar collapses on mobile (<992px)
 - Font: Inter, 0.875rem base
 
 ### Template Patterns
 - Base: `templates/base.html` (sidebar + content area + toast container)
-- Context processor injects: `tenant`, `membership`, `user_role`, `is_admin_or_manager`
+- Context processor injects: `tenant`, `membership`, `user_role`, `is_admin`, `is_admin_or_manager`, `is_agent_or_above`
 - API calls use `Api` client with error handling and loading states
 - Pagination: 25 items per page with prev/next
 - Search: 400ms debounce
+
+### Email Templates
+- `templates/notifications/email/notification.html` + `.txt` — notification emails
+- `templates/tickets/email/ticket_created.html` + `.txt` — new ticket confirmation
+- `templates/tickets/email/reply_notification.html` + `.txt` — agent reply notification
 
 ## Middleware Stack (12 layers)
 1. SecurityMiddleware
@@ -278,7 +353,8 @@ apps.notifications.tasks.send_notification_email → kanzan_email
 | django-filter | API filtering | DjangoFilterBackend + SearchFilter + OrderingFilter |
 | WhiteNoise | Static file serving | CompressedManifestStaticFilesStorage (prod) |
 | python-magic | MIME type validation | Server-side file type detection |
-| Jazzmin | Admin theme | Customized sidebar, icons for 24 models |
+| mammoth | Word document handling | .docx → HTML conversion |
+| Jazzmin | Admin theme | Customized sidebar, icons for 24+ models |
 | Flower | Celery monitoring | Port 5556, basic auth |
 
 ## Billing Plans
@@ -295,6 +371,35 @@ python manage.py provision_tenant --name "Acme" --slug acme [--domain crm.acme.c
 python manage.py seed_plans                                    # Create Free/Pro/Enterprise
 python manage.py setup_queues --tenant-slug demo               # Create 4 default queues
 python manage.py setup_ticket_statuses --tenant-slug demo      # Create 5 default statuses
+```
+
+## Testing
+
+### Test Infrastructure
+- **Framework:** pytest + pytest-django
+- **Config:** `pytest.ini` at project root (DJANGO_SETTINGS_MODULE configured)
+- **Fixtures:** `conftest.py` with factories for Tenant, User, Role, Membership, TicketStatus, Queue, Ticket
+- **Celery:** Eager mode in tests (tasks execute synchronously)
+
+### Test Files (18 modules in `tests/`)
+```
+test_auth_rbac.py          — Authorization and RBAC
+test_billing.py            — Billing system
+test_contacts.py           — Contact management
+test_custom_fields.py      — Custom fields
+test_edge_cases.py         — Edge case scenarios
+test_inbound_email.py      — Inbound email processing
+test_kanban.py             — Kanban boards
+test_multitenancy.py       — Multi-tenancy isolation
+test_notifications.py      — Notification system
+test_security.py           — Security and permissions
+test_tickets.py            — Core ticketing
+test_outbound_email.py     — Outbound email service
+test_tenant_isolation.py   — Tenant data isolation
+test_comment_visibility.py — Comment visibility rules
+test_api_plan_enforcement.py — Plan limit enforcement
+test_plan_limits.py        — Plan limit details
+base.py                    — Shared test base classes
 ```
 
 ## Important Implementation Details
@@ -314,13 +419,13 @@ Dev: `http://localhost:8001`, `http://*.localhost:8001`. Prod: `https://*.{BASE_
 ### File Upload Path
 Tenant-isolated: `tenants/{tenant_id}/attachments/YYYY/MM/{filename}`. Max 25MB. MIME validated server-side.
 
-## Test Coverage
-**No tests exist yet.** Architecture doc lists "Full test suite (unit, integration, E2E)" as Phase 2.
+### InboundEmail Tenant Resolution
+`InboundEmail` extends `TimestampedModel` (not `TenantScopedModel`) because tenant is resolved during processing, not at creation. The `tenant` FK is nullable and set after parsing the recipient address.
 
 ## Common Pitfalls & Fixes Applied
 1. `TenantSettings` had dual primary key — removed `primary_key=True` from OneToOneField
 2. Allauth config changed to `ACCOUNT_LOGIN_METHODS = {"email"}` (set, not list)
-3. All 13 apps needed `migrations/__init__.py` files
+3. All apps needed `migrations/__init__.py` files
 4. DRF upgraded 3.15.2 → 3.16.1 (format_suffix_patterns conflict with Django 6.0)
 5. `base.html` needs `user.is_authenticated` check (AnonymousUser has no email)
 6. Role creation signal was missing `hierarchy_level` in defaults — fixed to 10/20/30/40

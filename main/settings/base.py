@@ -285,13 +285,19 @@ INBOUND_EMAIL_WEBHOOK_SECRET = env("INBOUND_EMAIL_WEBHOOK_SECRET", default="")
 MAILGUN_API_KEY = env("MAILGUN_API_KEY", default="")
 
 # Email
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-EMAIL_HOST = env("EMAIL_HOST", default="smtp.gmail.com")
+# Dev: "django.core.mail.backends.filebased.EmailBackend" (saves to tmp/emails/)
+# Dev: "django.core.mail.backends.console.EmailBackend" (prints to stdout)
+# Prod: "django.core.mail.backends.smtp.EmailBackend"
+EMAIL_BACKEND = env(
+    "EMAIL_BACKEND", default="django.core.mail.backends.filebased.EmailBackend"
+)
+EMAIL_FILE_PATH = BASE_DIR / "tmp" / "emails"
+EMAIL_HOST = env("EMAIL_HOST", default="localhost")
 EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
-EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="noreply@kanzan.local")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=False)
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="support@kanzan.local")
 
 # Allauth
 ACCOUNT_LOGIN_METHODS = {"email"}

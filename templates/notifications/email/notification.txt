@@ -1,0 +1,13 @@
+Hi {{ recipient.first_name|default:recipient.email }},
+
+[{{ notification.get_type_display }}]
+
+{{ notification.title }}
+{% if notification.body %}
+{{ notification.body }}
+{% endif %}
+{% if notification.data.url %}View details: {{ notification.data.url }}{% endif %}
+
+---
+You received this because notifications are enabled for your account at {{ tenant.name }}.
+To manage your notification preferences, visit your account settings.

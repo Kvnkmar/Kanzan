@@ -9,8 +9,10 @@ import hashlib
 import hmac
 import logging
 import time
+import uuid as uuid_mod
 
 from django.conf import settings
+from django.core.files.storage import default_storage
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -101,6 +103,7 @@ def sendgrid_inbound(request):
             raw_headers=request.POST.get("headers", ""),
         )
 
+        _save_inbound_attachments(request, inbound)
         _queue_processing(inbound.pk)
         return HttpResponse(status=200)
 
@@ -140,6 +143,7 @@ def mailgun_inbound(request):
             raw_headers=request.POST.get("message-headers", ""),
         )
 
+        _save_inbound_attachments(request, inbound)
         _queue_processing(inbound.pk)
         return HttpResponse(status=200)
 
@@ -171,6 +175,41 @@ def _extract_header(raw_headers, header_name):
         if line.lower().startswith(header_name.lower() + ":"):
             return line.split(":", 1)[1].strip().strip("<>")
     return ""
+
+
+def _save_inbound_attachments(request, inbound):
+    """
+    Save file attachments from the webhook request to temporary storage
+    and record metadata on the InboundEmail record.
+
+    Files are saved to inbound_emails/<inbound_id>/<filename> and tracked
+    in the attachment_metadata JSON field for later processing.
+    """
+    metadata = []
+    for key, uploaded_file in request.FILES.items():
+        safe_name = f"{uuid_mod.uuid4().hex[:8]}_{uploaded_file.name}"
+        storage_path = f"inbound_emails/{inbound.pk}/{safe_name}"
+        try:
+            saved_path = default_storage.save(storage_path, uploaded_file)
+            metadata.append({
+                "filename": uploaded_file.name,
+                "content_type": uploaded_file.content_type or "",
+                "size": uploaded_file.size,
+                "storage_path": saved_path,
+            })
+        except Exception:
+            logger.warning(
+                "Failed to save inbound attachment %s for email %s",
+                uploaded_file.name, inbound.pk,
+            )
+
+    if metadata:
+        inbound.attachment_metadata = metadata
+        inbound.save(update_fields=["attachment_metadata", "updated_at"])
+        logger.info(
+            "Saved %d attachment(s) for inbound email %s",
+            len(metadata), inbound.pk,
+        )
 
 
 def _queue_processing(inbound_email_id):

@@ -155,6 +155,27 @@ class Profile(TenantScopedModel):
         null=True, blank=True,
         help_text="DND quiet hours end time.",
     )
+    # Phase 2: Appearance & regional preferences
+    theme = models.CharField(
+        max_length=10, default="system", blank=True,
+        help_text="UI theme: light, dark, or system.",
+    )
+    sidebar_collapsed = models.BooleanField(
+        default=False,
+        help_text="Whether the sidebar defaults to collapsed.",
+    )
+    density = models.CharField(
+        max_length=12, default="comfortable", blank=True,
+        help_text="List density: comfortable or compact.",
+    )
+    date_format = models.CharField(
+        max_length=20, default="YYYY-MM-DD", blank=True,
+        help_text="Preferred date display format.",
+    )
+    time_format = models.CharField(
+        max_length=5, default="24h", blank=True,
+        help_text="Time format: 12h or 24h.",
+    )
 
     class Meta:
         verbose_name = "profile"

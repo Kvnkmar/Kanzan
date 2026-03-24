@@ -15,6 +15,8 @@ import re
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 
+from django.core.files.storage import default_storage
+
 from apps.comments.models import Comment
 from apps.contacts.models import Contact
 from apps.inbound_email.models import InboundEmail
@@ -304,6 +306,9 @@ def _create_ticket_from_email(inbound, tenant, contact):
     inbound.status = InboundEmail.Status.TICKET_CREATED
     inbound.save(update_fields=["ticket", "status", "updated_at"])
 
+    # Attach any files that came with the email
+    _attach_inbound_files(inbound, ticket)
+
     logger.info(
         "Created ticket #%d from email by %s (tenant: %s)",
         ticket.number, inbound.sender_email, tenant.slug,
@@ -346,6 +351,9 @@ def _add_reply_to_ticket(inbound, ticket, contact):
     )
     comment.save()
 
+    # Attach any files that came with the email
+    _attach_inbound_files(inbound, ticket)
+
     inbound.ticket = ticket
     inbound.status = InboundEmail.Status.REPLY_ADDED
     inbound.save(update_fields=["ticket", "status", "updated_at"])
@@ -355,6 +363,60 @@ def _add_reply_to_ticket(inbound, ticket, contact):
         ticket.number, inbound.sender_email,
     )
     return comment
+
+
+def _attach_inbound_files(inbound, ticket):
+    """
+    Create Attachment records for files saved during webhook handling.
+
+    Reads attachment_metadata from the InboundEmail, opens each stored
+    file, and creates an Attachment linked to the ticket. Cleans up
+    temporary storage paths after successful attachment creation.
+    """
+    if not inbound.attachment_metadata:
+        return
+
+    from django.core.files.base import File
+
+    from apps.attachments.services import create_attachment
+
+    tenant = ticket.tenant
+    system_user_id = _get_system_user_id(tenant)
+
+    from apps.accounts.models import User
+
+    system_user = User.objects.get(pk=system_user_id)
+
+    created = 0
+    for meta in inbound.attachment_metadata:
+        storage_path = meta.get("storage_path")
+        if not storage_path or not default_storage.exists(storage_path):
+            logger.warning(
+                "Inbound attachment file missing: %s (email %s)",
+                storage_path, inbound.pk,
+            )
+            continue
+
+        try:
+            with default_storage.open(storage_path, "rb") as f:
+                django_file = File(f, name=meta.get("filename", "attachment"))
+                django_file.size = meta.get("size", 0) or f.size
+                create_attachment(tenant, system_user, django_file, ticket)
+
+            # Clean up the temporary file
+            default_storage.delete(storage_path)
+            created += 1
+        except Exception:
+            logger.exception(
+                "Failed to create attachment from inbound file %s (email %s)",
+                meta.get("filename"), inbound.pk,
+            )
+
+    if created:
+        logger.info(
+            "Created %d attachment(s) for ticket #%d from inbound email %s",
+            created, ticket.number, inbound.pk,
+        )
 
 
 def _get_system_user_id(tenant):

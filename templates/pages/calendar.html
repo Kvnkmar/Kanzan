@@ -181,23 +181,33 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 
 <!-- Event Detail Modal -->
 <div class="modal fade" id="eventDetailModal" tabindex="-1" aria-labelledby="eventDetailModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-sm">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h6 class="modal-title" id="eventDetailModalLabel">Event Details</h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="eventDetailBody"></div>
-      <div class="modal-footer" id="eventDetailFooter" style="display:none;">
-        <button type="button" class="btn btn-sm btn-outline-danger" id="eventDetailDelete">
-          <i class="ti ti-trash me-1"></i>Delete
-        </button>
-        <button type="button" class="btn btn-sm btn-outline-primary" id="eventDetailEdit">
-          <i class="ti ti-pencil me-1"></i>Edit
-        </button>
-        <a href="#" class="btn btn-sm btn-primary" id="eventDetailLink">
-          <i class="ti ti-arrow-right me-1"></i>View Ticket
-        </a>
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content event-detail-modal">
+      <div class="modal-body p-0">
+        <!-- Header zone -->
+        <div class="event-detail-header">
+          <div class="d-flex align-items-start justify-content-between gap-2">
+            <h6 class="mb-0 fw-bold" id="eventDetailModalLabel" style="font-size:1.0625rem;line-height:1.4;color:var(--crm-text);">Event Details</h6>
+            <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Close" style="margin:-2px -4px 0 0;"></button>
+          </div>
+          <div id="eventDetailBadges" class="d-flex align-items-center flex-wrap gap-2 mt-2" style="display:none;"></div>
+        </div>
+        <!-- Body -->
+        <div id="eventDetailBody" class="event-detail-body"></div>
+        <!-- Footer -->
+        <div id="eventDetailFooter" class="event-detail-footer" style="display:none;">
+          <div class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-ghost-danger" id="eventDetailDelete">
+              <i class="ti ti-trash me-1"></i>Delete
+            </button>
+            <button type="button" class="btn btn-sm btn-ghost" id="eventDetailEdit" style="color:var(--crm-text-secondary);">
+              <i class="ti ti-pencil me-1"></i>Edit
+            </button>
+          </div>
+          <a href="#" class="btn btn-sm btn-primary" id="eventDetailLink" style="padding:0.4rem 1rem;border-radius:8px;">
+            <i class="ti ti-arrow-right me-1"></i>View Ticket
+          </a>
+        </div>
       </div>
     </div>
   </div>
@@ -505,6 +515,7 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
   function showEventDetail(ev) {
     var body = document.getElementById('eventDetailBody');
     var footer = document.getElementById('eventDetailFooter');
+    var badgesEl = document.getElementById('eventDetailBadges');
     var deleteBtn = document.getElementById('eventDetailDelete');
     var editBtn = document.getElementById('eventDetailEdit');
     var linkBtn = document.getElementById('eventDetailLink');
@@ -517,56 +528,59 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
       var t = ev.ticket;
       titleEl.textContent = '#' + t.number + ' ' + (t.subject || '');
 
-      // Status + Priority badges
-      html += '<div class="d-flex align-items-center flex-wrap gap-2 mb-3">';
+      // Status + Priority badges in header
+      var badgeHtml = '';
       if (t.status_name) {
-        html += '<span class="badge" style="background-color:' + (t.status_color || '#94A3B8') + ';font-size:0.75rem;">' + escapeHtml(t.status_name) + '</span>';
+        badgeHtml += '<span class="badge event-detail-badge" style="background-color:' + escapeHtml(t.status_color || '#94A3B8') + ';">' + escapeHtml(t.status_name) + '</span>';
       }
       if (t.priority) {
         var priColors = { urgent: '#EF4444', high: '#F59E0B', medium: '#3B82F6', low: '#64748B' };
         var priColor = priColors[t.priority] || '#64748B';
-        html += '<span class="badge" style="background-color:' + priColor + ';font-size:0.75rem;">' + escapeHtml(t.priority.charAt(0).toUpperCase() + t.priority.slice(1)) + '</span>';
+        badgeHtml += '<span class="badge event-detail-badge" style="background-color:' + escapeHtml(priColor) + ';">' + escapeHtml(t.priority.charAt(0).toUpperCase() + t.priority.slice(1)) + '</span>';
       }
       if (t.category) {
-        html += '<span class="badge" style="background:rgba(139,92,246,0.15);color:#C4B5FD;font-size:0.7rem;">' + escapeHtml(t.category) + '</span>';
+        badgeHtml += '<span class="badge event-detail-badge" style="background:rgba(139,92,246,0.12);color:#C4B5FD;">' + escapeHtml(t.category) + '</span>';
       }
       if (t.is_closed) {
-        html += '<span class="badge" style="background:rgba(16,185,129,0.15);color:#6EE7B7;font-size:0.7rem;"><i class="ti ti-check me-1"></i>Closed</span>';
+        badgeHtml += '<span class="badge event-detail-badge" style="background:rgba(16,185,129,0.12);color:#6EE7B7;"><i class="ti ti-check me-1"></i>Closed</span>';
       }
-      html += '</div>';
+      badgesEl.innerHTML = badgeHtml;
+      badgesEl.style.display = badgeHtml ? '' : 'none';
 
       // SLA breach warnings
       if (t.sla_response_breached || t.sla_resolution_breached) {
-        html += '<div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;padding:8px 12px;margin-bottom:12px;">';
-        html += '<div style="display:flex;align-items:center;gap:6px;">';
-        html += '<i class="ti ti-alert-triangle" style="color:#EF4444;font-size:0.875rem;"></i>';
-        html += '<span style="font-size:0.8125rem;color:#FCA5A5;font-weight:500;">SLA Breached</span>';
+        html += '<div class="event-detail-sla-alert">';
+        html += '<div class="d-flex align-items-center gap-2">';
+        html += '<i class="ti ti-alert-triangle" style="color:#EF4444;font-size:0.9375rem;"></i>';
+        html += '<span style="font-size:0.8125rem;color:#FCA5A5;font-weight:600;">SLA Breached</span>';
         html += '</div>';
         if (t.sla_response_breached) {
-          html += '<div style="font-size:0.75rem;color:#FCA5A5;margin-left:22px;margin-top:2px;">Response time exceeded</div>';
+          html += '<div style="font-size:0.75rem;color:#FCA5A5;margin-left:24px;margin-top:2px;">Response time exceeded</div>';
         }
         if (t.sla_resolution_breached) {
-          html += '<div style="font-size:0.75rem;color:#FCA5A5;margin-left:22px;margin-top:2px;">Resolution time exceeded</div>';
+          html += '<div style="font-size:0.75rem;color:#FCA5A5;margin-left:24px;margin-top:2px;">Resolution time exceeded</div>';
         }
         html += '</div>';
       }
 
       // Description preview
       if (t.description) {
-        var descText = t.description.length > 200 ? t.description.substring(0, 200) + '...' : t.description;
-        html += '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:10px 12px;margin-bottom:12px;font-size:0.8125rem;color:var(--crm-text-secondary,#94A3B8);line-height:1.5;">' + escapeHtml(descText) + '</div>';
+        var descText = t.description.length > 200 ? t.description.substring(0, 200) + '\u2026' : t.description;
+        html += '<div class="event-detail-desc">' + escapeHtml(descText) + '</div>';
       }
 
       // Info rows
       function infoRow(icon, label, value, valueColor) {
-        return '<div class="d-flex align-items-center gap-2 mb-2" style="padding:4px 0;">' +
-          '<i class="ti ti-' + icon + ' text-muted" style="font-size:0.875rem;width:16px;text-align:center;flex-shrink:0;"></i>' +
-          '<span class="text-muted" style="font-size:0.8125rem;white-space:nowrap;">' + escapeHtml(label) + '</span>' +
-          '<span style="font-size:0.8125rem;margin-left:auto;text-align:right;' + (valueColor ? 'color:' + valueColor + ';' : '') + '">' + escapeHtml(value) + '</span>' +
+        return '<div class="event-detail-row">' +
+          '<div class="event-detail-row-label">' +
+          '<i class="ti ti-' + escapeHtml(icon) + '"></i>' +
+          '<span>' + escapeHtml(label) + '</span>' +
+          '</div>' +
+          '<span class="event-detail-row-value"' + (valueColor ? ' style="color:' + escapeHtml(valueColor) + ';"' : '') + '>' + escapeHtml(value) + '</span>' +
           '</div>';
       }
 
-      html += '<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:10px;">';
+      html += '<div class="event-detail-info">';
       if (t.assignee_name) {
         html += infoRow('user', 'Assignee', t.assignee_name);
       } else {
@@ -592,14 +606,13 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 
       // Tags
       if (t.tags && t.tags.length > 0) {
-        html += '<div style="border-top:1px solid rgba(255,255,255,0.06);padding-top:10px;margin-top:4px;">';
-        html += '<div class="d-flex align-items-center flex-wrap gap-1">';
-        html += '<i class="ti ti-tags text-muted" style="font-size:0.875rem;margin-right:4px;"></i>';
+        html += '<div class="event-detail-tags">';
+        html += '<i class="ti ti-tags" style="font-size:0.8125rem;color:var(--crm-text-muted);"></i>';
         var tagList = Array.isArray(t.tags) ? t.tags : [];
         tagList.forEach(function(tag) {
-          html += '<span style="font-size:0.7rem;padding:2px 8px;border-radius:10px;background:rgba(99,102,241,0.12);color:#A5B4FC;">' + escapeHtml(tag) + '</span>';
+          html += '<span class="event-detail-tag">' + escapeHtml(tag) + '</span>';
         });
-        html += '</div></div>';
+        html += '</div>';
       }
 
       body.innerHTML = html;
@@ -615,39 +628,31 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
       var color = ce.color || EVENT_COLORS[ev.type] || EVENT_COLORS['default'];
       var typeLabel = EVENT_TYPE_LABELS[ev.type] || ev.type.replace(/_/g, ' ');
 
-      titleEl.textContent = 'Event Details';
+      titleEl.textContent = ev.label || 'Event Details';
+      badgesEl.innerHTML = '<span class="badge event-detail-badge" style="background:' + escapeHtml(color) + ';font-size:0.6875rem;">' + escapeHtml(typeLabel) + '</span>';
+      badgesEl.style.display = '';
 
-      html += '<div class="d-flex align-items-start gap-3 mb-3">';
-      html += '<div style="width:10px;height:10px;border-radius:50%;background:' + color + ';margin-top:5px;flex-shrink:0;"></div>';
-      html += '<div style="flex:1;min-width:0;">';
-      html += '<div class="fw-semibold" style="font-size:0.9375rem;">' + escapeHtml(ev.label) + '</div>';
-      html += '<div class="text-muted" style="font-size:0.8125rem;text-transform:capitalize;">' + escapeHtml(typeLabel) + '</div>';
-      html += '</div>';
-      html += '</div>';
+      // Description
+      if (ce.description) {
+        html += '<div class="event-detail-desc">' + escapeHtml(ce.description) + '</div>';
+      }
 
-      // Time / duration
+      // Info rows
+      html += '<div class="event-detail-info">';
       if (ce.is_all_day) {
         var timeStr = 'All day';
         if (ce.end_date && ce.end_date !== ce.event_date) timeStr += ' \u2013 ' + ce.end_date;
-        html += '<div class="d-flex align-items-center gap-2 mb-2"><i class="ti ti-clock text-muted" style="font-size:0.875rem;"></i><span style="font-size:0.8125rem;">' + escapeHtml(timeStr) + '</span></div>';
+        html += '<div class="event-detail-row"><div class="event-detail-row-label"><i class="ti ti-clock"></i><span>Time</span></div><span class="event-detail-row-value">' + escapeHtml(timeStr) + '</span></div>';
       } else if (ev.time) {
         var timeDisplay = ev.time;
         if (ce.end_time) timeDisplay += ' \u2013 ' + ce.end_time.substring(0, 5);
         if (ce.end_date && ce.end_date !== ce.event_date) timeDisplay += ' (' + ce.end_date + ')';
-        html += '<div class="d-flex align-items-center gap-2 mb-2"><i class="ti ti-clock text-muted" style="font-size:0.875rem;"></i><span style="font-size:0.8125rem;">' + escapeHtml(timeDisplay) + '</span></div>';
+        html += '<div class="event-detail-row"><div class="event-detail-row-label"><i class="ti ti-clock"></i><span>Time</span></div><span class="event-detail-row-value">' + escapeHtml(timeDisplay) + '</span></div>';
       }
-
-      // Location
       if (ce.location) {
-        html += '<div class="d-flex align-items-center gap-2 mb-2"><i class="ti ti-map-pin text-muted" style="font-size:0.875rem;"></i><span style="font-size:0.8125rem;">' + escapeHtml(ce.location) + '</span></div>';
+        html += '<div class="event-detail-row"><div class="event-detail-row-label"><i class="ti ti-map-pin"></i><span>Location</span></div><span class="event-detail-row-value">' + escapeHtml(ce.location) + '</span></div>';
       }
-
-      if (ce.description) {
-        html += '<div class="d-flex align-items-start gap-2 mb-2">';
-        html += '<i class="ti ti-align-left text-muted" style="font-size:0.875rem;margin-top:2px;"></i>';
-        html += '<span style="font-size:0.8125rem;">' + escapeHtml(ce.description) + '</span>';
-        html += '</div>';
-      }
+      html += '</div>';
 
       body.innerHTML = html;
 

@@ -35,6 +35,11 @@ ACTION_MAP = {
     "workload": "view",
     "set_status": "update",
     "my_status": "view",
+    # Email actions on tickets
+    "emails": "view",
+    "send_email": "update",
+    "link_email": "update",
+    "unlinked_emails": "view",
     # Knowledge base custom actions
     "record_view": "view",
     "remove_file": "update",

@@ -1,15 +1,18 @@
 """
 DRF ViewSet for the inbound email log.
 
-Read-only API for admins/managers to monitor inbound email processing.
+Read-only API for viewing inbound email processing history.
+Admins/managers see all tenant emails; agents see only emails
+linked to tickets they created or are assigned to.
 """
 
+from django.db.models import Q
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-from apps.accounts.permissions import HasTenantPermission
+from apps.accounts.permissions import HasTenantPermission, _get_membership
 from apps.inbound_email.models import InboundEmail
 from apps.inbound_email.serializers import (
     InboundEmailDetailSerializer,
@@ -21,7 +24,9 @@ class InboundEmailViewSet(ReadOnlyModelViewSet):
     """
     Read-only viewset for viewing inbound email processing history.
 
-    Restricted to admins and managers (hierarchy_level <= 20).
+    - Admin / Manager (hierarchy_level <= 20): see all tenant emails.
+    - Agent (hierarchy_level <= 30): see emails linked to their own
+      tickets (created_by or assignee) plus unlinked emails.
     """
 
     permission_classes = [IsAuthenticated, HasTenantPermission]
@@ -36,10 +41,22 @@ class InboundEmailViewSet(ReadOnlyModelViewSet):
         tenant = getattr(self.request, "tenant", None)
         if tenant is None:
             return InboundEmail.objects.none()
-        return (
-            InboundEmail.objects.filter(tenant=tenant)
-            .select_related("ticket")
-        )
+
+        qs = InboundEmail.objects.filter(tenant=tenant).select_related("ticket")
+
+        user = self.request.user
+        if not user.is_superuser:
+            membership = _get_membership(self.request, tenant)
+            if membership and membership.role.hierarchy_level > 30:
+                # Viewer: only emails linked to their tickets
+                # or unlinked emails
+                qs = qs.filter(
+                    Q(ticket__assignee=user)
+                    | Q(ticket__created_by=user)
+                    | Q(ticket__isnull=True)
+                )
+
+        return qs
 
     def get_serializer_class(self):
         if self.action == "retrieve":

@@ -56,6 +56,14 @@ class AgentAvailability(TenantScopedModel):
         blank=True,
         help_text="Timestamp of the agent's most recent activity.",
     )
+    working_hours = models.JSONField(
+        default=dict, blank=True,
+        help_text="Per-day working hours, e.g. {'mon': {'enabled': true, 'start': '09:00', 'end': '17:00'}, ...}",
+    )
+    auto_away_outside_hours = models.BooleanField(
+        default=False,
+        help_text="Automatically set status to away outside working hours.",
+    )
 
     class Meta:
         verbose_name = "agent availability"

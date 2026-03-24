@@ -1,71 +1,307 @@
 {% extends "base.html" %}
-{% block title %}Agents - Kanzen Suite{% endblock %}
+{% block title %}Agents & Email - Kanzen Suite{% endblock %}
 
 {% block content %}
 <div class="page-header">
   <div>
-    <h1 class="page-title">Agents</h1>
-    <p class="page-subtitle">Monitor agent availability and workload</p>
+    <h1 class="page-title">Agents & Email</h1>
+    <p class="page-subtitle">
+      {% if is_admin_or_manager %}Monitor agent availability, workload, and manage emails{% else %}View team status and manage ticket emails{% endif %}
+    </p>
   </div>
   <div class="header-actions">
-    <button class="btn btn-outline-secondary btn-sm" id="refreshAgentsBtn">
-      <i class="ti ti-refresh me-1"></i>Refresh
+    <button class="btn btn-outline-secondary btn-sm" id="refreshAllBtn">
+      <i class="ti ti-refresh me-1"></i>Refresh All
     </button>
   </div>
 </div>
 
-<!-- Summary Cards -->
-<div class="row g-3 mb-4">
-  <div class="col-6">
-    <div class="stat-card">
-      <div class="stat-card-accent" style="background: #22C55E;"></div>
-      <div class="stat-card-body">
-        <span class="stat-card-label">Online</span>
-        <span class="stat-card-value" id="countOnline">0</span>
+<!-- Page Tabs -->
+<ul class="nav nav-tabs mb-4" id="agentPageTabs" role="tablist">
+  <li class="nav-item" role="presentation">
+    <button class="nav-link active" id="tab-team" data-bs-toggle="tab" data-bs-target="#pane-team" type="button" role="tab">
+      <i class="ti ti-users me-1"></i>Team
+      <span class="badge bg-secondary bg-opacity-25 ms-1" id="tabCountTeam">0</span>
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="tab-inbox" data-bs-toggle="tab" data-bs-target="#pane-inbox" type="button" role="tab">
+      <i class="ti ti-inbox me-1"></i>Inbox
+      <span class="badge bg-secondary bg-opacity-25 ms-1" id="tabCountInbox">0</span>
+    </button>
+  </li>
+  <li class="nav-item" role="presentation">
+    <button class="nav-link" id="tab-compose" data-bs-toggle="tab" data-bs-target="#pane-compose" type="button" role="tab">
+      <i class="ti ti-send me-1"></i>Compose
+    </button>
+  </li>
+</ul>
+
+<div class="tab-content" id="agentPageTabContent">
+
+  <!-- TEAM TAB -->
+  <div class="tab-pane fade show active" id="pane-team" role="tabpanel">
+    <div class="row g-3 mb-4">
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="stat-card-accent" style="background: #22C55E;"></div>
+          <div class="stat-card-body">
+            <span class="stat-card-label">Online</span>
+            <span class="stat-card-value" id="countOnline">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="stat-card-accent" style="background: #9CA3AF;"></div>
+          <div class="stat-card-body">
+            <span class="stat-card-label">Offline</span>
+            <span class="stat-card-value" id="countOffline">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="stat-card-accent" style="background: #3B82F6;"></div>
+          <div class="stat-card-body">
+            <span class="stat-card-label">Total Agents</span>
+            <span class="stat-card-value" id="countTotal">0</span>
+          </div>
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <div class="stat-card">
+          <div class="stat-card-accent" style="background: #F59E0B;"></div>
+          <div class="stat-card-body">
+            <span class="stat-card-label">At Capacity</span>
+            <span class="stat-card-value" id="countAtCapacity">0</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body p-0">
+        <div id="agentsTableWrap" class="table-responsive agents-table">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th class="ps-3"><i class="ti ti-user me-1 text-muted"></i>Agent</th>
+                <th><i class="ti ti-mail me-1 text-muted"></i>Email</th>
+                <th><i class="ti ti-user-shield me-1 text-muted"></i>Role</th>
+                <th><i class="ti ti-wifi me-1 text-muted"></i>Status</th>
+                <th><i class="ti ti-ticket me-1 text-muted"></i>Open Tickets</th>
+                <th><i class="ti ti-chart-bar me-1 text-muted"></i>Capacity</th>
+                <th><i class="ti ti-clock me-1 text-muted"></i>Last Activity</th>
+              </tr>
+            </thead>
+            <tbody id="agentsTableBody">
+              <tr>
+                <td colspan="7" class="text-center py-5">
+                  <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                  <span class="text-muted">Loading agents...</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div id="agentsEmptyState" class="empty-state d-none">
+          <div class="empty-icon"><i class="ti ti-users"></i></div>
+          <p class="empty-title">No team members found</p>
+          <p class="empty-text">Add team members from the Users page to see them here.</p>
+        </div>
       </div>
     </div>
   </div>
-  <div class="col-6">
-    <div class="stat-card">
-      <div class="stat-card-accent" style="background: #9CA3AF;"></div>
-      <div class="stat-card-body">
-        <span class="stat-card-label">Offline</span>
-        <span class="stat-card-value" id="countOffline">0</span>
+
+  <!-- INBOX TAB -->
+  <div class="tab-pane fade" id="pane-inbox" role="tabpanel">
+    <div class="d-flex align-items-center gap-2 mb-3">
+      <div class="btn-group btn-group-sm" role="group" id="emailFilterGroup">
+        <button type="button" class="btn btn-outline-secondary active" data-filter="all">All</button>
+        <button type="button" class="btn btn-outline-secondary" data-filter="unlinked">Unlinked</button>
+        <button type="button" class="btn btn-outline-secondary" data-filter="linked">Linked</button>
+        <button type="button" class="btn btn-outline-secondary" data-filter="failed">Failed</button>
+      </div>
+      <div class="ms-auto">
+        <div class="input-group input-group-sm" style="width:220px;">
+          <span class="input-group-text"><i class="ti ti-search"></i></span>
+          <input type="text" id="emailSearchInput" class="form-control" placeholder="Search emails...">
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body p-0">
+        <div id="inboundEmailsLoading" class="text-center py-4">
+          <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+          <span class="text-muted ms-2">Loading emails...</span>
+        </div>
+        <div id="inboundEmailsList"></div>
+        <div id="inboundEmailsEmpty" class="text-center text-muted py-5 d-none">
+          <i class="ti ti-inbox-off d-block mb-2" style="font-size:2rem;"></i>
+          <p class="mb-1 fw-medium">No emails found</p>
+          <p class="small">Inbound emails will appear here when received</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMPOSE TAB -->
+  <div class="tab-pane fade" id="pane-compose" role="tabpanel">
+    <div class="row justify-content-center">
+      <div class="col-lg-8 col-xl-6">
+        <div class="compose-email">
+          <div class="compose-email__header">
+            <div class="compose-email__header-icon">
+              <i class="ti ti-mail-forward"></i>
+            </div>
+            <div>
+              <h6 class="compose-email__title">New Email</h6>
+              <p class="compose-email__subtitle">Compose and send an email linked to a ticket</p>
+            </div>
+          </div>
+
+          <form id="agentSendEmailForm" class="compose-email__body">
+            <!-- Ticket Link -->
+            <div class="compose-email__field position-relative">
+              <div class="compose-email__field-row">
+                <span class="compose-email__field-label">Ticket</span>
+                <div class="compose-email__field-input flex-grow-1">
+                  <div class="compose-email__ticket-search">
+                    <i class="ti ti-search compose-email__search-icon"></i>
+                    <input type="text" id="emailTicketSearch" class="compose-email__search-input" placeholder="Search by ticket # or subject..." autocomplete="off">
+                    <button type="button" class="compose-email__clear-btn" id="clearTicketBtn" style="display:none;" title="Clear">
+                      <i class="ti ti-x"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div id="emailTicketResults" class="compose-email__results d-none"></div>
+              <input type="hidden" id="emailTicketId">
+              <div id="emailTicketSelected" class="d-none">
+                <div class="compose-email__ticket-chip">
+                  <i class="ti ti-ticket"></i>
+                  <span id="selectedTicketLabel"></span>
+                  <span class="compose-email__ticket-status" id="selectedTicketStatus"></span>
+                </div>
+              </div>
+            </div>
+
+            <div class="compose-email__divider"></div>
+
+            <!-- To -->
+            <div class="compose-email__field">
+              <div class="compose-email__field-row">
+                <span class="compose-email__field-label">To</span>
+                <input type="email" id="agentEmailTo" class="compose-email__inline-input" placeholder="recipient@example.com" required>
+              </div>
+              <div class="compose-email__hint d-none" id="autoFillHint">
+                <i class="ti ti-info-circle"></i> Auto-filled from ticket contact
+              </div>
+            </div>
+
+            <div class="compose-email__divider"></div>
+
+            {% if is_admin_or_manager %}
+            <!-- CC -->
+            <div class="compose-email__field">
+              <div class="compose-email__field-row">
+                <span class="compose-email__field-label compose-email__field-label--muted">Cc</span>
+                <input type="text" id="agentEmailCc" class="compose-email__inline-input" placeholder="Add recipients...">
+              </div>
+            </div>
+            <div class="compose-email__divider"></div>
+            {% endif %}
+
+            <!-- Subject -->
+            <div class="compose-email__field">
+              <div class="compose-email__field-row">
+                <span class="compose-email__field-label">Subject</span>
+                <input type="text" id="agentEmailSubject" class="compose-email__inline-input" placeholder="Email subject (ticket # auto-prefixed)">
+              </div>
+            </div>
+
+            <div class="compose-email__divider"></div>
+
+            <!-- Body -->
+            <div class="compose-email__field compose-email__field--body">
+              <textarea id="agentEmailBody" class="compose-email__textarea" rows="10" placeholder="Write your message..." required></textarea>
+            </div>
+
+            <!-- Footer -->
+            <div class="compose-email__footer">
+              <div class="compose-email__footer-hint">
+                <i class="ti ti-info-circle"></i>
+                Ticket reference [#N] is added to the subject automatically
+              </div>
+              <div class="compose-email__actions">
+                <button type="reset" class="compose-email__btn-reset" id="composeResetBtn">
+                  <i class="ti ti-trash"></i> Discard
+                </button>
+                <button type="submit" class="compose-email__btn-send" id="agentSendBtn">
+                  <i class="ti ti-send"></i> Send Email
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Agents Table -->
-<div class="card">
-  <div class="card-body p-0">
-    <div id="agentsTableWrap" class="table-responsive agents-table">
-      <table class="table table-hover align-middle mb-0">
-        <thead>
-          <tr>
-            <th class="ps-3"><i class="ti ti-user me-1 text-muted"></i>Agent</th>
-            <th><i class="ti ti-mail me-1 text-muted"></i>Email</th>
-            <th><i class="ti ti-user-shield me-1 text-muted"></i>Role</th>
-            <th><i class="ti ti-wifi me-1 text-muted"></i>Status</th>
-            <th><i class="ti ti-ticket me-1 text-muted"></i>Open Tickets</th>
-            <th><i class="ti ti-chart-bar me-1 text-muted"></i>Capacity</th>
-            <th><i class="ti ti-clock me-1 text-muted"></i>Last Activity</th>
-          </tr>
-        </thead>
-        <tbody id="agentsTableBody">
-          <tr>
-            <td colspan="7" class="text-center py-5">
-              <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-              <span class="text-muted">Loading agents...</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+<!-- EMAIL PREVIEW MODAL -->
+<div class="modal fade" id="emailPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h6 class="modal-title mb-0" id="previewSubject"></h6>
+          <small class="text-muted" id="previewMeta"></small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="d-flex gap-3 mb-3 pb-3 border-bottom">
+          <div class="flex-grow-1">
+            <div class="small"><strong>From:</strong> <span id="previewFrom"></span></div>
+            <div class="small"><strong>To:</strong> <span id="previewTo"></span></div>
+            <div class="small"><strong>Date:</strong> <span id="previewDate"></span></div>
+            <div class="small d-none" id="previewTicketRow"><strong>Ticket:</strong> <a id="previewTicketLink" href="#"></a></div>
+          </div>
+          <div id="previewStatusWrap"></div>
+        </div>
+        <div id="previewBody" class="small" style="white-space:pre-wrap;max-height:400px;overflow-y:auto;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-primary btn-sm d-none" id="previewLinkBtn">
+          <i class="ti ti-link me-1"></i>Link to Ticket
+        </button>
+        <button type="button" class="btn btn-primary btn-sm d-none" id="previewReplyBtn">
+          <i class="ti ti-arrow-back-up me-1"></i>Reply
+        </button>
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
     </div>
-    <div id="agentsEmptyState" class="empty-state d-none">
-      <div class="empty-icon"><i class="ti ti-users"></i></div>
-      <p class="empty-title">No team members found</p>
-      <p class="empty-text">Add team members from the Users page to see them here.</p>
+  </div>
+</div>
+
+<!-- LINK TO TICKET MODAL -->
+<div class="modal fade" id="linkToTicketModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title"><i class="ti ti-link me-1"></i>Link Email to Ticket</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="linkModalEmailId">
+        <div class="mb-3">
+          <label class="form-label small fw-semibold">Search Ticket</label>
+          <input type="text" id="linkTicketSearch" class="form-control form-control-sm" placeholder="Search by ticket # or subject..." autocomplete="off">
+        </div>
+        <div id="linkTicketResults" class="list-group" style="max-height:250px;overflow-y:auto;"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -76,10 +312,13 @@
 (function() {
   'use strict';
 
+  var IS_ADMIN_OR_MANAGER = {{ is_admin_or_manager|yesno:"true,false" }};
   var AGENTS_API = '/api/v1/agents/agents';
   var REFRESH_INTERVAL = 30000;
 
-  function escapeHtml(s) {
+  /* ── Helpers ── */
+
+  function esc(s) {
     if (!s) return '';
     var d = document.createElement('div');
     d.textContent = s;
@@ -89,63 +328,104 @@
   function formatDate(d) {
     if (!d) return '--';
     var date = new Date(d);
-    var now = new Date();
-    var diff = Math.floor((now - date) / 1000);
+    var diff = Math.floor((Date.now() - date) / 1000);
     if (diff < 60) return 'Just now';
     if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
     if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
-  var AVATAR_COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
-  function avatarColor(name) {
-    if (!name) return AVATAR_COLORS[0];
-    for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-    return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
+  function formatFullDate(d) {
+    if (!d) return '--';
+    return new Date(d).toLocaleString('en-US', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
   }
 
+  var COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  function avatarColor(name) {
+    if (!name) return COLORS[0];
+    for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
+    return COLORS[Math.abs(h) % COLORS.length];
+  }
   function getInitials(n) {
     if (!n) return '?';
     return n.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
   }
 
-  function getRoleBadgeClass(roleName) {
-    var rn = (roleName || '').toLowerCase();
+  function getRoleBadgeClass(r) {
+    var rn = (r || '').toLowerCase();
     if (rn === 'admin' || rn === 'administrator') return 'badge-role-admin';
     if (rn === 'manager') return 'badge-role-manager';
     if (rn === 'agent') return 'badge-role-agent';
     return 'badge-role-viewer';
   }
 
-  function statusBadge(status) {
-    var cls = status === 'online' ? 'badge-soft-success' : 'badge-soft-secondary';
-    var label = status === 'online' ? 'Online' : 'Offline';
-    return '<span class="badge ' + cls + '">' +
-      '<span class="status-dot status-dot-' + status + ' me-1"></span>' +
-      label + '</span>';
+  function makeStatusBadge(st) {
+    var span = document.createElement('span');
+    span.className = 'badge ' + (st === 'online' ? 'badge-soft-success' : 'badge-soft-secondary');
+    var dot = document.createElement('span');
+    dot.className = 'status-dot status-dot-' + st + ' me-1';
+    span.appendChild(dot);
+    span.appendChild(document.createTextNode(st === 'online' ? 'Online' : 'Offline'));
+    return span;
   }
 
-  function capacityBar(current, max) {
+  function makeCapacityBar(current, max) {
     var pct = max > 0 ? Math.round((current / max) * 100) : 0;
     var color = pct < 60 ? '#10B981' : pct < 85 ? '#F59E0B' : '#EF4444';
-    return '<div class="d-flex align-items-center gap-2">' +
-      '<div class="progress flex-grow-1" style="height:6px; min-width:60px;">' +
-      '<div class="progress-bar" style="width:' + pct + '%; background:' + color + ';"></div>' +
-      '</div>' +
-      '<span class="text-muted small">' + current + '/' + max + '</span>' +
-      '</div>';
+    var wrap = document.createElement('div');
+    wrap.className = 'd-flex align-items-center gap-2';
+    var prog = document.createElement('div');
+    prog.className = 'progress flex-grow-1';
+    prog.style.cssText = 'height:6px;min-width:60px;';
+    var bar = document.createElement('div');
+    bar.className = 'progress-bar';
+    bar.style.cssText = 'width:' + pct + '%;background:' + color;
+    prog.appendChild(bar);
+    var label = document.createElement('span');
+    label.className = 'text-muted small';
+    label.textContent = current + '/' + max;
+    wrap.appendChild(prog);
+    wrap.appendChild(label);
+    return wrap;
   }
+
+  var EMAIL_STATUS_MAP = {
+    ticket_created: { cls: 'bg-success', label: 'Ticket Created' },
+    reply_added:    { cls: 'bg-info',    label: 'Reply Added' },
+    failed:         { cls: 'bg-danger',  label: 'Failed' },
+    rejected:       { cls: 'bg-warning', label: 'Rejected' },
+    pending:        { cls: 'bg-secondary', label: 'Pending' },
+    processing:     { cls: 'bg-primary', label: 'Processing' }
+  };
+
+  function makeEmailBadge(status) {
+    var m = EMAIL_STATUS_MAP[status] || { cls: 'bg-secondary', label: status || 'Unknown' };
+    var badge = document.createElement('span');
+    badge.className = 'badge ' + m.cls + ' bg-opacity-25';
+    badge.textContent = m.label;
+    return badge;
+  }
+
+  /* ════════════════════════════════════════
+     TEAM TAB
+     ════════════════════════════════════════ */
 
   function loadAgents() {
     Api.get(AGENTS_API + '/all-members/').then(function(data) {
       var agents = data.results || data;
       var tbody = document.getElementById('agentsTableBody');
 
-      // Update summary counts
-      var counts = { online: 0, offline: 0 };
-      agents.forEach(function(a) { counts[a.status === 'online' ? 'online' : 'offline']++; });
+      var counts = { online: 0, offline: 0, total: 0, atCap: 0 };
+      agents.forEach(function(a) {
+        counts.total++;
+        if (a.status === 'online') counts.online++; else counts.offline++;
+        if ((a.current_ticket_count || 0) >= (a.max_concurrent_tickets || 10)) counts.atCap++;
+      });
       document.getElementById('countOnline').textContent = counts.online;
       document.getElementById('countOffline').textContent = counts.offline;
+      document.getElementById('countTotal').textContent = counts.total;
+      document.getElementById('countAtCapacity').textContent = counts.atCap;
+      document.getElementById('tabCountTeam').textContent = counts.total;
 
       if (!agents || agents.length === 0) {
         document.getElementById('agentsTableWrap').classList.add('d-none');
@@ -155,46 +435,531 @@
       document.getElementById('agentsTableWrap').classList.remove('d-none');
       document.getElementById('agentsEmptyState').classList.add('d-none');
 
-      // Sort: online first, then offline
       agents.sort(function(a, b) { return (a.status === 'online' ? 0 : 1) - (b.status === 'online' ? 0 : 1); });
 
-      var html = '';
+      // Build table rows with safe DOM methods
+      tbody.textContent = '';
       agents.forEach(function(a) {
         var name = a.user_name || a.user_email || 'Unknown';
-        var bgColor = avatarColor(name);
-        html += '<tr>' +
-          '<td class="ps-3"><div class="d-flex align-items-center gap-2">' +
-            '<div class="user-avatar" style="background:' + bgColor + ';">' + getInitials(name) + '</div>' +
-            '<div class="fw-medium">' + escapeHtml(name) + '</div>' +
-          '</div></td>' +
-          '<td class="text-muted small">' + escapeHtml(a.user_email) + '</td>' +
-          '<td><span class="badge ' + getRoleBadgeClass(a.role) + '">' + escapeHtml(a.role) + '</span></td>' +
-          '<td>' + statusBadge(a.status) + '</td>' +
-          '<td>' + (a.current_ticket_count || 0) + '</td>' +
-          '<td>' + capacityBar(a.current_ticket_count || 0, a.max_concurrent_tickets || 10) + '</td>' +
-          '<td class="text-muted small">' + formatDate(a.last_activity) + '</td>' +
-          '</tr>';
+        var tr = document.createElement('tr');
+
+        // Agent cell
+        var td1 = document.createElement('td');
+        td1.className = 'ps-3';
+        var wrap1 = document.createElement('div');
+        wrap1.className = 'd-flex align-items-center gap-2';
+        var av = document.createElement('div');
+        av.className = 'user-avatar';
+        av.style.background = avatarColor(name);
+        av.textContent = getInitials(name);
+        var nm = document.createElement('div');
+        nm.className = 'fw-medium';
+        nm.textContent = name;
+        wrap1.appendChild(av);
+        wrap1.appendChild(nm);
+        td1.appendChild(wrap1);
+        tr.appendChild(td1);
+
+        // Email cell
+        var td2 = document.createElement('td');
+        td2.className = 'text-muted small';
+        td2.textContent = a.user_email || '';
+        tr.appendChild(td2);
+
+        // Role cell
+        var td3 = document.createElement('td');
+        var roleBadge = document.createElement('span');
+        roleBadge.className = 'badge ' + getRoleBadgeClass(a.role);
+        roleBadge.textContent = a.role || 'Unknown';
+        td3.appendChild(roleBadge);
+        tr.appendChild(td3);
+
+        // Status cell
+        var td4 = document.createElement('td');
+        td4.appendChild(makeStatusBadge(a.status));
+        tr.appendChild(td4);
+
+        // Tickets cell
+        var td5 = document.createElement('td');
+        td5.textContent = a.current_ticket_count || 0;
+        tr.appendChild(td5);
+
+        // Capacity cell
+        var td6 = document.createElement('td');
+        td6.appendChild(makeCapacityBar(a.current_ticket_count || 0, a.max_concurrent_tickets || 10));
+        tr.appendChild(td6);
+
+        // Last activity cell
+        var td7 = document.createElement('td');
+        td7.className = 'text-muted small';
+        td7.textContent = formatDate(a.last_activity);
+        tr.appendChild(td7);
+
+        tbody.appendChild(tr);
       });
-      tbody.innerHTML = html;
     }).catch(function() {
-      document.getElementById('agentsTableBody').innerHTML =
-        '<tr><td colspan="7" class="text-center py-5 text-danger">Failed to load agents.</td></tr>';
+      var tbody = document.getElementById('agentsTableBody');
+      tbody.textContent = '';
+      var tr = document.createElement('tr');
+      var td = document.createElement('td');
+      td.colSpan = 7;
+      td.className = 'text-center py-5 text-danger';
+      td.textContent = 'Failed to load agents.';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
     });
   }
 
-  // Initial load
-  loadAgents();
+  /* ════════════════════════════════════════
+     INBOX TAB
+     ════════════════════════════════════════ */
 
-  // Auto-refresh
-  setInterval(loadAgents, REFRESH_INTERVAL);
+  var allEmails = [];
+  var currentFilter = 'all';
+  var emailSearchTerm = '';
 
-  // Manual refresh button
-  document.getElementById('refreshAgentsBtn').addEventListener('click', function() {
+  function loadInboundEmails() {
+    var loadingEl = document.getElementById('inboundEmailsLoading');
+    loadingEl.classList.remove('d-none');
+
+    Api.get('/api/v1/inbound-email/').then(function(data) {
+      loadingEl.classList.add('d-none');
+      allEmails = data.results || data;
+      document.getElementById('tabCountInbox').textContent = allEmails.length || '0';
+      renderEmails();
+    }).catch(function() {
+      loadingEl.classList.add('d-none');
+      document.getElementById('inboundEmailsList').textContent = '';
+      document.getElementById('inboundEmailsEmpty').classList.remove('d-none');
+    });
+  }
+
+  function renderEmails() {
+    var listEl = document.getElementById('inboundEmailsList');
+    var emptyEl = document.getElementById('inboundEmailsEmpty');
+    listEl.textContent = '';
+
+    var filtered = allEmails.filter(function(e) {
+      if (currentFilter === 'unlinked' && e.ticket) return false;
+      if (currentFilter === 'linked' && !e.ticket) return false;
+      if (currentFilter === 'failed' && e.status !== 'failed' && e.status !== 'rejected') return false;
+      if (emailSearchTerm) {
+        var term = emailSearchTerm.toLowerCase();
+        var hay = ((e.sender_email||'') + ' ' + (e.sender_name||'') + ' ' + (e.subject||'')).toLowerCase();
+        if (hay.indexOf(term) === -1) return false;
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) { emptyEl.classList.remove('d-none'); return; }
+    emptyEl.classList.add('d-none');
+
+    filtered.forEach(function(e) {
+      var row = document.createElement('div');
+      row.className = 'd-flex align-items-start gap-3 px-3 py-3 border-bottom';
+      row.style.cssText = 'cursor:pointer;transition:background .15s;';
+      row.addEventListener('click', function(ev) {
+        if (ev.target.closest('button') || ev.target.closest('a')) return;
+        openPreview(e);
+      });
+      row.addEventListener('mouseenter', function() { this.style.background = 'var(--crm-hover-bg)'; });
+      row.addEventListener('mouseleave', function() { this.style.background = 'transparent'; });
+
+      // Avatar
+      var senderLabel = e.sender_name || e.sender_email.split('@')[0];
+      var avDiv = document.createElement('div');
+      avDiv.className = 'user-avatar flex-shrink-0';
+      avDiv.style.background = avatarColor(senderLabel);
+      avDiv.textContent = getInitials(senderLabel);
+
+      // Content
+      var content = document.createElement('div');
+      content.className = 'flex-grow-1 min-w-0';
+
+      // Row 1: sender + badge + time
+      var r1 = document.createElement('div');
+      r1.className = 'd-flex align-items-center gap-2 mb-1';
+      var sender = document.createElement('span');
+      sender.className = 'fw-semibold small text-truncate';
+      sender.textContent = e.sender_name || e.sender_email;
+      r1.appendChild(sender);
+      r1.appendChild(makeEmailBadge(e.status));
+      var time = document.createElement('span');
+      time.className = 'text-muted ms-auto small flex-shrink-0';
+      time.textContent = formatDate(e.created_at);
+      r1.appendChild(time);
+
+      // Row 2: subject
+      var r2 = document.createElement('div');
+      r2.className = 'small text-truncate';
+      r2.textContent = e.subject || '(No Subject)';
+
+      // Row 3: meta
+      var r3 = document.createElement('div');
+      r3.className = 'text-muted';
+      r3.style.fontSize = '0.72rem';
+      if (e.ticket_number) {
+        var icon3 = document.createElement('i');
+        icon3.className = 'ti ti-link me-1';
+        r3.appendChild(icon3);
+        r3.appendChild(document.createTextNode('Ticket '));
+        var tLink = document.createElement('a');
+        tLink.href = '/tickets/' + e.ticket_number + '/';
+        tLink.textContent = '#' + e.ticket_number;
+        tLink.addEventListener('click', function(ev) { ev.stopPropagation(); });
+        r3.appendChild(tLink);
+        if (e.ticket_subject) {
+          r3.appendChild(document.createTextNode(' \u2014 ' + e.ticket_subject.substring(0, 50)));
+        }
+      } else {
+        var icon3b = document.createElement('i');
+        icon3b.className = 'ti ti-mail me-1';
+        r3.appendChild(icon3b);
+        r3.appendChild(document.createTextNode('From: ' + e.sender_email));
+      }
+
+      content.appendChild(r1);
+      content.appendChild(r2);
+      content.appendChild(r3);
+
+      // Actions
+      var acts = document.createElement('div');
+      acts.className = 'flex-shrink-0 d-flex gap-1 align-self-center';
+
+      if (!e.ticket) {
+        var lBtn = document.createElement('button');
+        lBtn.type = 'button';
+        lBtn.className = 'btn btn-outline-primary btn-sm';
+        lBtn.title = 'Link to ticket';
+        var lIcon = document.createElement('i');
+        lIcon.className = 'ti ti-link';
+        lBtn.appendChild(lIcon);
+        lBtn.addEventListener('click', function(ev) { ev.stopPropagation(); openLinkModal(e.id); });
+        acts.appendChild(lBtn);
+      } else {
+        var vBtn = document.createElement('a');
+        vBtn.className = 'btn btn-outline-secondary btn-sm';
+        vBtn.title = 'View ticket';
+        vBtn.href = '/tickets/' + e.ticket_number + '/';
+        var vIcon = document.createElement('i');
+        vIcon.className = 'ti ti-external-link';
+        vBtn.appendChild(vIcon);
+        vBtn.addEventListener('click', function(ev) { ev.stopPropagation(); });
+        acts.appendChild(vBtn);
+      }
+
+      row.appendChild(avDiv);
+      row.appendChild(content);
+      row.appendChild(acts);
+      listEl.appendChild(row);
+    });
+  }
+
+  // Filter buttons
+  document.getElementById('emailFilterGroup').addEventListener('click', function(ev) {
+    var btn = ev.target.closest('[data-filter]');
+    if (!btn) return;
+    this.querySelectorAll('.btn').forEach(function(b) { b.classList.remove('active'); });
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    renderEmails();
+  });
+
+  // Search
+  var emailSearchTimeout;
+  document.getElementById('emailSearchInput').addEventListener('input', function() {
+    var self = this;
+    clearTimeout(emailSearchTimeout);
+    emailSearchTimeout = setTimeout(function() {
+      emailSearchTerm = self.value.trim();
+      renderEmails();
+    }, 300);
+  });
+
+  /* ════════════════════════════════════════
+     EMAIL PREVIEW MODAL
+     ════════════════════════════════════════ */
+
+  var previewModal = null;
+  var currentPreviewEmail = null;
+
+  function openPreview(e) {
+    currentPreviewEmail = e;
+    document.getElementById('previewSubject').textContent = e.subject || '(No Subject)';
+    document.getElementById('previewMeta').textContent = 'Message ID: ' + (e.message_id || 'N/A');
+    document.getElementById('previewFrom').textContent = e.sender_name ? e.sender_name + ' <' + e.sender_email + '>' : e.sender_email;
+    document.getElementById('previewTo').textContent = e.recipient_email || '--';
+    document.getElementById('previewDate').textContent = formatFullDate(e.created_at);
+    document.getElementById('previewBody').textContent = e.body_text || '(Loading full content...)';
+
+    // Status badge
+    var statusWrap = document.getElementById('previewStatusWrap');
+    statusWrap.textContent = '';
+    statusWrap.appendChild(makeEmailBadge(e.status));
+
+    // Ticket link
+    var ticketRow = document.getElementById('previewTicketRow');
+    var ticketLink = document.getElementById('previewTicketLink');
+    if (e.ticket_number) {
+      ticketRow.classList.remove('d-none');
+      ticketLink.textContent = '#' + e.ticket_number + (e.ticket_subject ? ' \u2014 ' + e.ticket_subject : '');
+      ticketLink.href = '/tickets/' + e.ticket_number + '/';
+    } else {
+      ticketRow.classList.add('d-none');
+    }
+
+    // Footer buttons
+    var linkBtn = document.getElementById('previewLinkBtn');
+    var replyBtn = document.getElementById('previewReplyBtn');
+    if (e.ticket) { linkBtn.classList.add('d-none'); replyBtn.classList.remove('d-none'); }
+    else { linkBtn.classList.remove('d-none'); replyBtn.classList.add('d-none'); }
+
+    // Load full body
+    Api.get('/api/v1/inbound-email/' + e.id + '/').then(function(detail) {
+      document.getElementById('previewBody').textContent = detail.body_text || '(Empty body)';
+      // Cache for reply
+      if (currentPreviewEmail && currentPreviewEmail.id === e.id) {
+        currentPreviewEmail._fullBody = detail.body_text;
+      }
+    }).catch(function() {});
+
+    if (!previewModal) previewModal = new bootstrap.Modal(document.getElementById('emailPreviewModal'));
+    previewModal.show();
+  }
+
+  // Preview → Link
+  document.getElementById('previewLinkBtn').addEventListener('click', function() {
+    if (currentPreviewEmail) {
+      if (previewModal) previewModal.hide();
+      openLinkModal(currentPreviewEmail.id);
+    }
+  });
+
+  // Preview → Reply
+  document.getElementById('previewReplyBtn').addEventListener('click', function() {
+    if (!currentPreviewEmail) return;
+    if (previewModal) previewModal.hide();
+
+    // Switch to compose tab
+    bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-compose')).show();
+
+    document.getElementById('agentEmailTo').value = currentPreviewEmail.sender_email;
+    document.getElementById('agentEmailSubject').value = 'Re: ' + (currentPreviewEmail.subject || '');
+
+    var bodyContent = currentPreviewEmail._fullBody || currentPreviewEmail.body_text || '';
+    document.getElementById('agentEmailBody').value =
+      '\n\n--- Original Message ---\n' +
+      'From: ' + (currentPreviewEmail.sender_name || currentPreviewEmail.sender_email) + '\n' +
+      'Date: ' + formatFullDate(currentPreviewEmail.created_at) + '\n\n' + bodyContent;
+
+    // Auto-select ticket
+    if (currentPreviewEmail.ticket_number) {
+      Api.get('/api/v1/tickets/tickets/lookup/?number=' + currentPreviewEmail.ticket_number).then(function(data) {
+        var tickets = data.results || data;
+        if (tickets.length > 0) selectComposeTicket(tickets[0]);
+      });
+    }
+  });
+
+  /* ════════════════════════════════════════
+     COMPOSE TAB — Ticket search
+     ════════════════════════════════════════ */
+
+  var selectedTicketId = null;
+  var searchDebounce = null;
+  var ticketSearchInput = document.getElementById('emailTicketSearch');
+  var ticketResults = document.getElementById('emailTicketResults');
+  var ticketIdField = document.getElementById('emailTicketId');
+  var ticketSelected = document.getElementById('emailTicketSelected');
+  var clearTicketBtn = document.getElementById('clearTicketBtn');
+
+  ticketSearchInput.addEventListener('input', function() {
+    var q = this.value.trim();
+    clearTimeout(searchDebounce);
+    if (q.length < 2) { ticketResults.classList.add('d-none'); return; }
+    searchDebounce = setTimeout(function() { searchTickets(q, ticketResults, selectComposeTicket); }, 300);
+  });
+
+  function searchTickets(q, container, onSelect) {
+    Api.get('/api/v1/tickets/tickets/lookup/?q=' + encodeURIComponent(q)).then(function(data) {
+      var tickets = data.results || data;
+      container.textContent = '';
+      if (!tickets || tickets.length === 0) {
+        var empty = document.createElement('div');
+        empty.className = 'list-group-item text-muted small py-2';
+        empty.textContent = 'No tickets found';
+        container.appendChild(empty);
+        container.classList.remove('d-none');
+        return;
+      }
+      tickets.slice(0, 10).forEach(function(t) {
+        var item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'list-group-item list-group-item-action py-2 px-3';
+        var inner = document.createElement('div');
+        inner.className = 'd-flex align-items-center gap-2';
+        var numBadge = document.createElement('span');
+        numBadge.className = 'badge bg-secondary bg-opacity-25 small';
+        numBadge.textContent = '#' + t.number;
+        var subj = document.createElement('span');
+        subj.className = 'small text-truncate';
+        subj.textContent = (t.subject || '').substring(0, 60);
+        inner.appendChild(numBadge);
+        inner.appendChild(subj);
+        if (t.status_name) {
+          var stBadge = document.createElement('span');
+          stBadge.className = 'badge bg-primary bg-opacity-10 ms-auto small';
+          stBadge.textContent = t.status_name;
+          inner.appendChild(stBadge);
+        }
+        item.appendChild(inner);
+        item.addEventListener('click', function() { onSelect(t); container.classList.add('d-none'); });
+        container.appendChild(item);
+      });
+      container.classList.remove('d-none');
+    }).catch(function() { container.classList.add('d-none'); });
+  }
+
+  function selectComposeTicket(t) {
+    selectedTicketId = t.id;
+    ticketIdField.value = t.id;
+    ticketSearchInput.value = '#' + t.number + ' ' + (t.subject || '');
+    clearTicketBtn.style.display = '';
+
+    document.getElementById('selectedTicketLabel').textContent = '#' + t.number + ' \u2014 ' + (t.subject || 'Untitled');
+    document.getElementById('selectedTicketStatus').textContent = t.status_name || '';
+    ticketSelected.classList.remove('d-none');
+
+    if (t.contact_email) {
+      document.getElementById('agentEmailTo').value = t.contact_email;
+      document.getElementById('autoFillHint').classList.remove('d-none');
+    }
+  }
+
+  clearTicketBtn.addEventListener('click', function() {
+    selectedTicketId = null;
+    ticketIdField.value = '';
+    ticketSearchInput.value = '';
+    ticketSelected.classList.add('d-none');
+    clearTicketBtn.style.display = 'none';
+    document.getElementById('autoFillHint').classList.add('d-none');
+  });
+
+  document.addEventListener('click', function(e) {
+    if (!ticketResults.contains(e.target) && e.target !== ticketSearchInput) ticketResults.classList.add('d-none');
+  });
+
+  /* ════════════════════════════════════════
+     COMPOSE TAB — Send email
+     ════════════════════════════════════════ */
+
+  document.getElementById('agentSendEmailForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (!selectedTicketId) { Toast.warning('Please select a ticket to link the email to'); return; }
+    var to = document.getElementById('agentEmailTo').value.trim();
+    var subject = document.getElementById('agentEmailSubject').value.trim();
+    var body = document.getElementById('agentEmailBody').value.trim();
+    if (!to || !body) { Toast.warning('To and Body are required'); return; }
+    if (!subject) subject = 'Follow-up';
+
+    var btn = document.getElementById('agentSendBtn');
+    btn.disabled = true;
+    var origHtml = btn.textContent;
+    btn.textContent = 'Sending...';
+
+    Api.post('/api/v1/tickets/tickets/' + selectedTicketId + '/send-email/', {
+      to: to, subject: subject, body: body
+    }).then(function() {
+      Toast.success('Email sent successfully');
+      resetComposeForm();
+      btn.disabled = false;
+      btn.textContent = '';
+      var ic = document.createElement('i');
+      ic.className = 'ti ti-send me-1';
+      btn.appendChild(ic);
+      btn.appendChild(document.createTextNode('Send Email'));
+      loadInboundEmails();
+      bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-inbox')).show();
+    }).catch(function(err) {
+      btn.disabled = false;
+      btn.textContent = '';
+      var ic = document.createElement('i');
+      ic.className = 'ti ti-send me-1';
+      btn.appendChild(ic);
+      btn.appendChild(document.createTextNode('Send Email'));
+      Toast.error((err && err.detail) || 'Failed to send email');
+    });
+  });
+
+  document.getElementById('composeResetBtn').addEventListener('click', function() {
+    resetComposeForm();
+  });
+
+  function resetComposeForm() {
+    document.getElementById('agentEmailTo').value = '';
+    document.getElementById('agentEmailSubject').value = '';
+    document.getElementById('agentEmailBody').value = '';
+    var cc = document.getElementById('agentEmailCc');
+    if (cc) cc.value = '';
+    ticketSearchInput.value = '';
+    ticketSelected.classList.add('d-none');
+    clearTicketBtn.style.display = 'none';
+    document.getElementById('autoFillHint').classList.add('d-none');
+    selectedTicketId = null;
+    ticketIdField.value = '';
+  }
+
+  /* ════════════════════════════════════════
+     LINK TO TICKET MODAL
+     ════════════════════════════════════════ */
+
+  var linkModal = null;
+  var linkSearchDebounce = null;
+
+  function openLinkModal(emailId) {
+    document.getElementById('linkModalEmailId').value = emailId;
+    document.getElementById('linkTicketSearch').value = '';
+    document.getElementById('linkTicketResults').textContent = '';
+    if (!linkModal) linkModal = new bootstrap.Modal(document.getElementById('linkToTicketModal'));
+    linkModal.show();
+  }
+
+  document.getElementById('linkTicketSearch').addEventListener('input', function() {
+    var q = this.value.trim();
+    clearTimeout(linkSearchDebounce);
+    if (q.length < 2) { document.getElementById('linkTicketResults').textContent = ''; return; }
+    linkSearchDebounce = setTimeout(function() {
+      searchTickets(q, document.getElementById('linkTicketResults'), linkEmailToTicket);
+    }, 300);
+  });
+
+  function linkEmailToTicket(ticket) {
+    var emailId = document.getElementById('linkModalEmailId').value;
+    if (!emailId || !ticket.id) return;
+    Api.post('/api/v1/tickets/tickets/' + ticket.id + '/link-email/', { email_id: emailId }).then(function() {
+      Toast.success('Email linked to ticket #' + ticket.number);
+      if (linkModal) linkModal.hide();
+      loadInboundEmails();
+    }).catch(function() {
+      Toast.error('Failed to link email');
+    });
+  }
+
+  /* ════════════════════════════════════════
+     GLOBAL
+     ════════════════════════════════════════ */
+
+  document.getElementById('refreshAllBtn').addEventListener('click', function() {
     this.disabled = true;
     var self = this;
     loadAgents();
+    loadInboundEmails();
     setTimeout(function() { self.disabled = false; }, 1000);
   });
+
+  loadAgents();
+  loadInboundEmails();
+  setInterval(loadAgents, REFRESH_INTERVAL);
 })();
 </script>
 {% endblock %}

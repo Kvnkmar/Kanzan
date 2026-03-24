@@ -135,6 +135,12 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
             if "status_message" in request.data:
                 agent.status_message = request.data["status_message"] or ""
                 update_fields.append("status_message")
+            if "working_hours" in request.data:
+                agent.working_hours = request.data["working_hours"] or {}
+                update_fields.append("working_hours")
+            if "auto_away_outside_hours" in request.data:
+                agent.auto_away_outside_hours = bool(request.data["auto_away_outside_hours"])
+                update_fields.append("auto_away_outside_hours")
             agent.save(update_fields=update_fields)
 
         return Response(

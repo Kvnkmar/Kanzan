@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SaaS Ticketing CRM — Development Timeline</title>
+<style>
+  :root {
+    --bg: #1a1a2e;
+    --surface: #16213e;
+    --surface2: #0f3460;
+    --text: #e4e4e7;
+    --text-muted: #a1a1aa;
+    --border: #27273a;
+    --phase1: #f59e0b;
+    --phase2: #3b82f6;
+    --phase3: #ef4444;
+    --phase4: #8b5cf6;
+    --phase5: #10b981;
+    --phase6: #ec4899;
+    --milestone: #f59e0b;
+    --today: #ef4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .header {
+    padding: 24px 32px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .header h1 { font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .header-meta { color: var(--text-muted); font-size: 12px; margin-top: 4px; }
+  .header-right { text-align: right; font-size: 12px; color: var(--text-muted); }
+
+  .legend {
+    display: flex; gap: 16px; padding: 12px 32px;
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-muted); }
+  .legend-swatch { width: 12px; height: 12px; border-radius: 3px; }
+  .legend-milestone { width: 10px; height: 10px; background: var(--milestone); transform: rotate(45deg); }
+  .legend-today { width: 2px; height: 12px; background: var(--today); }
+
+  .gantt-wrapper { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 120px); }
+
+  .gantt-container { display: flex; }
+
+  .table-section {
+    flex-shrink: 0; width: 790px; position: sticky; left: 0;
+    z-index: 10; background: var(--bg); border-right: 2px solid var(--border);
+  }
+
+  .chart-section { flex-grow: 1; overflow: visible; position: relative; }
+
+  .table-header {
+    display: grid; grid-template-columns: 340px 90px 70px 80px 80px 50px 80px;
+    background: var(--surface); border-bottom: 2px solid var(--border);
+    position: sticky; top: 0; z-index: 15;
+    font-weight: 600; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.05em; color: var(--text-muted);
+  }
+  .table-header .gantt-cell { padding: 10px; border-right: 1px solid var(--border); }
+
+  .gantt-row {
+    display: grid; grid-template-columns: 340px 90px 70px 80px 80px 50px 80px;
+    align-items: center; min-height: 34px; border-bottom: 1px solid var(--border);
+  }
+  .gantt-row:hover { background: rgba(255,255,255,0.02); }
+
+  .gantt-row.phase-header {
+    background: var(--surface); min-height: 38px;
+    font-weight: 600; font-size: 13px; border-left: 3px solid;
+  }
+  .gantt-row.phase-header .task-name { padding-left: 12px; }
+
+  .gantt-row.milestone-row { min-height: 28px; background: rgba(245, 158, 11, 0.05); }
+
+  .gantt-cell { padding: 4px 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .task-name { padding-left: 28px; font-size: 12.5px; }
+  .assignee { color: var(--text-muted); font-size: 11px; }
+  .progress-cell { font-size: 11px; font-weight: 600; color: var(--text-muted); }
+  .dates { font-size: 11px; color: var(--text-muted); }
+  .days { font-size: 11px; color: var(--text-muted); text-align: center; }
+  .comment-cell { font-size: 11px; color: var(--text-muted); }
+
+  .chart-header {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--bg); border-bottom: 2px solid var(--border);
+  }
+  .month-row, .day-row { display: flex; }
+
+  .month-label {
+    text-align: center; font-weight: 600; font-size: 12px;
+    padding: 6px 0; border-right: 1px solid var(--border); color: var(--text);
+  }
+  .day-cell {
+    width: 22px; min-width: 22px; text-align: center; font-size: 9px;
+    padding: 2px 0; color: var(--text-muted);
+    border-right: 1px solid rgba(255,255,255,0.03); flex-shrink: 0;
+  }
+  .day-cell.weekend { background: rgba(255,255,255,0.02); color: rgba(255,255,255,0.15); }
+  .day-cell.day-num { font-size: 10px; padding: 3px 0; }
+
+  .bar-row {
+    position: relative; height: 34px;
+    border-bottom: 1px solid var(--border); display: flex; align-items: center;
+  }
+  .bar-row.phase-header-bar { height: 38px; background: var(--surface); }
+  .bar-row.milestone-bar-row { height: 28px; }
+
+  .gantt-bar {
+    position: absolute; height: 20px; border-radius: 4px; opacity: 0.85;
+    transition: opacity 0.15s; cursor: pointer;
+  }
+  .gantt-bar:hover { opacity: 1; z-index: 2; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  .gantt-bar.summary { height: 10px; border-radius: 5px; top: 14px; }
+
+  .milestone-diamond {
+    position: absolute; width: 12px; height: 12px; background: var(--milestone);
+    transform: rotate(45deg); top: 8px; box-shadow: 0 0 6px rgba(245, 158, 11, 0.5);
+  }
+
+  .today-line {
+    position: absolute; top: 0; width: 2px; background: var(--today);
+    z-index: 3; pointer-events: none;
+  }
+  .today-label {
+    position: absolute; top: 2px; font-size: 8px; font-weight: 700;
+    color: var(--today); letter-spacing: 0.05em; transform: translateX(-50%);
+  }
+
+  .milestones-summary {
+    padding: 20px 32px; border-top: 2px solid var(--border); background: var(--surface);
+  }
+  .milestones-summary h3 { font-size: 14px; margin-bottom: 12px; font-weight: 600; }
+  .milestones-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; }
+  .milestone-card {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    background: var(--bg); border-radius: 6px; border: 1px solid var(--border);
+  }
+  .milestone-card .diamond { width: 10px; height: 10px; background: var(--milestone); transform: rotate(45deg); flex-shrink: 0; }
+  .milestone-card .info { font-size: 12px; }
+  .milestone-card .m-date { color: var(--milestone); font-weight: 600; font-size: 11px; }
+  .milestone-card .m-label { color: var(--text-muted); }
+
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3f3f5a; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div>
+    <h1>SaaS Ticketing CRM — Development Timeline</h1>
+    <div class="header-meta">Project lead: Kavin &nbsp;|&nbsp; Mar 24 – Jul 4, 2026 &nbsp;|&nbsp; 15 weeks &nbsp;|&nbsp; 103 days</div>
+  </div>
+  <div class="header-right">
+    <div>Project start: <strong>24 Mar 2026</strong></div>
+  </div>
+</div>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--phase1)"></div> Phase 1: Core Completion</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--phase2)"></div> Phase 2: Testing</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--phase3)"></div> Phase 3: Security</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--phase4)"></div> Phase 4: Infrastructure</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--phase5)"></div> Phase 5: Monitoring</div>
+  <div class="legend-item"><div class="legend-swatch" style="background:var(--phase6)"></div> Phase 6: Launch</div>
+  <div class="legend-item"><div class="legend-milestone"></div> Milestone</div>
+  <div class="legend-item"><div class="legend-today"></div> Today</div>
+</div>
+
+<div class="gantt-wrapper" id="ganttWrapper">
+  <div class="gantt-container" id="ganttContainer">
+    <!-- Table and chart rendered by JS -->
+  </div>
+</div>
+
+<div class="milestones-summary">
+  <h3>Key Milestones</h3>
+  <div class="milestones-grid">
+    <div class="milestone-card"><div class="diamond"></div><div class="info"><div class="m-date">Apr 4</div><div class="m-label">Core features complete</div></div></div>
+    <div class="milestone-card"><div class="diamond"></div><div class="info"><div class="m-date">May 2</div><div class="m-label">Full test coverage</div></div></div>
+    <div class="milestone-card"><div class="diamond"></div><div class="info"><div class="m-date">May 16</div><div class="m-label">Security audit passed</div></div></div>
+    <div class="milestone-card"><div class="diamond"></div><div class="info"><div class="m-date">Jun 6</div><div class="m-label">Production infrastructure ready</div></div></div>
+    <div class="milestone-card"><div class="diamond"></div><div class="info"><div class="m-date">Jun 20</div><div class="m-label">Performance optimized & monitored</div></div></div>
+    <div class="milestone-card"><div class="diamond"></div><div class="info"><div class="m-date">Jul 4</div><div class="m-label">Production launch</div></div></div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const DAY_W = 22;
+  const P_START = new Date(2026, 2, 24);
+  const P_END = new Date(2026, 6, 5);
+
+  const PHASES = [
+    { name: 'Phase 1: Core Completion', color: '#f59e0b', start: '2026-03-24', end: '2026-04-04',
+      milestone: { date: '2026-04-04', label: 'Core features complete' },
+      tasks: [
+        { name: 'Finish notification email templates', start: '2026-03-24', end: '2026-04-04' },
+        { name: 'Complete Notes app full CRUD page', start: '2026-03-24', end: '2026-04-04' },
+        { name: 'Polish Canned Responses & Saved Views UI', start: '2026-03-24', end: '2026-04-04' },
+        { name: 'Verify SLA escalation execution', start: '2026-03-24', end: '2026-04-04' },
+        { name: 'Enforce storage quota on file uploads', start: '2026-03-24', end: '2026-04-04' },
+        { name: 'Complete inbound email attachment handling', start: '2026-03-24', end: '2026-04-04' },
+        { name: 'Fix missing knowledge base search/filtering UI', start: '2026-03-24', end: '2026-04-04' },
+      ]
+    },
+    { name: 'Phase 2: Testing', color: '#3b82f6', start: '2026-04-07', end: '2026-05-02',
+      milestone: { date: '2026-05-02', label: 'Full test coverage' },
+      tasks: [
+        { name: 'Set up test infrastructure (pytest-django, fixtures, factories)', start: '2026-04-07', end: '2026-05-02' },
+        { name: 'Unit tests — Models & services (all 16 apps)', start: '2026-04-07', end: '2026-05-02' },
+        { name: 'API integration tests — All 50+ endpoints', start: '2026-04-07', end: '2026-05-02' },
+        { name: 'Permission & RBAC tests — Role hierarchy enforcement', start: '2026-04-07', end: '2026-05-02' },
+        { name: 'Multi-tenancy isolation tests — Cross-tenant data leakage prevention', start: '2026-04-07', end: '2026-05-02' },
+        { name: 'Billing & plan limit tests — Stripe webhook handling', start: '2026-04-07', end: '2026-05-02' },
+        { name: 'WebSocket tests — Messaging & notification consumers', start: '2026-04-07', end: '2026-05-02' },
+        { name: 'Signal & Celery task tests', start: '2026-04-07', end: '2026-05-02' },
+      ]
+    },
+    { name: 'Phase 3: Security & Hardening', color: '#ef4444', start: '2026-05-05', end: '2026-05-16',
+      milestone: { date: '2026-05-16', label: 'Security audit passed' },
+      tasks: [
+        { name: 'XSS sanitization on rich text inputs', start: '2026-05-05', end: '2026-05-16' },
+        { name: 'Rate limiting per endpoint', start: '2026-05-05', end: '2026-05-16' },
+        { name: 'Audit logging on data exports', start: '2026-05-05', end: '2026-05-16' },
+        { name: 'Input validation review (OWASP Top 10)', start: '2026-05-05', end: '2026-05-16' },
+        { name: 'CSRF & session security review', start: '2026-05-05', end: '2026-05-16' },
+        { name: 'File upload malware scanning', start: '2026-05-05', end: '2026-05-16' },
+        { name: 'GDPR/data privacy compliance review', start: '2026-05-05', end: '2026-05-16' },
+      ]
+    },
+    { name: 'Phase 4: Production Infrastructure', color: '#8b5cf6', start: '2026-05-19', end: '2026-06-06',
+      milestone: { date: '2026-06-06', label: 'Production infrastructure ready' },
+      tasks: [
+        { name: 'Nginx reverse proxy configuration', start: '2026-05-19', end: '2026-06-06' },
+        { name: 'Docker & Docker Compose setup', start: '2026-05-19', end: '2026-06-06' },
+        { name: 'HTTPS/SSL enforcement', start: '2026-05-19', end: '2026-06-06' },
+        { name: 'PostgreSQL production setup & migration', start: '2026-05-19', end: '2026-06-06' },
+        { name: 'Redis production configuration', start: '2026-05-19', end: '2026-06-06' },
+        { name: 'Database backup & disaster recovery strategy', start: '2026-05-19', end: '2026-06-06' },
+        { name: 'Health check endpoints', start: '2026-05-19', end: '2026-06-06' },
+        { name: 'CI/CD pipeline (GitHub Actions)', start: '2026-05-19', end: '2026-06-06' },
+      ]
+    },
+    { name: 'Phase 5: Monitoring & Performance', color: '#10b981', start: '2026-06-09', end: '2026-06-20',
+      milestone: { date: '2026-06-20', label: 'Performance optimized & monitored' },
+      tasks: [
+        { name: 'Error monitoring (Sentry integration)', start: '2026-06-09', end: '2026-06-20' },
+        { name: 'Application performance monitoring (APM)', start: '2026-06-09', end: '2026-06-20' },
+        { name: 'Structured logging & log aggregation', start: '2026-06-09', end: '2026-06-20' },
+        { name: 'Database query optimization', start: '2026-06-09', end: '2026-06-20' },
+        { name: 'Caching strategy (Redis cache headers)', start: '2026-06-09', end: '2026-06-20' },
+        { name: 'Load testing & stress testing', start: '2026-06-09', end: '2026-06-20' },
+      ]
+    },
+    { name: 'Phase 6: Final Polish & Launch', color: '#ec4899', start: '2026-06-23', end: '2026-07-04',
+      milestone: { date: '2026-07-04', label: 'Production launch' },
+      tasks: [
+        { name: '2FA/MFA implementation', start: '2026-06-23', end: '2026-07-04' },
+        { name: 'Contact import/export', start: '2026-06-23', end: '2026-07-04' },
+        { name: 'Scheduled report delivery', start: '2026-06-23', end: '2026-07-04' },
+        { name: 'User acceptance testing (UAT)', start: '2026-06-23', end: '2026-07-04' },
+        { name: 'Bug fixes from UAT', start: '2026-06-23', end: '2026-07-04' },
+        { name: 'Production deployment', start: '2026-06-23', end: '2026-07-04' },
+        { name: 'Post-launch monitoring', start: '2026-06-23', end: '2026-07-04' },
+      ]
+    }
+  ];
+
+  function pd(s) { const p = s.split('-').map(Number); return new Date(p[0], p[1]-1, p[2]); }
+  function diffD(a, b) { return Math.round((b - a) / 864e5); }
+  function fmtD(s) {
+    const d = pd(s);
+    const day = String(d.getDate()).padStart(2, '0');
+    return day + ' ' + ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()];
+  }
+  function dayOff(s) { return diffD(P_START, pd(s)); }
+  function esc(s) { const el = document.createElement('span'); el.textContent = s; return el.innerHTML; }
+
+  const container = document.getElementById('ganttContainer');
+  const totalDays = diffD(P_START, P_END);
+
+  // --- Build table ---
+  const tableSec = document.createElement('div');
+  tableSec.className = 'table-section';
+
+  const tHeader = document.createElement('div');
+  tHeader.className = 'table-header';
+  ['Task','Assigned To','Progress','Start','End','Days','Comment'].forEach(function(t) {
+    const c = document.createElement('div');
+    c.className = 'gantt-cell';
+    c.textContent = t;
+    tHeader.appendChild(c);
+  });
+  tableSec.appendChild(tHeader);
+
+  // --- Build chart ---
+  const chartSec = document.createElement('div');
+  chartSec.className = 'chart-section';
+
+  const chartHeader = document.createElement('div');
+  chartHeader.className = 'chart-header';
+
+  // Months
+  const monthRow = document.createElement('div');
+  monthRow.className = 'month-row';
+  const cur = new Date(P_START);
+  while (cur < P_END) {
+    const mStart = new Date(cur);
+    const mEnd = new Date(cur.getFullYear(), cur.getMonth() + 1, 0);
+    const endCap = mEnd > P_END ? P_END : mEnd;
+    const s = Math.max(0, diffD(P_START, mStart));
+    const e = Math.min(totalDays, diffD(P_START, endCap) + 1);
+    const n = e - s;
+    const mNames = ["Jan '26","Feb '26","Mar '26","Apr '26","May '26","Jun '26","Jul '26"];
+    const ml = document.createElement('div');
+    ml.className = 'month-label';
+    ml.style.width = (n * DAY_W) + 'px';
+    ml.textContent = mNames[cur.getMonth()];
+    monthRow.appendChild(ml);
+    cur.setMonth(cur.getMonth() + 1);
+    cur.setDate(1);
+  }
+  chartHeader.appendChild(monthRow);
+
+  // Day numbers + day letters
+  const dayNumRow = document.createElement('div');
+  dayNumRow.className = 'day-row';
+  const dayLetRow = document.createElement('div');
+  dayLetRow.className = 'day-row';
+  const dayNames = ['S','M','T','W','T','F','S'];
+
+  for (let i = 0; i < totalDays; i++) {
+    const d = new Date(P_START.getTime() + i * 864e5);
+    const we = (d.getDay() === 0 || d.getDay() === 6);
+
+    const numC = document.createElement('div');
+    numC.className = 'day-cell day-num' + (we ? ' weekend' : '');
+    numC.textContent = d.getDate();
+    dayNumRow.appendChild(numC);
+
+    const letC = document.createElement('div');
+    letC.className = 'day-cell' + (we ? ' weekend' : '');
+    letC.textContent = dayNames[d.getDay()];
+    dayLetRow.appendChild(letC);
+  }
+  chartHeader.appendChild(dayNumRow);
+  chartHeader.appendChild(dayLetRow);
+  chartSec.appendChild(chartHeader);
+
+  // --- Build rows ---
+  function addTableRow(opts) {
+    const row = document.createElement('div');
+    row.className = 'gantt-row' + (opts.cls ? ' ' + opts.cls : '');
+    if (opts.borderColor) row.style.borderLeftColor = opts.borderColor;
+
+    const cells = [
+      { text: opts.name, cls: 'gantt-cell task-name', style: opts.nameStyle },
+      { text: opts.assignee || '', cls: 'gantt-cell assignee' },
+      { text: opts.progress || '', cls: 'gantt-cell progress-cell' },
+      { text: opts.start || '', cls: 'gantt-cell dates', style: opts.dateStyle },
+      { text: opts.end || '', cls: 'gantt-cell dates' },
+      { text: opts.days || '', cls: 'gantt-cell days' },
+      { text: opts.comment || '', cls: 'gantt-cell comment-cell' }
+    ];
+
+    cells.forEach(function(c) {
+      const el = document.createElement('div');
+      el.className = c.cls;
+      if (c.style) Object.assign(el.style, c.style);
+      el.textContent = c.text;
+      row.appendChild(el);
+    });
+
+    tableSec.appendChild(row);
+  }
+
+  function addBarRow(opts) {
+    const row = document.createElement('div');
+    row.className = 'bar-row' + (opts.cls ? ' ' + opts.cls : '');
+
+    if (opts.type === 'bar') {
+      const bar = document.createElement('div');
+      bar.className = 'gantt-bar' + (opts.summary ? ' summary' : '');
+      bar.style.left = (opts.left * DAY_W) + 'px';
+      bar.style.width = (opts.width * DAY_W) + 'px';
+      bar.style.background = opts.color;
+      bar.title = opts.title || '';
+      row.appendChild(bar);
+    } else if (opts.type === 'milestone') {
+      const dm = document.createElement('div');
+      dm.className = 'milestone-diamond';
+      dm.style.left = (opts.left * DAY_W + DAY_W / 2 - 6) + 'px';
+      row.appendChild(dm);
+    }
+
+    chartSec.appendChild(row);
+  }
+
+  PHASES.forEach(function(phase) {
+    const ps = dayOff(phase.start);
+    const pe = dayOff(phase.end);
+    const pd = pe - ps + 1;
+
+    // Phase header
+    addTableRow({ name: phase.name, cls: 'phase-header', borderColor: phase.color, start: fmtD(phase.start), end: fmtD(phase.end), days: String(pd), nameStyle: { paddingLeft: '12px' } });
+    addBarRow({ cls: 'phase-header-bar', type: 'bar', left: ps, width: pd, color: phase.color, summary: true });
+
+    // Tasks
+    phase.tasks.forEach(function(task) {
+      const ts = dayOff(task.start);
+      const te = dayOff(task.end);
+      const td = te - ts + 1;
+      addTableRow({ name: task.name, assignee: 'Kavin', progress: '0%', start: fmtD(task.start), end: fmtD(task.end), days: String(td), comment: '-' });
+      addBarRow({ type: 'bar', left: ts, width: td, color: phase.color, title: task.name });
+    });
+
+    // Milestone
+    if (phase.milestone) {
+      const mo = dayOff(phase.milestone.date);
+      addTableRow({
+        name: '\u25C6 Milestone: ' + phase.milestone.label,
+        cls: 'milestone-row',
+        start: fmtD(phase.milestone.date),
+        nameStyle: { paddingLeft: '20px', color: '#f59e0b', fontWeight: '600' },
+        dateStyle: { color: '#f59e0b' }
+      });
+      addBarRow({ cls: 'milestone-bar-row', type: 'milestone', left: mo });
+    }
+  });
+
+  // Today line
+  const today = new Date();
+  const todayOff = diffD(P_START, today);
+  if (todayOff >= 0 && todayOff < totalDays) {
+    const tl = document.createElement('div');
+    tl.className = 'today-line';
+    tl.style.left = (todayOff * DAY_W + DAY_W / 2) + 'px';
+    tl.style.height = chartSec.scrollHeight + 'px';
+
+    const label = document.createElement('div');
+    label.className = 'today-label';
+    label.textContent = 'TODAY';
+    label.style.left = (todayOff * DAY_W + DAY_W / 2) + 'px';
+    label.style.top = '2px';
+    label.style.position = 'absolute';
+
+    chartSec.appendChild(tl);
+    chartSec.appendChild(label);
+  }
+
+  container.appendChild(tableSec);
+  container.appendChild(chartSec);
+
+  // Fix today line height after render
+  requestAnimationFrame(function() {
+    const tl = chartSec.querySelector('.today-line');
+    if (tl) tl.style.height = chartSec.scrollHeight + 'px';
+  });
+})();
+</script>
+</body>
+</html>

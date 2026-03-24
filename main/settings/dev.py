@@ -3,9 +3,8 @@ DEBUG = True
 # In dev, allow all localhost variants
 ALLOWED_HOSTS = ["*"]
 
-# Use console email backend
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
-DEFAULT_FROM_EMAIL = "noreply@kanzan.local"
+# Email backend is configured via .env / base.py
+# Set EMAIL_BACKEND in .env to override (filebased saves to tmp/emails/)
 
 # Disable whitenoise compression in dev
 STORAGES = {

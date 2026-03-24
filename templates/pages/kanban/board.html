@@ -63,38 +63,27 @@
 
 <!-- Card Detail Modal -->
 <div class="modal fade" id="cardDetailModal" tabindex="-1" aria-labelledby="cardDetailModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title fw-semibold" id="cardDetailModalLabel">Ticket Details</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <h6 id="cardDetailSubject" class="mb-3 fw-semibold"></h6>
-        <div class="property-list">
-          <div class="property-item">
-            <label class="property-label">Status</label>
-            <span id="cardDetailStatus"></span>
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px;">
+    <div class="modal-content event-detail-modal">
+      <div class="modal-body p-0">
+        <div class="event-detail-header">
+          <div class="d-flex align-items-start justify-content-between gap-2">
+            <h6 class="mb-0 fw-bold" id="cardDetailModalLabel" style="font-size:1.0625rem;line-height:1.4;color:var(--crm-text);">Ticket Details</h6>
+            <button type="button" class="btn-close btn-close-sm" data-bs-dismiss="modal" aria-label="Close" style="margin:-2px -4px 0 0;"></button>
           </div>
-          <div class="property-item">
-            <label class="property-label">Priority</label>
-            <span id="cardDetailPriority"></span>
-          </div>
-          <div class="property-item">
-            <label class="property-label">Assignee</label>
-            <span id="cardDetailAssignee" class="property-value"></span>
-          </div>
-          <div class="property-item">
-            <label class="property-label">Number</label>
-            <span id="cardDetailNumber" class="property-value"></span>
-          </div>
+          <div id="cardDetailBadges" class="d-flex align-items-center flex-wrap gap-2 mt-2"></div>
         </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
-        <a id="cardDetailLink" href="#" class="btn btn-primary btn-sm">
-          <i class="ti ti-external-link me-1"></i>View Ticket
-        </a>
+        <div class="event-detail-body">
+          <div id="cardDetailSubject" class="fw-semibold mb-3" style="font-size:0.9375rem;color:var(--crm-text);display:none;"></div>
+          <div id="cardDetailDescription" class="event-detail-desc" style="display:none;"></div>
+          <div class="event-detail-info" id="cardDetailInfo"></div>
+        </div>
+        <div class="event-detail-footer">
+          <button type="button" class="btn btn-sm btn-ghost" data-bs-dismiss="modal" style="color:var(--crm-text-muted);">Close</button>
+          <a id="cardDetailLink" href="#" class="btn btn-sm btn-primary" style="padding:0.4rem 1rem;border-radius:8px;">
+            <i class="ti ti-arrow-right me-1"></i>View Ticket
+          </a>
+        </div>
       </div>
     </div>
   </div>
@@ -391,19 +380,82 @@
     return card;
   }
 
+  function escapeAttr(str) { var d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+
   function showCardDetail(ticket) {
-    document.getElementById('cardDetailSubject').textContent = ticket.subject || 'Untitled';
+    var titleEl = document.getElementById('cardDetailModalLabel');
+    var badgesEl = document.getElementById('cardDetailBadges');
+    var descEl = document.getElementById('cardDetailDescription');
+    var infoEl = document.getElementById('cardDetailInfo');
 
-    var stLabel = ticket.status ? ticket.status.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); }) : '--';
-    document.getElementById('cardDetailStatus').innerHTML = '<span class="badge bg-primary-subtle text-primary">' + stLabel + '</span>';
+    // Title with ticket number
+    var numberText = ticket.number ? '#' + ticket.number : '';
+    titleEl.textContent = numberText + ' ' + (ticket.subject || 'Untitled');
 
-    var prLabel = ticket.priority ? ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) : '--';
-    document.getElementById('cardDetailPriority').innerHTML = '<span class="badge badge-priority-' + (ticket.priority || 'low') + '">' + prLabel + '</span>';
+    // Build badges using DOM methods
+    badgesEl.textContent = '';
+    if (ticket.status) {
+      var stLabel = ticket.status.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+      var stBadge = document.createElement('span');
+      stBadge.className = 'badge event-detail-badge';
+      stBadge.style.backgroundColor = ticket.status_color || '#94A3B8';
+      stBadge.textContent = stLabel;
+      badgesEl.appendChild(stBadge);
+    }
+    if (ticket.priority) {
+      var priColors = { urgent: '#EF4444', high: '#F59E0B', medium: '#3B82F6', low: '#64748B' };
+      var prBadge = document.createElement('span');
+      prBadge.className = 'badge event-detail-badge';
+      prBadge.style.backgroundColor = priColors[ticket.priority] || '#64748B';
+      prBadge.textContent = ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1);
+      badgesEl.appendChild(prBadge);
+    }
+
+    // Description
+    if (ticket.description) {
+      var desc = ticket.description.length > 200 ? ticket.description.substring(0, 200) + '\u2026' : ticket.description;
+      descEl.textContent = desc;
+      descEl.style.display = '';
+    } else {
+      descEl.style.display = 'none';
+    }
+
+    // Info rows via DOM methods
+    infoEl.textContent = '';
+    function addInfoRow(icon, label, value) {
+      var row = document.createElement('div');
+      row.className = 'event-detail-row';
+
+      var labelDiv = document.createElement('div');
+      labelDiv.className = 'event-detail-row-label';
+      var iconEl = document.createElement('i');
+      iconEl.className = 'ti ti-' + icon;
+      var labelSpan = document.createElement('span');
+      labelSpan.textContent = label;
+      labelDiv.appendChild(iconEl);
+      labelDiv.appendChild(labelSpan);
+
+      var valueSpan = document.createElement('span');
+      valueSpan.className = 'event-detail-row-value';
+      valueSpan.textContent = value;
+
+      row.appendChild(labelDiv);
+      row.appendChild(valueSpan);
+      infoEl.appendChild(row);
+    }
 
     var assigneeName = getAssigneeName(ticket) || 'Unassigned';
-    document.getElementById('cardDetailAssignee').textContent = assigneeName;
-
-    document.getElementById('cardDetailNumber').textContent = ticket.number ? '#' + ticket.number : '--';
+    addInfoRow('user', 'Assignee', assigneeName);
+    if (ticket.contact_name) {
+      addInfoRow('address-book', 'Contact', ticket.contact_name);
+    }
+    if (ticket.queue_name) {
+      addInfoRow('inbox', 'Queue', ticket.queue_name);
+    }
+    if (ticket.created_at) {
+      var created = new Date(ticket.created_at);
+      addInfoRow('calendar-plus', 'Created', created.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }));
+    }
 
     var detailLink = document.getElementById('cardDetailLink');
     if (ticket.number) {

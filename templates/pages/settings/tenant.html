@@ -72,6 +72,27 @@
             <span class="st-nav-hint">Quick reply templates</span>
           </div>
         </a>
+        <a href="javascript:void(0)" class="st-nav-item" id="nav_availabilityPane" onclick="switchSettingsTab('availabilityPane')">
+          <div class="st-nav-icon"><i class="ti ti-clock-check"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Availability & Status</span>
+            <span class="st-nav-hint">Online status &amp; hours</span>
+          </div>
+        </a>
+        <a href="javascript:void(0)" class="st-nav-item" id="nav_themePane" onclick="switchSettingsTab('themePane')">
+          <div class="st-nav-icon"><i class="ti ti-sun-moon"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Theme & Appearance</span>
+            <span class="st-nav-hint">Display preferences</span>
+          </div>
+        </a>
+        <a href="javascript:void(0)" class="st-nav-item" id="nav_languagePane" onclick="switchSettingsTab('languagePane')">
+          <div class="st-nav-icon"><i class="ti ti-language"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Language & Timezone</span>
+            <span class="st-nav-hint">Regional settings</span>
+          </div>
+        </a>
       </div>
 
       <div class="st-nav-group">
@@ -90,6 +111,24 @@
           <div class="st-nav-text">
             <span class="st-nav-name">Knowledge Base</span>
             <span class="st-nav-hint">Articles &amp; resources</span>
+          </div>
+        </a>
+        <a href="javascript:void(0)" class="st-nav-item" id="nav_signaturePane" onclick="switchSettingsTab('signaturePane')">
+          <div class="st-nav-icon"><i class="ti ti-signature"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Email Signature</span>
+            <span class="st-nav-hint">Reply signature</span>
+          </div>
+        </a>
+      </div>
+
+      <div class="st-nav-group">
+        <div class="st-nav-label">Security</div>
+        <a href="javascript:void(0)" class="st-nav-item" id="nav_passwordPane" onclick="switchSettingsTab('passwordPane')">
+          <div class="st-nav-icon"><i class="ti ti-lock"></i></div>
+          <div class="st-nav-text">
+            <span class="st-nav-name">Password & Login</span>
+            <span class="st-nav-hint">Change password</span>
           </div>
         </a>
       </div>
@@ -499,6 +538,276 @@
         </div>
       </div>
 
+      <!-- Availability & Status -->
+      <div class="settings-pane" id="availabilityPane" style="display:none">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-clock-check"></i></div>
+            <div>
+              <h3 class="st-section-title">Availability & Status</h3>
+              <p class="st-section-desc">Set your online status and working hours</p>
+            </div>
+          </div>
+          <!-- Status Selection -->
+          <div class="st-form-group">
+            <label class="st-label">Current Status</label>
+            <div class="st-segmented-control" id="statusSegmented">
+              <button type="button" class="st-seg-btn active" data-value="online">
+                <span class="st-seg-dot st-seg-dot--online"></span> Online
+              </button>
+              <button type="button" class="st-seg-btn" data-value="away">
+                <span class="st-seg-dot st-seg-dot--away"></span> Away
+              </button>
+              <button type="button" class="st-seg-btn" data-value="busy">
+                <span class="st-seg-dot st-seg-dot--busy"></span> Busy
+              </button>
+              <button type="button" class="st-seg-btn" data-value="offline">
+                <span class="st-seg-dot st-seg-dot--offline"></span> Offline
+              </button>
+            </div>
+          </div>
+          <div class="st-form-group">
+            <label for="statusMessage" class="st-label">Status Message</label>
+            <input type="text" class="form-control" id="statusMessage" placeholder="e.g. In a meeting until 3pm" maxlength="60">
+            <div class="form-text">Visible to teammates. Max 60 characters.</div>
+          </div>
+          <div class="st-divider"></div>
+          <!-- Working Hours -->
+          <div class="st-form-group">
+            <label class="st-label">Working Hours</label>
+            <div class="form-text mb-3">Set your availability window for each day of the week.</div>
+            <div id="workingHoursGrid">
+              <div class="st-wh-row" data-day="mon"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whMon" checked><label class="form-check-label" for="whMon">Mon</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00"><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00"></div>
+              <div class="st-wh-row" data-day="tue"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whTue" checked><label class="form-check-label" for="whTue">Tue</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00"><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00"></div>
+              <div class="st-wh-row" data-day="wed"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whWed" checked><label class="form-check-label" for="whWed">Wed</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00"><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00"></div>
+              <div class="st-wh-row" data-day="thu"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whThu" checked><label class="form-check-label" for="whThu">Thu</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00"><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00"></div>
+              <div class="st-wh-row" data-day="fri"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whFri" checked><label class="form-check-label" for="whFri">Fri</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00"><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00"></div>
+              <div class="st-wh-row" data-day="sat"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whSat"><label class="form-check-label" for="whSat">Sat</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00" disabled><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00" disabled></div>
+              <div class="st-wh-row" data-day="sun"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whSun"><label class="form-check-label" for="whSun">Sun</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00" disabled><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00" disabled></div>
+            </div>
+          </div>
+          <div class="st-toggle-list mt-3">
+            <div class="st-toggle-item">
+              <div class="st-toggle-icon"><i class="ti ti-moon"></i></div>
+              <div class="st-toggle-info">
+                <span class="st-toggle-label">Auto-set away outside working hours</span>
+                <span class="st-toggle-desc">Your status changes to away when outside your configured schedule.</span>
+              </div>
+              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="autoAwayToggle"></div>
+            </div>
+          </div>
+          <div class="st-form-actions">
+            <button type="button" class="btn btn-primary" id="saveAvailabilityBtn">
+              <span class="spinner-border spinner-border-sm d-none me-1" id="availabilitySpinner"></span>
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Theme & Appearance -->
+      <div class="settings-pane" id="themePane" style="display:none">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-sun-moon"></i></div>
+            <div>
+              <h3 class="st-section-title">Theme & Appearance</h3>
+              <p class="st-section-desc">Customize how the interface looks and feels</p>
+            </div>
+          </div>
+          <div class="st-form-group">
+            <label class="st-label">Color Mode</label>
+            <div class="st-segmented-control" id="themeSegmented">
+              <button type="button" class="st-seg-btn" data-value="light">
+                <i class="ti ti-sun me-1"></i> Light
+              </button>
+              <button type="button" class="st-seg-btn" data-value="dark">
+                <i class="ti ti-moon me-1"></i> Dark
+              </button>
+              <button type="button" class="st-seg-btn active" data-value="system">
+                <i class="ti ti-device-laptop me-1"></i> System
+              </button>
+            </div>
+          </div>
+          <div class="st-toggle-list">
+            <div class="st-toggle-item">
+              <div class="st-toggle-icon"><i class="ti ti-layout-sidebar-left-collapse"></i></div>
+              <div class="st-toggle-info">
+                <span class="st-toggle-label">Sidebar default collapsed</span>
+                <span class="st-toggle-desc">Start with the sidebar minimized on page load.</span>
+              </div>
+              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="sidebarCollapsedToggle"></div>
+            </div>
+          </div>
+          <div class="st-form-group mt-3">
+            <label class="st-label">List Density</label>
+            <div class="st-segmented-control" id="densitySegmented">
+              <button type="button" class="st-seg-btn active" data-value="comfortable">
+                <i class="ti ti-layout-rows me-1"></i> Comfortable
+              </button>
+              <button type="button" class="st-seg-btn" data-value="compact">
+                <i class="ti ti-layout-list me-1"></i> Compact
+              </button>
+            </div>
+          </div>
+          <div class="st-form-actions">
+            <button type="button" class="btn btn-primary" id="saveThemeBtn">
+              <span class="spinner-border spinner-border-sm d-none me-1" id="themeSpinner"></span>
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Language & Timezone -->
+      <div class="settings-pane" id="languagePane" style="display:none">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-language"></i></div>
+            <div>
+              <h3 class="st-section-title">Language & Timezone</h3>
+              <p class="st-section-desc">Set your regional and time preferences</p>
+            </div>
+          </div>
+          <div class="st-form-group">
+            <label for="prefLanguage" class="st-label">Language</label>
+            <select class="form-select" id="prefLanguage">
+              <option value="en">English</option>
+              <option value="ms">Malay (Bahasa Melayu)</option>
+              <option value="zh">Chinese (Simplified)</option>
+              <option value="es">Spanish</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="ja">Japanese</option>
+            </select>
+          </div>
+          <div class="st-form-group">
+            <label for="prefTimezone" class="st-label">Timezone</label>
+            <select class="form-select" id="prefTimezone">
+              <option value="UTC">UTC</option>
+            </select>
+            <div class="form-text">Your current local time will be displayed based on this setting.</div>
+          </div>
+          <div class="st-form-row">
+            <div class="st-form-group">
+              <label for="prefDateFormat" class="st-label">Date Format</label>
+              <select class="form-select" id="prefDateFormat">
+                <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+              </select>
+            </div>
+            <div class="st-form-group">
+              <label class="st-label">Time Format</label>
+              <div class="st-segmented-control" id="timeFormatSegmented">
+                <button type="button" class="st-seg-btn" data-value="12h">12-hour</button>
+                <button type="button" class="st-seg-btn active" data-value="24h">24-hour</button>
+              </div>
+            </div>
+          </div>
+          <div class="st-form-actions">
+            <button type="button" class="btn btn-primary" id="saveLanguageBtn">
+              <span class="spinner-border spinner-border-sm d-none me-1" id="languageSpinner"></span>
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Email Signature -->
+      <div class="settings-pane" id="signaturePane" style="display:none">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-signature"></i></div>
+            <div>
+              <h3 class="st-section-title">Email Signature</h3>
+              <p class="st-section-desc">Customize the signature appended to your ticket replies</p>
+            </div>
+          </div>
+          <div class="st-form-group">
+            <label class="st-label">Insert Variable</label>
+            <div class="d-flex gap-2 flex-wrap">
+              <button type="button" class="btn btn-sm btn-outline-secondary st-var-btn" data-var="{{agent_name}}">{% verbatim %}{{agent_name}}{% endverbatim %}</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary st-var-btn" data-var="{{role}}">{% verbatim %}{{role}}{% endverbatim %}</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary st-var-btn" data-var="{{tenant_name}}">{% verbatim %}{{tenant_name}}{% endverbatim %}</button>
+            </div>
+          </div>
+          <div class="st-form-row" style="align-items:stretch;">
+            <div class="st-form-group flex-grow-1">
+              <label for="signatureEditor" class="st-label">Signature</label>
+              <textarea class="form-control" id="signatureEditor" rows="8" placeholder="Best regards,&#10;{{agent_name}}&#10;{{role}} at {{tenant_name}}"></textarea>
+            </div>
+            <div class="st-form-group flex-grow-1">
+              <label class="st-label">Preview</label>
+              <div class="st-signature-preview" id="signaturePreview">
+                <p class="text-muted fst-italic small">Your signature preview will appear here...</p>
+              </div>
+            </div>
+          </div>
+          <div class="st-form-actions">
+            <button type="button" class="btn btn-primary" id="saveSignatureBtn">
+              <span class="spinner-border spinner-border-sm d-none me-1" id="signatureSpinner"></span>
+              Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Password & Login -->
+      <div class="settings-pane" id="passwordPane" style="display:none">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-lock"></i></div>
+            <div>
+              <h3 class="st-section-title">Password & Login</h3>
+              <p class="st-section-desc">Manage your password and connected accounts</p>
+            </div>
+          </div>
+          <form id="changePasswordForm">
+            <h6 class="fw-semibold mb-3 d-flex align-items-center gap-2"><i class="ti ti-key" style="color:var(--crm-primary);"></i> Change Password</h6>
+            <div class="st-form-group">
+              <label for="currentPassword" class="st-label">Current Password</label>
+              <input type="password" class="form-control" id="currentPassword" autocomplete="current-password">
+            </div>
+            <div class="st-form-row">
+              <div class="st-form-group">
+                <label for="newPassword" class="st-label">New Password</label>
+                <input type="password" class="form-control" id="newPassword" autocomplete="new-password" minlength="8">
+                <div class="form-text">Minimum 8 characters.</div>
+              </div>
+              <div class="st-form-group">
+                <label for="confirmPassword" class="st-label">Confirm New Password</label>
+                <input type="password" class="form-control" id="confirmPassword" autocomplete="new-password">
+              </div>
+            </div>
+            <div class="st-form-actions">
+              <button type="submit" class="btn btn-primary">
+                <span class="spinner-border spinner-border-sm d-none me-1" id="passwordSpinner"></span>
+                Update Password
+              </button>
+            </div>
+          </form>
+          <div class="st-divider mt-4"></div>
+          <div class="mt-4">
+            <h6 class="fw-semibold mb-3 d-flex align-items-center gap-2"><i class="ti ti-info-circle" style="color:var(--crm-primary);"></i> Login Information</h6>
+            <div class="st-info-card">
+              <div class="st-info-row">
+                <span class="st-info-label">Last Login</span>
+                <span class="st-info-value" id="lastLoginTime">—</span>
+              </div>
+              <div class="st-info-row">
+                <span class="st-info-label">Account Email</span>
+                <span class="st-info-value">{{ user.email }}</span>
+              </div>
+              <div class="st-info-row">
+                <span class="st-info-label">Member Since</span>
+                <span class="st-info-value" id="memberSince">—</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {% if is_admin_or_manager %}
       <!-- Ticket Categories -->
       <div class="settings-pane" id="categoriesPane" style="display:none">
@@ -885,9 +1194,11 @@
 var _settingsPaneIds = [
   {% if is_admin %}'generalPane', 'businessHoursPane', 'authPane', 'brandingPane',{% endif %}
   'notificationsPane',
+  'availabilityPane', 'themePane', 'languagePane',
   {% if is_admin_or_manager %}'categoriesPane',{% endif %}
   'cannedResponsesPane',
-  'knowledgeBasePane'
+  'knowledgeBasePane',
+  'signaturePane', 'passwordPane'
   {% if is_admin %},'dataPane'{% endif %}
 ];
 function switchSettingsTab(targetId) {
@@ -1896,4 +2207,328 @@ function switchSettingsTab(targetId) {
 })();
 </script>
 {% endif %}
+
+<!-- Phase 1: Availability, Theme, Language, Signature, Password -->
+<script>
+(function() {
+  'use strict';
+
+  // -------------------------------------------------------
+  // Helper: Segmented control init
+  // -------------------------------------------------------
+  function initSegmented(containerId, callback) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    container.querySelectorAll('.st-seg-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        container.querySelectorAll('.st-seg-btn').forEach(function(b) { b.classList.remove('active'); });
+        this.classList.add('active');
+        if (callback) callback(this.dataset.value);
+      });
+    });
+  }
+  function getSegmentedValue(containerId) {
+    var active = document.querySelector('#' + containerId + ' .st-seg-btn.active');
+    return active ? active.dataset.value : null;
+  }
+  function setSegmentedValue(containerId, value) {
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    container.querySelectorAll('.st-seg-btn').forEach(function(b) {
+      b.classList.toggle('active', b.dataset.value === value);
+    });
+  }
+
+  // -------------------------------------------------------
+  // 1. Availability & Status
+  // -------------------------------------------------------
+  var availLoaded = false;
+  initSegmented('statusSegmented');
+
+  // Working hours: toggle enable/disable time inputs per day
+  document.querySelectorAll('.st-wh-toggle').forEach(function(toggle) {
+    toggle.addEventListener('change', function() {
+      var row = this.closest('.st-wh-row');
+      var inputs = row.querySelectorAll('input[type=time]');
+      inputs.forEach(function(inp) { inp.disabled = !toggle.checked; });
+    });
+  });
+
+  async function loadAvailability() {
+    try {
+      var data = await Api.get('/api/v1/agents/agents/my-status/');
+      setSegmentedValue('statusSegmented', data.status || 'offline');
+      document.getElementById('statusMessage').value = data.status_message || '';
+      document.getElementById('autoAwayToggle').checked = !!data.auto_away_outside_hours;
+
+      // Populate working hours
+      if (data.working_hours && typeof data.working_hours === 'object') {
+        document.querySelectorAll('.st-wh-row').forEach(function(row) {
+          var day = row.dataset.day;
+          var dayData = data.working_hours[day];
+          var toggle = row.querySelector('.st-wh-toggle');
+          var startInput = row.querySelector('.st-wh-start');
+          var endInput = row.querySelector('.st-wh-end');
+          if (dayData) {
+            toggle.checked = !!dayData.enabled;
+            startInput.value = dayData.start || '09:00';
+            endInput.value = dayData.end || '17:00';
+          } else {
+            toggle.checked = false;
+          }
+          startInput.disabled = !toggle.checked;
+          endInput.disabled = !toggle.checked;
+        });
+      }
+    } catch(e) { console.error('Failed to load availability:', e); }
+  }
+
+  document.getElementById('saveAvailabilityBtn').addEventListener('click', async function() {
+    var sp = document.getElementById('availabilitySpinner');
+    sp.classList.remove('d-none');
+
+    // Collect working hours
+    var workingHours = {};
+    document.querySelectorAll('.st-wh-row').forEach(function(row) {
+      var day = row.dataset.day;
+      var toggle = row.querySelector('.st-wh-toggle');
+      workingHours[day] = {
+        enabled: toggle.checked,
+        start: row.querySelector('.st-wh-start').value,
+        end: row.querySelector('.st-wh-end').value
+      };
+    });
+
+    try {
+      await Api.patch('/api/v1/agents/agents/my-status/', {
+        status: getSegmentedValue('statusSegmented'),
+        status_message: document.getElementById('statusMessage').value.trim(),
+        working_hours: workingHours,
+        auto_away_outside_hours: document.getElementById('autoAwayToggle').checked
+      });
+      Toast.success('Availability settings saved');
+    } catch(e) {
+      Toast.error(e.detail || 'Failed to save availability');
+    } finally { sp.classList.add('d-none'); }
+  });
+
+  // -------------------------------------------------------
+  // 2. Theme & Appearance
+  // -------------------------------------------------------
+  var themeLoaded = false;
+  initSegmented('themeSegmented');
+  initSegmented('densitySegmented');
+
+  async function loadThemePrefs() {
+    try {
+      var data = await Api.get('/api/v1/accounts/profiles/me/');
+      setSegmentedValue('themeSegmented', data.theme || 'system');
+      document.getElementById('sidebarCollapsedToggle').checked = !!data.sidebar_collapsed;
+      setSegmentedValue('densitySegmented', data.density || 'comfortable');
+      // Apply theme to localStorage
+      localStorage.setItem('kanzan-theme', data.theme || 'system');
+      localStorage.setItem('kanzan-density', data.density || 'comfortable');
+    } catch(e) { console.error('Failed to load theme prefs:', e); }
+  }
+
+  document.getElementById('saveThemeBtn').addEventListener('click', async function() {
+    var sp = document.getElementById('themeSpinner');
+    sp.classList.remove('d-none');
+    var theme = getSegmentedValue('themeSegmented');
+    var density = getSegmentedValue('densitySegmented');
+    var collapsed = document.getElementById('sidebarCollapsedToggle').checked;
+    try {
+      await Api.patch('/api/v1/accounts/profiles/me/', {
+        theme: theme,
+        sidebar_collapsed: collapsed,
+        density: density
+      });
+      localStorage.setItem('kanzan-theme', theme);
+      localStorage.setItem('kanzan-density', density);
+      localStorage.setItem('kanzan-sidebar-collapsed', collapsed ? '1' : '0');
+      Toast.success('Appearance settings saved');
+    } catch(e) {
+      Toast.error(e.detail || 'Failed to save appearance');
+    } finally { sp.classList.add('d-none'); }
+  });
+
+  // -------------------------------------------------------
+  // 3. Language & Timezone
+  // -------------------------------------------------------
+  var langLoaded = false;
+  initSegmented('timeFormatSegmented');
+
+  // Populate timezone dropdown
+  (function() {
+    var tzSelect = document.getElementById('prefTimezone');
+    if (!tzSelect) return;
+    var timezones;
+    try { timezones = Intl.supportedValuesOf('timeZone'); } catch(e) {
+      timezones = ['UTC','US/Eastern','US/Central','US/Pacific','Europe/London','Europe/Berlin','Europe/Paris','Asia/Tokyo','Asia/Shanghai','Asia/Kolkata','Asia/Kuala_Lumpur','Australia/Sydney'];
+    }
+    tzSelect.textContent = '';
+    timezones.forEach(function(tz) {
+      var opt = document.createElement('option');
+      opt.value = tz;
+      opt.textContent = tz.replace(/_/g, ' ');
+      tzSelect.appendChild(opt);
+    });
+  })();
+
+  async function loadLanguagePrefs() {
+    try {
+      var data = await Api.get('/api/v1/accounts/profiles/me/');
+      document.getElementById('prefLanguage').value = data.language || 'en';
+      document.getElementById('prefTimezone').value = data.timezone || 'UTC';
+      document.getElementById('prefDateFormat').value = data.date_format || 'YYYY-MM-DD';
+      setSegmentedValue('timeFormatSegmented', data.time_format || '24h');
+    } catch(e) { console.error('Failed to load language prefs:', e); }
+  }
+
+  document.getElementById('saveLanguageBtn').addEventListener('click', async function() {
+    var sp = document.getElementById('languageSpinner');
+    sp.classList.remove('d-none');
+    try {
+      await Api.patch('/api/v1/accounts/profiles/me/', {
+        language: document.getElementById('prefLanguage').value,
+        timezone: document.getElementById('prefTimezone').value,
+        date_format: document.getElementById('prefDateFormat').value,
+        time_format: getSegmentedValue('timeFormatSegmented')
+      });
+      Toast.success('Regional settings saved');
+    } catch(e) {
+      Toast.error(e.detail || 'Failed to save regional settings');
+    } finally { sp.classList.add('d-none'); }
+  });
+
+  // -------------------------------------------------------
+  // 4. Email Signature
+  // -------------------------------------------------------
+  var sigLoaded = false;
+  var sigEditor = document.getElementById('signatureEditor');
+  var sigPreview = document.getElementById('signaturePreview');
+
+  function updateSignaturePreview() {
+    var text = sigEditor.value;
+    if (!text.trim()) {
+      sigPreview.textContent = '';
+      var placeholder = document.createElement('p');
+      placeholder.className = 'text-muted fst-italic small';
+      placeholder.textContent = 'Your signature preview will appear here...';
+      sigPreview.appendChild(placeholder);
+      return;
+    }
+    // Replace variables with example values
+    var rendered = text
+      .replace(/\{\{agent_name\}\}/g, '{{ user.get_full_name }}')
+      .replace(/\{\{role\}\}/g, '{{ user_role.name|default:"Agent" }}')
+      .replace(/\{\{tenant_name\}\}/g, '{{ tenant.name|default:"Workspace" }}');
+    sigPreview.textContent = '';
+    var pre = document.createElement('div');
+    pre.style.whiteSpace = 'pre-wrap';
+    pre.style.fontSize = '0.875rem';
+    pre.textContent = rendered;
+    sigPreview.appendChild(pre);
+  }
+
+  if (sigEditor) {
+    sigEditor.addEventListener('input', updateSignaturePreview);
+  }
+
+  // Variable insert buttons
+  document.querySelectorAll('.st-var-btn').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var varText = this.dataset.var;
+      var editor = document.getElementById('signatureEditor');
+      var start = editor.selectionStart;
+      var end = editor.selectionEnd;
+      editor.value = editor.value.substring(0, start) + varText + editor.value.substring(end);
+      editor.selectionStart = editor.selectionEnd = start + varText.length;
+      editor.focus();
+      updateSignaturePreview();
+    });
+  });
+
+  async function loadSignature() {
+    try {
+      var data = await Api.get('/api/v1/accounts/profiles/me/');
+      sigEditor.value = data.signature || '';
+      updateSignaturePreview();
+    } catch(e) { console.error('Failed to load signature:', e); }
+  }
+
+  document.getElementById('saveSignatureBtn').addEventListener('click', async function() {
+    var sp = document.getElementById('signatureSpinner');
+    sp.classList.remove('d-none');
+    try {
+      await Api.patch('/api/v1/accounts/profiles/me/', {
+        signature: sigEditor.value
+      });
+      Toast.success('Signature saved');
+    } catch(e) {
+      Toast.error(e.detail || 'Failed to save signature');
+    } finally { sp.classList.add('d-none'); }
+  });
+
+  // -------------------------------------------------------
+  // 5. Password & Login
+  // -------------------------------------------------------
+  document.getElementById('changePasswordForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var currentPw = document.getElementById('currentPassword').value;
+    var newPw = document.getElementById('newPassword').value;
+    var confirmPw = document.getElementById('confirmPassword').value;
+
+    if (!currentPw || !newPw) { Toast.error('All password fields are required'); return; }
+    if (newPw !== confirmPw) { Toast.error('New passwords do not match'); return; }
+    if (newPw.length < 8) { Toast.error('Password must be at least 8 characters'); return; }
+
+    var sp = document.getElementById('passwordSpinner');
+    sp.classList.remove('d-none');
+    try {
+      await Api.post('/api/v1/accounts/auth/change-password/', {
+        current_password: currentPw,
+        new_password: newPw,
+        confirm_password: confirmPw
+      });
+      Toast.success('Password changed successfully');
+      document.getElementById('currentPassword').value = '';
+      document.getElementById('newPassword').value = '';
+      document.getElementById('confirmPassword').value = '';
+    } catch(e) {
+      Toast.error(e.detail || 'Failed to change password');
+    } finally { sp.classList.add('d-none'); }
+  });
+
+  // Populate last login info
+  (function() {
+    var lastLoginEl = document.getElementById('lastLoginTime');
+    var memberSinceEl = document.getElementById('memberSince');
+    if (lastLoginEl) {
+      var lastLogin = '{{ user.last_login|date:"c"|default:"" }}';
+      if (lastLogin) {
+        lastLoginEl.textContent = new Date(lastLogin).toLocaleString();
+      }
+    }
+    if (memberSinceEl) {
+      var joined = '{{ user.date_joined|date:"c"|default:"" }}';
+      if (joined) {
+        memberSinceEl.textContent = new Date(joined).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+      }
+    }
+  })();
+
+  // -------------------------------------------------------
+  // Lazy-load panels on tab switch
+  // -------------------------------------------------------
+  var origSwitchPhase1 = window.switchSettingsTab;
+  window.switchSettingsTab = function(targetId) {
+    origSwitchPhase1(targetId);
+    if (targetId === 'availabilityPane' && !availLoaded) { availLoaded = true; loadAvailability(); }
+    if (targetId === 'themePane' && !themeLoaded) { themeLoaded = true; loadThemePrefs(); }
+    if (targetId === 'languagePane' && !langLoaded) { langLoaded = true; loadLanguagePrefs(); }
+    if (targetId === 'signaturePane' && !sigLoaded) { sigLoaded = true; loadSignature(); }
+  };
+})();
+</script>
 {% endblock %}

@@ -85,6 +85,9 @@ PERMISSION_DEFINITIONS = [
     ("calendar_event", "create", "Create calendar events"),
     ("calendar_event", "update", "Update calendar events"),
     ("calendar_event", "delete", "Delete calendar events"),
+    # Inbound Email
+    ("inbound_email", "view", "View inbound emails"),
+    ("inbound_email", "manage", "Manage inbound emails"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -149,6 +152,9 @@ MANAGER_CODENAMES = [
     "calendar_event.create",
     "calendar_event.update",
     "calendar_event.delete",
+    # Inbound Email — full control
+    "inbound_email.view",
+    "inbound_email.manage",
 ]
 
 AGENT_CODENAMES = [
@@ -161,6 +167,8 @@ AGENT_CODENAMES = [
     "contact.update",
     "company.view",
     "report.view",
+    # Agent availability — view team status
+    "agent.view",
     # Knowledge Base — view + contribute
     "kb_article.view",
     "kb_article.create",
@@ -170,6 +178,8 @@ AGENT_CODENAMES = [
     "calendar_event.view",
     "calendar_event.create",
     "calendar_event.update",
+    # Inbound Email — view only
+    "inbound_email.view",
 ]
 
 VIEWER_CODENAMES = [

@@ -73,7 +73,13 @@ def send_notification_email(self, notification_id):
     except Exception:
         html_body = None
 
-    plain_body = notification.body or notification.title
+    try:
+        plain_body = render_to_string(
+            "notifications/email/notification.txt",
+            context,
+        )
+    except Exception:
+        plain_body = notification.body or notification.title
 
     try:
         send_mail(

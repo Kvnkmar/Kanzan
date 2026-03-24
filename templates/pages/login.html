@@ -39,6 +39,7 @@
           <div class="auth-input-wrapper">
             <i class="ti ti-shield-lock auth-input-icon"></i>
             <input type="password" name="password" class="form-control auth-input" id="password" placeholder="&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;&#9679;" required>
+            <i class="ti ti-eye auth-toggle-password" id="togglePassword" title="Show password"></i>
           </div>
         </div>
 
@@ -130,6 +131,16 @@
 </div>
 
 <script>
+// Toggle password visibility
+document.getElementById('togglePassword').addEventListener('click', function() {
+  const pwd = document.getElementById('password');
+  const isHidden = pwd.type === 'password';
+  pwd.type = isHidden ? 'text' : 'password';
+  this.classList.toggle('ti-eye', !isHidden);
+  this.classList.toggle('ti-eye-off', isHidden);
+  this.title = isHidden ? 'Hide password' : 'Show password';
+});
+
 // Fix browser autofill background color
 function fixAutofill() {
   document.querySelectorAll('.auth-input').forEach(function(input) {
