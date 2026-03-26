@@ -36,6 +36,16 @@ mammoth>=1.12,<2
 # Security & Config
 django-environ>=0.12,<1
 
+# Admin theme
+django-jazzmin>=3.0,<4
+
+# Excel export
+openpyxl>=3.1,<4
+
 # Servers (already installed but pinning)
 gunicorn>=25,<26
 uvicorn[standard]>=0.40,<1
+daphne>=4.2,<5
+
+# Celery monitoring
+flower>=2.0,<3

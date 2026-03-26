@@ -217,7 +217,7 @@
   let plans = [], subscription = null, pendingPlanSlug = null;
   function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
   function capitalize(s) { if (!s) return ''; return s.charAt(0).toUpperCase() + s.slice(1); }
-  function formatDate(d) { if (!d) return '--'; return new Date(d).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
+  function formatDate(d) { return Kanzan.formatDate(d); }
 
   async function init() {
     try {

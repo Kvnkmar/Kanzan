@@ -8,7 +8,6 @@ multi-tenancy, RBAC, and plan limits.
 
 from datetime import date
 
-from django.contrib.contenttypes.models import ContentType
 from django.test import TestCase, RequestFactory
 
 from apps.accounts.models import Role, TenantMembership, User

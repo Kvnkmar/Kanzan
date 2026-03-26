@@ -795,9 +795,9 @@ class TicketViewSet(ModelViewSet):
         """
         Send an email from this ticket to a recipient.
 
-        The email includes [#N] in the subject for threading and sets
-        the Reply-To to the tenant's inbound address so replies come
-        back as inbound emails linked to this ticket.
+        The email is dispatched asynchronously via Celery so the agent
+        doesn't block on SMTP delivery. Includes [#N] in the subject
+        for threading and sets Reply-To to the tenant's inbound address.
 
         POST /api/v1/tickets/tickets/{id}/send-email/
         {"to": "customer@example.com", "subject": "...", "body": "..."}
@@ -816,80 +816,48 @@ class TicketViewSet(ModelViewSet):
         to_email = serializer.validated_data["to"]
         subject = serializer.validated_data["subject"]
         body = serializer.validated_data["body"]
-        agent_name = request.user.get_full_name() or request.user.email
 
         # Ensure subject contains ticket reference for threading
         ticket_ref = f"[#{ticket.number}]"
         if ticket_ref not in subject:
             subject = f"{ticket_ref} {subject}"
 
-        from apps.tickets.email_service import (
-            _generate_message_id,
-            _get_from_address,
-            _get_reply_to_address,
-            _record_outbound_message_id,
+        # Dispatch asynchronously via Celery
+        from apps.inbound_email.models import InboundEmail
+        from apps.tickets.tasks import send_ticket_email_task
+
+        send_ticket_email_task.delay(
+            str(ticket.pk),
+            str(tenant.pk),
+            to_email,
+            subject,
+            body,
+            sender_type=InboundEmail.SenderType.AGENT,
         )
 
-        from django.core.mail import EmailMultiAlternatives
+        # Log to ticket timeline + audit immediately (don't wait for send)
+        from apps.tickets.models import TicketActivity as TA
 
-        reply_to = _get_reply_to_address(tenant)
-        from_address = _get_from_address(tenant)
-        message_id = _generate_message_id(tenant, ticket)
-
-        email = EmailMultiAlternatives(
-            subject=subject,
-            body=body,
-            from_email=from_address,
-            to=[to_email],
-            reply_to=[reply_to],
-            headers={
-                "Message-ID": message_id,
-                "X-Ticket-Number": str(ticket.number),
-                "X-Tenant-Slug": tenant.slug,
-                "X-Agent": agent_name,
-            },
+        TA.objects.create(
+            tenant=tenant, ticket=ticket, actor=request.user,
+            event=TA.Event.COMMENTED,
+            message=f"Email queued to {to_email}: {subject}",
+        )
+        log_activity(
+            tenant=tenant, actor=request.user, content_object=ticket,
+            action=ActivityLog.Action.FIELD_CHANGED,
+            description=f"Sent email to {to_email}",
+            request=request,
         )
 
-        try:
-            from django.conf import settings as django_settings
-
-            email.send(fail_silently=False)
-            _record_outbound_message_id(
-                tenant, ticket, message_id, to_email, body_text=body,
-            )
-
-            # Log to ticket timeline + audit
-            from apps.tickets.models import TicketActivity as TA
-
-            TA.objects.create(
-                tenant=tenant, ticket=ticket, actor=request.user,
-                event=TA.Event.COMMENTED,
-                message=f"Email sent to {to_email}: {subject}",
-            )
-            log_activity(
-                tenant=tenant, actor=request.user, content_object=ticket,
-                action=ActivityLog.Action.FIELD_CHANGED,
-                description=f"Sent email to {to_email}",
-                request=request,
-            )
-
-            logger.info(
-                "Agent %s sent email to %s for ticket #%d",
-                request.user.email, to_email, ticket.number,
-            )
-            return Response(
-                {"detail": "Email sent.", "message_id": message_id},
-                status=status.HTTP_200_OK,
-            )
-        except Exception as exc:
-            logger.exception(
-                "Failed to send email for ticket #%d to %s",
-                ticket.number, to_email,
-            )
-            return Response(
-                {"detail": f"Failed to send email: {exc}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        logger.info(
+            "Agent %s queued email to %s for ticket #%d",
+            request.user.email, to_email, ticket.number,
+        )
+        return Response(
+            {"detail": "Email queued for delivery."},
+            status=status.HTTP_202_ACCEPTED,
+        )
 
     @action(detail=True, methods=["post"], url_path="link-email")
     def link_email(self, request, pk=None):
@@ -897,7 +865,9 @@ class TicketViewSet(ModelViewSet):
         Link an existing inbound email to this ticket.
 
         Agents can attach unlinked or misrouted emails to the correct
-        ticket for follow-up tracking.
+        ticket for follow-up tracking. If the email has body text, a
+        Comment is created on the ticket so the content appears in the
+        conversation thread.
 
         POST /api/v1/tickets/tickets/{id}/link-email/
         {"email_id": "<uuid>"}
@@ -907,6 +877,7 @@ class TicketViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
 
         from apps.inbound_email.models import InboundEmail
+        from apps.inbound_email.utils import strip_quoted_reply
 
         email_id = serializer.validated_data["email_id"]
         tenant = getattr(request, "tenant", None)
@@ -922,6 +893,20 @@ class TicketViewSet(ModelViewSet):
         old_ticket = inbound.ticket
         inbound.ticket = ticket
         inbound.save(update_fields=["ticket", "updated_at"])
+
+        # Create a Comment from the email body so it appears in the
+        # ticket's Comments tab (not just the Emails tab).
+        body = strip_quoted_reply(inbound.body_text)
+        if body.strip():
+            ct = ContentType.objects.get_for_model(Ticket)
+            Comment.objects.create(
+                content_type=ct,
+                object_id=ticket.pk,
+                author=request.user,
+                body=body,
+                is_internal=False,
+                tenant=tenant,
+            )
 
         from apps.tickets.models import TicketActivity as TA
 
@@ -966,7 +951,11 @@ class TicketViewSet(ModelViewSet):
             return Response([], status=status.HTTP_200_OK)
 
         emails_qs = (
-            InboundEmail.objects.filter(tenant=tenant, ticket__isnull=True)
+            InboundEmail.objects.filter(
+                tenant=tenant,
+                ticket__isnull=True,
+                direction=InboundEmail.Direction.INBOUND,
+            )
             .exclude(status=InboundEmail.Status.REJECTED)
             .order_by("-created_at")[:50]
         )

@@ -227,7 +227,7 @@
   function showAlert(id, msg, type) {
     document.getElementById(id).innerHTML = '<div class="alert alert-' + (type || 'info') + ' alert-dismissible fade show py-2 small" role="alert">' + escapeHtml(msg) + '<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button></div>';
   }
-  function formatDate(d) { if (!d) return '--'; return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+  function formatDate(d) { return Kanzan.formatDate(d); }
   function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
   function getInitials(n) { if (!n) return '?'; return n.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase(); }
 

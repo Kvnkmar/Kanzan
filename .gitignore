@@ -22,12 +22,26 @@ celerybeat-schedule
 # Logs
 logs/
 
+# Dev email output
+tmp/
+
 # Runtime
 gunicorn.ctl
 *.sock
 
 # Claude Code
 .claude/
+
+# Virtual environment (alternate)
+.venv/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Packaging
+*.egg-info/
 
 # IDE
 .vscode/

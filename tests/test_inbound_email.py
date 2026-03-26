@@ -10,7 +10,6 @@ Covers:
 """
 
 import pytest
-from unittest.mock import patch
 
 from conftest import (
     InboundEmailFactory,
@@ -102,8 +101,7 @@ class TestProcessInboundEmail:
         )
 
         from apps.inbound_email.services import process_inbound_email
-        with patch("apps.inbound_email.services._get_system_user_id", return_value=user.pk):
-            process_inbound_email(inbound.pk)
+        process_inbound_email(inbound.pk)
 
         inbound.refresh_from_db()
         assert inbound.status == "ticket_created"

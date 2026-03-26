@@ -10,16 +10,12 @@ Covers:
 """
 
 import pytest
-from django.test import RequestFactory
 
 from main.context import clear_current_tenant, get_current_tenant, set_current_tenant
-from main.models import TenantScopedModel
 
 from conftest import (
     ContactFactory,
     MembershipFactory,
-    RoleFactory,
-    TenantFactory,
     TicketFactory,
     TicketStatusFactory,
     UserFactory,

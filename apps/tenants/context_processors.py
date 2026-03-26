@@ -45,6 +45,8 @@ def tenant_context(request):
             is_admin_or_manager = user_role.hierarchy_level <= 20
             is_agent_or_above = user_role.hierarchy_level <= 30
 
+    from django.conf import settings as django_settings
+
     return {
         "tenant": tenant,
         "membership": membership,
@@ -52,4 +54,5 @@ def tenant_context(request):
         "is_admin": is_admin,
         "is_admin_or_manager": is_admin_or_manager,
         "is_agent_or_above": is_agent_or_above,
+        "BASE_URL": django_settings.BASE_URL,
     }

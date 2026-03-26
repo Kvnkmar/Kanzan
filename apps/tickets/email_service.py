@@ -1,13 +1,20 @@
 """
-Outbound email service for ticket notifications to contacts.
+Outbound email service for ticket communications.
 
-Sends emails to the ticket's contact when:
-1. A ticket is created (confirmation email)
-2. An agent replies with a public comment
+Provides a single entry point (``send_ticket_email``) for all outbound
+ticket emails: agent replies, ticket created confirmations, and ad-hoc
+agent emails from the UI.
 
-All outbound emails include [#N] in the subject line so that
-customer replies are threaded back via the inbound email system.
-The Reply-To header is set to the tenant's inbound email address.
+All outbound emails:
+- Include [#N] in the subject for inbound threading
+- Set Reply-To to the tenant's inbound address
+- Set proper In-Reply-To / References headers for the email thread
+- Record an outbound InboundEmail record for Message-ID tracking
+- Are dispatched asynchronously via Celery (transaction.on_commit)
+
+Legacy functions (``send_ticket_reply_email``, ``send_ticket_created_email``)
+are preserved for backward compatibility with existing Celery tasks and
+signal handlers. They delegate to ``send_ticket_email`` internally.
 """
 
 import logging
@@ -15,12 +22,22 @@ import uuid
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.db import IntegrityError
 from django.template.loader import render_to_string
+
+from apps.inbound_email.models import InboundEmail
+from apps.inbound_email.threading import build_thread_headers
+from apps.inbound_email.utils import normalize_message_id
 
 logger = logging.getLogger(__name__)
 
 
-def _get_reply_to_address(tenant):
+# ---------------------------------------------------------------------------
+# Address helpers
+# ---------------------------------------------------------------------------
+
+
+def get_reply_to_address(tenant):
     """
     Get the reply-to address for outbound emails.
 
@@ -29,12 +46,11 @@ def _get_reply_to_address(tenant):
     """
     if hasattr(tenant, "settings") and tenant.settings.inbound_email_address:
         return tenant.settings.inbound_email_address
-
     base_domain = getattr(settings, "BASE_DOMAIN", "localhost")
     return f"support+{tenant.slug}@{base_domain}"
 
 
-def _get_from_address(tenant):
+def get_from_address(tenant):
     """
     Get the From address for outbound emails.
 
@@ -44,7 +60,7 @@ def _get_from_address(tenant):
     return f"{tenant.name} <{from_email}>"
 
 
-def _get_ticket_url(tenant, ticket):
+def get_ticket_url(tenant, ticket):
     """Build the full URL for a ticket."""
     base_domain = getattr(settings, "BASE_DOMAIN", "localhost")
     port = getattr(settings, "BASE_PORT", "8001")
@@ -60,25 +76,182 @@ def _get_ticket_url(tenant, ticket):
     return f"{scheme}://{host}/tickets/{ticket.number}/"
 
 
-def _generate_message_id(tenant, ticket):
-    """Generate a unique Message-ID for outbound emails."""
+def generate_message_id(tenant, ticket):
+    """
+    Generate a unique Message-ID for outbound emails.
+
+    Returns the raw ID without angle brackets. Callers must wrap
+    in <> when setting the Message-ID header.
+    """
     base_domain = getattr(settings, "BASE_DOMAIN", "localhost")
     unique = uuid.uuid4().hex[:12]
-    return f"<ticket-{ticket.number}-{unique}@{tenant.slug}.{base_domain}>"
+    return f"ticket-{ticket.number}-{unique}@{tenant.slug}.{base_domain}"
+
+
+# ---------------------------------------------------------------------------
+# Outbound record persistence
+# ---------------------------------------------------------------------------
+
+
+def record_outbound_email(
+    tenant,
+    ticket,
+    message_id,
+    recipient_email,
+    subject,
+    body_text="",
+    sender_type=InboundEmail.SenderType.SYSTEM,
+):
+    """
+    Create an InboundEmail record for an outbound email.
+
+    This record serves two purposes:
+    1. Message-ID storage so inbound replies can be threaded back
+    2. Audit trail of all emails sent from the system
+
+    Args:
+        tenant: The Tenant instance.
+        ticket: The Ticket instance this email is about.
+        message_id: The raw Message-ID (without angle brackets).
+        recipient_email: The email address the message was sent to.
+        subject: The email subject line.
+        body_text: The plain-text email body.
+        sender_type: Who sent it ("system" or "agent").
+
+    Returns:
+        The created InboundEmail record, or None if creation failed.
+    """
+    idem_key = f"out:{tenant.pk}:{ticket.pk}:{message_id}"
+
+    try:
+        record = InboundEmail.objects.create(
+            tenant=tenant,
+            message_id=normalize_message_id(message_id),
+            sender_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_email=recipient_email,
+            subject=subject,
+            body_text=body_text,
+            direction=InboundEmail.Direction.OUTBOUND,
+            sender_type=sender_type,
+            status=InboundEmail.Status.SENT,
+            ticket=ticket,
+            idempotency_key=idem_key,
+        )
+        return record
+    except IntegrityError:
+        logger.warning(
+            "Outbound email record already exists for message_id %s "
+            "(ticket #%d, tenant %s). Skipping duplicate.",
+            message_id,
+            ticket.number,
+            tenant.slug,
+        )
+        return None
+    except Exception:
+        logger.exception(
+            "Failed to record outbound email for ticket #%d (message_id: %s)",
+            ticket.number,
+            message_id,
+        )
+        raise
+
+
+# ---------------------------------------------------------------------------
+# Core send function
+# ---------------------------------------------------------------------------
+
+
+def send_ticket_email(
+    tenant,
+    ticket,
+    to_email,
+    subject,
+    body_text,
+    body_html=None,
+    sender_type=InboundEmail.SenderType.SYSTEM,
+):
+    """
+    Single entry point for sending all outbound ticket emails.
+
+    Builds threading headers, sends via Django email backend, and
+    records the outbound Message-ID for inbound reply matching.
+
+    Args:
+        tenant: The Tenant instance.
+        ticket: The Ticket instance.
+        to_email: Recipient email address.
+        subject: Email subject (will NOT be modified — caller must
+                 include [#N] if needed).
+        body_text: Plain text body.
+        body_html: Optional HTML body (attached as alternative).
+        sender_type: "system" for automated, "agent" for manual sends.
+
+    Returns:
+        The raw message_id string (without angle brackets) on success.
+
+    Raises:
+        Exception: If the email fails to send (caller should handle).
+    """
+    raw_message_id = generate_message_id(tenant, ticket)
+    reply_to = get_reply_to_address(tenant)
+    from_address = get_from_address(tenant)
+
+    # Build threading headers (In-Reply-To, References)
+    thread_headers = build_thread_headers(tenant, ticket, raw_message_id)
+
+    # Add tenant metadata headers
+    thread_headers["X-Ticket-Number"] = str(ticket.number)
+    thread_headers["X-Tenant-Slug"] = tenant.slug
+
+    email = EmailMultiAlternatives(
+        subject=subject,
+        body=body_text,
+        from_email=from_address,
+        to=[to_email],
+        reply_to=[reply_to],
+        headers=thread_headers,
+    )
+    if body_html:
+        email.attach_alternative(body_html, "text/html")
+
+    email.send(fail_silently=False)
+
+    logger.info(
+        "Sent email for ticket #%d to %s (type=%s, message_id=%s)",
+        ticket.number,
+        to_email,
+        sender_type,
+        raw_message_id,
+    )
+
+    # Record for threading
+    record_outbound_email(
+        tenant=tenant,
+        ticket=ticket,
+        message_id=raw_message_id,
+        recipient_email=to_email,
+        subject=subject,
+        body_text=body_text,
+        sender_type=sender_type,
+    )
+
+    return raw_message_id
+
+
+# ---------------------------------------------------------------------------
+# Template-based convenience functions
+# ---------------------------------------------------------------------------
 
 
 def send_ticket_reply_email(ticket, comment_body, agent_name, tenant):
     """
-    Send an email to the ticket's contact when an agent replies.
+    Send a reply notification email to the ticket's contact.
 
-    Args:
-        ticket: The Ticket instance (with contact pre-fetched).
-        comment_body: The text content of the agent's reply.
-        agent_name: Display name of the agent who replied.
-        tenant: The Tenant instance.
+    This is the legacy interface used by the Celery task
+    ``send_ticket_reply_email_task``. It renders the reply template
+    and delegates to ``send_ticket_email``.
 
-    Returns:
-        True if email was sent, False otherwise.
+    Returns True if sent, False if skipped (no contact).
     """
     contact = ticket.contact
     if not contact or not contact.email:
@@ -89,10 +262,7 @@ def send_ticket_reply_email(ticket, comment_body, agent_name, tenant):
         return False
 
     subject = f"Re: [#{ticket.number}] {ticket.subject}"
-    reply_to = _get_reply_to_address(tenant)
-    from_address = _get_from_address(tenant)
-    ticket_url = _get_ticket_url(tenant, ticket)
-    message_id = _generate_message_id(tenant, ticket)
+    ticket_url = get_ticket_url(tenant, ticket)
 
     context = {
         "ticket": ticket,
@@ -102,73 +272,48 @@ def send_ticket_reply_email(ticket, comment_body, agent_name, tenant):
         "ticket_url": ticket_url,
     }
 
-    # Render templates
-    plain_body = render_to_string(
-        "tickets/email/reply_notification.txt", context,
-    )
+    plain_body = render_to_string("tickets/email/reply_notification.txt", context)
     try:
-        html_body = render_to_string(
-            "tickets/email/reply_notification.html", context,
-        )
+        html_body = render_to_string("tickets/email/reply_notification.html", context)
     except Exception:
         html_body = None
 
-    email = EmailMultiAlternatives(
-        subject=subject,
-        body=plain_body,
-        from_email=from_address,
-        to=[contact.email],
-        reply_to=[reply_to],
-        headers={
-            "Message-ID": message_id,
-            "X-Ticket-Number": str(ticket.number),
-            "X-Tenant-Slug": tenant.slug,
-        },
-    )
-    if html_body:
-        email.attach_alternative(html_body, "text/html")
-
     try:
-        email.send(fail_silently=False)
-        logger.info(
-            "Sent reply notification for ticket #%d to %s",
-            ticket.number, contact.email,
+        send_ticket_email(
+            tenant=tenant,
+            ticket=ticket,
+            to_email=contact.email,
+            subject=subject,
+            body_text=plain_body,
+            body_html=html_body,
+            sender_type=InboundEmail.SenderType.SYSTEM,
         )
-
-        # Store the outbound message_id so inbound replies can thread
-        _record_outbound_message_id(
-            tenant, ticket, message_id, contact.email, body_text=plain_body,
-        )
-
         return True
     except Exception:
         logger.exception(
             "Failed to send reply email for ticket #%d to %s",
-            ticket.number, contact.email,
+            ticket.number,
+            contact.email,
         )
         return False
 
 
 def send_ticket_created_email(ticket, tenant):
     """
-    Send a confirmation email to the contact when a ticket is created.
+    Send a confirmation email when a ticket is created.
 
-    Args:
-        ticket: The Ticket instance.
-        tenant: The Tenant instance.
+    This is the legacy interface used by the Celery task
+    ``send_ticket_created_email_task``. It renders the created
+    template and delegates to ``send_ticket_email``.
 
-    Returns:
-        True if email was sent, False otherwise.
+    Returns True if sent, False if skipped (no contact).
     """
     contact = ticket.contact
     if not contact or not contact.email:
         return False
 
     subject = f"[#{ticket.number}] {ticket.subject}"
-    reply_to = _get_reply_to_address(tenant)
-    from_address = _get_from_address(tenant)
-    ticket_url = _get_ticket_url(tenant, ticket)
-    message_id = _generate_message_id(tenant, ticket)
+    ticket_url = get_ticket_url(tenant, ticket)
 
     context = {
         "ticket": ticket,
@@ -176,72 +321,35 @@ def send_ticket_created_email(ticket, tenant):
         "ticket_url": ticket_url,
     }
 
-    plain_body = render_to_string(
-        "tickets/email/ticket_created.txt", context,
-    )
+    plain_body = render_to_string("tickets/email/ticket_created.txt", context)
     try:
-        html_body = render_to_string(
-            "tickets/email/ticket_created.html", context,
-        )
+        html_body = render_to_string("tickets/email/ticket_created.html", context)
     except Exception:
         html_body = None
 
-    email = EmailMultiAlternatives(
-        subject=subject,
-        body=plain_body,
-        from_email=from_address,
-        to=[contact.email],
-        reply_to=[reply_to],
-        headers={
-            "Message-ID": message_id,
-            "X-Ticket-Number": str(ticket.number),
-            "X-Tenant-Slug": tenant.slug,
-        },
-    )
-    if html_body:
-        email.attach_alternative(html_body, "text/html")
-
     try:
-        email.send(fail_silently=False)
-        logger.info(
-            "Sent ticket created notification for #%d to %s",
-            ticket.number, contact.email,
-        )
-        _record_outbound_message_id(
-            tenant, ticket, message_id, contact.email, body_text=plain_body,
+        send_ticket_email(
+            tenant=tenant,
+            ticket=ticket,
+            to_email=contact.email,
+            subject=subject,
+            body_text=plain_body,
+            body_html=html_body,
+            sender_type=InboundEmail.SenderType.SYSTEM,
         )
         return True
     except Exception:
         logger.exception(
             "Failed to send ticket created email for #%d to %s",
-            ticket.number, contact.email,
+            ticket.number,
+            contact.email,
         )
         return False
 
 
-def _record_outbound_message_id(
-    tenant, ticket, message_id, recipient_email, body_text=""
-):
-    """
-    Store the outbound Message-ID as an InboundEmail record so that
-    when the customer replies, the In-Reply-To / References headers
-    can be matched back to this ticket.
-    """
-    try:
-        from apps.inbound_email.models import InboundEmail
+# ---------------------------------------------------------------------------
+# Backward-compatible aliases (used by tests)
+# ---------------------------------------------------------------------------
 
-        InboundEmail.objects.create(
-            tenant=tenant,
-            message_id=message_id.strip("<>"),
-            sender_email=settings.DEFAULT_FROM_EMAIL,
-            recipient_email=recipient_email,
-            subject=f"[#{ticket.number}] {ticket.subject}",
-            body_text=body_text,
-            status=InboundEmail.Status.REPLY_ADDED,
-            ticket=ticket,
-        )
-    except Exception:
-        logger.exception(
-            "Failed to record outbound message_id for ticket #%d",
-            ticket.number,
-        )
+_get_reply_to_address = get_reply_to_address
+_get_ticket_url = get_ticket_url

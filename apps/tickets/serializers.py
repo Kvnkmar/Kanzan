@@ -626,5 +626,7 @@ class TicketEmailListSerializer(serializers.Serializer):
     recipient_email = serializers.EmailField()
     subject = serializers.CharField()
     body_text = serializers.CharField()
+    direction = serializers.CharField()
+    sender_type = serializers.CharField()
     status = serializers.CharField()
     created_at = serializers.DateTimeField()

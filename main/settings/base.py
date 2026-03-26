@@ -17,6 +17,17 @@ DEBUG = env.bool("DJANGO_DEBUG", default=False)
 BASE_DOMAIN = env("BASE_DOMAIN", default="localhost")
 BASE_PORT = env("BASE_PORT", default="8001")
 
+# Protocol + domain + optional port for building absolute URLs (emails, templates).
+# In production set BASE_SCHEME=https and leave BASE_PORT empty or "443".
+BASE_SCHEME = env("BASE_SCHEME", default="http")
+_port_suffix = f":{BASE_PORT}" if BASE_PORT not in ("", "80", "443") else ""
+BASE_URL = f"{BASE_SCHEME}://{BASE_DOMAIN}{_port_suffix}"
+
+
+def TENANT_URL(slug):
+    """Build an absolute URL for a tenant subdomain, e.g. 'demo' → 'http://demo.localhost:8001'."""
+    return f"{BASE_SCHEME}://{slug}.{BASE_DOMAIN}{_port_suffix}"
+
 ALLOWED_HOSTS = [
     "localhost",
     "127.0.0.1",
@@ -291,7 +302,9 @@ MAILGUN_API_KEY = env("MAILGUN_API_KEY", default="")
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND", default="django.core.mail.backends.filebased.EmailBackend"
 )
+# Ensure the directory exists so the filebased backend doesn't crash on first send
 EMAIL_FILE_PATH = BASE_DIR / "tmp" / "emails"
+EMAIL_FILE_PATH.mkdir(parents=True, exist_ok=True)
 EMAIL_HOST = env("EMAIL_HOST", default="localhost")
 EMAIL_PORT = env.int("EMAIL_PORT", default=587)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
@@ -311,6 +324,9 @@ FILE_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024  # 25MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
 
 # Logging
+_LOG_DIR = BASE_DIR / "logs"
+_LOG_DIR.mkdir(parents=True, exist_ok=True)
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -327,7 +343,7 @@ LOGGING = {
         },
         "file": {
             "class": "logging.FileHandler",
-            "filename": BASE_DIR / "logs" / "django.log",
+            "filename": _LOG_DIR / "django.log",
             "formatter": "verbose",
         },
     },

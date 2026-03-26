@@ -7,9 +7,10 @@ rules, and full assignment history tracking -- all scoped per tenant.
 
 from django.conf import settings
 from django.db import models
+from django.db.models import F
 from django.utils import timezone
 
-from main.models import TenantScopedModel
+from main.models import TenantScopedModel, TimestampedModel
 
 
 class TicketStatus(TenantScopedModel):
@@ -94,6 +95,46 @@ class TicketCategory(TenantScopedModel):
 
     def __str__(self):
         return self.name
+
+
+class TicketCounter(TimestampedModel):
+    """
+    Atomic per-tenant ticket number counter.
+
+    One row per tenant, incremented with F() + select_for_update() to prevent
+    duplicate ticket numbers under concurrent writes.
+    """
+
+    tenant = models.OneToOneField(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        related_name="ticket_counter",
+    )
+    last_number = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        verbose_name = "ticket counter"
+        verbose_name_plural = "ticket counters"
+
+    def __str__(self):
+        return f"{self.tenant.slug}: {self.last_number}"
+
+    @classmethod
+    def next_number(cls, tenant_id):
+        """
+        Atomically increment and return the next ticket number for a tenant.
+
+        Uses select_for_update() to serialise concurrent callers. The row is
+        created on first use (get_or_create) so no manual provisioning is needed.
+        """
+        counter, _ = cls.objects.select_for_update().get_or_create(
+            tenant_id=tenant_id,
+            defaults={"last_number": 0},
+        )
+        counter.last_number = F("last_number") + 1
+        counter.save(update_fields=["last_number", "updated_at"])
+        counter.refresh_from_db(fields=["last_number"])
+        return counter.last_number
 
 
 class Ticket(TenantScopedModel):
@@ -221,14 +262,14 @@ class Ticket(TenantScopedModel):
                 self.tenant = tenant
 
         # Auto-assign a per-tenant ticket number on creation.
-        if self.number is None or self.number == 0:
-            last_number = (
-                Ticket.unscoped.filter(tenant_id=self.tenant_id)
-                .order_by("-number")
-                .values_list("number", flat=True)
-                .first()
-            ) or 0
-            self.number = last_number + 1
+        # Uses TicketCounter with select_for_update() for concurrency safety.
+        # NOTE: select_for_update() is a no-op on SQLite, so concurrent writes
+        # in dev can still race — acceptable since production uses PostgreSQL.
+        if (self.number is None or self.number == 0) and self.tenant_id:
+            from django.db import transaction
+
+            with transaction.atomic():
+                self.number = TicketCounter.next_number(self.tenant_id)
         super().save(*args, **kwargs)
 
 

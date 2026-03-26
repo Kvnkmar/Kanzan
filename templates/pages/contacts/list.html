@@ -180,7 +180,7 @@
   var PAGE_SIZE = 25, currentPage = 1, totalCount = 0;
   var AVATAR_COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
   function avatarColor(name) { if (!name) return AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
-  function formatDate(d) { if (!d) return '--'; return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+  function formatDate(d) { return Kanzan.formatDate(d); }
   function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
   function loadContacts() {

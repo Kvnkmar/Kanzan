@@ -313,7 +313,8 @@ class InvitationViewSet(
         try:
             from django.core.mail import send_mail
             from django.conf import settings as django_settings
-            accept_url = f"https://{invitation.tenant.slug}.localhost:8001/accept-invitation/?token={invitation.token}"
+            tenant_url = django_settings.TENANT_URL(invitation.tenant.slug)
+            accept_url = f"{tenant_url}/accept-invitation/?token={invitation.token}"
             send_mail(
                 subject=f"You've been invited to {invitation.tenant.name}",
                 message=(

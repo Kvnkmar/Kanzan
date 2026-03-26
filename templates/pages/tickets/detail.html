@@ -747,14 +747,11 @@ window.dispatchEvent(new Event('tiptap-ready'));
   }
 
   function formatDateTime(dateStr) {
-    if (!dateStr) return '--';
-    var d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) + ' at ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+    return Kanzan.formatDateTime(dateStr);
   }
 
   function formatDate(dateStr) {
-    if (!dateStr) return '--';
-    return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    return Kanzan.formatDate(dateStr);
   }
 
   function formatRelativeTime(dateStr) {

@@ -2,29 +2,13 @@
 {% block title %}Settings - Kanzen Suite{% endblock %}
 
 {% block content %}
-<!-- Settings Hero -->
-<div class="st-hero">
-  <div class="st-hero-gradient"></div>
-  <div class="st-hero-content">
-    <div class="st-hero-icon">
-      <i class="ti ti-settings"></i>
-    </div>
-    <div class="st-hero-info">
-      <h1 class="st-hero-title">Settings</h1>
-      <p class="st-hero-desc">Manage your workspace configuration, notifications, and team preferences</p>
-    </div>
-  </div>
-</div>
-
-<div id="settingsAlert" class="d-none"></div>
-
 <div class="st-layout">
   <!-- Settings Navigation (left) -->
   <div class="st-sidebar">
     <nav class="st-nav">
       {% if is_admin %}
       <div class="st-nav-group">
-        <div class="st-nav-label">Workspace</div>
+        <div class="st-nav-label">Workspace <span class="st-admin-badge"><i class="ti ti-shield-lock"></i> Admin</span></div>
         <a href="javascript:void(0)" class="st-nav-item active" id="nav_generalPane" onclick="switchSettingsTab('generalPane')">
           <div class="st-nav-icon"><i class="ti ti-settings"></i></div>
           <div class="st-nav-text">
@@ -135,7 +119,7 @@
 
       {% if is_admin %}
       <div class="st-nav-group">
-        <div class="st-nav-label">Advanced</div>
+        <div class="st-nav-label">Advanced <span class="st-admin-badge"><i class="ti ti-shield-lock"></i> Admin</span></div>
         <a href="javascript:void(0)" class="st-nav-item" id="nav_dataPane" onclick="switchSettingsTab('dataPane')">
           <div class="st-nav-icon"><i class="ti ti-database"></i></div>
           <div class="st-nav-text">
@@ -298,6 +282,11 @@
               <div class="st-form-group">
                 <label for="ssoDomain" class="st-label">Domain / Issuer URL</label>
                 <input type="url" class="form-control" id="ssoDomain" placeholder="https://your-idp.example.com">
+              </div>
+              <div class="st-form-group">
+                <label for="ssoScopes" class="st-label">SSO Scopes</label>
+                <input type="text" class="form-control" id="ssoScopes" placeholder="openid email profile">
+                <div class="form-text">Space-separated list of OAuth scopes to request.</div>
               </div>
             </div>
             <div class="st-form-actions">
@@ -493,47 +482,49 @@
               <p class="st-section-desc">Choose how and when you want to be notified</p>
             </div>
           </div>
-          <div class="st-toggle-list">
-            <div class="st-toggle-item">
-              <div class="st-toggle-icon"><i class="ti ti-mail"></i></div>
-              <div class="st-toggle-info">
-                <span class="st-toggle-label">Email notifications</span>
-                <span class="st-toggle-desc">Receive email alerts for ticket assignments and updates.</span>
-              </div>
-              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="emailNotifications" checked></div>
+          <div class="st-pane-loading" id="notificationsLoading">
+            <div class="spinner-border spinner-border-sm text-muted" role="status"></div>
+            <span class="text-muted small ms-2">Loading preferences...</span>
+          </div>
+          <div class="st-notif-table d-none" id="notifTableWrap">
+            <div class="st-notif-table-head">
+              <span class="st-notif-table-type">Notification Type</span>
+              <span class="st-notif-table-ch">In-App</span>
+              <span class="st-notif-table-ch">Email</span>
             </div>
-            <div class="st-toggle-item">
-              <div class="st-toggle-icon"><i class="ti ti-device-desktop"></i></div>
-              <div class="st-toggle-info">
-                <span class="st-toggle-label">Browser notifications</span>
-                <span class="st-toggle-desc">Show desktop notifications for real-time events.</span>
-              </div>
-              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="browserNotifications"></div>
+            <div id="stNotifPrefList"></div>
+          </div>
+        </div>
+
+        <!-- Quiet Hours / DND -->
+        <div class="st-section mt-3">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-moon"></i></div>
+            <div>
+              <h3 class="st-section-title">Quiet Hours</h3>
+              <p class="st-section-desc">Suppress notifications during set hours</p>
             </div>
-            <div class="st-toggle-item">
-              <div class="st-toggle-icon"><i class="ti ti-alarm"></i></div>
-              <div class="st-toggle-info">
-                <span class="st-toggle-label">SLA breach alerts</span>
-                <span class="st-toggle-desc">Get notified when tickets are approaching SLA deadlines.</span>
-              </div>
-              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="slaAlerts" checked></div>
+            <div class="form-check form-switch ms-auto">
+              <input class="form-check-input" type="checkbox" id="dndEnabled">
             </div>
-            <div class="st-toggle-item">
-              <div class="st-toggle-icon"><i class="ti ti-user-plus"></i></div>
-              <div class="st-toggle-info">
-                <span class="st-toggle-label">Assignment notifications</span>
-                <span class="st-toggle-desc">Get notified when a ticket is assigned to you.</span>
+          </div>
+          <div id="dndTimesWrap" class="d-none">
+            <div class="st-form-row">
+              <div class="st-form-group">
+                <label for="dndStart" class="st-label">Start Time</label>
+                <input type="time" class="form-control" id="dndStart" value="22:00">
               </div>
-              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="assignmentAlerts" checked></div>
-            </div>
-            <div class="st-toggle-item">
-              <div class="st-toggle-icon"><i class="ti ti-at"></i></div>
-              <div class="st-toggle-info">
-                <span class="st-toggle-label">Mention notifications</span>
-                <span class="st-toggle-desc">Get notified when someone @mentions you in a comment.</span>
+              <div class="st-form-group">
+                <label for="dndEnd" class="st-label">End Time</label>
+                <input type="time" class="form-control" id="dndEnd" value="08:00">
               </div>
-              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="mentionAlerts" checked></div>
             </div>
+          </div>
+          <div class="st-form-actions">
+            <button type="button" class="btn btn-primary" id="saveDndBtn">
+              <span class="spinner-border spinner-border-sm d-none me-1" id="dndSpinner"></span>
+              Save Quiet Hours
+            </button>
           </div>
         </div>
       </div>
@@ -1148,26 +1139,50 @@
       <div class="settings-pane" id="dataPane" style="display:none">
         <div class="st-section">
           <div class="st-section-header">
-            <div class="st-section-icon"><i class="ti ti-database"></i></div>
+            <div class="st-section-icon"><i class="ti ti-download"></i></div>
             <div>
-              <h3 class="st-section-title">Data Management</h3>
-              <p class="st-section-desc">Export your data or clean up old records</p>
+              <h3 class="st-section-title">Export Data</h3>
+              <p class="st-section-desc">Download your workspace data as a file</p>
+            </div>
+          </div>
+          <div class="st-form-row">
+            <div class="st-form-group">
+              <label for="exportResourceType" class="st-label">Resource</label>
+              <select class="form-select" id="exportResourceType">
+                <option value="tickets">Tickets</option>
+                <option value="contacts">Contacts</option>
+              </select>
+            </div>
+            <div class="st-form-group">
+              <label for="exportFormat" class="st-label">Format</label>
+              <select class="form-select" id="exportFormat">
+                <option value="csv">CSV</option>
+                <option value="xlsx">XLSX</option>
+              </select>
+            </div>
+          </div>
+          <div class="st-form-actions">
+            <button type="button" class="btn btn-primary" id="exportDataBtn">
+              <span class="spinner-border spinner-border-sm d-none me-1" id="exportSpinner"></span>
+              <i class="ti ti-download me-1"></i>Start Export
+            </button>
+          </div>
+        </div>
+
+        <div class="st-section mt-3">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-trash"></i></div>
+            <div>
+              <h3 class="st-section-title">Cleanup</h3>
+              <p class="st-section-desc">Remove old data to free up space</p>
             </div>
           </div>
           <div class="st-toggle-list">
             <div class="st-toggle-item">
-              <div class="st-toggle-icon"><i class="ti ti-download"></i></div>
-              <div class="st-toggle-info">
-                <span class="st-toggle-label">Export Data</span>
-                <span class="st-toggle-desc">Download all tickets, contacts, and activity logs as a CSV file.</span>
-              </div>
-              <button class="btn btn-sm btn-outline-primary" id="exportDataBtn"><i class="ti ti-download me-1"></i>Export</button>
-            </div>
-            <div class="st-toggle-item">
-              <div class="st-toggle-icon"><i class="ti ti-trash"></i></div>
+              <div class="st-toggle-icon"><i class="ti ti-bell-off"></i></div>
               <div class="st-toggle-info">
                 <span class="st-toggle-label">Cleanup Old Notifications</span>
-                <span class="st-toggle-desc">Remove read notifications older than 90 days to free up space.</span>
+                <span class="st-toggle-desc">Remove read notifications older than 90 days.</span>
               </div>
               <button class="btn btn-sm btn-outline-secondary" id="cleanupNotifsBtn"><i class="ti ti-trash me-1"></i>Cleanup</button>
             </div>
@@ -1175,7 +1190,7 @@
               <div class="st-toggle-icon st-toggle-icon--danger"><i class="ti ti-alert-triangle"></i></div>
               <div class="st-toggle-info">
                 <span class="st-toggle-label text-danger">Delete All Tickets</span>
-                <span class="st-toggle-desc">Permanently delete all tickets in this workspace. This action cannot be undone.</span>
+                <span class="st-toggle-desc">Permanently delete all tickets. This action cannot be undone.</span>
               </div>
               <button class="btn btn-sm btn-outline-danger" id="deleteAllTicketsBtn" disabled><i class="ti ti-alert-triangle me-1"></i>Delete All</button>
             </div>
@@ -1220,7 +1235,7 @@ function switchSettingsTab(targetId) {
   'use strict';
   var settings = {};
   async function init() {
-    try { settings = await Api.get('/api/v1/tenants/settings/'); populateForm(settings); } catch (e) { showSettingsAlert('Failed to load settings.', 'danger'); }
+    try { settings = await Api.get('/api/v1/tenants/settings/'); populateForm(settings); } catch (e) { Toast.error('Failed to load settings.'); }
     bindFormEvents();
   }
   function populateForm(s) {
@@ -1231,7 +1246,8 @@ function switchSettingsTab(targetId) {
     toggleSsoFields(s.auth_method);
     if (s.sso_provider) setSelectValue('ssoProvider', s.sso_provider);
     document.getElementById('ssoClientId').value = s.sso_client_id || '';
-    document.getElementById('ssoDomain').value = s.sso_domain || '';
+    document.getElementById('ssoDomain').value = s.sso_authority_url || s.sso_domain || '';
+    document.getElementById('ssoScopes').value = s.sso_scopes || 'openid email profile';
     var color = s.primary_color || '#2563EB';
     document.getElementById('primaryColor').value = color;
     document.getElementById('primaryColorHex').value = color;
@@ -1253,22 +1269,22 @@ function switchSettingsTab(targetId) {
   }
   async function saveGeneral(e) {
     e.preventDefault(); var sp = document.getElementById('generalSpinner'); sp.classList.remove('d-none');
-    try { await Api.patch('/api/v1/tenants/settings/', { name: document.getElementById('tenantName').value.trim(), timezone: document.getElementById('timezone').value, date_format: document.getElementById('dateFormat').value }); showSettingsAlert('General settings saved.', 'success'); Toast.success('General settings saved'); }
-    catch (e) { showSettingsAlert(e.detail || 'Failed to save.', 'danger'); Toast.error('Failed to save settings'); } finally { sp.classList.add('d-none'); }
+    try { await Api.patch('/api/v1/tenants/settings/', { name: document.getElementById('tenantName').value.trim(), timezone: document.getElementById('timezone').value, date_format: document.getElementById('dateFormat').value }); Toast.success('General settings saved'); }
+    catch (e) { Toast.error(e.detail || 'Failed to save settings'); } finally { sp.classList.add('d-none'); }
   }
   async function saveBusinessHours(e) {
     e.preventDefault(); var sp = document.getElementById('bhSpinner'); sp.classList.remove('d-none');
     var days = [];
     document.querySelectorAll('#businessDaysGroup input:checked').forEach(function(cb) { days.push(parseInt(cb.value)); });
-    try { await Api.patch('/api/v1/tenants/settings/', { business_hours_start: document.getElementById('businessStart').value + ':00', business_hours_end: document.getElementById('businessEnd').value + ':00', business_days: days }); showSettingsAlert('Business hours saved.', 'success'); Toast.success('Business hours saved'); }
-    catch (e) { showSettingsAlert(e.detail || 'Failed to save.', 'danger'); Toast.error('Failed to save'); } finally { sp.classList.add('d-none'); }
+    try { await Api.patch('/api/v1/tenants/settings/', { business_hours_start: document.getElementById('businessStart').value + ':00', business_hours_end: document.getElementById('businessEnd').value + ':00', business_days: days }); Toast.success('Business hours saved'); }
+    catch (e) { Toast.error(e.detail || 'Failed to save business hours'); } finally { sp.classList.add('d-none'); }
   }
   async function saveAuth(e) {
     e.preventDefault(); var sp = document.getElementById('authSpinner'); sp.classList.remove('d-none');
     var payload = { auth_method: document.getElementById('authMethod').value };
-    if (payload.auth_method === 'sso' || payload.auth_method === 'both') { payload.sso_provider = document.getElementById('ssoProvider').value; payload.sso_client_id = document.getElementById('ssoClientId').value.trim(); payload.sso_domain = document.getElementById('ssoDomain').value.trim(); var sec = document.getElementById('ssoClientSecret').value.trim(); if (sec) payload.sso_client_secret = sec; }
-    try { await Api.patch('/api/v1/tenants/settings/', payload); showSettingsAlert('Auth settings saved.', 'success'); Toast.success('Authentication settings saved'); }
-    catch (e) { showSettingsAlert(e.detail || 'Failed to save.', 'danger'); Toast.error('Failed to save settings'); } finally { sp.classList.add('d-none'); }
+    if (payload.auth_method === 'sso' || payload.auth_method === 'both') { payload.sso_provider = document.getElementById('ssoProvider').value; payload.sso_client_id = document.getElementById('ssoClientId').value.trim(); payload.sso_authority_url = document.getElementById('ssoDomain').value.trim(); payload.sso_scopes = document.getElementById('ssoScopes').value.trim(); var sec = document.getElementById('ssoClientSecret').value.trim(); if (sec) payload.sso_client_secret = sec; }
+    try { await Api.patch('/api/v1/tenants/settings/', payload); Toast.success('Authentication settings saved'); }
+    catch (e) { Toast.error(e.detail || 'Failed to save auth settings'); } finally { sp.classList.add('d-none'); }
   }
   async function saveBranding(e) {
     e.preventDefault(); var sp = document.getElementById('brandingSpinner'); sp.classList.remove('d-none');
@@ -1276,11 +1292,11 @@ function switchSettingsTab(targetId) {
     var accent = document.getElementById('accentColor').value;
     try {
       await Api.patch('/api/v1/tenants/settings/', { primary_color: primary, accent_color: accent });
-      showSettingsAlert('Branding saved.', 'success'); Toast.success('Branding updated');
+      Toast.success('Branding updated');
       document.documentElement.style.setProperty('--crm-primary', primary);
       document.documentElement.style.setProperty('--crm-accent', accent);
     }
-    catch (e) { showSettingsAlert(e.detail || 'Failed to save.', 'danger'); Toast.error('Failed to save branding'); } finally { sp.classList.add('d-none'); }
+    catch (e) { Toast.error(e.detail || 'Failed to save branding'); } finally { sp.classList.add('d-none'); }
   }
   function bindFormEvents() {
     document.getElementById('generalForm').addEventListener('submit', saveGeneral);
@@ -1339,8 +1355,27 @@ function switchSettingsTab(targetId) {
         Toast.success('Logo removed');
       } catch(e) { Toast.error('Failed to remove logo'); }
     });
-    document.getElementById('exportDataBtn').addEventListener('click', function() { Toast.info('Export started. You will be notified when the file is ready.'); });
-    document.getElementById('cleanupNotifsBtn').addEventListener('click', function() { if (confirm('Remove all read notifications older than 90 days?')) { Toast.success('Cleanup initiated.'); } });
+    document.getElementById('exportDataBtn').addEventListener('click', async function() {
+      var btn = this; var sp = document.getElementById('exportSpinner');
+      btn.disabled = true; sp.classList.remove('d-none');
+      try {
+        await Api.post('/api/v1/analytics/export-jobs/', {
+          resource_type: document.getElementById('exportResourceType').value,
+          export_type: document.getElementById('exportFormat').value
+        });
+        Toast.success('Export started. Check the Analytics page for the download link.');
+      } catch(e) { Toast.error(e.detail || 'Failed to start export'); }
+      finally { btn.disabled = false; sp.classList.add('d-none'); }
+    });
+    document.getElementById('cleanupNotifsBtn').addEventListener('click', async function() {
+      if (!confirm('Remove all read notifications older than 90 days?')) return;
+      var btn = this; btn.disabled = true;
+      try {
+        await Api.post('/api/v1/notifications/notifications/cleanup/');
+        Toast.success('Cleanup task queued. Old read notifications will be removed shortly.');
+      } catch(e) { Toast.error(e.detail || 'Failed to start cleanup'); }
+      finally { btn.disabled = false; }
+    });
   }
   function toggleSsoFields(m) { document.getElementById('ssoFields').classList.toggle('d-none', m !== 'sso' && m !== 'both'); }
   function updateColorPreview(primary, accent) {
@@ -1374,20 +1409,6 @@ function switchSettingsTab(targetId) {
     } catch(e) { Toast.error(e.detail || 'Failed to upload logo'); }
   }
   function setSelectValue(id, v) { var s = document.getElementById(id); if (!s) return; for (var i = 0; i < s.options.length; i++) { if (s.options[i].value === v) { s.selectedIndex = i; return; } } }
-  function showSettingsAlert(msg, type) {
-    var c = document.getElementById('settingsAlert');
-    c.className = 'alert alert-' + type + ' alert-dismissible fade show';
-    var textNode = document.createTextNode(msg);
-    var closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'btn-close';
-    closeBtn.setAttribute('data-bs-dismiss', 'alert');
-    c.textContent = '';
-    c.appendChild(textNode);
-    c.appendChild(closeBtn);
-    c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    if (type === 'success') setTimeout(function() { var a = bootstrap.Alert.getOrCreateInstance(c); if (a) a.close(); }, 4000);
-  }
   init();
 })();
 </script>
@@ -2325,10 +2346,46 @@ function switchSettingsTab(targetId) {
       setSegmentedValue('themeSegmented', data.theme || 'system');
       document.getElementById('sidebarCollapsedToggle').checked = !!data.sidebar_collapsed;
       setSegmentedValue('densitySegmented', data.density || 'comfortable');
-      // Apply theme to localStorage
-      localStorage.setItem('kanzan-theme', data.theme || 'system');
-      localStorage.setItem('kanzan-density', data.density || 'comfortable');
+      // Sync localStorage with server values (use correct keys)
+      localStorage.setItem('kanzan_theme', data.theme || 'system');
+      localStorage.setItem('kanzan_sidebar_collapsed', data.sidebar_collapsed ? '1' : '0');
+      localStorage.setItem('kanzan_density', data.density || 'comfortable');
+      // Apply immediately
+      applyThemeSetting(data.theme || 'system');
+      applySidebarSetting(!!data.sidebar_collapsed);
+      applyDensitySetting(data.density || 'comfortable');
     } catch(e) { console.error('Failed to load theme prefs:', e); }
+  }
+
+  /* -- Helper: apply theme to document -- */
+  function applyThemeSetting(pref) {
+    var effective = pref;
+    if (pref === 'system') {
+      effective = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    document.documentElement.setAttribute('data-bs-theme', effective);
+    // Update header toggle icon if present
+    var btn = document.getElementById('themeToggleBtn');
+    if (btn) {
+      var icon = btn.querySelector('i');
+      if (icon) {
+        icon.className = pref === 'dark' ? 'ti ti-moon' : pref === 'light' ? 'ti ti-sun' : 'ti ti-device-desktop';
+      }
+    }
+  }
+
+  /* -- Helper: apply sidebar collapsed state -- */
+  function applySidebarSetting(collapsed) {
+    if (collapsed) {
+      document.body.classList.add('sidebar-collapsed');
+    } else {
+      document.body.classList.remove('sidebar-collapsed');
+    }
+  }
+
+  /* -- Helper: apply density to document -- */
+  function applyDensitySetting(density) {
+    document.documentElement.setAttribute('data-density', density);
   }
 
   document.getElementById('saveThemeBtn').addEventListener('click', async function() {
@@ -2343,9 +2400,14 @@ function switchSettingsTab(targetId) {
         sidebar_collapsed: collapsed,
         density: density
       });
-      localStorage.setItem('kanzan-theme', theme);
-      localStorage.setItem('kanzan-density', density);
-      localStorage.setItem('kanzan-sidebar-collapsed', collapsed ? '1' : '0');
+      // Store with correct keys (matching theme.js / app.js)
+      localStorage.setItem('kanzan_theme', theme);
+      localStorage.setItem('kanzan_sidebar_collapsed', collapsed ? '1' : '0');
+      localStorage.setItem('kanzan_density', density);
+      // Apply changes immediately — no page reload needed
+      applyThemeSetting(theme);
+      applySidebarSetting(collapsed);
+      applyDensitySetting(density);
       Toast.success('Appearance settings saved');
     } catch(e) {
       Toast.error(e.detail || 'Failed to save appearance');
@@ -2379,23 +2441,53 @@ function switchSettingsTab(targetId) {
     try {
       var data = await Api.get('/api/v1/accounts/profiles/me/');
       document.getElementById('prefLanguage').value = data.language || 'en';
-      document.getElementById('prefTimezone').value = data.timezone || 'UTC';
       document.getElementById('prefDateFormat').value = data.date_format || 'YYYY-MM-DD';
       setSegmentedValue('timeFormatSegmented', data.time_format || '24h');
+      // Set timezone (needs to match an option in the dropdown)
+      var tzSelect = document.getElementById('prefTimezone');
+      var tz = data.timezone || '';
+      if (tz && tzSelect) {
+        // Check if the timezone option exists, if not add it
+        var found = false;
+        for (var i = 0; i < tzSelect.options.length; i++) {
+          if (tzSelect.options[i].value === tz) { found = true; break; }
+        }
+        if (!found && tz) {
+          var opt = document.createElement('option');
+          opt.value = tz;
+          opt.textContent = tz.replace(/_/g, ' ');
+          tzSelect.appendChild(opt);
+        }
+        tzSelect.value = tz;
+      }
+      // Sync localStorage
+      localStorage.setItem('kanzan_language', data.language || 'en');
+      localStorage.setItem('kanzan_timezone', data.timezone || '');
+      localStorage.setItem('kanzan_date_format', data.date_format || 'YYYY-MM-DD');
+      localStorage.setItem('kanzan_time_format', data.time_format || '24h');
     } catch(e) { console.error('Failed to load language prefs:', e); }
   }
 
   document.getElementById('saveLanguageBtn').addEventListener('click', async function() {
     var sp = document.getElementById('languageSpinner');
     sp.classList.remove('d-none');
+    var lang = document.getElementById('prefLanguage').value;
+    var tz = document.getElementById('prefTimezone').value;
+    var dateFmt = document.getElementById('prefDateFormat').value;
+    var timeFmt = getSegmentedValue('timeFormatSegmented');
     try {
       await Api.patch('/api/v1/accounts/profiles/me/', {
-        language: document.getElementById('prefLanguage').value,
-        timezone: document.getElementById('prefTimezone').value,
-        date_format: document.getElementById('prefDateFormat').value,
-        time_format: getSegmentedValue('timeFormatSegmented')
+        language: lang,
+        timezone: tz,
+        date_format: dateFmt,
+        time_format: timeFmt
       });
-      Toast.success('Regional settings saved');
+      // Store in localStorage so Kanzan.formatDate/formatDateTime use them
+      localStorage.setItem('kanzan_language', lang);
+      localStorage.setItem('kanzan_timezone', tz);
+      localStorage.setItem('kanzan_date_format', dateFmt);
+      localStorage.setItem('kanzan_time_format', timeFmt);
+      Toast.success('Regional settings saved — dates will update on next page load');
     } catch(e) {
       Toast.error(e.detail || 'Failed to save regional settings');
     } finally { sp.classList.add('d-none'); }
@@ -2519,6 +2611,150 @@ function switchSettingsTab(targetId) {
   })();
 
   // -------------------------------------------------------
+  // 6. Notification Preferences (dynamic table)
+  // -------------------------------------------------------
+  var notifLoaded = false;
+  var NOTIF_PREF_API = '/api/v1/notifications/notification-preferences/';
+  var NOTIF_ICONS = {
+    ticket_assigned: 'ti-user-plus',
+    ticket_updated: 'ti-edit',
+    ticket_commented: 'ti-message',
+    sla_warning: 'ti-alarm',
+    sla_breached: 'ti-alert-triangle',
+    mention: 'ti-at',
+    ticket_created: 'ti-plus',
+    status_changed: 'ti-arrows-exchange',
+    priority_changed: 'ti-flag'
+  };
+
+  function notifEscape(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.textContent; }
+
+  function buildNotifRow(p) {
+    var row = document.createElement('div');
+    row.className = 'st-notif-table-row';
+
+    // Type cell with icon
+    var typeCell = document.createElement('span');
+    typeCell.className = 'st-notif-table-type';
+    var icon = document.createElement('i');
+    icon.className = 'ti ' + (NOTIF_ICONS[p.notification_type] || 'ti-bell') + ' me-2';
+    icon.style.opacity = '0.5';
+    typeCell.appendChild(icon);
+    typeCell.appendChild(document.createTextNode(notifEscape(p.notification_type_display)));
+
+    // In-app toggle cell
+    var inAppCell = document.createElement('span');
+    inAppCell.className = 'st-notif-table-ch';
+    var inAppWrap = document.createElement('div');
+    inAppWrap.className = 'form-check form-switch';
+    var inAppInput = document.createElement('input');
+    inAppInput.className = 'form-check-input st-notif-toggle';
+    inAppInput.type = 'checkbox';
+    inAppInput.dataset.type = p.notification_type;
+    inAppInput.dataset.channel = 'in_app';
+    inAppInput.checked = !!p.in_app;
+    inAppWrap.appendChild(inAppInput);
+    inAppCell.appendChild(inAppWrap);
+
+    // Email toggle cell
+    var emailCell = document.createElement('span');
+    emailCell.className = 'st-notif-table-ch';
+    var emailWrap = document.createElement('div');
+    emailWrap.className = 'form-check form-switch';
+    var emailInput = document.createElement('input');
+    emailInput.className = 'form-check-input st-notif-toggle';
+    emailInput.type = 'checkbox';
+    emailInput.dataset.type = p.notification_type;
+    emailInput.dataset.channel = 'email';
+    emailInput.checked = !!p.email;
+    emailWrap.appendChild(emailInput);
+    emailCell.appendChild(emailWrap);
+
+    row.appendChild(typeCell);
+    row.appendChild(inAppCell);
+    row.appendChild(emailCell);
+    return row;
+  }
+
+  async function loadNotifPrefs() {
+    var loading = document.getElementById('notificationsLoading');
+    var wrap = document.getElementById('notifTableWrap');
+    try {
+      var prefs = await Api.get(NOTIF_PREF_API);
+      var list = document.getElementById('stNotifPrefList');
+      list.textContent = '';
+      (Array.isArray(prefs) ? prefs : (prefs.results || [])).forEach(function(p) {
+        list.appendChild(buildNotifRow(p));
+      });
+      // Bind toggle handlers
+      list.querySelectorAll('.st-notif-toggle').forEach(function(toggle) {
+        toggle.addEventListener('change', function() { saveNotifPref(this); });
+      });
+      loading.classList.add('d-none');
+      wrap.classList.remove('d-none');
+    } catch(e) {
+      loading.textContent = '';
+      var errMsg = document.createElement('span');
+      errMsg.className = 'text-danger small';
+      errMsg.textContent = 'Failed to load preferences';
+      loading.appendChild(errMsg);
+    }
+  }
+
+  async function saveNotifPref(toggle) {
+    var ntype = toggle.dataset.type;
+    var row = toggle.closest('.st-notif-table-row');
+    var inAppToggle = row.querySelector('[data-channel="in_app"]');
+    var emailToggle = row.querySelector('[data-channel="email"]');
+    try {
+      await Api.put(NOTIF_PREF_API + '0/', {
+        notification_type: ntype,
+        in_app: inAppToggle.checked,
+        email: emailToggle.checked
+      });
+    } catch(e) {
+      toggle.checked = !toggle.checked;
+      Toast.error('Failed to update preference');
+    }
+  }
+
+  // -------------------------------------------------------
+  // 7. Quiet Hours (DND)
+  // -------------------------------------------------------
+  var dndToggle = document.getElementById('dndEnabled');
+  var dndWrap = document.getElementById('dndTimesWrap');
+  if (dndToggle) {
+    dndToggle.addEventListener('change', function() {
+      dndWrap.classList.toggle('d-none', !this.checked);
+    });
+  }
+
+  async function loadDndPrefs() {
+    try {
+      var data = await Api.get('/api/v1/accounts/profiles/me/');
+      dndToggle.checked = !!data.dnd_enabled;
+      dndWrap.classList.toggle('d-none', !data.dnd_enabled);
+      if (data.dnd_start) document.getElementById('dndStart').value = data.dnd_start.substring(0, 5);
+      if (data.dnd_end) document.getElementById('dndEnd').value = data.dnd_end.substring(0, 5);
+    } catch(e) { console.error('Failed to load DND prefs:', e); }
+  }
+
+  document.getElementById('saveDndBtn').addEventListener('click', async function() {
+    var sp = document.getElementById('dndSpinner');
+    sp.classList.remove('d-none');
+    try {
+      await Api.patch('/api/v1/accounts/profiles/me/', {
+        dnd_enabled: dndToggle.checked,
+        dnd_start: document.getElementById('dndStart').value + ':00',
+        dnd_end: document.getElementById('dndEnd').value + ':00'
+      });
+      Toast.success('Quiet hours saved');
+    } catch(e) {
+      Toast.error(e.detail || 'Failed to save quiet hours');
+    } finally { sp.classList.add('d-none'); }
+  });
+
+  // -------------------------------------------------------
   // Lazy-load panels on tab switch
   // -------------------------------------------------------
   var origSwitchPhase1 = window.switchSettingsTab;
@@ -2528,7 +2764,13 @@ function switchSettingsTab(targetId) {
     if (targetId === 'themePane' && !themeLoaded) { themeLoaded = true; loadThemePrefs(); }
     if (targetId === 'languagePane' && !langLoaded) { langLoaded = true; loadLanguagePrefs(); }
     if (targetId === 'signaturePane' && !sigLoaded) { sigLoaded = true; loadSignature(); }
+    if (targetId === 'notificationsPane' && !notifLoaded) { notifLoaded = true; loadNotifPrefs(); loadDndPrefs(); }
   };
+
+  // Auto-load notifications if it's the default active pane (non-admin users)
+  {% if not is_admin %}
+  notifLoaded = true; loadNotifPrefs(); loadDndPrefs();
+  {% endif %}
 })();
 </script>
 {% endblock %}

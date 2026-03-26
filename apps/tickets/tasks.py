@@ -513,32 +513,36 @@ def _execute_rule(rule, ticket, tenant, now):
 )
 def send_ticket_reply_email_task(self, ticket_id, comment_body, agent_name, tenant_id):
     """
-    Send an outbound email to the ticket's contact when an agent replies.
+    Send an outbound reply email to the ticket's contact.
 
-    This is queued asynchronously so the agent doesn't wait for email delivery.
+    Delegates to send_ticket_reply_email() which routes through the
+    single send_ticket_email() entry point. The idempotency_key on the
+    outbound InboundEmail record prevents duplicate sends on Celery retry.
     """
     from apps.tenants.models import Tenant
     from apps.tickets.email_service import send_ticket_reply_email
     from apps.tickets.models import Ticket
+    from main.context import tenant_context
 
     try:
         ticket = Ticket.unscoped.select_related("contact").get(pk=ticket_id)
         tenant = Tenant.objects.get(pk=tenant_id)
-    except (Ticket.DoesNotExist, Tenant.DoesNotExist) as exc:
+    except (Ticket.DoesNotExist, Tenant.DoesNotExist):
         logger.error(
             "send_ticket_reply_email_task: ticket %s or tenant %s not found.",
             ticket_id, tenant_id,
         )
         return
 
-    try:
-        send_ticket_reply_email(ticket, comment_body, agent_name, tenant)
-    except Exception as exc:
-        logger.exception(
-            "Failed to send reply email for ticket %s (attempt %d/%d)",
-            ticket_id, self.request.retries + 1, self.max_retries + 1,
-        )
-        raise self.retry(exc=exc)
+    with tenant_context(tenant):
+        try:
+            send_ticket_reply_email(ticket, comment_body, agent_name, tenant)
+        except Exception as exc:
+            logger.exception(
+                "Failed to send reply email for ticket %s (attempt %d/%d)",
+                ticket_id, self.request.retries + 1, self.max_retries + 1,
+            )
+            raise self.retry(exc=exc)
 
 
 @shared_task(
@@ -549,11 +553,15 @@ def send_ticket_reply_email_task(self, ticket_id, comment_body, agent_name, tena
 )
 def send_ticket_created_email_task(self, ticket_id, tenant_id):
     """
-    Send a confirmation email to the contact when a ticket is created via email.
+    Send a confirmation email to the contact when a ticket is created.
+
+    Delegates to send_ticket_created_email() which routes through the
+    single send_ticket_email() entry point.
     """
     from apps.tenants.models import Tenant
     from apps.tickets.email_service import send_ticket_created_email
     from apps.tickets.models import Ticket
+    from main.context import tenant_context
 
     try:
         ticket = Ticket.unscoped.select_related("contact").get(pk=ticket_id)
@@ -565,11 +573,62 @@ def send_ticket_created_email_task(self, ticket_id, tenant_id):
         )
         return
 
+    with tenant_context(tenant):
+        try:
+            send_ticket_created_email(ticket, tenant)
+        except Exception as exc:
+            logger.exception(
+                "Failed to send ticket created email for ticket %s (attempt %d/%d)",
+                ticket_id, self.request.retries + 1, self.max_retries + 1,
+            )
+            raise self.retry(exc=exc)
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=30,
+    acks_late=True,
+)
+def send_ticket_email_task(self, ticket_id, tenant_id, to_email, subject, body_text,
+                           body_html=None, sender_type="system"):
+    """
+    Generic outbound email task for agent-initiated sends.
+
+    This is the async wrapper used by the send_email view action
+    so agents don't block on SMTP delivery.
+    """
+    from apps.inbound_email.models import InboundEmail
+    from apps.tenants.models import Tenant
+    from apps.tickets.email_service import send_ticket_email
+    from apps.tickets.models import Ticket
+    from main.context import tenant_context
+
     try:
-        send_ticket_created_email(ticket, tenant)
-    except Exception as exc:
-        logger.exception(
-            "Failed to send ticket created email for ticket %s (attempt %d/%d)",
-            ticket_id, self.request.retries + 1, self.max_retries + 1,
+        ticket = Ticket.unscoped.get(pk=ticket_id)
+        tenant = Tenant.objects.get(pk=tenant_id)
+    except (Ticket.DoesNotExist, Tenant.DoesNotExist):
+        logger.error(
+            "send_ticket_email_task: ticket %s or tenant %s not found.",
+            ticket_id, tenant_id,
         )
-        raise self.retry(exc=exc)
+        return
+
+    with tenant_context(tenant):
+        try:
+            send_ticket_email(
+                tenant=tenant,
+                ticket=ticket,
+                to_email=to_email,
+                subject=subject,
+                body_text=body_text,
+                body_html=body_html,
+                sender_type=sender_type,
+            )
+        except Exception as exc:
+            logger.exception(
+                "Failed to send email for ticket %s to %s (attempt %d/%d)",
+                ticket_id, to_email,
+                self.request.retries + 1, self.max_retries + 1,
+            )
+            raise self.retry(exc=exc)

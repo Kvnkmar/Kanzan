@@ -110,7 +110,11 @@ def landing_page(request):
         if request.user.is_authenticated:
             return redirect("frontend:dashboard")
         return redirect("frontend:login")
-    return render(request, "pages/landing.html")
+    from django.conf import settings as django_settings
+
+    return render(request, "pages/landing.html", {
+        "DEMO_URL": django_settings.TENANT_URL("demo"),
+    })
 
 
 @require_http_methods(["GET", "POST"])

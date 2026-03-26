@@ -108,7 +108,7 @@ class TestContactGroupCRUD:
         }, format="json")
         assert resp.status_code == 201
 
-    def test_create_group(self, admin_client, tenant):
+    def test_create_group_with_name_check(self, admin_client, tenant):
         create_resp = admin_client.post(
             "/api/v1/contacts/contact-groups/", {"name": "VIP Group"}, format="json"
         )

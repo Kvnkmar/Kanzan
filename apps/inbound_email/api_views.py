@@ -32,7 +32,7 @@ class InboundEmailViewSet(ReadOnlyModelViewSet):
     permission_classes = [IsAuthenticated, HasTenantPermission]
     permission_resource = "inbound_email"
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ["status"]
+    filterset_fields = ["status", "direction"]
     search_fields = ["sender_email", "subject", "sender_name"]
     ordering_fields = ["created_at", "status"]
     ordering = ["-created_at"]

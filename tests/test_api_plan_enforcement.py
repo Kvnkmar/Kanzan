@@ -5,12 +5,10 @@ These are integration tests that hit the real API endpoints and verify
 that plan limits return 403 when exceeded.
 """
 
-from datetime import date
-
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.billing.models import Subscription, UsageTracker
+from apps.billing.models import UsageTracker
 
 from tests.base import TenantTestCase
 

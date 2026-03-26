@@ -208,7 +208,7 @@ class InboundEmailFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "inbound_email.InboundEmail"
 
-    message_id = factory.LazyFunction(lambda: f"<{uuid.uuid4()}@test.com>")
+    message_id = factory.LazyFunction(lambda: f"{uuid.uuid4()}@test.com")
     sender_email = factory.Sequence(lambda n: f"sender{n}@example.com")
     recipient_email = "support+demo@kanzan.io"
     subject = factory.Faker("sentence", nb_words=5)

@@ -97,6 +97,23 @@ class NotificationViewSet(
         ).count()
         return Response({"unread_count": count})
 
+    @action(detail=False, methods=["post"], url_path="cleanup")
+    def cleanup(self, request):
+        """Trigger cleanup of read notifications older than 90 days (admin only)."""
+        from apps.accounts.permissions import IsTenantAdmin
+
+        perm = IsTenantAdmin()
+        if not perm.has_permission(request, self):
+            return Response(
+                {"detail": "Admin access required."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        from apps.notifications.tasks import cleanup_old_notifications
+
+        cleanup_old_notifications.delay(days=90)
+        return Response({"detail": "Cleanup task queued. Old read notifications will be removed shortly."})
+
 
 # ---------------------------------------------------------------------------
 # NotificationPreferenceViewSet

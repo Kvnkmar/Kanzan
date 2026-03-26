@@ -22,6 +22,7 @@ app.conf.task_routes = {
     "apps.notifications.tasks.send_email_*": {"queue": "kanzan_email"},
     "apps.notifications.tasks.send_notification_email": {"queue": "kanzan_email"},
     "apps.inbound_email.tasks.*": {"queue": "kanzan_email"},
+    "apps.tickets.tasks.send_ticket_*": {"queue": "kanzan_email"},
     "*": {"queue": "kanzan_default"},
 }
 

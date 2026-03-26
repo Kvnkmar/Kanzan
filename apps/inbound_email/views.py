@@ -3,6 +3,20 @@ Webhook endpoints for inbound email providers.
 
 Supports SendGrid Inbound Parse and Mailgun Routes.
 Both are CSRF-exempt and authenticated via shared secret in the URL.
+
+All webhook handlers follow the same pattern:
+1. Verify authentication (URL secret or provider-specific signature)
+2. Parse the provider-specific payload into normalized fields
+3. Normalize all Message-ID / In-Reply-To / References values (strip <>)
+4. Create an InboundEmail record with status=PENDING
+5. Save attachments to temporary storage
+6. Queue async processing via Celery
+
+The async processing pipeline (in services.py) handles:
+- Loop/auto-reply filtering
+- Tenant resolution
+- Deduplication
+- Ticket threading / creation
 """
 
 import hashlib
@@ -13,13 +27,24 @@ import uuid as uuid_mod
 
 from django.conf import settings
 from django.core.files.storage import default_storage
-from django.http import HttpResponse, JsonResponse
+from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from apps.inbound_email.models import InboundEmail
+from apps.inbound_email.utils import (
+    extract_header,
+    normalize_message_id,
+    normalize_references,
+    parse_sender,
+)
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Authentication
+# ---------------------------------------------------------------------------
 
 
 def _verify_webhook_secret(request):
@@ -66,6 +91,11 @@ def _verify_mailgun_signature(request):
     return hmac.compare_digest(expected, signature)
 
 
+# ---------------------------------------------------------------------------
+# Webhook endpoints
+# ---------------------------------------------------------------------------
+
+
 @csrf_exempt
 @require_POST
 def sendgrid_inbound(request):
@@ -80,19 +110,27 @@ def sendgrid_inbound(request):
         return HttpResponse(status=403)
 
     try:
-        sender_raw = request.POST.get("from", "")
-        # Parse "Name <email>" format
-        sender_name, sender_email = _parse_sender(sender_raw)
+        raw_headers = request.POST.get("headers", "")
+        sender_name, sender_email = parse_sender(
+            request.POST.get("from", ""),
+        )
+
+        # Extract and normalize threading headers from raw headers.
+        # SendGrid delivers Message-ID, In-Reply-To, References inside
+        # the raw headers blob, not as separate POST fields.
+        raw_msg_id = extract_header(raw_headers, "Message-ID")
+        message_id = (
+            normalize_message_id(raw_msg_id)
+            or f"sendgrid-{int(time.time())}"
+        )
 
         inbound = InboundEmail.objects.create(
-            message_id=_extract_header(
-                request.POST.get("headers", ""), "Message-ID"
-            ) or f"sendgrid-{int(time.time())}",
-            in_reply_to=_extract_header(
-                request.POST.get("headers", ""), "In-Reply-To"
+            message_id=message_id,
+            in_reply_to=normalize_message_id(
+                extract_header(raw_headers, "In-Reply-To"),
             ),
-            references=_extract_header(
-                request.POST.get("headers", ""), "References"
+            references=normalize_references(
+                extract_header(raw_headers, "References"),
             ),
             sender_email=sender_email,
             sender_name=sender_name,
@@ -100,7 +138,9 @@ def sendgrid_inbound(request):
             subject=request.POST.get("subject", ""),
             body_text=request.POST.get("text", ""),
             body_html=request.POST.get("html", ""),
-            raw_headers=request.POST.get("headers", ""),
+            raw_headers=raw_headers,
+            direction=InboundEmail.Direction.INBOUND,
+            sender_type=InboundEmail.SenderType.CUSTOMER,
         )
 
         _save_inbound_attachments(request, inbound)
@@ -120,20 +160,33 @@ def mailgun_inbound(request):
 
     Mailgun posts multipart form data with:
     - sender, from, recipient, subject, body-plain, body-html
-    - Message-Id, In-Reply-To, References headers
+    - Message-Id, In-Reply-To, References as separate POST fields
     """
     # Verify via URL secret OR Mailgun signature
     if not (_verify_webhook_secret(request) or _verify_mailgun_signature(request)):
         return HttpResponse(status=403)
 
     try:
-        sender_raw = request.POST.get("from", request.POST.get("sender", ""))
-        sender_name, sender_email = _parse_sender(sender_raw)
+        sender_name, sender_email = parse_sender(
+            request.POST.get("from", request.POST.get("sender", "")),
+        )
+
+        # Mailgun provides Message-Id, In-Reply-To, References as direct
+        # POST fields (not inside raw headers). Normalize consistently.
+        raw_msg_id = request.POST.get("Message-Id", "")
+        message_id = (
+            normalize_message_id(raw_msg_id)
+            or f"mailgun-{int(time.time())}"
+        )
 
         inbound = InboundEmail.objects.create(
-            message_id=request.POST.get("Message-Id", f"mailgun-{int(time.time())}"),
-            in_reply_to=request.POST.get("In-Reply-To", ""),
-            references=request.POST.get("References", ""),
+            message_id=message_id,
+            in_reply_to=normalize_message_id(
+                request.POST.get("In-Reply-To", ""),
+            ),
+            references=normalize_references(
+                request.POST.get("References", ""),
+            ),
             sender_email=sender_email,
             sender_name=sender_name,
             recipient_email=request.POST.get("recipient", ""),
@@ -141,6 +194,8 @@ def mailgun_inbound(request):
             body_text=request.POST.get("body-plain", ""),
             body_html=request.POST.get("body-html", ""),
             raw_headers=request.POST.get("message-headers", ""),
+            direction=InboundEmail.Direction.INBOUND,
+            sender_type=InboundEmail.SenderType.CUSTOMER,
         )
 
         _save_inbound_attachments(request, inbound)
@@ -152,29 +207,9 @@ def mailgun_inbound(request):
         return HttpResponse(status=500)
 
 
-def _parse_sender(sender_raw):
-    """
-    Parse sender from "Display Name <email@example.com>" format.
-    Returns (name, email).
-    """
-    import re
-
-    match = re.match(r"^(.+?)\s*<(.+?)>$", sender_raw.strip())
-    if match:
-        return match.group(1).strip().strip('"'), match.group(2).strip()
-    # Bare email address
-    email = sender_raw.strip().strip("<>")
-    return "", email
-
-
-def _extract_header(raw_headers, header_name):
-    """Extract a specific header value from raw email headers."""
-    if not raw_headers:
-        return ""
-    for line in raw_headers.split("\n"):
-        if line.lower().startswith(header_name.lower() + ":"):
-            return line.split(":", 1)[1].strip().strip("<>")
-    return ""
+# ---------------------------------------------------------------------------
+# Attachment handling
+# ---------------------------------------------------------------------------
 
 
 def _save_inbound_attachments(request, inbound):
@@ -183,7 +218,8 @@ def _save_inbound_attachments(request, inbound):
     and record metadata on the InboundEmail record.
 
     Files are saved to inbound_emails/<inbound_id>/<filename> and tracked
-    in the attachment_metadata JSON field for later processing.
+    in the attachment_metadata JSON field for later processing by the
+    async pipeline.
     """
     metadata = []
     for key, uploaded_file in request.FILES.items():
@@ -210,6 +246,11 @@ def _save_inbound_attachments(request, inbound):
             "Saved %d attachment(s) for inbound email %s",
             len(metadata), inbound.pk,
         )
+
+
+# ---------------------------------------------------------------------------
+# Async dispatch
+# ---------------------------------------------------------------------------
 
 
 def _queue_processing(inbound_email_id):

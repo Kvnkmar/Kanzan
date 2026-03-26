@@ -5,8 +5,6 @@ Covers: reply emails, ticket created emails, Reply-To threading,
 message-id recording for inbound threading, and signal integration.
 """
 
-from unittest.mock import patch
-
 from django.core import mail
 from django.test import override_settings
 
@@ -94,7 +92,7 @@ class TicketReplyEmailTest(TenantTestCase):
             sender_email="noreply@kanzan.test",
         )
         self.assertEqual(records.count(), 1)
-        self.assertEqual(records.first().status, InboundEmail.Status.REPLY_ADDED)
+        self.assertEqual(records.first().status, InboundEmail.Status.SENT)
 
     def test_skips_if_no_contact(self):
         """No email sent if ticket has no contact."""

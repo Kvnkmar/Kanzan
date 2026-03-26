@@ -2,243 +2,286 @@
 {% block title %}Agents & Email - Kanzen Suite{% endblock %}
 
 {% block content %}
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Agents & Email</h1>
-    <p class="page-subtitle">
-      {% if is_admin_or_manager %}Monitor agent availability, workload, and manage emails{% else %}View team status and manage ticket emails{% endif %}
-    </p>
+<!-- Page Header -->
+<div class="ae-page-header">
+  <div class="ae-page-header__left">
+    <div class="ae-page-icon">
+      <i class="ti ti-headset"></i>
+    </div>
+    <div>
+      <h1 class="ae-page-title">Agents & Email</h1>
+      <p class="ae-page-subtitle">
+        {% if is_admin_or_manager %}Monitor agent availability, workload, and manage emails{% else %}View team status and manage ticket emails{% endif %}
+      </p>
+    </div>
   </div>
-  <div class="header-actions">
-    <button class="btn btn-outline-secondary btn-sm" id="refreshAllBtn">
-      <i class="ti ti-refresh me-1"></i>Refresh All
+  <button class="ae-refresh-btn" id="refreshAllBtn" title="Refresh all data">
+    <i class="ti ti-refresh"></i>
+    <span>Refresh</span>
+  </button>
+</div>
+
+<!-- Segmented Tab Navigation -->
+<div class="ae-tabs-wrap">
+  <div class="ae-tabs" id="agentPageTabs" role="tablist">
+    <button class="ae-tab active" id="tab-team" data-bs-toggle="tab" data-bs-target="#pane-team" type="button" role="tab">
+      <i class="ti ti-users"></i>
+      <span>Team</span>
+      <span class="ae-tab-count" id="tabCountTeam">0</span>
+    </button>
+    <button class="ae-tab" id="tab-inbox" data-bs-toggle="tab" data-bs-target="#pane-inbox" type="button" role="tab">
+      <i class="ti ti-inbox"></i>
+      <span>Inbox</span>
+      <span class="ae-tab-count" id="tabCountInbox">0</span>
+    </button>
+    <button class="ae-tab" id="tab-compose" data-bs-toggle="tab" data-bs-target="#pane-compose" type="button" role="tab">
+      <i class="ti ti-send"></i>
+      <span>Compose</span>
     </button>
   </div>
 </div>
 
-<!-- Page Tabs -->
-<ul class="nav nav-tabs mb-4" id="agentPageTabs" role="tablist">
-  <li class="nav-item" role="presentation">
-    <button class="nav-link active" id="tab-team" data-bs-toggle="tab" data-bs-target="#pane-team" type="button" role="tab">
-      <i class="ti ti-users me-1"></i>Team
-      <span class="badge bg-secondary bg-opacity-25 ms-1" id="tabCountTeam">0</span>
-    </button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="tab-inbox" data-bs-toggle="tab" data-bs-target="#pane-inbox" type="button" role="tab">
-      <i class="ti ti-inbox me-1"></i>Inbox
-      <span class="badge bg-secondary bg-opacity-25 ms-1" id="tabCountInbox">0</span>
-    </button>
-  </li>
-  <li class="nav-item" role="presentation">
-    <button class="nav-link" id="tab-compose" data-bs-toggle="tab" data-bs-target="#pane-compose" type="button" role="tab">
-      <i class="ti ti-send me-1"></i>Compose
-    </button>
-  </li>
-</ul>
-
 <div class="tab-content" id="agentPageTabContent">
 
-  <!-- TEAM TAB -->
+  <!-- ═══ TEAM TAB ═══ -->
   <div class="tab-pane fade show active" id="pane-team" role="tabpanel">
-    <div class="row g-3 mb-4">
-      <div class="col-6 col-md-3">
-        <div class="stat-card">
-          <div class="stat-card-accent" style="background: #22C55E;"></div>
-          <div class="stat-card-body">
-            <span class="stat-card-label">Online</span>
-            <span class="stat-card-value" id="countOnline">0</span>
-          </div>
+    <!-- Stats Grid -->
+    <div class="ae-stats-grid">
+      <div class="ae-stat-card ae-stat-card--online">
+        <div class="ae-stat-icon">
+          <i class="ti ti-circle-check"></i>
+        </div>
+        <div class="ae-stat-info">
+          <span class="ae-stat-label">Online</span>
+          <span class="ae-stat-value" id="countOnline">0</span>
         </div>
       </div>
-      <div class="col-6 col-md-3">
-        <div class="stat-card">
-          <div class="stat-card-accent" style="background: #9CA3AF;"></div>
-          <div class="stat-card-body">
-            <span class="stat-card-label">Offline</span>
-            <span class="stat-card-value" id="countOffline">0</span>
-          </div>
+      <div class="ae-stat-card ae-stat-card--offline">
+        <div class="ae-stat-icon">
+          <i class="ti ti-circle-x"></i>
+        </div>
+        <div class="ae-stat-info">
+          <span class="ae-stat-label">Offline</span>
+          <span class="ae-stat-value" id="countOffline">0</span>
         </div>
       </div>
-      <div class="col-6 col-md-3">
-        <div class="stat-card">
-          <div class="stat-card-accent" style="background: #3B82F6;"></div>
-          <div class="stat-card-body">
-            <span class="stat-card-label">Total Agents</span>
-            <span class="stat-card-value" id="countTotal">0</span>
-          </div>
+      <div class="ae-stat-card ae-stat-card--total">
+        <div class="ae-stat-icon">
+          <i class="ti ti-users-group"></i>
+        </div>
+        <div class="ae-stat-info">
+          <span class="ae-stat-label">Total Agents</span>
+          <span class="ae-stat-value" id="countTotal">0</span>
         </div>
       </div>
-      <div class="col-6 col-md-3">
-        <div class="stat-card">
-          <div class="stat-card-accent" style="background: #F59E0B;"></div>
-          <div class="stat-card-body">
-            <span class="stat-card-label">At Capacity</span>
-            <span class="stat-card-value" id="countAtCapacity">0</span>
-          </div>
+      <div class="ae-stat-card ae-stat-card--capacity">
+        <div class="ae-stat-icon">
+          <i class="ti ti-alert-triangle"></i>
+        </div>
+        <div class="ae-stat-info">
+          <span class="ae-stat-label">At Capacity</span>
+          <span class="ae-stat-value" id="countAtCapacity">0</span>
         </div>
       </div>
     </div>
 
-    <div class="card">
-      <div class="card-body p-0">
-        <div id="agentsTableWrap" class="table-responsive agents-table">
-          <table class="table table-hover align-middle mb-0">
-            <thead>
-              <tr>
-                <th class="ps-3"><i class="ti ti-user me-1 text-muted"></i>Agent</th>
-                <th><i class="ti ti-mail me-1 text-muted"></i>Email</th>
-                <th><i class="ti ti-user-shield me-1 text-muted"></i>Role</th>
-                <th><i class="ti ti-wifi me-1 text-muted"></i>Status</th>
-                <th><i class="ti ti-ticket me-1 text-muted"></i>Open Tickets</th>
-                <th><i class="ti ti-chart-bar me-1 text-muted"></i>Capacity</th>
-                <th><i class="ti ti-clock me-1 text-muted"></i>Last Activity</th>
-              </tr>
-            </thead>
-            <tbody id="agentsTableBody">
-              <tr>
-                <td colspan="7" class="text-center py-5">
-                  <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-                  <span class="text-muted">Loading agents...</span>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-        <div id="agentsEmptyState" class="empty-state d-none">
-          <div class="empty-icon"><i class="ti ti-users"></i></div>
-          <p class="empty-title">No team members found</p>
-          <p class="empty-text">Add team members from the Users page to see them here.</p>
-        </div>
+    <!-- Agents Table -->
+    <div class="ae-card">
+      <div id="agentsTableWrap" class="ae-table-wrap">
+        <table class="ae-table">
+          <thead>
+            <tr>
+              <th class="ps-3">Agent</th>
+              <th>Email</th>
+              <th>Role</th>
+              <th>Status</th>
+              <th>Open Tickets</th>
+              <th>Capacity</th>
+              <th>Last Active</th>
+            </tr>
+          </thead>
+          <tbody id="agentsTableBody">
+            <tr>
+              <td colspan="7" class="text-center py-5">
+                <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+                <span class="text-muted">Loading agents...</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div id="agentsEmptyState" class="ae-empty d-none">
+        <div class="ae-empty-icon"><i class="ti ti-users"></i></div>
+        <p class="ae-empty-title">No team members found</p>
+        <p class="ae-empty-text">Add team members from the Users page to see them here.</p>
       </div>
     </div>
   </div>
 
-  <!-- INBOX TAB -->
+  <!-- ═══ INBOX TAB ═══ -->
   <div class="tab-pane fade" id="pane-inbox" role="tabpanel">
-    <div class="d-flex align-items-center gap-2 mb-3">
-      <div class="btn-group btn-group-sm" role="group" id="emailFilterGroup">
-        <button type="button" class="btn btn-outline-secondary active" data-filter="all">All</button>
-        <button type="button" class="btn btn-outline-secondary" data-filter="unlinked">Unlinked</button>
-        <button type="button" class="btn btn-outline-secondary" data-filter="linked">Linked</button>
-        <button type="button" class="btn btn-outline-secondary" data-filter="failed">Failed</button>
+    <!-- Toolbar (matches ticket list toolbar) -->
+    <div class="tl-toolbar">
+      <div class="tl-toolbar-left">
+        <div class="tl-toolbar-filter-form" id="emailFilterGroup">
+          <div class="tl-filter-group">
+            <select class="form-select form-select-sm tl-filter-select" id="emailStatusFilter">
+              <option value="all">All Statuses</option>
+              <option value="unlinked">Unlinked</option>
+              <option value="linked">Linked</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
+        </div>
       </div>
-      <div class="ms-auto">
-        <div class="input-group input-group-sm" style="width:220px;">
-          <span class="input-group-text"><i class="ti ti-search"></i></span>
-          <input type="text" id="emailSearchInput" class="form-control" placeholder="Search emails...">
+      <div class="tl-toolbar-right">
+        <div class="tl-filter-search">
+          <i class="ti ti-search"></i>
+          <input type="text" id="emailSearchInput" class="form-control form-control-sm" placeholder="Search emails...">
         </div>
       </div>
     </div>
-    <div class="card">
-      <div class="card-body p-0">
-        <div id="inboundEmailsLoading" class="text-center py-4">
-          <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-          <span class="text-muted ms-2">Loading emails...</span>
-        </div>
-        <div id="inboundEmailsList"></div>
-        <div id="inboundEmailsEmpty" class="text-center text-muted py-5 d-none">
-          <i class="ti ti-inbox-off d-block mb-2" style="font-size:2rem;"></i>
-          <p class="mb-1 fw-medium">No emails found</p>
-          <p class="small">Inbound emails will appear here when received</p>
-        </div>
+
+    <!-- Status Tabs -->
+    <div class="tl-stat-tabs" id="emailStatTabs">
+      <button class="tl-stat-tab tl-stat-tab--active" data-filter="all">
+        All <span class="tl-tab-count" id="emailCountAll">0</span>
+      </button>
+      <button class="tl-stat-tab" data-filter="reply_added">
+        <span class="tl-tab-dot" style="background:#3B82F6"></span>
+        Replies <span class="tl-tab-count" id="emailCountReplies">0</span>
+      </button>
+      <button class="tl-stat-tab" data-filter="ticket_created">
+        <span class="tl-tab-dot" style="background:#10B981"></span>
+        Created <span class="tl-tab-count" id="emailCountCreated">0</span>
+      </button>
+      <button class="tl-stat-tab" data-filter="pending">
+        <span class="tl-tab-dot" style="background:#F59E0B"></span>
+        Pending <span class="tl-tab-count" id="emailCountPending">0</span>
+      </button>
+      <button class="tl-stat-tab" data-filter="failed">
+        <span class="tl-tab-dot" style="background:#EF4444"></span>
+        Failed <span class="tl-tab-count" id="emailCountFailed">0</span>
+      </button>
+    </div>
+
+    <!-- Table Header -->
+    <div class="tl-table-header">
+      <div class="tl-col ae-col-sender">Sender</div>
+      <div class="tl-col ae-col-subject">Subject</div>
+      <div class="tl-col ae-col-ticket">Linked Ticket</div>
+      <div class="tl-col ae-col-status">Status</div>
+      <div class="tl-col ae-col-date">Received</div>
+      <div class="tl-col ae-col-action"></div>
+    </div>
+
+    <!-- Email Rows -->
+    <div class="tl-ticket-list" id="inboundEmailsList">
+      <div id="inboundEmailsLoading" class="tl-loading">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        Loading emails...
       </div>
+    </div>
+    <div id="inboundEmailsEmpty" class="tl-empty d-none">
+      <div class="tl-empty-icon"><i class="ti ti-inbox-off"></i></div>
+      <p class="tl-empty-title">No emails found</p>
+      <p class="tl-empty-text">Inbound emails will appear here when received</p>
     </div>
   </div>
 
-  <!-- COMPOSE TAB -->
+  <!-- ═══ COMPOSE TAB ═══ -->
   <div class="tab-pane fade" id="pane-compose" role="tabpanel">
     <div class="row justify-content-center">
       <div class="col-lg-8 col-xl-6">
-        <div class="compose-email">
-          <div class="compose-email__header">
-            <div class="compose-email__header-icon">
+        <div class="ae-compose">
+          <div class="ae-compose__header">
+            <div class="ae-compose__header-icon">
               <i class="ti ti-mail-forward"></i>
             </div>
             <div>
-              <h6 class="compose-email__title">New Email</h6>
-              <p class="compose-email__subtitle">Compose and send an email linked to a ticket</p>
+              <h6 class="ae-compose__title">New Email</h6>
+              <p class="ae-compose__subtitle">Compose and send an email linked to a ticket</p>
             </div>
           </div>
 
-          <form id="agentSendEmailForm" class="compose-email__body">
+          <form id="agentSendEmailForm" class="ae-compose__body">
             <!-- Ticket Link -->
-            <div class="compose-email__field position-relative">
-              <div class="compose-email__field-row">
-                <span class="compose-email__field-label">Ticket</span>
-                <div class="compose-email__field-input flex-grow-1">
-                  <div class="compose-email__ticket-search">
-                    <i class="ti ti-search compose-email__search-icon"></i>
-                    <input type="text" id="emailTicketSearch" class="compose-email__search-input" placeholder="Search by ticket # or subject..." autocomplete="off">
-                    <button type="button" class="compose-email__clear-btn" id="clearTicketBtn" style="display:none;" title="Clear">
+            <div class="ae-compose__field position-relative">
+              <div class="ae-compose__field-row">
+                <span class="ae-compose__label">Ticket</span>
+                <div class="ae-compose__input-wrap flex-grow-1">
+                  <div class="ae-compose__search">
+                    <i class="ti ti-search ae-compose__search-icon"></i>
+                    <input type="text" id="emailTicketSearch" class="ae-compose__search-input" placeholder="Search by ticket # or subject..." autocomplete="off">
+                    <button type="button" class="ae-compose__clear" id="clearTicketBtn" style="display:none;" title="Clear">
                       <i class="ti ti-x"></i>
                     </button>
                   </div>
                 </div>
               </div>
-              <div id="emailTicketResults" class="compose-email__results d-none"></div>
+              <div id="emailTicketResults" class="ae-compose__results d-none"></div>
               <input type="hidden" id="emailTicketId">
               <div id="emailTicketSelected" class="d-none">
-                <div class="compose-email__ticket-chip">
+                <div class="ae-compose__chip">
                   <i class="ti ti-ticket"></i>
                   <span id="selectedTicketLabel"></span>
-                  <span class="compose-email__ticket-status" id="selectedTicketStatus"></span>
+                  <span class="ae-compose__chip-status" id="selectedTicketStatus"></span>
                 </div>
               </div>
             </div>
 
-            <div class="compose-email__divider"></div>
+            <div class="ae-compose__divider"></div>
 
             <!-- To -->
-            <div class="compose-email__field">
-              <div class="compose-email__field-row">
-                <span class="compose-email__field-label">To</span>
-                <input type="email" id="agentEmailTo" class="compose-email__inline-input" placeholder="recipient@example.com" required>
+            <div class="ae-compose__field">
+              <div class="ae-compose__field-row">
+                <span class="ae-compose__label">To</span>
+                <input type="email" id="agentEmailTo" class="ae-compose__inline" placeholder="recipient@example.com" required>
               </div>
-              <div class="compose-email__hint d-none" id="autoFillHint">
+              <div class="ae-compose__hint d-none" id="autoFillHint">
                 <i class="ti ti-info-circle"></i> Auto-filled from ticket contact
               </div>
             </div>
 
-            <div class="compose-email__divider"></div>
+            <div class="ae-compose__divider"></div>
 
             {% if is_admin_or_manager %}
             <!-- CC -->
-            <div class="compose-email__field">
-              <div class="compose-email__field-row">
-                <span class="compose-email__field-label compose-email__field-label--muted">Cc</span>
-                <input type="text" id="agentEmailCc" class="compose-email__inline-input" placeholder="Add recipients...">
+            <div class="ae-compose__field">
+              <div class="ae-compose__field-row">
+                <span class="ae-compose__label ae-compose__label--muted">Cc</span>
+                <input type="text" id="agentEmailCc" class="ae-compose__inline" placeholder="Add recipients...">
               </div>
             </div>
-            <div class="compose-email__divider"></div>
+            <div class="ae-compose__divider"></div>
             {% endif %}
 
             <!-- Subject -->
-            <div class="compose-email__field">
-              <div class="compose-email__field-row">
-                <span class="compose-email__field-label">Subject</span>
-                <input type="text" id="agentEmailSubject" class="compose-email__inline-input" placeholder="Email subject (ticket # auto-prefixed)">
+            <div class="ae-compose__field">
+              <div class="ae-compose__field-row">
+                <span class="ae-compose__label">Subject</span>
+                <input type="text" id="agentEmailSubject" class="ae-compose__inline" placeholder="Email subject (ticket # auto-prefixed)">
               </div>
             </div>
 
-            <div class="compose-email__divider"></div>
+            <div class="ae-compose__divider"></div>
 
             <!-- Body -->
-            <div class="compose-email__field compose-email__field--body">
-              <textarea id="agentEmailBody" class="compose-email__textarea" rows="10" placeholder="Write your message..." required></textarea>
+            <div class="ae-compose__field ae-compose__field--body">
+              <textarea id="agentEmailBody" class="ae-compose__textarea" rows="10" placeholder="Write your message..." required></textarea>
             </div>
 
             <!-- Footer -->
-            <div class="compose-email__footer">
-              <div class="compose-email__footer-hint">
+            <div class="ae-compose__footer">
+              <div class="ae-compose__footer-hint">
                 <i class="ti ti-info-circle"></i>
                 Ticket reference [#N] is added to the subject automatically
               </div>
-              <div class="compose-email__actions">
-                <button type="reset" class="compose-email__btn-reset" id="composeResetBtn">
+              <div class="ae-compose__actions">
+                <button type="reset" class="ae-compose__btn ae-compose__btn--discard" id="composeResetBtn">
                   <i class="ti ti-trash"></i> Discard
                 </button>
-                <button type="submit" class="compose-email__btn-send" id="agentSendBtn">
+                <button type="submit" class="ae-compose__btn ae-compose__btn--send" id="agentSendBtn">
                   <i class="ti ti-send"></i> Send Email
                 </button>
               </div>
@@ -251,36 +294,104 @@
 </div>
 
 <!-- EMAIL PREVIEW MODAL -->
-<div class="modal fade" id="emailPreviewModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div>
-          <h6 class="modal-title mb-0" id="previewSubject"></h6>
-          <small class="text-muted" id="previewMeta"></small>
+<div class="modal fade" id="emailPreviewModal" tabindex="-1" aria-labelledby="previewSubject" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content ep-modal" role="document">
+
+      <!-- Header -->
+      <div class="ep-header">
+        <div class="ep-header__icon" aria-hidden="true">
+          <i class="ti ti-mail"></i>
         </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="d-flex gap-3 mb-3 pb-3 border-bottom">
-          <div class="flex-grow-1">
-            <div class="small"><strong>From:</strong> <span id="previewFrom"></span></div>
-            <div class="small"><strong>To:</strong> <span id="previewTo"></span></div>
-            <div class="small"><strong>Date:</strong> <span id="previewDate"></span></div>
-            <div class="small d-none" id="previewTicketRow"><strong>Ticket:</strong> <a id="previewTicketLink" href="#"></a></div>
+        <div class="ep-header__text">
+          <h5 class="ep-header__subject" id="previewSubject"></h5>
+          <div class="ep-header__badges">
+            <div id="previewStatusWrap"></div>
+            <span class="ep-header__meta" id="previewMeta"></span>
           </div>
-          <div id="previewStatusWrap"></div>
         </div>
-        <div id="previewBody" class="small" style="white-space:pre-wrap;max-height:400px;overflow-y:auto;"></div>
+        <button type="button" class="ep-close" data-bs-dismiss="modal" aria-label="Close this email preview">
+          <i class="ti ti-x" aria-hidden="true"></i>
+        </button>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-primary btn-sm d-none" id="previewLinkBtn">
-          <i class="ti ti-link me-1"></i>Link to Ticket
+
+      <!-- Linked Ticket Banner (shown when ticket is linked) -->
+      <div class="ep-ticket-banner d-none" id="previewTicketBanner">
+        <div class="ep-ticket-banner__left">
+          <div class="ep-ticket-banner__icon" aria-hidden="true">
+            <i class="ti ti-ticket"></i>
+          </div>
+          <div class="ep-ticket-banner__info">
+            <span class="ep-ticket-banner__label">Linked Ticket</span>
+            <a class="ep-ticket-banner__link" id="previewTicketLink" href="#">
+              <span id="previewTicketText"></span>
+            </a>
+          </div>
+        </div>
+        <a class="ep-btn ep-btn--ticket" id="previewViewTicketBtn" href="#" aria-label="Open linked ticket in new tab">
+          <i class="ti ti-external-link" aria-hidden="true"></i> View Ticket
+        </a>
+      </div>
+
+      <!-- Unlinked Banner (shown when no ticket) -->
+      <div class="ep-unlinked-banner d-none" id="previewUnlinkedBanner">
+        <div class="ep-unlinked-banner__left">
+          <i class="ti ti-unlink" aria-hidden="true"></i>
+          <span>This email is not linked to any ticket</span>
+        </div>
+        <button type="button" class="ep-btn ep-btn--link-action" id="previewLinkBtn" aria-label="Link this email to an existing ticket">
+          <i class="ti ti-link" aria-hidden="true"></i> Link to Ticket
         </button>
-        <button type="button" class="btn btn-primary btn-sm d-none" id="previewReplyBtn">
-          <i class="ti ti-arrow-back-up me-1"></i>Reply
+      </div>
+
+      <!-- Info Grid -->
+      <div class="ep-info">
+        <div class="ep-info__grid">
+          <div class="ep-info__item">
+            <span class="ep-info__icon" aria-hidden="true"><i class="ti ti-user"></i></span>
+            <div class="ep-info__col">
+              <span class="ep-info__label">From</span>
+              <span class="ep-info__value" id="previewFrom"></span>
+            </div>
+          </div>
+          <div class="ep-info__item">
+            <span class="ep-info__icon" aria-hidden="true"><i class="ti ti-at"></i></span>
+            <div class="ep-info__col">
+              <span class="ep-info__label">To</span>
+              <span class="ep-info__value" id="previewTo"></span>
+            </div>
+          </div>
+          <div class="ep-info__item">
+            <span class="ep-info__icon" aria-hidden="true"><i class="ti ti-calendar"></i></span>
+            <div class="ep-info__col">
+              <span class="ep-info__label">Date</span>
+              <span class="ep-info__value" id="previewDate"></span>
+            </div>
+          </div>
+          <div class="ep-info__item" id="previewTicketRow" style="display:none;">
+            <span class="ep-info__icon" aria-hidden="true"><i class="ti ti-ticket"></i></span>
+            <div class="ep-info__col">
+              <span class="ep-info__label">Ticket</span>
+              <span class="ep-info__value" id="previewTicketInfo"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="ep-body">
+        <div class="ep-body__content" id="previewBody" role="region" aria-label="Email body"></div>
+      </div>
+
+      <!-- Footer -->
+      <div class="ep-footer">
+        <div class="ep-footer__spacer"></div>
+        <button type="button" class="ep-btn ep-btn--secondary" data-bs-dismiss="modal">
+          <i class="ti ti-x" aria-hidden="true"></i> Close
         </button>
-        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="ep-btn ep-btn--primary d-none" id="previewReplyBtn" aria-label="Reply to this email">
+          <i class="ti ti-arrow-back-up" aria-hidden="true"></i> Reply
+        </button>
       </div>
     </div>
   </div>
@@ -326,18 +437,11 @@
   }
 
   function formatDate(d) {
-    if (!d) return '--';
-    var date = new Date(d);
-    var diff = Math.floor((Date.now() - date) / 1000);
-    if (diff < 60) return 'Just now';
-    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
-    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+    return Kanzan.timeAgo(d);
   }
 
   function formatFullDate(d) {
-    if (!d) return '--';
-    return new Date(d).toLocaleString('en-US', { year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+    return Kanzan.formatDateTime(d);
   }
 
   var COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
@@ -353,17 +457,17 @@
 
   function getRoleBadgeClass(r) {
     var rn = (r || '').toLowerCase();
-    if (rn === 'admin' || rn === 'administrator') return 'badge-role-admin';
-    if (rn === 'manager') return 'badge-role-manager';
-    if (rn === 'agent') return 'badge-role-agent';
-    return 'badge-role-viewer';
+    if (rn === 'admin' || rn === 'administrator') return 'ae-badge-role--admin';
+    if (rn === 'manager') return 'ae-badge-role--manager';
+    if (rn === 'agent') return 'ae-badge-role--agent';
+    return 'ae-badge-role--viewer';
   }
 
   function makeStatusBadge(st) {
     var span = document.createElement('span');
-    span.className = 'badge ' + (st === 'online' ? 'badge-soft-success' : 'badge-soft-secondary');
+    span.className = 'ae-status-badge ae-status-badge--' + st;
     var dot = document.createElement('span');
-    dot.className = 'status-dot status-dot-' + st + ' me-1';
+    dot.className = 'ae-status-dot';
     span.appendChild(dot);
     span.appendChild(document.createTextNode(st === 'online' ? 'Online' : 'Offline'));
     return span;
@@ -371,37 +475,36 @@
 
   function makeCapacityBar(current, max) {
     var pct = max > 0 ? Math.round((current / max) * 100) : 0;
-    var color = pct < 60 ? '#10B981' : pct < 85 ? '#F59E0B' : '#EF4444';
+    var level = pct < 60 ? 'low' : pct < 85 ? 'mid' : 'high';
     var wrap = document.createElement('div');
-    wrap.className = 'd-flex align-items-center gap-2';
-    var prog = document.createElement('div');
-    prog.className = 'progress flex-grow-1';
-    prog.style.cssText = 'height:6px;min-width:60px;';
+    wrap.className = 'ae-capacity';
+    var track = document.createElement('div');
+    track.className = 'ae-capacity__track';
     var bar = document.createElement('div');
-    bar.className = 'progress-bar';
-    bar.style.cssText = 'width:' + pct + '%;background:' + color;
-    prog.appendChild(bar);
+    bar.className = 'ae-capacity__fill ae-capacity__fill--' + level;
+    bar.style.width = pct + '%';
+    track.appendChild(bar);
     var label = document.createElement('span');
-    label.className = 'text-muted small';
+    label.className = 'ae-capacity__label';
     label.textContent = current + '/' + max;
-    wrap.appendChild(prog);
+    wrap.appendChild(track);
     wrap.appendChild(label);
     return wrap;
   }
 
   var EMAIL_STATUS_MAP = {
-    ticket_created: { cls: 'bg-success', label: 'Ticket Created' },
-    reply_added:    { cls: 'bg-info',    label: 'Reply Added' },
-    failed:         { cls: 'bg-danger',  label: 'Failed' },
-    rejected:       { cls: 'bg-warning', label: 'Rejected' },
-    pending:        { cls: 'bg-secondary', label: 'Pending' },
-    processing:     { cls: 'bg-primary', label: 'Processing' }
+    ticket_created: { cls: 'ae-email-badge--created',  label: 'Ticket Created' },
+    reply_added:    { cls: 'ae-email-badge--reply',     label: 'Reply Added' },
+    failed:         { cls: 'ae-email-badge--failed',    label: 'Failed' },
+    rejected:       { cls: 'ae-email-badge--rejected',  label: 'Rejected' },
+    pending:        { cls: 'ae-email-badge--pending',   label: 'Pending' },
+    processing:     { cls: 'ae-email-badge--processing',label: 'Processing' }
   };
 
   function makeEmailBadge(status) {
-    var m = EMAIL_STATUS_MAP[status] || { cls: 'bg-secondary', label: status || 'Unknown' };
+    var m = EMAIL_STATUS_MAP[status] || { cls: 'ae-email-badge--pending', label: status || 'Unknown' };
     var badge = document.createElement('span');
-    badge.className = 'badge ' + m.cls + ' bg-opacity-25';
+    badge.className = 'ae-email-badge ' + m.cls;
     badge.textContent = m.label;
     return badge;
   }
@@ -437,7 +540,6 @@
 
       agents.sort(function(a, b) { return (a.status === 'online' ? 0 : 1) - (b.status === 'online' ? 0 : 1); });
 
-      // Build table rows with safe DOM methods
       tbody.textContent = '';
       agents.forEach(function(a) {
         var name = a.user_name || a.user_email || 'Unknown';
@@ -449,7 +551,7 @@
         var wrap1 = document.createElement('div');
         wrap1.className = 'd-flex align-items-center gap-2';
         var av = document.createElement('div');
-        av.className = 'user-avatar';
+        av.className = 'ae-avatar';
         av.style.background = avatarColor(name);
         av.textContent = getInitials(name);
         var nm = document.createElement('div');
@@ -469,7 +571,7 @@
         // Role cell
         var td3 = document.createElement('td');
         var roleBadge = document.createElement('span');
-        roleBadge.className = 'badge ' + getRoleBadgeClass(a.role);
+        roleBadge.className = 'ae-badge-role ' + getRoleBadgeClass(a.role);
         roleBadge.textContent = a.role || 'Unknown';
         td3.appendChild(roleBadge);
         tr.appendChild(td3);
@@ -481,7 +583,10 @@
 
         // Tickets cell
         var td5 = document.createElement('td');
-        td5.textContent = a.current_ticket_count || 0;
+        var ticketNum = document.createElement('span');
+        ticketNum.className = 'fw-semibold';
+        ticketNum.textContent = a.current_ticket_count || 0;
+        td5.appendChild(ticketNum);
         tr.appendChild(td5);
 
         // Capacity cell
@@ -526,6 +631,7 @@
       loadingEl.classList.add('d-none');
       allEmails = data.results || data;
       document.getElementById('tabCountInbox').textContent = allEmails.length || '0';
+      updateEmailCounts();
       renderEmails();
     }).catch(function() {
       loadingEl.classList.add('d-none');
@@ -534,15 +640,37 @@
     });
   }
 
+  function updateEmailCounts() {
+    var counts = { all: allEmails.length, reply_added: 0, ticket_created: 0, pending: 0, failed: 0 };
+    allEmails.forEach(function(e) {
+      if (e.status === 'reply_added') counts.reply_added++;
+      else if (e.status === 'ticket_created') counts.ticket_created++;
+      else if (e.status === 'pending' || e.status === 'processing') counts.pending++;
+      else if (e.status === 'failed' || e.status === 'rejected') counts.failed++;
+    });
+    document.getElementById('emailCountAll').textContent = counts.all;
+    document.getElementById('emailCountReplies').textContent = counts.reply_added;
+    document.getElementById('emailCountCreated').textContent = counts.ticket_created;
+    document.getElementById('emailCountPending').textContent = counts.pending;
+    document.getElementById('emailCountFailed').textContent = counts.failed;
+  }
+
   function renderEmails() {
     var listEl = document.getElementById('inboundEmailsList');
     var emptyEl = document.getElementById('inboundEmailsEmpty');
     listEl.textContent = '';
 
     var filtered = allEmails.filter(function(e) {
+      // Dropdown filter
       if (currentFilter === 'unlinked' && e.ticket) return false;
       if (currentFilter === 'linked' && !e.ticket) return false;
-      if (currentFilter === 'failed' && e.status !== 'failed' && e.status !== 'rejected') return false;
+      if (currentFilter === 'failed' && (e.status !== 'failed' && e.status !== 'rejected')) return false;
+      // Tab filter
+      if (currentTabFilter && currentTabFilter !== 'all') {
+        if (currentTabFilter === 'failed' && e.status !== 'failed' && e.status !== 'rejected') return false;
+        else if (currentTabFilter === 'pending' && e.status !== 'pending' && e.status !== 'processing') return false;
+        else if (currentTabFilter !== 'failed' && currentTabFilter !== 'pending' && e.status !== currentTabFilter) return false;
+      }
       if (emailSearchTerm) {
         var term = emailSearchTerm.toLowerCase();
         var hay = ((e.sender_email||'') + ' ' + (e.sender_name||'') + ' ' + (e.subject||'')).toLowerCase();
@@ -556,112 +684,119 @@
 
     filtered.forEach(function(e) {
       var row = document.createElement('div');
-      row.className = 'd-flex align-items-start gap-3 px-3 py-3 border-bottom';
-      row.style.cssText = 'cursor:pointer;transition:background .15s;';
+      row.className = 'tl-table-row';
       row.addEventListener('click', function(ev) {
         if (ev.target.closest('button') || ev.target.closest('a')) return;
         openPreview(e);
       });
-      row.addEventListener('mouseenter', function() { this.style.background = 'var(--crm-hover-bg)'; });
-      row.addEventListener('mouseleave', function() { this.style.background = 'transparent'; });
 
-      // Avatar
+      // Sender col
+      var colSender = document.createElement('div');
+      colSender.className = 'tl-col ae-col-sender';
       var senderLabel = e.sender_name || e.sender_email.split('@')[0];
-      var avDiv = document.createElement('div');
-      avDiv.className = 'user-avatar flex-shrink-0';
-      avDiv.style.background = avatarColor(senderLabel);
-      avDiv.textContent = getInitials(senderLabel);
+      var av = document.createElement('div');
+      av.className = 'tl-cell-avatar';
+      av.style.background = avatarColor(senderLabel);
+      av.textContent = getInitials(senderLabel);
+      var senderName = document.createElement('span');
+      senderName.className = 'tl-cell-requester';
+      senderName.textContent = e.sender_name || e.sender_email;
+      colSender.appendChild(av);
+      colSender.appendChild(senderName);
 
-      // Content
-      var content = document.createElement('div');
-      content.className = 'flex-grow-1 min-w-0';
+      // Subject col
+      var colSubject = document.createElement('div');
+      colSubject.className = 'tl-col ae-col-subject';
+      var subjectText = document.createElement('span');
+      subjectText.className = 'tl-cell-subject';
+      subjectText.textContent = e.subject || '(No Subject)';
+      colSubject.appendChild(subjectText);
 
-      // Row 1: sender + badge + time
-      var r1 = document.createElement('div');
-      r1.className = 'd-flex align-items-center gap-2 mb-1';
-      var sender = document.createElement('span');
-      sender.className = 'fw-semibold small text-truncate';
-      sender.textContent = e.sender_name || e.sender_email;
-      r1.appendChild(sender);
-      r1.appendChild(makeEmailBadge(e.status));
-      var time = document.createElement('span');
-      time.className = 'text-muted ms-auto small flex-shrink-0';
-      time.textContent = formatDate(e.created_at);
-      r1.appendChild(time);
-
-      // Row 2: subject
-      var r2 = document.createElement('div');
-      r2.className = 'small text-truncate';
-      r2.textContent = e.subject || '(No Subject)';
-
-      // Row 3: meta
-      var r3 = document.createElement('div');
-      r3.className = 'text-muted';
-      r3.style.fontSize = '0.72rem';
+      // Linked ticket col
+      var colTicket = document.createElement('div');
+      colTicket.className = 'tl-col ae-col-ticket';
       if (e.ticket_number) {
-        var icon3 = document.createElement('i');
-        icon3.className = 'ti ti-link me-1';
-        r3.appendChild(icon3);
-        r3.appendChild(document.createTextNode('Ticket '));
         var tLink = document.createElement('a');
         tLink.href = '/tickets/' + e.ticket_number + '/';
+        tLink.className = 'tl-cell-number';
         tLink.textContent = '#' + e.ticket_number;
         tLink.addEventListener('click', function(ev) { ev.stopPropagation(); });
-        r3.appendChild(tLink);
+        colTicket.appendChild(tLink);
         if (e.ticket_subject) {
-          r3.appendChild(document.createTextNode(' \u2014 ' + e.ticket_subject.substring(0, 50)));
+          var tSubj = document.createElement('span');
+          tSubj.className = 'ae-ticket-subject-text';
+          tSubj.textContent = e.ticket_subject.substring(0, 30);
+          colTicket.appendChild(tSubj);
         }
       } else {
-        var icon3b = document.createElement('i');
-        icon3b.className = 'ti ti-mail me-1';
-        r3.appendChild(icon3b);
-        r3.appendChild(document.createTextNode('From: ' + e.sender_email));
+        var noTicket = document.createElement('span');
+        noTicket.className = 'tl-cell-unassigned';
+        noTicket.textContent = 'Unlinked';
+        colTicket.appendChild(noTicket);
       }
 
-      content.appendChild(r1);
-      content.appendChild(r2);
-      content.appendChild(r3);
+      // Status col
+      var colStatus = document.createElement('div');
+      colStatus.className = 'tl-col ae-col-status';
+      colStatus.appendChild(makeEmailBadge(e.status));
 
-      // Actions
-      var acts = document.createElement('div');
-      acts.className = 'flex-shrink-0 d-flex gap-1 align-self-center';
+      // Date col
+      var colDate = document.createElement('div');
+      colDate.className = 'tl-col ae-col-date';
+      var dateText = document.createElement('span');
+      dateText.className = 'tl-cell-date';
+      dateText.textContent = formatDate(e.created_at);
+      colDate.appendChild(dateText);
 
+      // Action col
+      var colAction = document.createElement('div');
+      colAction.className = 'tl-col ae-col-action';
       if (!e.ticket) {
         var lBtn = document.createElement('button');
         lBtn.type = 'button';
-        lBtn.className = 'btn btn-outline-primary btn-sm';
+        lBtn.className = 'ae-tbl-action-btn';
         lBtn.title = 'Link to ticket';
         var lIcon = document.createElement('i');
         lIcon.className = 'ti ti-link';
         lBtn.appendChild(lIcon);
         lBtn.addEventListener('click', function(ev) { ev.stopPropagation(); openLinkModal(e.id); });
-        acts.appendChild(lBtn);
+        colAction.appendChild(lBtn);
       } else {
         var vBtn = document.createElement('a');
-        vBtn.className = 'btn btn-outline-secondary btn-sm';
+        vBtn.className = 'ae-tbl-action-btn';
         vBtn.title = 'View ticket';
         vBtn.href = '/tickets/' + e.ticket_number + '/';
         var vIcon = document.createElement('i');
         vIcon.className = 'ti ti-external-link';
         vBtn.appendChild(vIcon);
         vBtn.addEventListener('click', function(ev) { ev.stopPropagation(); });
-        acts.appendChild(vBtn);
+        colAction.appendChild(vBtn);
       }
 
-      row.appendChild(avDiv);
-      row.appendChild(content);
-      row.appendChild(acts);
+      row.appendChild(colSender);
+      row.appendChild(colSubject);
+      row.appendChild(colTicket);
+      row.appendChild(colStatus);
+      row.appendChild(colDate);
+      row.appendChild(colAction);
       listEl.appendChild(row);
     });
   }
 
-  // Filter buttons
-  document.getElementById('emailFilterGroup').addEventListener('click', function(ev) {
+  // Dropdown filter
+  var currentTabFilter = 'all';
+  document.getElementById('emailStatusFilter').addEventListener('change', function() {
+    currentFilter = this.value;
+    renderEmails();
+  });
+
+  // Status tabs
+  document.getElementById('emailStatTabs').addEventListener('click', function(ev) {
     var btn = ev.target.closest('[data-filter]');
     if (!btn) return;
-    this.querySelectorAll('.btn').forEach(function(b) { b.classList.remove('active'); });
-    btn.classList.add('active');
-    currentFilter = btn.dataset.filter;
+    this.querySelectorAll('.tl-stat-tab').forEach(function(b) { b.classList.remove('tl-stat-tab--active'); });
+    btn.classList.add('tl-stat-tab--active');
+    currentTabFilter = btn.dataset.filter;
     renderEmails();
   });
 
@@ -685,39 +820,55 @@
 
   function openPreview(e) {
     currentPreviewEmail = e;
+
+    // Subject & meta
     document.getElementById('previewSubject').textContent = e.subject || '(No Subject)';
-    document.getElementById('previewMeta').textContent = 'Message ID: ' + (e.message_id || 'N/A');
-    document.getElementById('previewFrom').textContent = e.sender_name ? e.sender_name + ' <' + e.sender_email + '>' : e.sender_email;
-    document.getElementById('previewTo').textContent = e.recipient_email || '--';
-    document.getElementById('previewDate').textContent = formatFullDate(e.created_at);
-    document.getElementById('previewBody').textContent = e.body_text || '(Loading full content...)';
+    document.getElementById('previewMeta').textContent = e.message_id ? 'ID: ' + e.message_id.substring(0, 24) : '';
 
     // Status badge
     var statusWrap = document.getElementById('previewStatusWrap');
     statusWrap.textContent = '';
     statusWrap.appendChild(makeEmailBadge(e.status));
 
-    // Ticket link
-    var ticketRow = document.getElementById('previewTicketRow');
-    var ticketLink = document.getElementById('previewTicketLink');
-    if (e.ticket_number) {
-      ticketRow.classList.remove('d-none');
-      ticketLink.textContent = '#' + e.ticket_number + (e.ticket_subject ? ' \u2014 ' + e.ticket_subject : '');
-      ticketLink.href = '/tickets/' + e.ticket_number + '/';
-    } else {
-      ticketRow.classList.add('d-none');
-    }
+    // From / To / Date
+    document.getElementById('previewFrom').textContent = e.sender_name ? e.sender_name + ' <' + e.sender_email + '>' : e.sender_email;
+    document.getElementById('previewTo').textContent = e.recipient_email || '--';
+    document.getElementById('previewDate').textContent = formatFullDate(e.created_at);
 
-    // Footer buttons
-    var linkBtn = document.getElementById('previewLinkBtn');
+    // Body (loading state)
+    document.getElementById('previewBody').textContent = e.body_text || '';
+
+    // Ticket banners & buttons
+    var ticketBanner = document.getElementById('previewTicketBanner');
+    var unlinkedBanner = document.getElementById('previewUnlinkedBanner');
+    var ticketRow = document.getElementById('previewTicketRow');
     var replyBtn = document.getElementById('previewReplyBtn');
-    if (e.ticket) { linkBtn.classList.add('d-none'); replyBtn.classList.remove('d-none'); }
-    else { linkBtn.classList.remove('d-none'); replyBtn.classList.add('d-none'); }
+
+    if (e.ticket_number) {
+      // Show linked ticket banner
+      ticketBanner.classList.remove('d-none');
+      unlinkedBanner.classList.add('d-none');
+      replyBtn.classList.remove('d-none');
+
+      var ticketLabel = '#' + e.ticket_number + (e.ticket_subject ? ' \u2014 ' + e.ticket_subject : '');
+      document.getElementById('previewTicketText').textContent = ticketLabel;
+      document.getElementById('previewTicketLink').href = '/tickets/' + e.ticket_number + '/';
+      document.getElementById('previewViewTicketBtn').href = '/tickets/' + e.ticket_number + '/';
+
+      // Info grid ticket row
+      ticketRow.style.display = '';
+      document.getElementById('previewTicketInfo').textContent = ticketLabel;
+    } else {
+      // Show unlinked banner
+      ticketBanner.classList.add('d-none');
+      unlinkedBanner.classList.remove('d-none');
+      replyBtn.classList.add('d-none');
+      ticketRow.style.display = 'none';
+    }
 
     // Load full body
     Api.get('/api/v1/inbound-email/' + e.id + '/').then(function(detail) {
-      document.getElementById('previewBody').textContent = detail.body_text || '(Empty body)';
-      // Cache for reply
+      document.getElementById('previewBody').textContent = detail.body_text || '';
       if (currentPreviewEmail && currentPreviewEmail.id === e.id) {
         currentPreviewEmail._fullBody = detail.body_text;
       }
@@ -740,7 +891,6 @@
     if (!currentPreviewEmail) return;
     if (previewModal) previewModal.hide();
 
-    // Switch to compose tab
     bootstrap.Tab.getOrCreateInstance(document.getElementById('tab-compose')).show();
 
     document.getElementById('agentEmailTo').value = currentPreviewEmail.sender_email;
@@ -752,7 +902,6 @@
       'From: ' + (currentPreviewEmail.sender_name || currentPreviewEmail.sender_email) + '\n' +
       'Date: ' + formatFullDate(currentPreviewEmail.created_at) + '\n\n' + bodyContent;
 
-    // Auto-select ticket
     if (currentPreviewEmail.ticket_number) {
       Api.get('/api/v1/tickets/tickets/lookup/?number=' + currentPreviewEmail.ticket_number).then(function(data) {
         var tickets = data.results || data;

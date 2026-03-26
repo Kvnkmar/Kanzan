@@ -5,8 +5,6 @@ Verifies that resource creation is blocked when plan limits are exceeded,
 and allowed when within limits or on unlimited plans.
 """
 
-from datetime import date
-
 from django.core.exceptions import PermissionDenied
 
 from apps.billing.models import Plan, Subscription, UsageTracker

@@ -40,18 +40,6 @@
   <button class="pf-tab" data-tab="work" type="button">
     <i class="ti ti-briefcase"></i> Work Info
   </button>
-  <button class="pf-tab" data-tab="availability" type="button">
-    <i class="ti ti-activity"></i> Availability
-  </button>
-  <button class="pf-tab" data-tab="notifications" type="button">
-    <i class="ti ti-bell"></i> Notifications
-  </button>
-  <button class="pf-tab" data-tab="preferences" type="button">
-    <i class="ti ti-adjustments"></i> Preferences
-  </button>
-  <button class="pf-tab" data-tab="security" type="button">
-    <i class="ti ti-shield-lock"></i> Security
-  </button>
 </div>
 
 <!-- Tab Panels -->
@@ -123,11 +111,6 @@
             <label for="bio" class="pf-label">Bio</label>
             <textarea class="form-control" id="bio" rows="4" placeholder="Tell your team a little about yourself..."></textarea>
           </div>
-          <div class="pf-field pf-field--full">
-            <label for="signature" class="pf-label">Reply Signature</label>
-            <textarea class="form-control" id="signature" rows="3" placeholder="e.g. Best regards, John — Support Team"></textarea>
-            <div class="form-text">Appended to your ticket replies.</div>
-          </div>
         </div>
         <div class="pf-form-actions">
           <button type="submit" class="btn btn-primary" id="saveWorkBtn">
@@ -139,245 +122,15 @@
     </div>
   </div>
 
-  <!-- ═══ Availability & Workload ═══ -->
-  <div class="pf-panel" id="panel-availability">
-    <div class="pf-section">
-      <div class="pf-section-header">
-        <div>
-          <h3 class="pf-section-title">Availability & Workload</h3>
-          <p class="pf-section-desc">Manage your status and ticket capacity</p>
-        </div>
+  <!-- ═══ Settings Cross-Link ═══ -->
+  <div class="pf-panel" id="panel-settings-link" style="display:block;">
+    <div class="d-flex align-items-center gap-3 p-3" style="border:1px dashed var(--crm-border-light);border-radius:var(--crm-radius);">
+      <i class="ti ti-settings" style="font-size:1.25rem;opacity:0.5;"></i>
+      <div class="flex-grow-1">
+        <span class="fw-medium small">Looking for notifications, theme, availability, or password settings?</span>
+        <span class="text-muted small d-block">These have been consolidated into the Settings page.</span>
       </div>
-
-      <!-- Status Picker -->
-      <div class="pf-avail-row">
-        <div class="pf-avail-label">
-          <span class="pf-label">Current Status</span>
-          <span class="pf-section-desc">Your team can see your status</span>
-        </div>
-        <div class="pf-status-picker" id="statusPicker">
-          <button type="button" class="pf-status-btn pf-status-btn--online" data-status="online">
-            <span class="pf-status-dot" style="background:#10B981;"></span> Online
-          </button>
-          <button type="button" class="pf-status-btn pf-status-btn--away" data-status="away">
-            <span class="pf-status-dot" style="background:#F59E0B;"></span> Away
-          </button>
-          <button type="button" class="pf-status-btn pf-status-btn--busy" data-status="busy">
-            <span class="pf-status-dot" style="background:#EF4444;"></span> Busy
-          </button>
-          <button type="button" class="pf-status-btn pf-status-btn--offline" data-status="offline">
-            <span class="pf-status-dot" style="background:#94A3B8;"></span> Offline
-          </button>
-        </div>
-      </div>
-
-      <!-- Status Message -->
-      <div class="pf-avail-row">
-        <div class="pf-avail-label">
-          <span class="pf-label">Status Message</span>
-          <span class="pf-section-desc">Let your team know what you're doing</span>
-        </div>
-        <div class="pf-avail-control" style="flex:1;max-width:320px;">
-          <input type="text" class="form-control form-control-sm" id="statusMessage" placeholder="e.g. In a meeting until 3pm" maxlength="100">
-        </div>
-      </div>
-
-      <!-- Workload Capacity -->
-      <div class="pf-avail-row">
-        <div class="pf-avail-label">
-          <span class="pf-label">Ticket Capacity</span>
-          <span class="pf-section-desc">Max tickets you can handle at once</span>
-        </div>
-        <div class="pf-capacity-control">
-          <button type="button" class="pf-capacity-btn" id="capacityDown"><i class="ti ti-minus"></i></button>
-          <span class="pf-capacity-value" id="capacityValue">10</span>
-          <button type="button" class="pf-capacity-btn" id="capacityUp"><i class="ti ti-plus"></i></button>
-        </div>
-      </div>
-
-      <!-- Current Workload -->
-      <div class="pf-avail-row">
-        <div class="pf-avail-label">
-          <span class="pf-label">Current Workload</span>
-          <span class="pf-section-desc">Active tickets assigned to you</span>
-        </div>
-        <div class="pf-workload-bar">
-          <div class="pf-workload-track">
-            <div class="pf-workload-fill" id="workloadFill" style="width:0%"></div>
-          </div>
-          <span class="pf-workload-text" id="workloadText">0 / 10</span>
-        </div>
-      </div>
-
-      <div class="pf-form-actions">
-        <button type="button" class="btn btn-primary" id="saveAvailBtn">
-          <span class="spinner-border spinner-border-sm d-none me-1" id="availSpinner" role="status"></span>
-          Save Changes
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ Notifications ═══ -->
-  <div class="pf-panel" id="panel-notifications">
-    <div class="pf-section">
-      <div class="pf-section-header">
-        <div>
-          <h3 class="pf-section-title">Notification Preferences</h3>
-          <p class="pf-section-desc">Choose how and when you get notified</p>
-        </div>
-      </div>
-
-      <!-- Granular per-type preferences -->
-      <div class="pf-notif-table">
-        <div class="pf-notif-table-head">
-          <span class="pf-notif-table-type">Notification Type</span>
-          <span class="pf-notif-table-ch">In-App</span>
-          <span class="pf-notif-table-ch">Email</span>
-        </div>
-        <div id="notifPrefList">
-          <!-- Populated by JS -->
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- ═══ Preferences (Phase 2) ═══ -->
-  <div class="pf-panel" id="panel-preferences">
-    <div class="pf-section">
-      <div class="pf-section-header">
-        <div>
-          <h3 class="pf-section-title">Preferences</h3>
-          <p class="pf-section-desc">Customize your workspace experience</p>
-        </div>
-      </div>
-      <div id="prefAlert"></div>
-      <form id="prefForm">
-        <div class="pf-form-grid">
-          <div class="pf-field">
-            <label for="prefTimezone" class="pf-label">Timezone</label>
-            <select class="form-select" id="prefTimezone">
-              <option value="UTC">UTC</option>
-              <option value="Asia/Kuala_Lumpur">Asia/Kuala Lumpur (GMT+8)</option>
-              <option value="Asia/Singapore">Asia/Singapore (GMT+8)</option>
-              <option value="Asia/Tokyo">Asia/Tokyo (GMT+9)</option>
-              <option value="Asia/Shanghai">Asia/Shanghai (GMT+8)</option>
-              <option value="Asia/Kolkata">Asia/Kolkata (GMT+5:30)</option>
-              <option value="Asia/Dubai">Asia/Dubai (GMT+4)</option>
-              <option value="Europe/London">Europe/London (GMT+0)</option>
-              <option value="Europe/Paris">Europe/Paris (GMT+1)</option>
-              <option value="Europe/Berlin">Europe/Berlin (GMT+1)</option>
-              <option value="America/New_York">America/New York (GMT-5)</option>
-              <option value="America/Chicago">America/Chicago (GMT-6)</option>
-              <option value="America/Denver">America/Denver (GMT-7)</option>
-              <option value="America/Los_Angeles">America/Los Angeles (GMT-8)</option>
-              <option value="Australia/Sydney">Australia/Sydney (GMT+11)</option>
-              <option value="Pacific/Auckland">Pacific/Auckland (GMT+13)</option>
-            </select>
-          </div>
-          <div class="pf-field">
-            <label for="prefLanguage" class="pf-label">Language</label>
-            <select class="form-select" id="prefLanguage">
-              <option value="en">English</option>
-              <option value="ms">Bahasa Melayu</option>
-              <option value="zh">Chinese</option>
-              <option value="ja">Japanese</option>
-              <option value="ko">Korean</option>
-              <option value="fr">French</option>
-              <option value="de">German</option>
-              <option value="es">Spanish</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Quiet Hours -->
-        <div class="pf-quiet-section">
-          <div class="pf-quiet-header">
-            <div>
-              <span class="pf-label">Quiet Hours (Do Not Disturb)</span>
-              <span class="pf-section-desc">Suppress notifications during set hours</span>
-            </div>
-            <div class="form-check form-switch">
-              <input class="form-check-input" type="checkbox" id="dndEnabled">
-            </div>
-          </div>
-          <div class="pf-quiet-times" id="dndTimesWrap">
-            <div class="pf-field">
-              <label for="dndStart" class="pf-label">Start Time</label>
-              <input type="time" class="form-control" id="dndStart" value="22:00">
-            </div>
-            <div class="pf-field">
-              <label for="dndEnd" class="pf-label">End Time</label>
-              <input type="time" class="form-control" id="dndEnd" value="08:00">
-            </div>
-          </div>
-        </div>
-
-        <div class="pf-form-actions">
-          <button type="submit" class="btn btn-primary" id="savePrefBtn">
-            <span class="spinner-border spinner-border-sm d-none me-1" id="prefSpinner" role="status"></span>
-            Save Preferences
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- ═══ Security ═══ -->
-  <div class="pf-panel" id="panel-security">
-    <div class="pf-section">
-      <div class="pf-section-header">
-        <div>
-          <h3 class="pf-section-title">Security</h3>
-          <p class="pf-section-desc">Manage your password and account security</p>
-        </div>
-      </div>
-      <div class="pf-security-item" id="passwordSection">
-        <div class="pf-security-icon"><i class="ti ti-key"></i></div>
-        <div class="pf-security-info">
-          <span class="pf-security-label">Password</span>
-          <span class="pf-security-desc">Change your password to keep your account secure.</span>
-        </div>
-        <button class="btn btn-outline-secondary btn-sm" type="button" id="showPasswordFormBtn">
-          Change Password
-        </button>
-      </div>
-
-      <div class="pf-password-form d-none" id="passwordFormWrap">
-        <div id="passwordAlert"></div>
-        <form id="passwordForm">
-          <div class="pf-form-grid">
-            <div class="pf-field pf-field--full">
-              <label for="currentPassword" class="pf-label">Current Password</label>
-              <input type="password" class="form-control" id="currentPassword" placeholder="Enter current password" required>
-            </div>
-            <div class="pf-field">
-              <label for="newPassword" class="pf-label">New Password</label>
-              <input type="password" class="form-control" id="newPassword" placeholder="Min. 8 characters" required minlength="8">
-            </div>
-            <div class="pf-field">
-              <label for="confirmPassword" class="pf-label">Confirm New Password</label>
-              <input type="password" class="form-control" id="confirmPassword" placeholder="Re-enter new password" required minlength="8">
-            </div>
-          </div>
-          <div class="pf-form-actions">
-            <button type="button" class="btn btn-outline-secondary btn-sm" id="cancelPasswordBtn">Cancel</button>
-            <button type="submit" class="btn btn-primary btn-sm" id="savePasswordBtn">
-              <span class="spinner-border spinner-border-sm d-none me-1" id="passwordSpinner" role="status"></span>
-              Update Password
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <div class="pf-security-item">
-        <div class="pf-security-icon"><i class="ti ti-devices"></i></div>
-        <div class="pf-security-info">
-          <span class="pf-security-label">Active Sessions</span>
-          <span class="pf-security-desc">You are currently signed in on this device.</span>
-        </div>
-        <span class="pf-security-status"><i class="ti ti-circle-filled"></i> Active</span>
-      </div>
+      <a href="/settings/" class="btn btn-sm btn-outline-primary">Go to Settings</a>
     </div>
   </div>
 </div>
@@ -390,10 +143,7 @@
 
   var PROFILE_API = '/api/v1/accounts/profiles/me/';
   var USERS_API = '/api/v1/accounts/users/';
-  var AGENTS_API = '/api/v1/agents/agents/my-status/';
-  var NOTIF_PREF_API = '/api/v1/notifications/notification-preferences/';
   var profileData = null;
-  var agentData = null;
 
   var AVATAR_COLORS = ['#2563EB','#1D4ED8','#0891B2','#059669','#10B981','#F59E0B','#7C3AED','#EC4899','#3B82F6','#14B8A6'];
   function avatarColor(name) {
@@ -405,7 +155,7 @@
     if (!n) return '?';
     return n.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
   }
-  function formatDate(d) { if (!d) return '--'; return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }); }
+  function formatDate(d) { return Kanzan.formatDate(d); }
 
   function getRoleBadgeClass(roleName) {
     var rn = (roleName || '').toLowerCase();
@@ -477,123 +227,11 @@
       document.getElementById('jobTitle').value = data.job_title || '';
       document.getElementById('department').value = data.department || '';
       document.getElementById('bio').value = data.bio || '';
-      document.getElementById('signature').value = data.signature || '';
-
-      // Preferences
-      document.getElementById('prefTimezone').value = data.timezone || 'UTC';
-      document.getElementById('prefLanguage').value = data.language || 'en';
-      document.getElementById('dndEnabled').checked = !!data.dnd_enabled;
-      document.getElementById('dndStart').value = data.dnd_start || '22:00';
-      document.getElementById('dndEnd').value = data.dnd_end || '08:00';
-      toggleDndTimes();
     }).catch(function() {
       Toast.error('Failed to load profile data.');
     });
   }
 
-  // ═══ Load Agent Availability ═══
-  function loadAvailability() {
-    Api.get(AGENTS_API).then(function(data) {
-      agentData = data;
-      updateStatusPicker(data.status);
-      document.getElementById('statusMessage').value = data.status_message || '';
-      document.getElementById('capacityValue').textContent = data.max_concurrent_tickets;
-      updateWorkloadBar(data.current_ticket_count, data.max_concurrent_tickets);
-    }).catch(function() {});
-  }
-
-  function updateStatusPicker(status) {
-    document.querySelectorAll('.pf-status-btn').forEach(function(btn) {
-      btn.classList.toggle('active', btn.getAttribute('data-status') === status);
-    });
-  }
-
-  function updateWorkloadBar(current, max) {
-    var pct = max > 0 ? Math.min(100, (current / max) * 100) : 0;
-    document.getElementById('workloadFill').style.width = pct + '%';
-    document.getElementById('workloadText').textContent = current + ' / ' + max;
-
-    var fill = document.getElementById('workloadFill');
-    fill.style.background = pct > 80 ? '#EF4444' : pct > 50 ? '#F59E0B' : '#10B981';
-  }
-
-  // ═══ Load Notification Preferences ═══
-  var NOTIF_ICONS = {
-    'ticket_assigned': 'ti-user-check',
-    'ticket_updated': 'ti-edit',
-    'ticket_comment': 'ti-message',
-    'mention': 'ti-at',
-    'message': 'ti-message-dots',
-    'sla_breach': 'ti-alert-triangle',
-    'payment_failed': 'ti-credit-card-off',
-    'subscription_change': 'ti-crown',
-    'invitation': 'ti-mail-forward'
-  };
-
-  function loadNotifPrefs() {
-    Api.get(NOTIF_PREF_API).then(function(prefs) {
-      var list = document.getElementById('notifPrefList');
-      list.textContent = '';
-
-      prefs.forEach(function(pref) {
-        var row = document.createElement('div');
-        row.className = 'pf-notif-table-row';
-        row.setAttribute('data-type', pref.notification_type);
-
-        var typeCell = document.createElement('div');
-        typeCell.className = 'pf-notif-table-type';
-        var icon = document.createElement('i');
-        icon.className = 'ti ' + (NOTIF_ICONS[pref.notification_type] || 'ti-bell');
-        typeCell.appendChild(icon);
-        var label = document.createElement('span');
-        label.textContent = pref.notification_type_display || pref.notification_type;
-        typeCell.appendChild(label);
-
-        var inAppCell = document.createElement('div');
-        inAppCell.className = 'pf-notif-table-ch';
-        var inAppSwitch = document.createElement('input');
-        inAppSwitch.type = 'checkbox';
-        inAppSwitch.className = 'form-check-input';
-        inAppSwitch.checked = pref.in_app;
-        inAppSwitch.addEventListener('change', function() {
-          saveNotifPref(pref.notification_type, this.checked, null);
-        });
-        inAppCell.appendChild(inAppSwitch);
-
-        var emailCell = document.createElement('div');
-        emailCell.className = 'pf-notif-table-ch';
-        var emailSwitch = document.createElement('input');
-        emailSwitch.type = 'checkbox';
-        emailSwitch.className = 'form-check-input';
-        emailSwitch.checked = pref.email;
-        emailSwitch.addEventListener('change', function() {
-          saveNotifPref(pref.notification_type, null, this.checked);
-        });
-        emailCell.appendChild(emailSwitch);
-
-        row.appendChild(typeCell);
-        row.appendChild(inAppCell);
-        row.appendChild(emailCell);
-        list.appendChild(row);
-      });
-    }).catch(function() {});
-  }
-
-  function saveNotifPref(type, inApp, email) {
-    // The ViewSet does update_or_create keyed on notification_type
-    // We need to send both values; read current from the UI
-    var row = document.querySelector('.pf-notif-table-row[data-type="' + type + '"]');
-    var switches = row ? row.querySelectorAll('.form-check-input') : [];
-    var payload = {
-      notification_type: type,
-      in_app: inApp !== null ? inApp : (switches[0] ? switches[0].checked : true),
-      email: email !== null ? email : (switches[1] ? switches[1].checked : true)
-    };
-    Api.put(NOTIF_PREF_API + '0/', payload).catch(function() {
-      Toast.error('Failed to update preference');
-      loadNotifPrefs();
-    });
-  }
 
   // ═══ Avatar Upload ═══
   document.getElementById('avatarInput').addEventListener('change', function() {
@@ -648,8 +286,7 @@
     Api.patch(PROFILE_API, {
       job_title: document.getElementById('jobTitle').value.trim(),
       department: document.getElementById('department').value.trim(),
-      bio: document.getElementById('bio').value.trim(),
-      signature: document.getElementById('signature').value.trim()
+      bio: document.getElementById('bio').value.trim()
     }).then(function() {
       Toast.success('Work information saved');
       loadProfile();
@@ -658,112 +295,8 @@
     }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
   });
 
-  // ═══ Availability Controls ═══
-  document.querySelectorAll('.pf-status-btn').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      updateStatusPicker(this.getAttribute('data-status'));
-    });
-  });
-
-  var capacityVal = 10;
-  document.getElementById('capacityDown').addEventListener('click', function() {
-    capacityVal = Math.max(1, capacityVal - 1);
-    document.getElementById('capacityValue').textContent = capacityVal;
-  });
-  document.getElementById('capacityUp').addEventListener('click', function() {
-    capacityVal = Math.min(50, capacityVal + 1);
-    document.getElementById('capacityValue').textContent = capacityVal;
-  });
-
-  document.getElementById('saveAvailBtn').addEventListener('click', function() {
-    var btn = this;
-    var spinner = document.getElementById('availSpinner');
-    btn.disabled = true; spinner.classList.remove('d-none');
-
-    var activeBtn = document.querySelector('.pf-status-btn.active');
-    var status = activeBtn ? activeBtn.getAttribute('data-status') : 'offline';
-
-    Api.patch(AGENTS_API, {
-      status: status,
-      status_message: document.getElementById('statusMessage').value.trim(),
-      max_concurrent_tickets: parseInt(document.getElementById('capacityValue').textContent)
-    }).then(function(data) {
-      agentData = data;
-      Toast.success('Availability updated');
-      updateWorkloadBar(data.current_ticket_count, data.max_concurrent_tickets);
-    }).catch(function() {
-      Toast.error('Failed to update availability');
-    }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
-  });
-
-  // ═══ Save Preferences ═══
-  function toggleDndTimes() {
-    var wrap = document.getElementById('dndTimesWrap');
-    wrap.style.display = document.getElementById('dndEnabled').checked ? 'grid' : 'none';
-  }
-  document.getElementById('dndEnabled').addEventListener('change', toggleDndTimes);
-
-  document.getElementById('prefForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var btn = document.getElementById('savePrefBtn');
-    var spinner = document.getElementById('prefSpinner');
-    btn.disabled = true; spinner.classList.remove('d-none');
-
-    Api.patch(PROFILE_API, {
-      timezone: document.getElementById('prefTimezone').value,
-      language: document.getElementById('prefLanguage').value,
-      dnd_enabled: document.getElementById('dndEnabled').checked,
-      dnd_start: document.getElementById('dndStart').value || null,
-      dnd_end: document.getElementById('dndEnd').value || null
-    }).then(function() {
-      Toast.success('Preferences saved');
-    }).catch(function(err) {
-      Toast.error(err.detail || 'Failed to update preferences');
-    }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
-  });
-
-  // ═══ Password Change ═══
-  document.getElementById('showPasswordFormBtn').addEventListener('click', function() {
-    document.getElementById('passwordFormWrap').classList.remove('d-none');
-    document.getElementById('passwordSection').classList.add('d-none');
-    document.getElementById('currentPassword').focus();
-  });
-  document.getElementById('cancelPasswordBtn').addEventListener('click', function() {
-    document.getElementById('passwordFormWrap').classList.add('d-none');
-    document.getElementById('passwordSection').classList.remove('d-none');
-    document.getElementById('passwordForm').reset();
-  });
-  document.getElementById('passwordForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var newPw = document.getElementById('newPassword').value;
-    var confirmPw = document.getElementById('confirmPassword').value;
-    if (newPw !== confirmPw) { showAlert('passwordAlert', 'Passwords do not match.', 'danger'); return; }
-    if (newPw.length < 8) { showAlert('passwordAlert', 'Min 8 characters.', 'danger'); return; }
-
-    var btn = document.getElementById('savePasswordBtn');
-    var spinner = document.getElementById('passwordSpinner');
-    btn.disabled = true; spinner.classList.remove('d-none');
-
-    Api.post('/api/v1/accounts/auth/change-password/', {
-      current_password: document.getElementById('currentPassword').value,
-      new_password: newPw, confirm_password: confirmPw
-    }).then(function() {
-      Toast.success('Password changed');
-      document.getElementById('passwordFormWrap').classList.add('d-none');
-      document.getElementById('passwordSection').classList.remove('d-none');
-      document.getElementById('passwordForm').reset();
-    }).catch(function(err) {
-      showAlert('passwordAlert', err.detail || 'Failed to change password', 'danger');
-    }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
-  });
-
   // ═══ Init ═══
   loadProfile();
-  loadAvailability();
-  loadNotifPrefs();
-
-  // Sync capacity value from loaded data
-  Api.get(AGENTS_API).then(function(d) { capacityVal = d.max_concurrent_tickets || 10; }).catch(function(){});
 })();
 </script>
 {% endblock %}

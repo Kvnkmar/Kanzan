@@ -182,8 +182,12 @@ def _queue_contact_reply_email(ticket, comment, author):
     """
     Queue an outbound email to the ticket's contact for a public agent reply.
 
-    Skips if the comment author is the contact themselves (e.g. inbound email
-    replies already processed by the system).
+    Uses transaction.on_commit() to ensure the Celery task is only
+    dispatched after the comment is committed to the database. This
+    prevents the task from running against rolled-back data.
+
+    Skips if the comment author is the contact themselves (e.g. inbound
+    email replies already processed by the system).
     """
     try:
         contact = ticket.contact
@@ -191,25 +195,35 @@ def _queue_contact_reply_email(ticket, comment, author):
             return
 
         # Don't email the contact about their own replies
-        if hasattr(contact, "email") and contact.email == author.email:
+        if contact.email == author.email:
             return
 
         agent_name = author.get_full_name() or author.email
         comment_body = getattr(comment, "body", "") or ""
 
-        from apps.tickets.tasks import send_ticket_reply_email_task
+        # Capture values for the closure (avoid referencing Django model
+        # instances inside on_commit which may be stale)
+        ticket_pk = str(ticket.pk)
+        tenant_id = str(ticket.tenant_id)
 
-        send_ticket_reply_email_task.delay(
-            str(ticket.pk),
-            comment_body,
-            agent_name,
-            str(ticket.tenant_id),
-        )
-        logger.debug(
-            "Queued contact reply email for ticket #%d to %s",
-            ticket.number,
-            contact.email,
-        )
+        from django.db import transaction
+
+        def _dispatch():
+            from apps.tickets.tasks import send_ticket_reply_email_task
+
+            send_ticket_reply_email_task.delay(
+                ticket_pk,
+                comment_body,
+                agent_name,
+                tenant_id,
+            )
+            logger.debug(
+                "Queued contact reply email for ticket #%d to %s",
+                ticket.number,
+                contact.email,
+            )
+
+        transaction.on_commit(_dispatch)
     except Exception:
         logger.exception(
             "Failed to queue contact reply email for ticket #%d",

@@ -1,4 +1,97 @@
 /**
+ * Kanzan — Global formatting utilities.
+ * Reads user preferences from localStorage (set by Settings page).
+ * Used across all pages for consistent date/time display.
+ */
+var Kanzan = (function() {
+  function _pref(key, fallback) { return localStorage.getItem('kanzan_' + key) || fallback; }
+
+  function _locale() {
+    var lang = _pref('language', 'en');
+    var map = { en: 'en-US', ms: 'ms-MY', zh: 'zh-CN', es: 'es-ES', fr: 'fr-FR', de: 'de-DE', ja: 'ja-JP' };
+    return map[lang] || 'en-US';
+  }
+
+  function _dateOpts() {
+    var fmt = _pref('date_format', 'YYYY-MM-DD');
+    if (fmt === 'MM/DD/YYYY') return { year: 'numeric', month: '2-digit', day: '2-digit' };
+    if (fmt === 'DD/MM/YYYY') return { year: 'numeric', month: '2-digit', day: '2-digit' };
+    // Default YYYY-MM-DD and 'short' style
+    return { year: 'numeric', month: 'short', day: 'numeric' };
+  }
+
+  function _timeOpts() {
+    var tf = _pref('time_format', '24h');
+    return { hour: 'numeric', minute: '2-digit', hour12: tf === '12h' };
+  }
+
+  function _tz() {
+    var tz = _pref('timezone', '');
+    return tz || undefined; // undefined = browser default
+  }
+
+  /**
+   * Format a date string to the user's preferred format.
+   * @param {string} dateStr - ISO date string
+   * @param {object} [opts] - Extra Intl.DateTimeFormat options to merge
+   * @returns {string}
+   */
+  function formatDate(dateStr, opts) {
+    if (!dateStr) return '--';
+    var d = new Date(dateStr);
+    if (isNaN(d)) return '--';
+    var baseOpts = _dateOpts();
+    var tz = _tz();
+    if (tz) baseOpts.timeZone = tz;
+    if (opts) { for (var k in opts) baseOpts[k] = opts[k]; }
+    try { return d.toLocaleDateString(_locale(), baseOpts); }
+    catch(e) { return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
+  }
+
+  /**
+   * Format a date+time string to the user's preferred format.
+   * @param {string} dateStr - ISO date string
+   * @returns {string}
+   */
+  function formatDateTime(dateStr) {
+    if (!dateStr) return '--';
+    var d = new Date(dateStr);
+    if (isNaN(d)) return '--';
+    var opts = _dateOpts();
+    var tOpts = _timeOpts();
+    for (var k in tOpts) opts[k] = tOpts[k];
+    var tz = _tz();
+    if (tz) opts.timeZone = tz;
+    try { return d.toLocaleString(_locale(), opts); }
+    catch(e) { return d.toLocaleString('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+  }
+
+  /**
+   * Relative time ago string (e.g., "5m ago", "2h ago") with fallback to formatted date.
+   * @param {string} dateStr - ISO date string
+   * @returns {string}
+   */
+  function timeAgoSmart(dateStr) {
+    if (!dateStr) return '--';
+    var d = new Date(dateStr);
+    if (isNaN(d)) return '--';
+    var diff = Math.floor((Date.now() - d) / 1000);
+    if (diff < 60) return 'Just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    return formatDateTime(dateStr);
+  }
+
+  return {
+    formatDate: formatDate,
+    formatDateTime: formatDateTime,
+    timeAgo: timeAgoSmart,
+    getLocale: _locale,
+    getTimezone: _tz
+  };
+})();
+
+/**
  * Common application initialization for Kanzen Suite.
  */
 document.addEventListener('DOMContentLoaded', () => {
@@ -31,6 +124,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Desktop sidebar collapse toggle
   initSidebarCollapse();
+
+  // Apply density preference from localStorage
+  initDensity();
 
   // Navbar scroll effect (backdrop blur border)
   initNavbarScroll();
@@ -73,6 +169,15 @@ function initSidebarCollapse() {
 }
 
 /**
+ * Apply list density preference (comfortable/compact).
+ * Sets data-density attribute on <html> so CSS can respond.
+ */
+function initDensity() {
+  var density = localStorage.getItem('kanzan_density') || 'comfortable';
+  document.documentElement.setAttribute('data-density', density);
+}
+
+/**
  * Navbar scroll effect — adds 'scrolled' class for border/shadow on scroll.
  */
 function initNavbarScroll() {
@@ -108,14 +213,7 @@ function getNotifConfig(type) {
 }
 
 function timeAgo(dateStr) {
-  if (!dateStr) return '';
-  var now = new Date(), d = new Date(dateStr);
-  var diff = Math.floor((now - d) / 1000);
-  if (diff < 60) return 'just now';
-  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
-  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
-  if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  return Kanzan.timeAgo(dateStr);
 }
 
 function escapeHtmlGlobal(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
