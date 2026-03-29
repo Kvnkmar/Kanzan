@@ -6,6 +6,7 @@ and read-position tracking -- all scoped to authenticated participants.
 """
 
 import logging
+import time
 from uuid import UUID
 
 from channels.db import database_sync_to_async
@@ -13,6 +14,11 @@ from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+# WebSocket protection constants
+MAX_MESSAGE_LENGTH = 10_000  # 10KB max message body
+MAX_MESSAGES_PER_SECOND = 5
+TYPING_COOLDOWN_SECONDS = 2
 
 
 class ChatConsumer(AsyncJsonWebsocketConsumer):
@@ -63,6 +69,15 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             await self.close(code=4003)
             return
 
+        # Verify the conversation belongs to the tenant resolved from
+        # the WebSocket Host header (prevents cross-tenant access).
+        tenant = self.scope.get("tenant")
+        if tenant is not None:
+            conversation_tenant_match = await self._check_conversation_tenant(tenant)
+            if not conversation_tenant_match:
+                await self.close(code=4004)
+                return
+
         # Join the channel-layer group and accept the connection
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
@@ -82,11 +97,27 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         """
         Dispatch incoming JSON payloads based on their ``action`` field.
         """
+        # Rate limiting: track message timestamps per connection
+        now = time.monotonic()
+        if not hasattr(self, "_msg_timestamps"):
+            self._msg_timestamps = []
+            self._last_typing = 0.0
+
+        # Prune old timestamps (older than 1 second)
+        self._msg_timestamps = [t for t in self._msg_timestamps if now - t < 1.0]
+
         action = content.get("action")
 
         if action == "send_message":
+            if len(self._msg_timestamps) >= MAX_MESSAGES_PER_SECOND:
+                await self.send_json({"error": "Rate limit exceeded. Please slow down."})
+                return
+            self._msg_timestamps.append(now)
             await self._handle_send_message(content)
         elif action == "typing":
+            if now - self._last_typing < TYPING_COOLDOWN_SECONDS:
+                return  # Silently drop excess typing indicators
+            self._last_typing = now
             await self._handle_typing()
         elif action == "mark_read":
             await self._handle_mark_read()
@@ -126,6 +157,11 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         body = content.get("body", "").strip()
         if not body:
             await self.send_json({"error": "Message body cannot be empty."})
+            return
+        if len(body) > MAX_MESSAGE_LENGTH:
+            await self.send_json(
+                {"error": f"Message too long. Maximum {MAX_MESSAGE_LENGTH} characters."}
+            )
             return
 
         parent_id = content.get("parent_id")
@@ -190,6 +226,15 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         return ConversationParticipant.objects.filter(
             conversation_id=self.conversation_id,
             user=self.user,
+        ).exists()
+
+    @database_sync_to_async
+    def _check_conversation_tenant(self, tenant) -> bool:
+        from apps.messaging.models import Conversation
+
+        return Conversation.unscoped.filter(
+            pk=self.conversation_id,
+            tenant_id=tenant.pk,
         ).exists()
 
     @database_sync_to_async
@@ -262,9 +307,9 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         # Populate the M2M mentions field
         user_ids = parse_mentions(message.body)
         if user_ids:
-            from apps.accounts.models import User
+            from django.contrib.auth import get_user_model
 
-            mentioned_users = User.objects.filter(id__in=user_ids)
+            mentioned_users = get_user_model().objects.filter(id__in=user_ids)
             message.mentions.set(mentioned_users)
 
         # Dispatch mention notifications (specific @-mentions)

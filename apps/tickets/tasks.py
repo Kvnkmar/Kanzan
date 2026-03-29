@@ -74,6 +74,7 @@ def _check_tenant_sla(tenant, now):
             Ticket.unscoped.filter(tenant=tenant, priority=policy.priority)
             .exclude(status_id__in=closed_status_ids)
             .select_related("status", "assignee", "created_by")
+            .iterator(chunk_size=200)
         )
 
         for ticket in tickets:
@@ -85,6 +86,7 @@ def _check_ticket_sla(ticket, policy, tenant, tenant_settings, now):
     update_fields = []
 
     # --- Response SLA ---
+    response_breached = False
     if not ticket.sla_response_breached and ticket.first_responded_at is None:
         elapsed = _elapsed(
             ticket.created_at, now, policy, tenant_settings
@@ -92,9 +94,10 @@ def _check_ticket_sla(ticket, policy, tenant, tenant_settings, now):
         if elapsed > policy.first_response_minutes:
             ticket.sla_response_breached = True
             update_fields.append("sla_response_breached")
-            _fire_breach(ticket, tenant, "response_breach", policy)
+            response_breached = True
 
     # --- Resolution SLA ---
+    resolution_breached = False
     if not ticket.sla_resolution_breached and ticket.resolved_at is None:
         elapsed = _elapsed(
             ticket.created_at, now, policy, tenant_settings
@@ -102,11 +105,18 @@ def _check_ticket_sla(ticket, policy, tenant, tenant_settings, now):
         if elapsed > policy.resolution_minutes:
             ticket.sla_resolution_breached = True
             update_fields.append("sla_resolution_breached")
-            _fire_breach(ticket, tenant, "resolution_breach", policy)
+            resolution_breached = True
 
+    # Persist breach flags BEFORE sending notifications to prevent
+    # duplicate notifications on task retry.
     if update_fields:
         update_fields.append("updated_at")
         ticket.save(update_fields=update_fields)
+
+    if response_breached:
+        _fire_breach(ticket, tenant, "response_breach", policy)
+    if resolution_breached:
+        _fire_breach(ticket, tenant, "resolution_breach", policy)
 
     # --- Escalation rules ---
     _check_escalation_rules(ticket, policy, tenant, tenant_settings, now)

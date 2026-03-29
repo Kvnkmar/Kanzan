@@ -17,6 +17,25 @@ from apps.tickets.models import SLAPolicy, Ticket, TicketStatus
 
 logger = logging.getLogger(__name__)
 
+# Per-request cache for closed status IDs to avoid repeated queries.
+_closed_status_cache = {}
+
+
+def _get_closed_status_ids(tenant):
+    """Return closed status IDs for a tenant, cached per call-site."""
+    tenant_pk = tenant.pk
+    if tenant_pk not in _closed_status_cache:
+        _closed_status_cache[tenant_pk] = list(
+            TicketStatus.unscoped.filter(tenant=tenant, is_closed=True)
+            .values_list("id", flat=True)
+        )
+    return _closed_status_cache[tenant_pk]
+
+
+def clear_closed_status_cache():
+    """Clear the cache (call at the end of each request/task)."""
+    _closed_status_cache.clear()
+
 
 def _apply_user_filter(qs, tenant, user):
     """Restrict queryset to the user's own tickets if they are a viewer."""
@@ -53,11 +72,7 @@ def get_ticket_stats(tenant, date_from=None, date_to=None, user=None):
     if date_to:
         base_qs = base_qs.filter(created_at__lte=date_to)
 
-    # Determine which statuses are "closed" for this tenant.
-    closed_status_ids = list(
-        TicketStatus.unscoped.filter(tenant=tenant, is_closed=True)
-        .values_list("id", flat=True)
-    )
+    closed_status_ids = _get_closed_status_ids(tenant)
 
     open_count = base_qs.exclude(status_id__in=closed_status_ids).count()
     closed_count = base_qs.filter(status_id__in=closed_status_ids).count()
@@ -123,10 +138,7 @@ def get_agent_performance(tenant, date_from=None, date_to=None):
     if date_to:
         base_qs = base_qs.filter(created_at__lte=date_to)
 
-    closed_status_ids = list(
-        TicketStatus.unscoped.filter(tenant=tenant, is_closed=True)
-        .values_list("id", flat=True)
-    )
+    closed_status_ids = _get_closed_status_ids(tenant)
 
     agent_rows = (
         base_qs.values(
@@ -274,10 +286,7 @@ def get_due_today(tenant, user):
     start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
     end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
 
-    closed_status_ids = list(
-        TicketStatus.unscoped.filter(tenant=tenant, is_closed=True)
-        .values_list("id", flat=True)
-    )
+    closed_status_ids = _get_closed_status_ids(tenant)
 
     qs = Ticket.unscoped.filter(
         tenant=tenant,
@@ -315,10 +324,7 @@ def get_overdue_tickets(tenant, user):
     """
     now = timezone.now()
 
-    closed_status_ids = list(
-        TicketStatus.unscoped.filter(tenant=tenant, is_closed=True)
-        .values_list("id", flat=True)
-    )
+    closed_status_ids = _get_closed_status_ids(tenant)
 
     qs = (
         Ticket.unscoped.filter(

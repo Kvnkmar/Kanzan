@@ -283,12 +283,12 @@ def knowledge_article_page(request, article_slug):
 # Admin-only pages (hierarchy_level <= 10)
 # ---------------------------------------------------------------------------
 
-@_membership_required
+@_role_required(20)
 def settings_page(request):
     return render(request, "pages/settings/tenant.html")
 
 
-@_role_required(10)
+@_role_required(20)
 def billing_page(request):
     return render(request, "pages/billing/plans.html")
 
@@ -307,6 +307,6 @@ def agents_page(request):
     return render(request, "pages/agents/list.html")
 
 
-@_role_required(20)
+@_membership_required
 def inbound_email_page(request):
     return render(request, "pages/inbound_email/list.html")

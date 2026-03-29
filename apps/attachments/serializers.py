@@ -103,6 +103,26 @@ class AttachmentUploadSerializer(serializers.Serializer):
         self._detected_mime = detected_mime
         return file_obj
 
+    def validate(self, attrs):
+        """Verify the target object exists and belongs to the current tenant."""
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None) if request else None
+        ct = attrs["content_type"]
+        object_id = attrs["object_id"]
+        model_class = ct.model_class()
+
+        if model_class is not None:
+            target = model_class._default_manager.filter(pk=object_id).first()
+            if target is None:
+                raise serializers.ValidationError(
+                    {"object_id": "Target object not found."}
+                )
+            if tenant and hasattr(target, "tenant_id") and target.tenant_id != tenant.pk:
+                raise serializers.ValidationError(
+                    {"object_id": "Target object does not belong to this tenant."}
+                )
+        return attrs
+
     def create(self, validated_data):
         """Create the Attachment record from validated upload data."""
         request = self.context["request"]

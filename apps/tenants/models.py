@@ -162,3 +162,17 @@ class TenantSettings(TimestampedModel):
 
     def __str__(self):
         return f"Settings for {self.tenant}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        super().clean()
+        if self.business_days is not None:
+            if not isinstance(self.business_days, list):
+                raise ValidationError({"business_days": "Must be a list of integers 0-6."})
+            valid_days = set(range(7))
+            for day in self.business_days:
+                if not isinstance(day, int) or day not in valid_days:
+                    raise ValidationError(
+                        {"business_days": f"Invalid day value: {day}. Must be integers 0 (Mon) to 6 (Sun)."}
+                    )

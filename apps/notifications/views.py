@@ -12,6 +12,7 @@ from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.accounts.permissions import IsTenantMember
 from apps.notifications.models import (
     Notification,
     NotificationPreference,
@@ -47,7 +48,7 @@ class NotificationViewSet(
     """
 
     serializer_class = NotificationSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTenantMember]
 
     def get_queryset(self):
         """
@@ -55,10 +56,13 @@ class NotificationViewSet(
 
         Orders unread notifications first, then by newest ``created_at``.
         """
-        return (
-            Notification.objects.filter(recipient=self.request.user)
-            .order_by("is_read", "-created_at")
-        )
+        if getattr(self, "swagger_fake_view", False):
+            return Notification.objects.none()
+        qs = Notification.objects.filter(recipient=self.request.user)
+        tenant = getattr(self.request, "tenant", None)
+        if tenant is not None:
+            qs = qs.filter(tenant=tenant)
+        return qs.order_by("is_read", "-created_at")
 
     # ----- Custom actions ------------------------------------------------
 
@@ -135,9 +139,11 @@ class NotificationPreferenceViewSet(
     """
 
     serializer_class = NotificationPreferenceSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTenantMember]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return NotificationPreference.objects.none()
         return NotificationPreference.objects.filter(user=self.request.user)
 
     def list(self, request, *args, **kwargs):

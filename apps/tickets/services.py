@@ -33,16 +33,6 @@ from apps.tickets.models import Ticket, TicketActivity, TicketAssignment
 logger = logging.getLogger(__name__)
 
 
-def _get_client_ip(request):
-    """Extract client IP for audit log."""
-    if request is None:
-        return None
-    xff = request.META.get("HTTP_X_FORWARDED_FOR")
-    if xff:
-        return xff.split(",")[0].strip()
-    return request.META.get("REMOTE_ADDR")
-
-
 # ---------------------------------------------------------------------------
 # Ticket creation
 # ---------------------------------------------------------------------------
@@ -435,10 +425,13 @@ def log_ticket_comment(ticket, actor, is_internal=False):
 # ---------------------------------------------------------------------------
 
 
-@transaction.atomic
 def bulk_update_tickets(tickets, action, params, user, request=None):
     """
     Execute a bulk action on a queryset of tickets with activity logging.
+
+    Each ticket is handled independently so one failure does not roll back
+    successful updates. Individual service functions (assign_ticket, etc.)
+    use their own ``@transaction.atomic`` blocks.
 
     Supported actions: assign, change_status, change_priority, add_tag, delete.
     """
@@ -492,7 +485,10 @@ def bulk_update_tickets(tickets, action, params, user, request=None):
             details.append(f"Updated ticket #{ticket.number}")
 
         except Exception as e:
-            details.append(f"Failed to update ticket #{ticket.number}: {str(e)}")
+            logger.exception(
+                "Bulk action '%s' failed for ticket #%s", action, ticket.number,
+            )
+            details.append(f"Failed to update ticket #{ticket.number}: {type(e).__name__}")
 
     return {"count": count, "details": details}
 
@@ -503,11 +499,23 @@ def record_first_response(ticket, actor):
 
     Only counts if *actor* is NOT the original ticket creator (i.e. an agent
     is responding, not the requester adding to their own ticket).
+
+    Uses an atomic UPDATE with a WHERE filter to avoid race conditions
+    where two concurrent responses both see ``first_responded_at IS NULL``.
     """
     if ticket.first_responded_at is not None:
         return
     if actor and actor.pk == ticket.created_by_id:
         return
 
-    ticket.first_responded_at = timezone.now()
-    ticket.save(update_fields=["first_responded_at", "updated_at"])
+    from apps.tickets.models import Ticket
+
+    updated = Ticket.unscoped.filter(
+        pk=ticket.pk,
+        first_responded_at__isnull=True,
+    ).update(
+        first_responded_at=timezone.now(),
+        updated_at=timezone.now(),
+    )
+    if updated:
+        ticket.refresh_from_db(fields=["first_responded_at", "updated_at"])

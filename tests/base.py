@@ -9,6 +9,7 @@ multi-tenancy, RBAC, and plan limits.
 from datetime import date
 
 from django.test import TestCase, RequestFactory
+from django.utils import timezone as tz
 
 from apps.accounts.models import Role, TenantMembership, User
 from apps.billing.models import Plan, Subscription, UsageTracker
@@ -165,8 +166,8 @@ class TenantTestCase(TestCase):
             plan=plan,
             status=Subscription.Status.ACTIVE,
             stripe_subscription_id=f"sub_test_{tenant.slug}",
-            current_period_start="2026-01-01",
-            current_period_end="2026-12-31",
+            current_period_start=tz.make_aware(tz.datetime(2026, 1, 1)),
+            current_period_end=tz.make_aware(tz.datetime(2026, 12, 31)),
         )
         usage = UsageTracker.objects.create(
             tenant=tenant,

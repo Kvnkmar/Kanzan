@@ -933,7 +933,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
     dom.subject.textContent = currentSubject;
 
     if (ticket.description && ticket.description.trim()) {
-      dom.descView.innerHTML = ticket.description;
+      dom.descView.textContent = ticket.description;
       dom.descView.classList.remove('text-muted');
     } else {
       dom.descView.textContent = 'No description provided.';

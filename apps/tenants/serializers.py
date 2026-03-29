@@ -13,8 +13,10 @@ class TenantSettingsSerializer(serializers.ModelSerializer):
     """
     Serializer for TenantSettings.
 
-    Exposes all configurable fields. The ``tenant`` field is read-only
-    because settings are always accessed in the context of their parent tenant.
+    Exposes all configurable fields. SSO configuration fields
+    (``sso_client_id``, ``sso_authority_url``, ``sso_scopes``) are
+    write-only to prevent leaking SSO metadata to non-admin users
+    (since this serializer is nested in the TenantSerializer).
     """
 
     logo_url = serializers.SerializerMethodField()
@@ -43,6 +45,9 @@ class TenantSettingsSerializer(serializers.ModelSerializer):
         read_only_fields = ["tenant", "logo_url", "created_at", "updated_at"]
         extra_kwargs = {
             "sso_client_secret": {"write_only": True},
+            "sso_client_id": {"write_only": True},
+            "sso_authority_url": {"write_only": True},
+            "sso_scopes": {"write_only": True},
         }
 
     def get_logo_url(self, obj):

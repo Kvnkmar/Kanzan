@@ -12,6 +12,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.accounts.permissions import IsTenantMember
 from apps.kanban.models import Board, CardPosition, Column
 from apps.kanban.serializers import (
     BoardDetailSerializer,
@@ -44,7 +45,7 @@ class BoardViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = BoardSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTenantMember]
     lookup_field = "pk"
 
     def get_queryset(self):
@@ -111,11 +112,18 @@ class ColumnViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = ColumnSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTenantMember]
 
     def get_queryset(self):
+        from django.db.models import Count
+
         board_pk = self.kwargs.get("board_pk")
-        return Column.objects.filter(board_id=board_pk).select_related("board")
+        return (
+            Column.objects.filter(board_id=board_pk)
+            .select_related("board")
+            .annotate(card_count=Count("cards"))
+            .order_by("order")
+        )
 
     def perform_create(self, serializer):
         board_pk = self.kwargs.get("board_pk")
@@ -169,7 +177,7 @@ class CardPositionViewSet(viewsets.ModelViewSet):
     """
 
     serializer_class = CardPositionSerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTenantMember]
 
     def get_queryset(self):
         board_pk = self.kwargs.get("board_pk")

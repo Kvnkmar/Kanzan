@@ -23,6 +23,7 @@ from apps.messaging.models import (
     ConversationType,
     Message,
 )
+from apps.accounts.permissions import IsTenantMember
 from apps.messaging.serializers import (
     ConversationCreateSerializer,
     ConversationParticipantSerializer,
@@ -57,7 +58,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
     Messages are handled by the nested ``MessageViewSet`` route.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTenantMember]
     lookup_field = "pk"
 
     def get_serializer_class(self):
@@ -72,6 +73,8 @@ class ConversationViewSet(viewsets.ModelViewSet):
         Return conversations that the current user participates in,
         scoped to the current tenant via the TenantAwareManager.
         """
+        if getattr(self, "swagger_fake_view", False):
+            return Conversation.objects.none()
         user = self.request.user
         # Use a subquery for participant count because the M2M filter JOIN
         # would otherwise limit the COUNT to only the current user's row.
@@ -161,12 +164,23 @@ class ConversationViewSet(viewsets.ModelViewSet):
             raise ValidationError({"user_id": "This field is required."})
 
         from django.contrib.auth import get_user_model
+        from apps.accounts.models import TenantMembership
+
         User = get_user_model()
 
         try:
             user = User.objects.get(pk=user_id)
         except User.DoesNotExist:
             raise NotFound("User not found.")
+
+        # Verify user is a member of the current tenant
+        tenant = getattr(request, "tenant", None)
+        if tenant and not TenantMembership.objects.filter(
+            user=user, tenant=tenant, is_active=True,
+        ).exists():
+            raise ValidationError(
+                {"detail": "User is not a member of this tenant."}
+            )
 
         # Check if already a participant
         if conversation.participant_details.filter(user=user).exists():
@@ -295,7 +309,7 @@ class MessageViewSet(viewsets.ModelViewSet):
     - ``destroy``: delete own message.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTenantMember]
 
     def get_serializer_class(self):
         if self.action in ("create",):
@@ -323,10 +337,13 @@ class MessageViewSet(viewsets.ModelViewSet):
         return conversation
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Message.objects.none()
         conversation = self._get_conversation()
         return (
             Message.unscoped.filter(conversation=conversation)
             .select_related("author")
+            .annotate(_reply_count=Count("replies"))
             .order_by("created_at")
         )
 

@@ -99,6 +99,39 @@ def _sync_subscription_from_stripe(stripe_sub):
         "trial_end": _ts_to_dt(stripe_sub.get("trial_end")),
     }
 
+    # Resolve tenant from subscription metadata for new subscriptions.
+    # The checkout session sets metadata.tenant_id on the subscription via
+    # subscription_data.metadata so it persists across webhook events.
+    metadata = stripe_sub.get("metadata", {})
+    tenant_id = metadata.get("tenant_id")
+
+    if tenant_id:
+        from apps.tenants.models import Tenant
+
+        try:
+            tenant = Tenant.objects.get(pk=tenant_id)
+            defaults["tenant"] = tenant
+        except Tenant.DoesNotExist:
+            logger.error(
+                "Tenant %s from subscription metadata not found for %s",
+                tenant_id,
+                stripe_sub_id,
+            )
+            return None
+
+    # For existing subscriptions (updates), tenant is already set. For new
+    # subscriptions without metadata, we cannot create the record.
+    existing = Subscription.objects.filter(
+        stripe_subscription_id=stripe_sub_id
+    ).first()
+    if existing is None and "tenant" not in defaults:
+        logger.error(
+            "Cannot create subscription %s: no tenant_id in metadata "
+            "and no existing record.",
+            stripe_sub_id,
+        )
+        return None
+
     subscription, created = Subscription.objects.update_or_create(
         stripe_subscription_id=stripe_sub_id,
         defaults=defaults,

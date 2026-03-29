@@ -202,7 +202,8 @@ class ContactCreateSerializer(serializers.ModelSerializer):
 class ContactGroupSerializer(serializers.ModelSerializer):
     """Full contact group serializer with nested contact summaries."""
 
-    contacts = ContactListSerializer(many=True, read_only=True)
+    contacts = serializers.SerializerMethodField()
+    contact_count = serializers.SerializerMethodField()
     contact_ids = serializers.PrimaryKeyRelatedField(
         queryset=Contact.objects.all(),
         many=True,
@@ -218,8 +219,17 @@ class ContactGroupSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "contacts",
+            "contact_count",
             "contact_ids",
             "created_at",
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+    def get_contacts(self, obj):
+        """Return at most 50 contacts to prevent unbounded responses."""
+        qs = obj.contacts.all()[:50]
+        return ContactListSerializer(qs, many=True).data
+
+    def get_contact_count(self, obj):
+        return obj.contacts.count()

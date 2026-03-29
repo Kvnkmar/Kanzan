@@ -87,12 +87,24 @@ def send_notification(
         deliver_email = True
 
     # 3. In-app push via Channels ----------------------------------------
-    if deliver_in_app:
-        _push_to_websocket(notification)
-
     # 4. Email via Celery ------------------------------------------------
-    if deliver_email:
-        _queue_email(notification)
+    # Both are deferred to transaction.on_commit() so they only fire after
+    # the enclosing transaction commits. This prevents orphaned Celery tasks
+    # and phantom WebSocket pushes when a transaction rolls back.
+    from django.db import connection
+
+    if connection.in_atomic_block:
+        from django.db import transaction
+
+        if deliver_in_app:
+            transaction.on_commit(lambda: _push_to_websocket(notification))
+        if deliver_email:
+            transaction.on_commit(lambda: _queue_email(notification))
+    else:
+        if deliver_in_app:
+            _push_to_websocket(notification)
+        if deliver_email:
+            _queue_email(notification)
 
     return notification
 

@@ -248,6 +248,11 @@ def create_checkout_session(request):
             "tenant_id": str(tenant.id),
             "plan_tier": plan.tier,
         },
+        "subscription_data": {
+            "metadata": {
+                "tenant_id": str(tenant.id),
+            },
+        },
     }
 
     if customer_id:

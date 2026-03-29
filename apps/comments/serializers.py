@@ -80,6 +80,11 @@ class CommentSerializer(serializers.ModelSerializer):
         read_only_fields = fields
 
     def get_attachments(self, obj):
+        # Use prefetched attachments if available (set by ViewSet via Prefetch).
+        if hasattr(obj, "_prefetched_attachments"):
+            return AttachmentSerializer(
+                obj._prefetched_attachments, many=True, context=self.context
+            ).data
         ct = ContentType.objects.get_for_model(Comment)
         qs = Attachment.objects.filter(
             content_type=ct, object_id=obj.pk

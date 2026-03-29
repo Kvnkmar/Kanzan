@@ -98,9 +98,9 @@ clear_current_tenant()       # Cleanup in middleware finally block
 
 ### Key Models by App
 
-**tenants**: `Tenant` (name, slug, domain, is_active, logo), `TenantSettings` (1:1, auth_method, SSO config, branding, `inbound_email_address`, `business_days` JSON, `business_hours_start/end`, `accent_color`)
+**tenants**: `Tenant` (name, slug, domain, is_active, logo), `TenantSettings` (1:1, auth_method, SSO config, branding, `inbound_email_address`, `business_days` JSON with validation (list of ints 0-6), `business_hours_start/end`, `accent_color`)
 
-**accounts**: `User` (email-based, no username, UUID PK), `Permission` (29 total, codename pattern: `resource.action`), `Role` (tenant-scoped, hierarchy_level: Admin=10, Manager=20, Agent=30, Viewer=40), `Profile` (tenant-specific: job_title, department, bio, notification_email, signature, timezone, language, DND settings, theme, sidebar_collapsed, density, date_format, time_format), `TenantMembership` (User+Tenant+Role bridge), `Invitation` (token-based, expiring)
+**accounts**: `User` (email-based, no username, UUID PK), `Permission` (29 total, codename pattern: `resource.action`), `Role` (tenant-scoped, hierarchy_level: Admin=10, Manager=20, Agent=30), `Profile` (tenant-specific: job_title, department, bio, notification_email, signature, timezone, language, DND settings, theme, sidebar_collapsed, density, date_format, time_format), `TenantMembership` (User+Tenant+Role bridge), `Invitation` (token-based, expiring)
 
 **tickets**: `Ticket` (auto-number per tenant, status, priority, assignee, contact, queue, tags JSON, custom_data JSON), `TicketStatus` (customizable per tenant, is_closed, is_default), `TicketCategory` (admin-configurable categories per tenant), `Queue` (default_assignee, auto_assign), `SLAPolicy` (response/resolution minutes per priority), `EscalationRule` (trigger+action+target), `TicketActivity` (timeline events), `TicketAssignment` (immutable audit trail), `CannedResponse` (pre-written templates with shortcuts e.g. `/thanks`, usage counting, shared/personal), `SavedView` (saved filter configs, sort ordering, default/pinned, personal/shared scope)
 
@@ -134,21 +134,23 @@ clear_current_tenant()       # Cleanup in middleware finally block
 
 ## Role-Based Access Control
 
-**Hierarchy:** Admin(10) <= Manager(20) <= Agent(30) < Viewer(40)
+**Hierarchy:** Admin(10) <= Manager(20) <= Agent(30)  *(Viewer role removed)*
 
 - `is_admin_or_manager`: `hierarchy_level <= 20` (context processor injects into all templates)
 - `is_admin`: `hierarchy_level <= 10`
 - `is_agent_or_above`: `hierarchy_level <= 30`
-- Agent+Viewer restriction (`level > 20`): sees only own tickets, linked contacts, filtered kanban cards
+- Agent restriction (`level > 20`): sees only own tickets, linked contacts, filtered kanban cards
+- `IsTenantMember` permission class (`accounts/permissions.py`): base permission ensuring authenticated users belong to the current tenant (prevents cross-tenant JWT access). Applied to most ViewSets.
 - `IsTicketAccessible` permission in `accounts/permissions.py` blocks direct URL access
 - `_role_required(20)` decorator on admin-only frontend views (settings, users, billing)
-- Row-level filtering in: TicketViewSet, ContactViewSet, kanban BoardDetailSerializer, analytics services, InboundEmailViewSet
+- Row-level filtering in: TicketViewSet, ContactViewSet, kanban BoardDetailSerializer, analytics services
+- Expanded ACTION_MAP: contact group `add_contacts`/`remove_contacts` → "update"; kanban `detail_with_cards`/`populate` → "view", `move`/`reorder` → "update"
 
 ## Signals
 
 ### Tenant Signals (`apps/tenants/signals.py`)
 - `Tenant.post_save` → `create_tenant_settings()` (TenantSettings via get_or_create)
-- `Tenant.post_save` → `create_default_roles()` (4 roles: Admin/Manager/Agent/Viewer)
+- `Tenant.post_save` → `create_default_roles()` (3 roles: Admin/Manager/Agent)
 
 ### Account Signals (`apps/accounts/signals.py`)
 - `TenantMembership.post_save` → `create_profile_on_membership()` (Profile per user per tenant)
@@ -173,6 +175,8 @@ clear_current_tenant()       # Cleanup in middleware finally block
 **Dedup mechanism:** `_skip_signal_logging` flag on instance prevents signal from duplicating ViewSet logging. In `perform_update`, use `serializer.instance` (not `self.get_object()`) so flag reaches the signal. 2-second dedup window in signal handler.
 
 **Service layer** (`apps/tickets/services.py`): `create_ticket_activity()`, `assign_ticket()`, `change_ticket_status()`, `change_ticket_priority()`, `log_ticket_comment()` — all write to BOTH logs atomically.
+
+**Transaction safety:** Notification service defers WebSocket pushes and email task queuing to `transaction.on_commit()` to prevent orphaned tasks if the transaction rolls back.
 
 ## Inbound/Outbound Email System
 
@@ -217,7 +221,7 @@ clear_current_tenant()       # Cleanup in middleware finally block
 /api/v1/custom-fields/    → CustomFieldDefinitionViewSet, CustomFieldValueViewSet
 /api/v1/knowledge/        → CategoryViewSet, ArticleViewSet (list/detail/create)
 /api/v1/notes/            → QuickNoteViewSet
-/api/v1/inbound-email/    → InboundEmailViewSet (read-only, role-based filtering)
+/api/v1/inbound-email/    → InboundEmailViewSet (read-only, all tenant members)
 ```
 
 **Non-API Routes:**
@@ -257,7 +261,7 @@ clear_current_tenant()       # Cleanup in middleware finally block
 /knowledge/                    → knowledge_list_page
 /knowledge/<article_slug>/     → knowledge_article_page
 /profile/                      → profile_page
-/inbound-email/                → inbound_email_page
+/inbound-email/                → inbound_email_page (@_membership_required, all members)
 ```
 
 ## WebSocket Endpoints
@@ -266,6 +270,8 @@ clear_current_tenant()       # Cleanup in middleware finally block
    - Actions: `send_message`, `typing`, `mark_read`
    - Group: `chat_{conversation_id}`
    - Validates participant membership, rejects anonymous
+   - **Rate limiting:** MAX_MESSAGE_LENGTH=10KB, MAX_MESSAGES_PER_SECOND=5, TYPING_COOLDOWN=2s
+   - **Tenant verification:** validates tenant from WebSocket scope to prevent cross-tenant access
 
 2. **Notifications:** `ws://host/ws/notifications/` → `NotificationConsumer`
    - Actions: `mark_read`
@@ -284,7 +290,7 @@ apps.notifications.tasks.send_notification_email → kanzan_email
 
 ### Tasks
 1. **`send_notification_email`** (notifications): Sends email for a Notification. max_retries=3, retry_delay=60s, acks_late. Template: `notifications/email/notification.html` with plain text fallback.
-2. **`cleanup_old_notifications`** (notifications): Deletes read notifications older than N days (default 90). Candidate for Celery Beat.
+2. **`cleanup_old_notifications`** (notifications): Deletes read notifications older than N days (default 90). Batch deletion (1000 per batch) to prevent timeouts. Candidate for Celery Beat.
 3. **`process_export_job`** (analytics): Generates CSV/XLSX export files. Supports tickets and contacts. max_retries=3. XLSX via openpyxl (optional, falls back to CSV).
 4. **`process_inbound_email`** (inbound_email): Async processing of received inbound emails.
 5. **Ticket email tasks** (tickets): Outbound email notifications for ticket replies and creation.
@@ -308,8 +314,8 @@ apps.notifications.tasks.send_notification_email → kanzan_email
 - **rich-editor.js**: Rich text editor for comments/articles.
 
 ### CSS (`static/css/custom.css` — 14K+ lines)
-- Design system with CSS custom properties (crimson primary `#DC2626`, dark theme)
-- Components: sidebar (fixed, 250px), stat cards with left accent, soft badges, kanban cards with drag-and-drop, chat bubbles, timeline with dots, toast notifications, notes panel, knowledge base, calendar
+- Design system with CSS custom properties (blue primary `#2563EB`, dark theme)
+- Components: sidebar (fixed, 272px, border-right, sticky with scroll), stat cards with left accent, soft badges, kanban cards with drag-and-drop, chat bubbles, timeline with dots, toast notifications, notes panel, knowledge base, calendar
 - Responsive: sidebar collapses on mobile (<992px)
 - Font: Inter, 0.875rem base
 
@@ -417,10 +423,72 @@ Dev: `SESSION_COOKIE_DOMAIN = None` (per-origin). Prod: `.{BASE_DOMAIN}` (wildca
 Dev: `http://localhost:8001`, `http://*.localhost:8001`. Prod: `https://*.{BASE_DOMAIN}`.
 
 ### File Upload Path
-Tenant-isolated: `tenants/{tenant_id}/attachments/YYYY/MM/{filename}`. Max 25MB. MIME validated server-side.
+Tenant-isolated: `tenants/{tenant_id}/attachments/YYYY/MM/{filename}`. Max 25MB. MIME validated server-side (python-magic with content-type fallback).
 
 ### InboundEmail Tenant Resolution
-`InboundEmail` extends `TimestampedModel` (not `TenantScopedModel`) because tenant is resolved during processing, not at creation. The `tenant` FK is nullable and set after parsing the recipient address.
+`InboundEmail` extends `TimestampedModel` (not `TenantScopedModel`) because tenant is resolved during processing, not at creation. The `tenant` FK is nullable and set after parsing the recipient address. Subject lines are sanitized (strips `\r`/`\n`).
+
+### Avatar Upload Validation
+MIME type validation via python-magic (with content-type fallback), 2MB file size limit, image-only enforcement.
+
+### Password Validation
+Uses Django's full `validate_password()` (complexity rules) instead of simple length check.
+
+### SSO Field Security
+`TenantSettings` serializer marks SSO fields (`sso_client_id`, `sso_authority_url`, `sso_scopes`) as write-only to prevent leaking metadata to non-admin users.
+
+### Attachment Cross-Tenant Protection
+`AttachmentUploadSerializer.validate()` verifies the target object exists and belongs to the current tenant before allowing file attachment.
+
+### Stripe Subscription Tenant Tracking
+Checkout sessions include `subscription_data` metadata with `tenant_id`. Webhook handler resolves tenant from subscription metadata to prevent orphaned subscription records.
+
+### CannedResponse Ownership
+Only the creator or Manager+ can edit/delete shared canned responses. `created_by` is set automatically on creation.
+
+### SavedView Default Race Protection
+`set_default()` action uses `transaction.atomic()` + `select_for_update()` to prevent concurrent default changes.
+
+### SLA Breach Tracking
+Breach flags (`response_breached`, `resolution_breached`) are saved to DB before firing notifications, preventing duplicate breach notifications on retry. Ticket iteration uses `.iterator(chunk_size=200)`.
+
+### First Response Race Condition Fix
+`record_first_response()` uses atomic UPDATE with WHERE filter instead of save() to prevent race conditions with concurrent responses.
+
+### Bulk Operations
+`bulk_update_tickets()` handles failures independently (per-operation atomicity) so one failure doesn't rollback others.
+
+## Performance Optimizations
+
+### Analytics Closed Status Caching
+Per-request cache (`_closed_status_cache`) for closed status IDs avoids repeated DB queries within `get_ticket_stats()`, `get_agent_performance()`, `get_due_today()`, `get_overdue_tickets()`. Cache cleared at end of `DashboardView.get()`.
+
+### Kanban N+1 Fix
+`BoardDetailSerializer.get_columns()` batch-fetches all content objects for GenericFK lookups (grouped by content_type, queried once per type), cached in `_content_object_cache`. Ticket objects pre-select related `status` and `assignee`.
+
+### Kanban Board Population
+`populate_board_from_tickets()` uses subquery-based `.exclude()` instead of loading all ticket IDs into memory.
+
+### Comment Attachment Prefetching
+Ticket detail endpoint batch-fetches all comment attachments, groups by comment ID, and sets `_prefetched_attachments` on each comment. `CommentSerializer.get_attachments()` checks for prefetched data before querying.
+
+### Contact Group Bulk Add
+Set-based logic for batch adding contacts: fetches existing IDs, filters new contacts, bulk adds in one operation (replaces loop with individual exists() checks).
+
+### Company ViewSet Annotation
+`CompanyViewSet.get_queryset()` annotates `contact_count` at the DB level. `ContactGroupSerializer` limits contacts to 50 and provides a separate `contact_count` field.
+
+### Message Reply Count
+`MessageViewSet` annotates `reply_count` via `Count("replies")` to avoid extra queries.
+
+## Security Hardening
+
+- **IsTenantMember permission**: Applied to AttachmentViewSet, BoardViewSet, ColumnViewSet, CardPositionViewSet, ContactGroupViewSet, ConversationViewSet, MessageViewSet, NotificationViewSet, NotificationPreferenceViewSet, QuickNoteViewSet. Prevents cross-tenant JWT access.
+- **WebSocket rate limiting**: ChatConsumer enforces message length (10KB), send rate (5/sec), typing cooldown (2s), and tenant verification from scope.
+- **XSS prevention**: Ticket detail uses `textContent` instead of `innerHTML` for description. Knowledge base sanitizes mammoth DOCX output (strips `<script>` tags and `on*` event handlers). PDF/image preview URLs are HTML-escaped.
+- **Auth throttling**: `AuthViewSet` uses `throttle_scope = "auth"` for rate limiting.
+- **Tenant queryset scoping**: `TenantViewSet` filters by user's actual memberships (superusers see all). Inbound email access simplified to all authenticated tenant members.
+- **File upload MIME validation**: Avatar and tenant logo uploads use python-magic for true MIME detection with content-type fallback.
 
 ## Common Pitfalls & Fixes Applied
 1. `TenantSettings` had dual primary key — removed `primary_key=True` from OneToOneField
@@ -428,6 +496,11 @@ Tenant-isolated: `tenants/{tenant_id}/attachments/YYYY/MM/{filename}`. Max 25MB.
 3. All apps needed `migrations/__init__.py` files
 4. DRF upgraded 3.15.2 → 3.16.1 (format_suffix_patterns conflict with Django 6.0)
 5. `base.html` needs `user.is_authenticated` check (AnonymousUser has no email)
-6. Role creation signal was missing `hierarchy_level` in defaults — fixed to 10/20/30/40
+6. Role creation signal was missing `hierarchy_level` in defaults — fixed to 10/20/30
 7. Ticket stats JS read `data.ticket_summary` but API returns `data.ticket_stats`
 8. Flower package not in requirements — `pip install flower`
+9. Viewer role removed — hierarchy is now Admin(10)/Manager(20)/Agent(30) only
+10. `swagger_fake_view` checks required in `get_queryset()` methods to prevent errors during OpenAPI schema generation
+11. Use `get_user_model()` instead of direct User import in consumers/async code
+12. Test fixtures: UserFactory uses `_after_postgeneration` with `skip_postgeneration_save = True` (factory_boy pattern)
+13. Test base: `current_period_start/end` must be timezone-aware datetime objects, not strings

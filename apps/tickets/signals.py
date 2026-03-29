@@ -160,14 +160,14 @@ def fire_ticket_assigned_signal(sender, instance, created, **kwargs):
 def _activity_already_logged(instance, action: str) -> bool:
     """
     Return True if an ActivityLog for this ticket with the same action was
-    created in the last 5 seconds.  This prevents duplicate logging when
+    created in the last 2 seconds.  This prevents duplicate logging when
     both the ViewSet and the signal fire for the same save.
     """
     recent = ActivityLog.objects.filter(
         content_type=ContentType.objects.get_for_model(Ticket),
         object_id=instance.pk,
         action=action,
-        created_at__gte=timezone.now() - datetime.timedelta(seconds=5),
+        created_at__gte=timezone.now() - datetime.timedelta(seconds=2),
     ).exists()
     return recent
 

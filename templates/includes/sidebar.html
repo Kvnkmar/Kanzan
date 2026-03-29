@@ -57,8 +57,7 @@
       </a>
     </div>
 
-    <!-- Operations (Agent + Manager + Admin) -->
-    {% if is_agent_or_above %}
+    <!-- Operations -->
     <div class="nav-section">
       <span class="nav-section-label">Operations</span>
       {% if is_admin_or_manager %}
@@ -71,18 +70,17 @@
         <i class="ti ti-users"></i>
         <span class="sidebar-link-text">Agents & Email</span>
       </a>
-      {% if is_admin_or_manager %}
       <a href="{% url 'frontend:inbound-email' %}" class="sidebar-link {% if request.resolver_match.url_name == 'inbound-email' %}active{% endif %}" data-sidebar-tooltip="Inbound Email">
         <i class="ti ti-mail-forward"></i>
         <span class="sidebar-link-text">Inbound Email</span>
       </a>
+      {% if is_admin_or_manager %}
       <a href="{% url 'frontend:users' %}" class="sidebar-link {% if request.resolver_match.url_name == 'users' %}active{% endif %}" data-sidebar-tooltip="Users">
         <i class="ti ti-user-cog"></i>
         <span class="sidebar-link-text">Users</span>
       </a>
       {% endif %}
     </div>
-    {% endif %}
 
     <!-- Settings (all members) + Administration (Admin only) -->
     <div class="nav-section">

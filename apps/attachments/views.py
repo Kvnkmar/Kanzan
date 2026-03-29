@@ -12,6 +12,7 @@ from django_filters import rest_framework as django_filters
 from rest_framework import mixins, parsers, permissions, status, viewsets
 from rest_framework.response import Response
 
+from apps.accounts.permissions import IsTenantMember
 from apps.attachments.models import Attachment
 from apps.attachments.serializers import AttachmentSerializer, AttachmentUploadSerializer
 from apps.comments.models import ActivityLog
@@ -95,7 +96,7 @@ class AttachmentViewSet(
     To replace a file, delete the old attachment and upload a new one.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated, IsTenantMember]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
     filterset_class = AttachmentFilter
     ordering_fields = ["created_at", "size_bytes", "original_name"]

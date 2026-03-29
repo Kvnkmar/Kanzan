@@ -182,18 +182,6 @@ AGENT_CODENAMES = [
     "inbound_email.view",
 ]
 
-VIEWER_CODENAMES = [
-    "ticket.view",
-    "contact.view",
-    "company.view",
-    "report.view",
-    # Knowledge Base — read-only
-    "kb_article.view",
-    "kb_category.view",
-    # Calendar Events — view only
-    "calendar_event.view",
-]
-
 ROLE_DEFINITIONS = [
     {
         "name": "Admin",
@@ -215,13 +203,6 @@ ROLE_DEFINITIONS = [
         "hierarchy_level": 30,
         "description": "Can work with tickets and contacts.",
         "codenames": AGENT_CODENAMES,
-    },
-    {
-        "name": "Viewer",
-        "slug": "viewer",
-        "hierarchy_level": 40,
-        "description": "Read-only access to tickets, contacts, companies, and reports.",
-        "codenames": VIEWER_CODENAMES,
     },
 ]
 

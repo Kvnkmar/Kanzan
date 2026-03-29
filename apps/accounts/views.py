@@ -211,6 +211,33 @@ class ProfileViewSet(
                 {"detail": "No avatar file provided."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Validate file is an image (MIME check via python-magic)
+        try:
+            import magic
+
+            mime = magic.from_buffer(avatar_file.read(2048), mime=True)
+            avatar_file.seek(0)
+            if not mime.startswith("image/"):
+                return Response(
+                    {"detail": "File must be an image."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        except ImportError:
+            # Fallback to content-type if python-magic not available
+            if not (avatar_file.content_type or "").startswith("image/"):
+                return Response(
+                    {"detail": "File must be an image."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Limit to 2MB
+        if avatar_file.size > 2 * 1024 * 1024:
+            return Response(
+                {"detail": "Avatar must be under 2 MB."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         user = request.user
         # Delete old avatar file if it exists
         if user.avatar:
@@ -351,6 +378,7 @@ class InvitationViewSet(
         invitation.token = secrets.token_urlsafe(48)
         invitation.expires_at = timezone.now() + timezone.timedelta(hours=INVITATION_EXPIRY_HOURS)
         invitation.save(update_fields=["token", "expires_at"])
+        self._send_invitation_email(invitation)
         logger.info("Invitation resent to %s for tenant %s", invitation.email, invitation.tenant)
         return Response(
             InvitationSerializer(invitation).data,
@@ -370,6 +398,7 @@ class AuthViewSet(viewsets.GenericViewSet):
     """
 
     permission_classes = [AllowAny]
+    throttle_scope = "auth"
 
     def get_serializer_class(self):
         if self.action == "register":
@@ -457,9 +486,14 @@ class AuthViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        if len(new_password) < 8:
+        from django.contrib.auth.password_validation import validate_password
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        try:
+            validate_password(new_password, user=request.user)
+        except DjangoValidationError as exc:
             return Response(
-                {"detail": "New password must be at least 8 characters."},
+                {"detail": " ".join(exc.messages)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

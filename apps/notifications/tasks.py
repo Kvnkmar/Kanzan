@@ -121,16 +121,25 @@ def cleanup_old_notifications(self, days=90):
     from apps.notifications.models import Notification
 
     cutoff = timezone.now() - timedelta(days=days)
+    batch_size = 1000
+    total_deleted = 0
 
-    deleted_count, _ = Notification.unscoped.filter(
-        is_read=True,
-        read_at__lt=cutoff,
-    ).delete()
+    while True:
+        ids = list(
+            Notification.unscoped.filter(
+                is_read=True,
+                read_at__lt=cutoff,
+            ).values_list("id", flat=True)[:batch_size]
+        )
+        if not ids:
+            break
+        count, _ = Notification.unscoped.filter(id__in=ids).delete()
+        total_deleted += count
 
     logger.info(
         "Cleaned up %d read notifications older than %d days.",
-        deleted_count,
+        total_deleted,
         days,
     )
 
-    return deleted_count
+    return total_deleted

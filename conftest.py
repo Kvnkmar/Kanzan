@@ -31,12 +31,18 @@ class TenantFactory(factory.django.DjangoModelFactory):
 class UserFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "accounts.User"
+        skip_postgeneration_save = True
 
     email = factory.Sequence(lambda n: f"user{n}@test.com")
     first_name = factory.Faker("first_name")
     last_name = factory.Faker("last_name")
-    password = factory.PostGenerationMethodCall("set_password", "testpass123")
     is_active = True
+
+    @classmethod
+    def _after_postgeneration(cls, instance, create, results=None):
+        if create:
+            instance.set_password("testpass123")
+            instance.save()
 
 
 class RoleFactory(factory.django.DjangoModelFactory):

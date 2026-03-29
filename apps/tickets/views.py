@@ -617,6 +617,8 @@ class TicketViewSet(ModelViewSet):
         ct = ContentType.objects.get_for_model(Ticket)
 
         if request.method == "GET":
+            from apps.attachments.models import Attachment
+
             comments_qs = (
                 Comment.objects.filter(content_type=ct, object_id=ticket.pk)
                 .select_related("author", "content_type", "parent")
@@ -632,11 +634,28 @@ class TicketViewSet(ModelViewSet):
                 membership = _get_membership(request, tenant) if tenant else None
                 if not membership or membership.role.hierarchy_level > 20:
                     comments_qs = comments_qs.exclude(is_internal=True)
-            page = self.paginate_queryset(comments_qs)
+
+            # Batch-fetch attachments for all comments to avoid N+1
+            comments_list = list(comments_qs)
+            if comments_list:
+                comment_ct = ContentType.objects.get_for_model(Comment)
+                comment_ids = [c.pk for c in comments_list]
+                all_attachments = (
+                    Attachment.objects.filter(
+                        content_type=comment_ct, object_id__in=comment_ids,
+                    ).select_related("uploaded_by")
+                )
+                attachments_by_comment = {}
+                for att in all_attachments:
+                    attachments_by_comment.setdefault(att.object_id, []).append(att)
+                for comment in comments_list:
+                    comment._prefetched_attachments = attachments_by_comment.get(comment.pk, [])
+
+            page = self.paginate_queryset(comments_list)
             if page is not None:
                 serializer = CommentSerializer(page, many=True)
                 return self.get_paginated_response(serializer.data)
-            serializer = CommentSerializer(comments_qs, many=True)
+            serializer = CommentSerializer(comments_list, many=True)
             return Response(serializer.data)
 
         # POST - create a comment
@@ -747,6 +766,21 @@ class TicketViewSet(ModelViewSet):
                 {"error": "action and ticket_ids are required."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Bulk delete requires Manager+ (hierarchy_level <= 20).
+        # The bulk_action permission maps to "update" but delete is a
+        # higher-privilege operation that should require "delete" access.
+        if action_name == "delete":
+            from apps.accounts.permissions import _get_membership
+
+            tenant = getattr(request, "tenant", None)
+            membership = _get_membership(request, tenant) if tenant else None
+            if not request.user.is_superuser:
+                if membership is None or membership.role.hierarchy_level > 20:
+                    return Response(
+                        {"error": "You do not have permission to delete tickets."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
 
         tickets = Ticket.objects.filter(id__in=ticket_ids)
         if tickets.count() != len(ticket_ids):
@@ -982,14 +1016,46 @@ class CannedResponseViewSet(ModelViewSet):
     ordering = ["category", "title"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return CannedResponse.objects.none()
         from django.db.models import Q
 
-        return CannedResponse.objects.filter(
+        return CannedResponse.objects.select_related("created_by").filter(
             Q(is_shared=True) | Q(created_by=self.request.user)
         )
 
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        # Only the creator or a manager+ can edit shared canned responses.
+        instance = serializer.instance
+        if instance.is_shared and instance.created_by_id != self.request.user.pk:
+            from apps.accounts.permissions import _get_membership
+
+            tenant = getattr(self.request, "tenant", None)
+            membership = _get_membership(self.request, tenant) if tenant else None
+            if not membership or membership.role.hierarchy_level > 20:
+                from rest_framework.exceptions import PermissionDenied
+
+                raise PermissionDenied(
+                    "Only the creator or a manager can edit shared canned responses."
+                )
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.is_shared and instance.created_by_id != self.request.user.pk:
+            from apps.accounts.permissions import _get_membership
+
+            tenant = getattr(self.request, "tenant", None)
+            membership = _get_membership(self.request, tenant) if tenant else None
+            if not membership or membership.role.hierarchy_level > 20:
+                from rest_framework.exceptions import PermissionDenied
+
+                raise PermissionDenied(
+                    "Only the creator or a manager can delete shared canned responses."
+                )
+        instance.delete()
 
     @action(detail=True, methods=["post"])
     def render(self, request, pk=None):
@@ -1038,6 +1104,8 @@ class SavedViewViewSet(ModelViewSet):
     ordering = ["-is_pinned", "name"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return SavedView.objects.none()
         from django.db.models import Q
 
         qs = SavedView.objects.filter(
@@ -1054,13 +1122,16 @@ class SavedViewViewSet(ModelViewSet):
     @action(detail=True, methods=["post"], url_path="set-default")
     def set_default(self, request, pk=None):
         """Set this view as the default for its resource type."""
+        from django.db import transaction
+
         view = self.get_object()
-        # Unset other defaults for same user + resource_type
-        SavedView.objects.filter(
-            user=request.user,
-            resource_type=view.resource_type,
-            is_default=True,
-        ).update(is_default=False)
-        view.is_default = True
-        view.save(update_fields=["is_default", "updated_at"])
+        with transaction.atomic():
+            # Unset other defaults for same user + resource_type
+            SavedView.objects.select_for_update().filter(
+                user=request.user,
+                resource_type=view.resource_type,
+                is_default=True,
+            ).update(is_default=False)
+            view.is_default = True
+            view.save(update_fields=["is_default", "updated_at"])
         return Response({"status": "default set"})

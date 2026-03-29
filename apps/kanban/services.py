@@ -168,18 +168,18 @@ def populate_board_from_tickets(board):
     created_count = 0
 
     with transaction.atomic():
-        # Collect ticket IDs that already have a card anywhere on this board
-        existing_ticket_ids = set(
-            CardPosition.objects.filter(
-                column__board=board,
-                content_type=ticket_ct,
-            ).values_list("object_id", flat=True)
-        )
+        # Use a subquery to exclude tickets that already have cards on this
+        # board, avoiding loading all IDs into memory.
+        existing_ticket_subq = CardPosition.objects.filter(
+            column__board=board,
+            content_type=ticket_ct,
+        ).values_list("object_id", flat=True)
 
         for column in board.columns.filter(status__isnull=False).select_related("status"):
-            tickets = Ticket.objects.filter(
-                tenant=board.tenant, status=column.status
-            ).exclude(id__in=existing_ticket_ids)
+            tickets = (
+                Ticket.objects.filter(tenant=board.tenant, status=column.status)
+                .exclude(id__in=existing_ticket_subq)
+            )
             existing_order = column.cards.count()
             for ticket in tickets:
                 CardPosition.objects.create(
@@ -188,7 +188,6 @@ def populate_board_from_tickets(board):
                     object_id=ticket.id,
                     order=existing_order,
                 )
-                existing_ticket_ids.add(ticket.id)
                 existing_order += 1
                 created_count += 1
 

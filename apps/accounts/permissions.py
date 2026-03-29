@@ -44,6 +44,14 @@ ACTION_MAP = {
     "record_view": "view",
     "remove_file": "update",
     "preview_file": "view",
+    # Contact group custom actions
+    "add_contacts": "update",
+    "remove_contacts": "update",
+    # Kanban custom actions
+    "detail_with_cards": "view",
+    "populate": "update",
+    "move": "update",
+    "reorder": "update",
 }
 
 
@@ -148,6 +156,33 @@ class IsTicketAccessible(BasePermission):
 
         # Agent / Viewer: only own or assigned tickets
         return obj.created_by_id == user.pk or obj.assignee_id == user.pk
+
+
+class IsTenantMember(BasePermission):
+    """
+    Allows access only to users who have an active TenantMembership in
+    the current tenant.
+
+    This prevents authenticated users from performing writes against
+    tenants they do not belong to (e.g. via JWT from Tenant A sent to
+    Tenant B's subdomain).
+
+    Add this to any ViewSet that uses only ``IsAuthenticated`` without
+    ``HasTenantPermission`` (which already checks membership).
+    """
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            # No tenant context (main site, public endpoints) — allow through.
+            return True
+
+        membership = _get_membership(request, tenant)
+        return membership is not None
 
 
 class IsTenantAdmin(BasePermission):

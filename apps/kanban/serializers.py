@@ -51,7 +51,13 @@ class ColumnSerializer(serializers.ModelSerializer):
     Serializer for Column, including a computed card count.
     """
 
-    card_count = serializers.IntegerField(source="cards.count", read_only=True)
+    card_count = serializers.SerializerMethodField()
+
+    def get_card_count(self, obj):
+        # Use annotated value when available (from ColumnViewSet), else fallback.
+        if hasattr(obj, "card_count"):
+            return obj.card_count
+        return obj.cards.count()
 
     class Meta:
         model = Column
@@ -125,6 +131,31 @@ class BoardDetailSerializer(serializers.ModelSerializer):
     def get_columns(self, board):
         columns = board.columns.prefetch_related("cards__content_type").all()
         allowed_ids = self._get_allowed_ticket_ids()
+
+        # Batch-fetch all content objects to avoid N+1 GenericFK lookups.
+        # Group card object_ids by content_type, fetch each group in one
+        # query, then map back so _serialize_card can use the cache.
+        all_cards = []
+        for col in columns:
+            all_cards.extend(col.cards.all())
+
+        objects_by_ct = {}  # {content_type_id: {object_id: instance}}
+        ct_groups = {}      # {content_type_id: [object_id, ...]}
+        for card in all_cards:
+            ct_groups.setdefault(card.content_type_id, []).append(card.object_id)
+
+        for ct_id, obj_ids in ct_groups.items():
+            ct = ContentType.objects.get_for_id(ct_id)
+            model_class = ct.model_class()
+            if model_class is None:
+                continue
+            qs = model_class._default_manager.filter(pk__in=obj_ids)
+            # Optimise ticket lookups with select_related
+            if hasattr(model_class, "status") and hasattr(model_class, "assignee"):
+                qs = qs.select_related("status", "assignee")
+            objects_by_ct[ct_id] = {obj.pk: obj for obj in qs}
+
+        self._content_object_cache = objects_by_ct
         return [self._serialize_column(col, allowed_ids) for col in columns]
 
     def _get_allowed_ticket_ids(self):
@@ -195,8 +226,13 @@ class BoardDetailSerializer(serializers.ModelSerializer):
 
         Content object data is included as a flat ``data`` dict. If the object
         cannot be resolved (e.g. it was deleted), ``data`` is ``None``.
+
+        Uses the pre-populated ``_content_object_cache`` to avoid per-card
+        GenericFK lookups (N+1 → 1 query per content type).
         """
-        content_obj = card.content_object
+        cache = getattr(self, "_content_object_cache", {})
+        ct_objects = cache.get(card.content_type_id, {})
+        content_obj = ct_objects.get(card.object_id)
         data = None
         if content_obj is not None:
             data = self._resolve_content_data(content_obj)

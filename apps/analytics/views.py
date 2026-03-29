@@ -26,6 +26,7 @@ from apps.analytics.serializers import (
 )
 from apps.accounts.permissions import HasTenantPermission, IsTenantAdminOrManager
 from apps.analytics.services import (
+    clear_closed_status_cache,
     get_agent_performance,
     get_due_today,
     get_overdue_tickets,
@@ -157,7 +158,12 @@ class DashboardView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        tenant = request.tenant
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            return Response(
+                {"detail": "Tenant context required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         date_from = self._parse_date(request.query_params.get("date_from"))
         date_to = self._parse_date(request.query_params.get("date_to"))
 
@@ -175,6 +181,9 @@ class DashboardView(APIView):
             "due_today": get_due_today(tenant, request.user),
             "overdue_tickets": get_overdue_tickets(tenant, request.user),
         }
+
+        # Clear per-request caches
+        clear_closed_status_cache()
 
         return Response(data, status=status.HTTP_200_OK)
 

@@ -39,12 +39,24 @@ class TenantViewSet(viewsets.ModelViewSet):
     """
     Tenant resource.
 
-    - **list / retrieve**: any authenticated user (read-only).
+    - **list**: authenticated users see only tenants they belong to;
+      superadmins see all.
+    - **retrieve**: authenticated users can retrieve their own tenant.
     - **create / update / partial_update / destroy**: superadmins only.
     """
 
-    queryset = Tenant.objects.all()
     lookup_field = "slug"
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_superuser:
+            return Tenant.objects.all()
+        from apps.accounts.models import TenantMembership
+
+        tenant_ids = TenantMembership.objects.filter(
+            user=user, is_active=True,
+        ).values_list("tenant_id", flat=True)
+        return Tenant.objects.filter(id__in=tenant_ids)
 
     def get_serializer_class(self):
         if self.action in ("list",):
@@ -108,9 +120,15 @@ class TenantSettingsViewSet(viewsets.GenericViewSet):
             return Response(
                 {"detail": "No file provided."}, status=status.HTTP_400_BAD_REQUEST
             )
-        # Validate file type
-        content_type = logo_file.content_type or ""
-        if not content_type.startswith("image/"):
+        # Validate file type via python-magic (true MIME detection)
+        try:
+            import magic
+
+            mime = magic.from_buffer(logo_file.read(2048), mime=True)
+            logo_file.seek(0)
+        except ImportError:
+            mime = logo_file.content_type or ""
+        if not mime.startswith("image/"):
             return Response(
                 {"detail": "File must be an image."},
                 status=status.HTTP_400_BAD_REQUEST,

@@ -50,6 +50,8 @@ class ArticleViewSet(viewsets.ModelViewSet):
     filterset_fields = ["status", "category", "is_pinned"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Article.objects.none()
         qs = Article.objects.select_related("category", "author").all()
         # Non-admin/manager users only see published articles (or their own drafts)
         user = self.request.user
@@ -132,26 +134,38 @@ class ArticleViewSet(viewsets.ModelViewSet):
         if ext == "docx":
             try:
                 import mammoth
+                from django.utils.html import escape as html_escape
 
                 article.file.open("rb")
                 result = mammoth.convert_to_html(article.file)
                 article.file.close()
+                # Sanitize mammoth output: strip <script> and event handlers
+                import re
+
+                sanitized = re.sub(
+                    r"<script[\s\S]*?</script>", "", result.value, flags=re.IGNORECASE
+                )
+                sanitized = re.sub(
+                    r"\s+on\w+\s*=\s*[\"'][^\"']*[\"']", "", sanitized, flags=re.IGNORECASE
+                )
                 body_content = (
-                    '<div class="doc-content">' + result.value + "</div>"
+                    '<div class="doc-content">' + sanitized + "</div>"
                 )
             except Exception:
                 body_content = (
                     '<div class="error-msg">Failed to preview this document.</div>'
                 )
         elif ext == "pdf":
+            from django.utils.html import escape as html_escape
+
             body_content = (
-                f'<iframe src="{download_url}#toolbar=1" class="file-frame"></iframe>'
+                f'<iframe src="{html_escape(download_url)}#toolbar=1" class="file-frame"></iframe>'
             )
         elif ext in ("png", "jpg", "jpeg", "gif", "webp", "svg", "bmp"):
             from django.utils.html import escape
 
             body_content = (
-                f'<div class="img-wrap"><img src="{download_url}"'
+                f'<div class="img-wrap"><img src="{escape(download_url)}"'
                 f' alt="{escape(file_name)}"></div>'
             )
         elif ext in ("txt", "csv", "log", "md", "json", "xml", "html", "css", "js"):

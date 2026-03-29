@@ -5,6 +5,7 @@ Provides full CRUD for Company, Contact, and ContactGroup resources.
 All querysets are automatically tenant-scoped via TenantAwareManager.
 """
 
+from django.db.models import Count
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -40,13 +41,15 @@ class CompanyViewSet(viewsets.ModelViewSet):
     Supports filtering by ``industry`` and ``size``.
     """
 
-    queryset = Company.objects.all()
     permission_classes = [IsAuthenticated, HasTenantPermission]
     filterset_class = CompanyFilter
     search_fields = ["name", "domain"]
     ordering_fields = ["name", "created_at", "updated_at"]
     ordering = ["-created_at"]
     permission_resource = "company"
+
+    def get_queryset(self):
+        return Company.objects.annotate(contact_count=Count("contacts")).all()
 
     def get_serializer_class(self):
         if self.action == "list":
@@ -248,6 +251,7 @@ class ContactGroupViewSet(viewsets.ModelViewSet):
 
     queryset = ContactGroup.objects.prefetch_related("contacts").all()
     serializer_class = ContactGroupSerializer
+    permission_classes = [IsAuthenticated, HasTenantPermission]
     search_fields = ["name"]
     ordering_fields = ["name", "created_at"]
     ordering = ["-created_at"]
@@ -274,11 +278,12 @@ class ContactGroupViewSet(viewsets.ModelViewSet):
             )
 
         contacts = Contact.objects.filter(id__in=contact_ids)
-        added_count = 0
-        for contact in contacts:
-            if not group.contacts.filter(id=contact.id).exists():
-                group.contacts.add(contact)
-                added_count += 1
+        existing_ids = set(
+            group.contacts.filter(id__in=contact_ids).values_list("id", flat=True)
+        )
+        new_contacts = [c for c in contacts if c.id not in existing_ids]
+        group.contacts.add(*new_contacts)
+        added_count = len(new_contacts)
 
         return Response(
             {

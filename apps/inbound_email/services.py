@@ -275,7 +275,7 @@ def _create_ticket_from_email(inbound, tenant, contact, system_user):
     if not default_status:
         raise ValueError(f"No ticket statuses configured for tenant {tenant.slug}")
 
-    subject = inbound.subject or "(No Subject)"
+    subject = (inbound.subject or "(No Subject)").replace("\r", "").replace("\n", " ")
     body = strip_quoted_reply(inbound.body_text) or inbound.body_text
 
     ticket = Ticket(
