@@ -143,10 +143,12 @@ document.getElementById('togglePassword').addEventListener('click', function() {
 
 // Fix browser autofill background color
 function fixAutofill() {
+  var isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+  var bg = isDark ? '#1A1F2E' : '#FFFFFF';
   document.querySelectorAll('.auth-input').forEach(function(input) {
     try {
       if (input.matches(':-webkit-autofill')) {
-        input.style.setProperty('background-color', '#FFFFFF', 'important');
+        input.style.setProperty('background-color', bg, 'important');
       }
     } catch(e) {}
   });

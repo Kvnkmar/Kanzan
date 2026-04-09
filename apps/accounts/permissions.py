@@ -20,9 +20,11 @@ ACTION_MAP = {
     "timeline": "view",
     "assign": "update",
     "change_status": "update",
+    "change_stage": "update",
     "change_priority": "update",
     "bulk_action": "update",
     "close": "update",
+    "escalate": "update",
     "lookup": "view",
     "teammates": "view",
     "team_progress": "view",
@@ -40,10 +42,17 @@ ACTION_MAP = {
     "send_email": "update",
     "link_email": "update",
     "unlinked_emails": "view",
+    "mark_all_read": "view",
     # Knowledge base custom actions
     "record_view": "view",
     "remove_file": "update",
     "preview_file": "view",
+    "submit_for_review": "update",
+    "approve": "update",
+    "reject": "update",
+    "vote": "view",
+    # Contact custom actions
+    "context": "view",
     # Contact group custom actions
     "add_contacts": "update",
     "remove_contacts": "update",
@@ -52,6 +61,20 @@ ACTION_MAP = {
     "populate": "update",
     "move": "update",
     "reorder": "update",
+    # Ticket linking / merge / split / macros
+    "links": "update",
+    "delete_link": "update",
+    "merge": "update",
+    "split": "update",
+    "apply_macro": "update",
+    # Ticket search
+    "search": "view",
+    # Reminder custom actions
+    "overdue": "view",
+    "complete": "update",
+    "cancel": "update",
+    "reschedule": "update",
+    "stats": "view",
 }
 
 

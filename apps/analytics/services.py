@@ -11,6 +11,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.db.models import Avg, Count, F, Q
+from django.db.models.functions import ExtractHour
 from django.utils import timezone
 
 from apps.tickets.models import SLAPolicy, Ticket, TicketStatus
@@ -272,6 +273,248 @@ def get_sla_compliance(tenant, date_from=None, date_to=None):
         )
 
     return {"policies": policies}
+
+
+def get_dashboard_summary(tenant, date_from=None, date_to=None, user=None):
+    """
+    Return the six top-level summary stats for the Freshdesk-style dashboard.
+
+    Returns a dict with: unresolved, overdue, due_today, open, on_hold, unassigned.
+    """
+    from apps.tickets.models import Queue
+
+    now = timezone.now()
+    start_of_day = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    end_of_day = now.replace(hour=23, minute=59, second=59, microsecond=999999)
+
+    closed_status_ids = _get_closed_status_ids(tenant)
+
+    base_qs = Ticket.unscoped.filter(tenant=tenant)
+    base_qs = _apply_user_filter(base_qs, tenant, user)
+
+    active_qs = base_qs.exclude(status_id__in=closed_status_ids)
+
+    unresolved = active_qs.count()
+    overdue = active_qs.filter(due_date__lt=now, due_date__isnull=False).count()
+    due_today = active_qs.filter(
+        due_date__gte=start_of_day, due_date__lte=end_of_day
+    ).count()
+
+    # "Open" = tickets in the default/open status
+    open_status_ids = list(
+        TicketStatus.unscoped.filter(tenant=tenant, is_default=True)
+        .values_list("id", flat=True)
+    )
+    open_count = active_qs.filter(status_id__in=open_status_ids).count() if open_status_ids else 0
+
+    # "On hold" = statuses that pause SLA
+    on_hold_ids = list(
+        TicketStatus.unscoped.filter(tenant=tenant, pauses_sla=True)
+        .values_list("id", flat=True)
+    )
+    on_hold = active_qs.filter(status_id__in=on_hold_ids).count() if on_hold_ids else 0
+
+    unassigned = active_qs.filter(assignee__isnull=True).count()
+
+    return {
+        "unresolved": unresolved,
+        "overdue": overdue,
+        "due_today": due_today,
+        "open": open_count,
+        "on_hold": on_hold,
+        "unassigned": unassigned,
+    }
+
+
+def get_hourly_trends(tenant, user=None, date_from=None, date_to=None):
+    """
+    Return ticket creation trends for the selected date range.
+
+    For single-day ranges: returns hourly data (24 data points).
+    For multi-day ranges: returns daily data (one point per day).
+
+    Returns a dict with:
+        - mode: "hourly" or "daily"
+        - labels: list of label strings
+        - current: list of counts for the selected period
+        - previous: list of counts for the comparison period
+        - resolved: count of tickets resolved in the period
+        - received: count of tickets created in the period
+        - avg_first_response_minutes: float or None
+        - avg_response_minutes: float or None
+        - sla_resolution_pct: float (0-100) or None
+    """
+    from django.db.models.functions import TruncDate
+
+    now = timezone.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Determine effective range
+    if date_from and date_to:
+        eff_from = date_from
+        eff_to = date_to
+    else:
+        eff_from = today_start
+        eff_to = now
+
+    base_qs = Ticket.unscoped.filter(tenant=tenant)
+    base_qs = _apply_user_filter(base_qs, tenant, user)
+
+    # Determine if single-day or multi-day
+    range_days = (eff_to - eff_from).days
+    is_single_day = range_days < 1
+
+    if is_single_day:
+        # Hourly mode (original behavior)
+        day_start = eff_from.replace(hour=0, minute=0, second=0, microsecond=0)
+        prev_start = day_start - timedelta(days=1)
+
+        current_tickets = base_qs.filter(
+            created_at__gte=day_start, created_at__lt=day_start + timedelta(days=1)
+        )
+        prev_tickets = base_qs.filter(
+            created_at__gte=prev_start, created_at__lt=day_start
+        )
+
+        current_data = [0] * 24
+        for row in current_tickets.annotate(
+            hour=ExtractHour("created_at")
+        ).values("hour").annotate(cnt=Count("id")):
+            h = int(row["hour"])
+            if 0 <= h < 24:
+                current_data[h] = row["cnt"]
+
+        prev_data = [0] * 24
+        for row in prev_tickets.annotate(
+            hour=ExtractHour("created_at")
+        ).values("hour").annotate(cnt=Count("id")):
+            h = int(row["hour"])
+            if 0 <= h < 24:
+                prev_data[h] = row["cnt"]
+
+        labels = [str(i) for i in range(24)]
+        mode = "hourly"
+        period_tickets = current_tickets
+        resolved_qs_filter = {"resolved_at__gte": day_start, "resolved_at__lt": day_start + timedelta(days=1)}
+    else:
+        # Daily mode for multi-day ranges
+        prev_duration = eff_to - eff_from
+        prev_from = eff_from - prev_duration
+        prev_to = eff_from
+
+        current_tickets = base_qs.filter(created_at__gte=eff_from, created_at__lte=eff_to)
+        prev_tickets = base_qs.filter(created_at__gte=prev_from, created_at__lt=prev_to)
+
+        # Build daily counts for current period
+        daily_current = {}
+        for row in current_tickets.annotate(
+            day=TruncDate("created_at")
+        ).values("day").annotate(cnt=Count("id")).order_by("day"):
+            daily_current[row["day"]] = row["cnt"]
+
+        # Build daily counts for previous period
+        daily_prev = {}
+        for row in prev_tickets.annotate(
+            day=TruncDate("created_at")
+        ).values("day").annotate(cnt=Count("id")).order_by("day"):
+            daily_prev[row["day"]] = row["cnt"]
+
+        # Generate labels and data arrays
+        labels = []
+        current_data = []
+        prev_data = []
+        d = eff_from.date() if hasattr(eff_from, 'date') else eff_from
+        end_d = eff_to.date() if hasattr(eff_to, 'date') else eff_to
+        prev_d = prev_from.date() if hasattr(prev_from, 'date') else prev_from
+        idx = 0
+        while d <= end_d:
+            labels.append(d.strftime("%b %d"))
+            current_data.append(daily_current.get(d, 0))
+            corresponding_prev = prev_d + timedelta(days=idx)
+            prev_data.append(daily_prev.get(corresponding_prev, 0))
+            d += timedelta(days=1)
+            idx += 1
+
+        mode = "daily"
+        period_tickets = current_tickets
+        resolved_qs_filter = {"resolved_at__gte": eff_from, "resolved_at__lte": eff_to}
+
+    received = sum(current_data)
+    resolved = base_qs.filter(**resolved_qs_filter).count()
+
+    # Average first response time for period tickets
+    avg_first = period_tickets.filter(
+        first_responded_at__isnull=False
+    ).aggregate(
+        avg=Avg(F("first_responded_at") - F("created_at"))
+    )["avg"]
+    avg_first_minutes = None
+    if avg_first is not None:
+        avg_first_minutes = round(avg_first.total_seconds() / 60, 1)
+
+    # Average resolution time for resolved tickets in period
+    avg_res = base_qs.filter(**resolved_qs_filter).aggregate(
+        avg=Avg(F("resolved_at") - F("created_at"))
+    )["avg"]
+    avg_response_minutes = None
+    if avg_res is not None:
+        avg_response_minutes = round(avg_res.total_seconds() / 60, 1)
+
+    # SLA resolution percentage for period
+    sla_policies = SLAPolicy.unscoped.filter(tenant=tenant, is_active=True)
+    total_sla = 0
+    compliant_sla = 0
+    for policy in sla_policies:
+        p_tickets = period_tickets.filter(priority=policy.priority)
+        cnt = p_tickets.count()
+        total_sla += cnt
+        resolution_delta = timedelta(minutes=policy.resolution_minutes)
+        compliant_sla += p_tickets.filter(
+            resolved_at__isnull=False,
+            resolved_at__lte=F("created_at") + resolution_delta,
+        ).count()
+
+    sla_pct = round((compliant_sla / total_sla) * 100, 1) if total_sla > 0 else None
+
+    return {
+        "mode": mode,
+        "labels": labels,
+        "current": current_data,
+        "previous": prev_data,
+        "resolved": resolved,
+        "received": received,
+        "avg_first_response_minutes": avg_first_minutes,
+        "avg_response_minutes": avg_response_minutes,
+        "sla_resolution_pct": sla_pct,
+    }
+
+
+def get_unresolved_by_queue(tenant, user=None):
+    """
+    Return unresolved ticket counts grouped by queue.
+
+    Returns a list of dicts: [{name, open_count}, ...]
+    """
+    closed_status_ids = _get_closed_status_ids(tenant)
+
+    base_qs = Ticket.unscoped.filter(tenant=tenant).exclude(
+        status_id__in=closed_status_ids
+    )
+    base_qs = _apply_user_filter(base_qs, tenant, user)
+
+    rows = (
+        base_qs.values("queue__name")
+        .annotate(open_count=Count("id"))
+        .order_by("-open_count")
+    )
+
+    result = []
+    for row in rows:
+        result.append({
+            "name": row["queue__name"] or "Unassigned",
+            "open_count": row["open_count"],
+        })
+    return result
 
 
 def get_due_today(tenant, user):

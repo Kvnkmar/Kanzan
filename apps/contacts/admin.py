@@ -9,7 +9,24 @@ from django.contrib import admin
 
 from main.admin import TenantFilteredAdmin
 
-from apps.contacts.models import Company, Contact, ContactGroup
+from apps.contacts.models import Account, Company, Contact, ContactGroup
+
+
+@admin.register(Account)
+class AccountAdmin(TenantFilteredAdmin, admin.ModelAdmin):
+    list_display = [
+        "name",
+        "industry",
+        "company_size",
+        "mrr",
+        "health_score",
+        "tenant",
+        "created_at",
+    ]
+    list_filter = ["industry", "company_size", "tenant"]
+    search_fields = ["name", "industry"]
+    readonly_fields = ["id", "created_at", "updated_at"]
+    ordering = ["-created_at"]
 
 
 @admin.register(Company)

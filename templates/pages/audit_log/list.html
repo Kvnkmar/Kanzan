@@ -1,0 +1,1094 @@
+{% extends "base.html" %}
+{% block title %}Audit Log - Kanzen Suite{% endblock %}
+
+{% block content %}
+<div id="auditPageData" data-current-user="{{ request.user.pk }}" class="d-none"></div>
+
+<!-- Page Header -->
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Audit Log</h1>
+    <p class="page-subtitle">Track all actions and changes across your workspace</p>
+  </div>
+  <div class="page-header-actions">
+    <div class="dropdown">
+      <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" id="btnExport">
+        <i class="ti ti-download me-1"></i>Export<span class="audit-export-count ms-1" id="exportCount"></span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end">
+        <li><a class="dropdown-item" href="#" id="btnExportCsv"><i class="ti ti-file-spreadsheet me-2"></i>Export as CSV</a></li>
+        <li><a class="dropdown-item" href="#" id="btnExportJson"><i class="ti ti-braces me-2"></i>Export as JSON</a></li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="row g-3 mb-4" id="auditStats">
+  <div class="col-6 col-md-2">
+    <div class="stat-card stat-card--audit-total h-100">
+      <div class="stat-label">Total Events</div>
+      <div class="stat-value" id="statTotal">--</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-card stat-card--audit-today h-100">
+      <div class="stat-label">Today</div>
+      <div class="stat-value" id="statToday">--</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-card stat-card--audit-week h-100">
+      <div class="stat-label">This Week</div>
+      <div class="stat-value" id="statWeek">--</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
+    <div class="stat-card stat-card--audit-users h-100">
+      <div class="stat-label">Unique Users</div>
+      <div class="stat-value" id="statUsers">--</div>
+    </div>
+  </div>
+  <div class="col-12 col-md-4">
+    <div class="stat-card audit-sparkline-card h-100">
+      <div class="stat-label">Last 7 Days</div>
+      <div class="audit-sparkline" id="auditSparkline"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Filter Presets -->
+<div class="audit-quick-filters" id="quickFilters">
+  <button class="audit-quick-btn active" data-preset="all">All</button>
+  <button class="audit-quick-btn" data-preset="today">Today</button>
+  <button class="audit-quick-btn" data-preset="week">This Week</button>
+  <button class="audit-quick-btn" data-preset="mine">My Actions</button>
+  <span class="audit-filter-separator"></span>
+  <button class="audit-clear-filters d-none" id="btnClearFilters">
+    <i class="ti ti-x me-1"></i>Clear filters<span class="audit-filter-count d-none" id="filterCount"></span>
+  </button>
+</div>
+
+<!-- Filters -->
+<div class="tl-toolbar">
+  <div class="tl-toolbar-left">
+    <div class="tl-toolbar-filters">
+      <div class="tl-filter-group">
+        <label for="filterAction" class="visually-hidden">Action</label>
+        <select id="filterAction" class="form-select form-select-sm tl-filter-select">
+          <option value="">All Actions</option>
+          <option value="created">Created</option>
+          <option value="updated">Updated</option>
+          <option value="assigned">Assigned</option>
+          <option value="status_changed">Status Changed</option>
+          <option value="commented">Commented</option>
+          <option value="deleted">Deleted</option>
+          <option value="field_changed">Field Changed</option>
+          <option value="closed">Closed</option>
+          <option value="reopened">Reopened</option>
+          <option value="attachment_added">Attachment Added</option>
+          <option value="attachment_removed">Attachment Removed</option>
+          <option value="sla_updated">SLA Updated</option>
+          <option value="email_linked">Email Linked</option>
+          <option value="email_actioned">Email Actioned</option>
+        </select>
+      </div>
+      <div class="tl-filter-group">
+        <label for="filterEntity" class="visually-hidden">Entity Type</label>
+        <select id="filterEntity" class="form-select form-select-sm tl-filter-select">
+          <option value="">All Entities</option>
+          <option value="tickets.ticket">Tickets</option>
+          <option value="contacts.contact">Contacts</option>
+          <option value="contacts.company">Companies</option>
+          <option value="comments.comment">Comments</option>
+          <option value="knowledge.article">Articles</option>
+        </select>
+      </div>
+      <div class="tl-filter-group">
+        <label for="filterDateFrom" class="visually-hidden">Since Date</label>
+        <input type="date" id="filterDateFrom" class="form-control form-control-sm tl-filter-select" title="Since date">
+      </div>
+      <input type="hidden" id="filterDateTo" value="">
+    </div>
+  </div>
+  <div class="tl-toolbar-right">
+    <div class="tl-filter-search">
+      <i class="ti ti-search" aria-hidden="true"></i>
+      <label for="filterSearch" class="visually-hidden">Search audit logs</label>
+      <input type="text" id="filterSearch" class="form-control form-control-sm" placeholder="Search descriptions...">
+    </div>
+  </div>
+</div>
+
+<!-- Table Header -->
+<div class="tl-table-header">
+  <div class="tl-col" style="flex:2;">User</div>
+  <div class="tl-col" style="flex:1.5;">Action</div>
+  <div class="tl-col" style="flex:1.2;">Entity</div>
+  <div class="tl-col" style="flex:3;">Description</div>
+  <div class="tl-col" style="flex:1;">IP Address</div>
+  <div class="tl-col" style="flex:1.5;">When</div>
+</div>
+
+<!-- Audit Log List -->
+<div class="tl-ticket-list audit-log-table" id="auditList" role="list" aria-label="Audit log list">
+  <div class="tl-loading" role="status">
+    <div class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></div>
+    <span>Loading audit logs...</span>
+  </div>
+</div>
+
+<!-- Empty State -->
+<div id="emptyState" class="d-none">
+  <div class="tl-empty">
+    <div class="audit-empty-icon"><i class="ti ti-history-off" aria-hidden="true"></i></div>
+    <h5 class="tl-empty-title">No matching events</h5>
+    <p class="tl-empty-text">Try adjusting your filters or search query.</p>
+    <button class="btn btn-sm btn-outline-primary d-none" id="emptyStateClear">
+      <i class="ti ti-filter-off me-1"></i>Clear all filters
+    </button>
+  </div>
+</div>
+
+<!-- Pagination -->
+<nav id="paginationNav" class="mt-3 d-none" aria-label="Audit log pagination">
+  <div class="d-flex justify-content-between align-items-center">
+    <small id="paginationInfo" class="text-muted"></small>
+    <ul id="paginationControls" class="pagination pagination-sm mb-0"></ul>
+  </div>
+</nav>
+
+<!-- Side Drawer (Offcanvas) -->
+<div class="offcanvas offcanvas-end audit-drawer" tabindex="-1" id="auditDetailDrawer" aria-labelledby="auditDrawerTitle">
+  <div class="offcanvas-header audit-drawer-header">
+    <h5 class="offcanvas-title" id="auditDrawerTitle">Activity Detail</h5>
+    <div class="audit-drawer-nav">
+      <button class="audit-drawer-nav-btn" id="drawerPrev" title="Previous entry" disabled>
+        <i class="ti ti-chevron-up"></i>
+      </button>
+      <button class="audit-drawer-nav-btn" id="drawerNext" title="Next entry" disabled>
+        <i class="ti ti-chevron-down"></i>
+      </button>
+      <button type="button" class="btn-close ms-2" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+  </div>
+  <div class="offcanvas-body" id="auditDetailBody"></div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+
+  var PAGE_SIZE = 25;
+  var DEBOUNCE_MS = 400;
+  var currentPage = 1;
+  var totalCount = 0;
+  var currentEntries = [];
+  var currentDetailIndex = -1;
+  var drawerInstance = null;
+  var activePreset = 'all';
+
+  var AVATAR_COLORS = [
+    '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6',
+    '#EC4899', '#06B6D4', '#F97316', '#6366F1', '#14B8A6'
+  ];
+
+  var ACTION_STYLES = {
+    created:             { bg: '#10B9811A', color: '#10B981', border: '#10B98133', icon: 'ti-plus' },
+    updated:             { bg: '#F59E0B1A', color: '#F59E0B', border: '#F59E0B33', icon: 'ti-pencil' },
+    assigned:            { bg: '#3B82F61A', color: '#3B82F6', border: '#3B82F633', icon: 'ti-user-check' },
+    status_changed:      { bg: '#6366F11A', color: '#6366F1', border: '#6366F133', icon: 'ti-arrows-exchange' },
+    commented:           { bg: '#10B9811A', color: '#10B981', border: '#10B98133', icon: 'ti-message' },
+    deleted:             { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', icon: 'ti-trash' },
+    field_changed:       { bg: '#F59E0B1A', color: '#F59E0B', border: '#F59E0B33', icon: 'ti-edit' },
+    imported:            { bg: '#3B82F61A', color: '#3B82F6', border: '#3B82F633', icon: 'ti-upload' },
+    exported:            { bg: '#3B82F61A', color: '#3B82F6', border: '#3B82F633', icon: 'ti-download' },
+    closed:              { bg: '#6B72801A', color: '#6B7280', border: '#6B728033', icon: 'ti-circle-check' },
+    reopened:            { bg: '#8B5CF61A', color: '#8B5CF6', border: '#8B5CF633', icon: 'ti-refresh' },
+    attachment_added:    { bg: '#3B82F61A', color: '#3B82F6', border: '#3B82F633', icon: 'ti-paperclip' },
+    attachment_removed:  { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', icon: 'ti-paperclip' },
+    sla_updated:         { bg: '#F59E0B1A', color: '#F59E0B', border: '#F59E0B33', icon: 'ti-clock' },
+    pipeline_stage_changed: { bg: '#6366F11A', color: '#6366F1', border: '#6366F133', icon: 'ti-layout-kanban' },
+    email_linked:        { bg: '#3B82F61A', color: '#3B82F6', border: '#3B82F633', icon: 'ti-mail' },
+    email_actioned:      { bg: '#10B9811A', color: '#10B981', border: '#10B98133', icon: 'ti-mail-check' }
+  };
+
+  var ENTITY_LABELS = {
+    ticket: 'Ticket', contact: 'Contact', company: 'Company', comment: 'Comment',
+    article: 'Article', board: 'Board', column: 'Column', conversation: 'Conversation',
+    message: 'Message', notification: 'Notification'
+  };
+
+  var dom = {
+    auditList: document.getElementById('auditList'),
+    emptyState: document.getElementById('emptyState'),
+    filterAction: document.getElementById('filterAction'),
+    filterEntity: document.getElementById('filterEntity'),
+    filterSearch: document.getElementById('filterSearch'),
+    filterDateFrom: document.getElementById('filterDateFrom'),
+    filterDateTo: document.getElementById('filterDateTo'),
+    paginationNav: document.getElementById('paginationNav'),
+    paginationInfo: document.getElementById('paginationInfo'),
+    paginationControls: document.getElementById('paginationControls'),
+    statTotal: document.getElementById('statTotal'),
+    statToday: document.getElementById('statToday'),
+    statWeek: document.getElementById('statWeek'),
+    statUsers: document.getElementById('statUsers'),
+    sparkline: document.getElementById('auditSparkline'),
+    btnExportCsv: document.getElementById('btnExportCsv'),
+    btnExportJson: document.getElementById('btnExportJson'),
+    exportCount: document.getElementById('exportCount'),
+    quickFilters: document.getElementById('quickFilters'),
+    btnClearFilters: document.getElementById('btnClearFilters'),
+    filterCount: document.getElementById('filterCount'),
+    emptyStateClear: document.getElementById('emptyStateClear'),
+    drawerPrev: document.getElementById('drawerPrev'),
+    drawerNext: document.getElementById('drawerNext'),
+    detailBody: document.getElementById('auditDetailBody')
+  };
+
+  var currentUserId = document.getElementById('auditPageData').dataset.currentUser || '';
+
+  // ── Utility helpers ──
+
+  function makeIcon(cls) {
+    var i = document.createElement('i');
+    i.className = cls;
+    i.setAttribute('aria-hidden', 'true');
+    return i;
+  }
+
+  function makeText(tag, text, className) {
+    var el = document.createElement(tag);
+    if (className) el.className = className;
+    el.textContent = text;
+    return el;
+  }
+
+  function formatDate(dateStr) { return Kanzan.timeAgo(dateStr); }
+
+  function formatFullDate(dateStr) {
+    if (!dateStr) return '--';
+    return new Date(dateStr).toLocaleString();
+  }
+
+  function todayISO() {
+    var d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function daysAgoISO(n) {
+    var d = new Date();
+    d.setDate(d.getDate() - n);
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function weekAgoISO() { return daysAgoISO(7); }
+
+  function getInitials(name) {
+    if (!name) return '?';
+    var parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return parts[0][0].toUpperCase();
+  }
+
+  function hashColor(str) {
+    var hash = 0;
+    for (var i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
+    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+  }
+
+  function isComplexValue(val) {
+    return val !== null && typeof val === 'object';
+  }
+
+  function formatFieldName(field) {
+    return field.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+  }
+
+  function displayValue(val) {
+    return val != null ? String(val) : '(empty)';
+  }
+
+  // ── Filter & URL sync ──
+
+  function buildParams() {
+    var params = new URLSearchParams();
+    params.set('page', currentPage);
+    params.set('page_size', PAGE_SIZE);
+    if (dom.filterAction.value) params.set('action', dom.filterAction.value);
+    if (dom.filterEntity.value) params.set('content_type', dom.filterEntity.value);
+    var q = dom.filterSearch.value.trim();
+    if (q) params.set('search', q);
+    if (dom.filterDateFrom.value) params.set('created_at__gte', dom.filterDateFrom.value + 'T00:00:00');
+    if (dom.filterDateTo.value) params.set('created_at__lte', dom.filterDateTo.value + 'T23:59:59');
+    if (activePreset === 'mine' && currentUserId) params.set('actor', currentUserId);
+    return params.toString();
+  }
+
+  function syncFiltersToUrl() {
+    var params = new URLSearchParams();
+    if (dom.filterAction.value) params.set('action', dom.filterAction.value);
+    if (dom.filterEntity.value) params.set('entity', dom.filterEntity.value);
+    if (dom.filterSearch.value.trim()) params.set('q', dom.filterSearch.value.trim());
+    if (dom.filterDateFrom.value) params.set('from', dom.filterDateFrom.value);
+    if (dom.filterDateTo.value) params.set('to', dom.filterDateTo.value);
+    if (currentPage > 1) params.set('page', currentPage);
+    if (activePreset !== 'all') params.set('preset', activePreset);
+    var qs = params.toString();
+    var url = window.location.pathname + (qs ? '?' + qs : '');
+    window.history.replaceState(null, '', url);
+  }
+
+  function loadFiltersFromUrl() {
+    var params = new URLSearchParams(window.location.search);
+    if (params.get('action')) dom.filterAction.value = params.get('action');
+    if (params.get('entity')) dom.filterEntity.value = params.get('entity');
+    if (params.get('q')) dom.filterSearch.value = params.get('q');
+    if (params.get('from')) dom.filterDateFrom.value = params.get('from');
+    if (params.get('to')) dom.filterDateTo.value = params.get('to');
+    if (params.get('page')) currentPage = parseInt(params.get('page'), 10) || 1;
+    if (params.get('preset')) {
+      activePreset = params.get('preset');
+      updatePresetButtons();
+    }
+  }
+
+  function countActiveFilters() {
+    var count = 0;
+    if (dom.filterAction.value) count++;
+    if (dom.filterEntity.value) count++;
+    if (dom.filterSearch.value.trim()) count++;
+    if (dom.filterDateFrom.value) count++;
+    if (dom.filterDateTo.value) count++;
+    return count;
+  }
+
+  function updateFilterIndicator() {
+    var count = countActiveFilters();
+    if (count > 0) {
+      dom.btnClearFilters.classList.remove('d-none');
+      dom.filterCount.classList.remove('d-none');
+      dom.filterCount.textContent = count;
+      dom.emptyStateClear.classList.remove('d-none');
+    } else {
+      dom.btnClearFilters.classList.add('d-none');
+      dom.filterCount.classList.add('d-none');
+      dom.emptyStateClear.classList.add('d-none');
+    }
+  }
+
+  function clearAllFilters() {
+    dom.filterAction.value = '';
+    dom.filterEntity.value = '';
+    dom.filterSearch.value = '';
+    dom.filterDateFrom.value = '';
+    dom.filterDateTo.value = '';
+    activePreset = 'all';
+    updatePresetButtons();
+    currentPage = 1;
+    loadLogs();
+  }
+
+  function updatePresetButtons() {
+    var btns = dom.quickFilters.querySelectorAll('.audit-quick-btn');
+    for (var i = 0; i < btns.length; i++) {
+      btns[i].classList.toggle('active', btns[i].dataset.preset === activePreset);
+    }
+  }
+
+  function applyPreset(preset) {
+    dom.filterAction.value = '';
+    dom.filterEntity.value = '';
+    dom.filterSearch.value = '';
+    dom.filterDateFrom.value = '';
+    dom.filterDateTo.value = '';
+
+    activePreset = preset;
+    updatePresetButtons();
+
+    if (preset === 'today') {
+      dom.filterDateFrom.value = todayISO();
+    } else if (preset === 'week') {
+      dom.filterDateFrom.value = weekAgoISO();
+    }
+    // 'mine' is handled in buildParams via activePreset check
+    currentPage = 1;
+    loadLogs();
+  }
+
+  // ── Action badge ──
+
+  function createActionBadge(action, actionDisplay) {
+    var sc = ACTION_STYLES[action] || { bg: '#6B72801A', color: '#6B7280', border: '#6B728033', icon: 'ti-point' };
+    var badge = document.createElement('span');
+    badge.className = 'audit-action-badge';
+    badge.style.background = sc.bg;
+    badge.style.color = sc.color;
+    badge.style.border = '1px solid ' + sc.border;
+    var icon = makeIcon('ti ' + sc.icon);
+    icon.style.marginRight = '4px';
+    icon.style.fontSize = '0.75rem';
+    badge.appendChild(icon);
+    badge.appendChild(document.createTextNode(actionDisplay || action));
+    return badge;
+  }
+
+  // ── Inline change preview ──
+
+  function buildInlineChangePreview(changes) {
+    var keys = Object.keys(changes);
+    if (!keys.length) return null;
+    var field = keys[0];
+    var vals = changes[field];
+    var oldVal = Array.isArray(vals) ? vals[0] : '--';
+    var newVal = Array.isArray(vals) ? vals[1] : vals;
+
+    if (isComplexValue(oldVal) || isComplexValue(newVal)) return null;
+
+    var span = document.createElement('span');
+    span.className = 'audit-change-preview';
+    span.appendChild(document.createTextNode(field.replace(/_/g, ' ') + ': '));
+
+    var oldSpan = makeText('span', displayValue(oldVal), 'audit-old-val');
+    span.appendChild(oldSpan);
+
+    var arrow = makeText('span', '\u2192', 'audit-arrow');
+    span.appendChild(arrow);
+
+    var newSpan = makeText('span', displayValue(newVal), 'audit-new-val');
+    span.appendChild(newSpan);
+
+    if (keys.length > 1) {
+      span.appendChild(document.createTextNode(' +' + (keys.length - 1) + ' more'));
+    }
+    return span;
+  }
+
+  // ── Loading skeleton ──
+
+  function createSkeletonBlock(w, h, extra) {
+    var d = document.createElement('div');
+    d.className = 'skeleton' + (extra ? ' ' + extra : '');
+    d.style.width = w;
+    if (h) d.style.height = h;
+    return d;
+  }
+
+  function renderLoadingSkeleton() {
+    var fragment = document.createDocumentFragment();
+    for (var i = 0; i < 5; i++) {
+      var row = document.createElement('div');
+      row.className = 'tl-table-row audit-skeleton-row';
+
+      // User col
+      var colUser = document.createElement('div');
+      colUser.className = 'tl-col';
+      colUser.style.flex = '2';
+      var userWrap = document.createElement('div');
+      userWrap.className = 'd-flex align-items-center gap-2';
+      userWrap.appendChild(createSkeletonBlock('28px', '28px', 'skeleton-avatar'));
+      var nameWrap = document.createElement('div');
+      nameWrap.appendChild(createSkeletonBlock('90px', null, 'skeleton-text'));
+      nameWrap.appendChild(createSkeletonBlock('120px', null, 'skeleton-text'));
+      nameWrap.lastChild.style.marginBottom = '0';
+      userWrap.appendChild(nameWrap);
+      colUser.appendChild(userWrap);
+
+      var colAction = document.createElement('div');
+      colAction.className = 'tl-col';
+      colAction.style.flex = '1.5';
+      colAction.appendChild(createSkeletonBlock('75px', null, 'skeleton-text'));
+
+      var colEntity = document.createElement('div');
+      colEntity.className = 'tl-col';
+      colEntity.style.flex = '1.2';
+      colEntity.appendChild(createSkeletonBlock('55px', null, 'skeleton-text'));
+
+      var colDesc = document.createElement('div');
+      colDesc.className = 'tl-col';
+      colDesc.style.flex = '3';
+      colDesc.appendChild(createSkeletonBlock('85%', null, 'skeleton-text'));
+
+      var colIp = document.createElement('div');
+      colIp.className = 'tl-col';
+      colIp.style.flex = '1';
+      colIp.appendChild(createSkeletonBlock('80px', null, 'skeleton-text'));
+
+      var colDate = document.createElement('div');
+      colDate.className = 'tl-col';
+      colDate.style.flex = '1.5';
+      colDate.appendChild(createSkeletonBlock('65px', null, 'skeleton-text'));
+
+      row.appendChild(colUser);
+      row.appendChild(colAction);
+      row.appendChild(colEntity);
+      row.appendChild(colDesc);
+      row.appendChild(colIp);
+      row.appendChild(colDate);
+      fragment.appendChild(row);
+    }
+    return fragment;
+  }
+
+  // ── Stats & Sparkline ──
+
+  function loadStats() {
+    var today = todayISO();
+    var weekAgo = weekAgoISO();
+
+    Promise.all([
+      Api.get('/api/v1/comments/activity-logs/?page_size=1'),
+      Api.get('/api/v1/comments/activity-logs/?page_size=1&created_at__gte=' + today + 'T00:00:00'),
+      Api.get('/api/v1/comments/activity-logs/?page_size=1&created_at__gte=' + weekAgo + 'T00:00:00')
+    ]).then(function(results) {
+      dom.statTotal.textContent = (results[0].count || 0).toLocaleString();
+      dom.statToday.textContent = (results[1].count || 0).toLocaleString();
+      dom.statWeek.textContent = (results[2].count || 0).toLocaleString();
+
+      Api.get('/api/v1/comments/activity-logs/?page_size=50&created_at__gte=' + weekAgo + 'T00:00:00').then(function(data) {
+        var actors = {};
+        (data.results || []).forEach(function(e) { if (e.actor) actors[e.actor] = true; });
+        dom.statUsers.textContent = Object.keys(actors).length;
+      }).catch(function() { dom.statUsers.textContent = '--'; });
+    }).catch(function() {});
+  }
+
+  function loadSparkline() {
+    var DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    var promises = [];
+    var days = [];
+
+    for (var i = 6; i >= 0; i--) {
+      var dayStart = daysAgoISO(i);
+      var dayEnd = i === 0 ? todayISO() : daysAgoISO(i - 1);
+      days.push({ date: dayStart, label: DAY_LABELS[new Date(dayStart + 'T12:00:00').getDay()] });
+      var endParam = i === 0 ? '' : '&created_at__lte=' + dayEnd + 'T00:00:00';
+      promises.push(Api.get('/api/v1/comments/activity-logs/?page_size=1&created_at__gte=' + dayStart + 'T00:00:00' + endParam));
+    }
+
+    Promise.all(promises).then(function(results) {
+      var counts = results.map(function(r) { return r.count || 0; });
+      var maxCount = Math.max.apply(null, counts) || 1;
+      var MAX_BAR_PX = 36;
+
+      dom.sparkline.textContent = '';
+      for (var i = 0; i < counts.length; i++) {
+        var col = document.createElement('div');
+        col.className = 'audit-sparkline-day';
+
+        var bar = document.createElement('div');
+        bar.className = 'audit-sparkline-bar';
+        var barHeight = Math.max(2, Math.round((counts[i] / maxCount) * MAX_BAR_PX));
+        bar.style.height = barHeight + 'px';
+        bar.title = days[i].date + ': ' + counts[i] + ' events';
+
+        var label = makeText('div', days[i].label, 'audit-sparkline-label');
+
+        col.appendChild(bar);
+        col.appendChild(label);
+        dom.sparkline.appendChild(col);
+      }
+    }).catch(function() {});
+  }
+
+  // ── Render logs ──
+
+  function renderAuditLogs(entries) {
+    dom.auditList.textContent = '';
+
+    if (!entries || entries.length === 0) {
+      dom.auditList.classList.add('d-none');
+      dom.emptyState.classList.remove('d-none');
+      dom.paginationNav.classList.add('d-none');
+      return;
+    }
+
+    dom.auditList.classList.remove('d-none');
+    dom.emptyState.classList.add('d-none');
+
+    var fragment = document.createDocumentFragment();
+
+    entries.forEach(function(e, idx) {
+      var row = document.createElement('div');
+      row.className = 'tl-table-row';
+      row.style.cursor = 'pointer';
+      row.setAttribute('role', 'listitem');
+      (function(entry, index) {
+        row.addEventListener('click', function() { showDetail(entry, index); });
+      })(e, idx);
+
+      // User column with avatar
+      var colUser = document.createElement('div');
+      colUser.className = 'tl-col';
+      colUser.style.flex = '2';
+
+      var userInfo = document.createElement('div');
+      userInfo.className = 'audit-user-info';
+
+      var avatar = document.createElement('div');
+      avatar.className = 'audit-avatar';
+      avatar.style.background = hashColor(e.actor_name || 'System');
+      avatar.textContent = getInitials(e.actor_name || 'System');
+
+      var userDetails = document.createElement('div');
+      userDetails.className = 'audit-user-details';
+      var userName = makeText('div', e.actor_name || 'System', 'fw-medium text-truncate');
+      userName.style.fontSize = '0.85rem';
+      userDetails.appendChild(userName);
+      if (e.actor_email) {
+        var userEmail = makeText('div', e.actor_email, 'text-muted text-truncate');
+        userEmail.style.fontSize = '0.75rem';
+        userDetails.appendChild(userEmail);
+      }
+
+      userInfo.appendChild(avatar);
+      userInfo.appendChild(userDetails);
+      colUser.appendChild(userInfo);
+
+      // Action column
+      var colAction = document.createElement('div');
+      colAction.className = 'tl-col';
+      colAction.style.flex = '1.5';
+      colAction.appendChild(createActionBadge(e.action, e.action_display));
+
+      // Entity column
+      var colEntity = document.createElement('div');
+      colEntity.className = 'tl-col';
+      colEntity.style.flex = '1.2';
+      var entityLabel = makeText('span', ENTITY_LABELS[e.content_type] || e.content_type || '--', 'text-muted');
+      entityLabel.style.fontSize = '0.85rem';
+      colEntity.appendChild(entityLabel);
+
+      // Description column with inline preview
+      var colDesc = document.createElement('div');
+      colDesc.className = 'tl-col';
+      colDesc.style.flex = '3';
+      colDesc.style.flexDirection = 'column';
+      colDesc.style.alignItems = 'flex-start';
+      colDesc.style.minWidth = '0';
+
+      var descText = makeText('div', e.description || '--', 'text-truncate');
+      descText.style.fontSize = '0.85rem';
+      colDesc.appendChild(descText);
+
+      if (e.changes && Object.keys(e.changes).length > 0) {
+        var preview = buildInlineChangePreview(e.changes);
+        if (preview) colDesc.appendChild(preview);
+      }
+
+      // IP column
+      var colIp = document.createElement('div');
+      colIp.className = 'tl-col';
+      colIp.style.flex = '1';
+      var ipSpan = makeText('span', e.ip_address || '--', 'text-muted');
+      ipSpan.style.fontSize = '0.8rem';
+      ipSpan.style.fontFamily = 'monospace';
+      colIp.appendChild(ipSpan);
+
+      // When column with tooltip
+      var colDate = document.createElement('div');
+      colDate.className = 'tl-col';
+      colDate.style.flex = '1.5';
+      var dateSpan = makeText('span', formatDate(e.created_at), 'tl-cell-date');
+      dateSpan.title = formatFullDate(e.created_at);
+      dateSpan.setAttribute('data-bs-toggle', 'tooltip');
+      dateSpan.setAttribute('data-bs-placement', 'top');
+      colDate.appendChild(dateSpan);
+
+      row.appendChild(colUser);
+      row.appendChild(colAction);
+      row.appendChild(colEntity);
+      row.appendChild(colDesc);
+      row.appendChild(colIp);
+      row.appendChild(colDate);
+      fragment.appendChild(row);
+    });
+
+    dom.auditList.appendChild(fragment);
+
+    // Init tooltips
+    var tooltipEls = dom.auditList.querySelectorAll('[data-bs-toggle="tooltip"]');
+    for (var t = 0; t < tooltipEls.length; t++) {
+      new bootstrap.Tooltip(tooltipEls[t]);
+    }
+  }
+
+  // ── Pagination ──
+
+  function renderPagination() {
+    var totalPages = Math.ceil(totalCount / PAGE_SIZE);
+    if (totalPages <= 1) { dom.paginationNav.classList.add('d-none'); return; }
+
+    dom.paginationNav.classList.remove('d-none');
+    dom.paginationInfo.textContent = 'Showing ' + ((currentPage - 1) * PAGE_SIZE + 1) + ' to ' + Math.min(currentPage * PAGE_SIZE, totalCount) + ' of ' + totalCount;
+
+    while (dom.paginationControls.firstChild) dom.paginationControls.removeChild(dom.paginationControls.firstChild);
+
+    // Previous
+    var prevLi = document.createElement('li');
+    prevLi.className = 'page-item' + (currentPage <= 1 ? ' disabled' : '');
+    var prevA = document.createElement('a');
+    prevA.className = 'page-link';
+    prevA.href = '#';
+    prevA.setAttribute('aria-label', 'Previous');
+    prevA.appendChild(makeIcon('ti ti-chevron-left'));
+    prevLi.appendChild(prevA);
+    if (currentPage > 1) prevA.addEventListener('click', function(ev) { ev.preventDefault(); currentPage--; loadLogs(); });
+    dom.paginationControls.appendChild(prevLi);
+
+    // Page numbers
+    for (var i = Math.max(1, currentPage - 2); i <= Math.min(totalPages, currentPage + 2); i++) {
+      var li = document.createElement('li');
+      li.className = 'page-item' + (i === currentPage ? ' active' : '');
+      var a = document.createElement('a');
+      a.className = 'page-link';
+      a.href = '#';
+      a.textContent = i;
+      li.appendChild(a);
+      (function(page) {
+        a.addEventListener('click', function(ev) { ev.preventDefault(); currentPage = page; loadLogs(); });
+      })(i);
+      dom.paginationControls.appendChild(li);
+    }
+
+    // Next
+    var nextLi = document.createElement('li');
+    nextLi.className = 'page-item' + (currentPage >= totalPages ? ' disabled' : '');
+    var nextA = document.createElement('a');
+    nextA.className = 'page-link';
+    nextA.href = '#';
+    nextA.setAttribute('aria-label', 'Next');
+    nextA.appendChild(makeIcon('ti ti-chevron-right'));
+    nextLi.appendChild(nextA);
+    if (currentPage < totalPages) nextA.addEventListener('click', function(ev) { ev.preventDefault(); currentPage++; loadLogs(); });
+    dom.paginationControls.appendChild(nextLi);
+  }
+
+  // ── Load logs ──
+
+  function loadLogs() {
+    dom.auditList.textContent = '';
+    dom.auditList.appendChild(renderLoadingSkeleton());
+    dom.auditList.classList.remove('d-none');
+    dom.emptyState.classList.add('d-none');
+
+    Api.get('/api/v1/comments/activity-logs/?' + buildParams()).then(function(data) {
+      totalCount = data.count || 0;
+      currentEntries = data.results || [];
+      renderAuditLogs(currentEntries);
+      renderPagination();
+      syncFiltersToUrl();
+      updateFilterIndicator();
+      dom.exportCount.textContent = totalCount > 0 ? '(' + totalCount.toLocaleString() + ')' : '';
+    }).catch(function() {
+      dom.auditList.textContent = '';
+      var err = makeText('div', 'Failed to load audit logs.', 'tl-loading text-danger');
+      dom.auditList.appendChild(err);
+    });
+  }
+
+  // ── Detail drawer ──
+
+  function showDetail(entry, index) {
+    currentDetailIndex = typeof index === 'number' ? index : -1;
+
+    if (!drawerInstance) {
+      drawerInstance = new bootstrap.Offcanvas(document.getElementById('auditDetailDrawer'));
+    }
+
+    // Update nav buttons
+    dom.drawerPrev.disabled = currentDetailIndex <= 0;
+    dom.drawerNext.disabled = currentDetailIndex < 0 || currentDetailIndex >= currentEntries.length - 1;
+
+    var body = dom.detailBody;
+    body.textContent = '';
+
+    // Header: avatar + actor + action badge
+    var headerRow = document.createElement('div');
+    headerRow.className = 'd-flex justify-content-between align-items-start mb-3';
+
+    var actorDiv = document.createElement('div');
+    var avatarLg = document.createElement('div');
+    avatarLg.className = 'audit-avatar mb-2';
+    avatarLg.style.width = '36px';
+    avatarLg.style.height = '36px';
+    avatarLg.style.fontSize = '0.8rem';
+    avatarLg.style.background = hashColor(entry.actor_name || 'System');
+    avatarLg.textContent = getInitials(entry.actor_name || 'System');
+    actorDiv.appendChild(avatarLg);
+    actorDiv.appendChild(makeText('strong', entry.actor_name || 'System'));
+    if (entry.actor_email) {
+      actorDiv.appendChild(makeText('small', entry.actor_email, 'text-muted d-block'));
+    }
+    headerRow.appendChild(actorDiv);
+    headerRow.appendChild(createActionBadge(entry.action, entry.action_display));
+    body.appendChild(headerRow);
+
+    // Meta row
+    var metaDiv = document.createElement('div');
+    metaDiv.className = 'audit-detail-meta';
+
+    // Entity
+    var entityItem = document.createElement('div');
+    entityItem.className = 'audit-detail-meta-item';
+    entityItem.appendChild(makeIcon('ti ti-box me-1'));
+    entityItem.appendChild(makeText('span', 'Entity:', 'text-muted me-1'));
+    entityItem.appendChild(document.createTextNode(ENTITY_LABELS[entry.content_type] || entry.content_type));
+    metaDiv.appendChild(entityItem);
+
+    // Time
+    var timeItem = document.createElement('div');
+    timeItem.className = 'audit-detail-meta-item';
+    timeItem.appendChild(makeIcon('ti ti-clock me-1'));
+    timeItem.appendChild(document.createTextNode(formatFullDate(entry.created_at)));
+    metaDiv.appendChild(timeItem);
+
+    // IP
+    if (entry.ip_address) {
+      var ipItem = document.createElement('div');
+      ipItem.className = 'audit-detail-meta-item';
+      ipItem.appendChild(makeIcon('ti ti-world me-1'));
+      var ipSpan = makeText('span', entry.ip_address);
+      ipSpan.style.fontFamily = 'monospace';
+      ipItem.appendChild(ipSpan);
+      metaDiv.appendChild(ipItem);
+    }
+    body.appendChild(metaDiv);
+    body.appendChild(document.createElement('hr'));
+
+    // Description
+    if (entry.description) {
+      var descDiv = document.createElement('div');
+      descDiv.className = 'mb-3';
+      descDiv.appendChild(makeText('strong', 'Description'));
+      var descP = makeText('p', entry.description, 'mt-1 mb-0');
+      descP.style.fontSize = '0.9rem';
+      descDiv.appendChild(descP);
+      body.appendChild(descDiv);
+    }
+
+    // Changes diff
+    if (entry.changes && Object.keys(entry.changes).length > 0) {
+      var changesDiv = document.createElement('div');
+      changesDiv.className = 'mb-3';
+      changesDiv.appendChild(makeText('strong', 'Changes'));
+
+      var diffTable = document.createElement('div');
+      diffTable.className = 'audit-diff-table mt-2';
+
+      // Header
+      var diffHeader = document.createElement('div');
+      diffHeader.className = 'audit-diff-row audit-diff-header';
+      ['Field', 'Previous', 'New'].forEach(function(text) {
+        diffHeader.appendChild(makeText('div', text, 'audit-diff-cell'));
+      });
+      diffTable.appendChild(diffHeader);
+
+      Object.keys(entry.changes).forEach(function(field) {
+        var vals = entry.changes[field];
+        var oldVal = Array.isArray(vals) ? vals[0] : '--';
+        var newVal = Array.isArray(vals) ? vals[1] : vals;
+
+        var diffRow = document.createElement('div');
+        diffRow.className = 'audit-diff-row';
+
+        diffRow.appendChild(makeText('div', formatFieldName(field), 'audit-diff-cell fw-medium'));
+
+        // Old value cell
+        var cellOld = document.createElement('div');
+        cellOld.className = 'audit-diff-cell audit-diff-old';
+        if (isComplexValue(oldVal)) {
+          var preOld = document.createElement('pre');
+          preOld.className = 'audit-diff-json mb-0';
+          preOld.textContent = JSON.stringify(oldVal, null, 2);
+          cellOld.appendChild(preOld);
+        } else {
+          cellOld.appendChild(makeText('span', displayValue(oldVal)));
+        }
+
+        // New value cell
+        var cellNew = document.createElement('div');
+        cellNew.className = 'audit-diff-cell audit-diff-new';
+        if (isComplexValue(newVal)) {
+          var preNew = document.createElement('pre');
+          preNew.className = 'audit-diff-json mb-0';
+          preNew.textContent = JSON.stringify(newVal, null, 2);
+          cellNew.appendChild(preNew);
+        } else {
+          cellNew.appendChild(makeText('span', displayValue(newVal)));
+        }
+
+        diffRow.appendChild(cellOld);
+        diffRow.appendChild(cellNew);
+        diffTable.appendChild(diffRow);
+      });
+
+      changesDiv.appendChild(diffTable);
+      body.appendChild(changesDiv);
+    }
+
+    // Object ID / Log ID
+    var idDiv = document.createElement('div');
+    idDiv.className = 'text-muted mt-3';
+    idDiv.style.fontSize = '0.75rem';
+    idDiv.appendChild(makeText('strong', 'Object ID: '));
+    idDiv.appendChild(document.createTextNode(entry.object_id));
+    idDiv.appendChild(document.createElement('br'));
+    idDiv.appendChild(makeText('strong', 'Log ID: '));
+    idDiv.appendChild(document.createTextNode(entry.id));
+    body.appendChild(idDiv);
+
+    // Entity timeline
+    if (entry.content_type && entry.object_id) {
+      loadEntityTimeline(entry.content_type, entry.object_id, entry.id);
+    }
+
+    drawerInstance.show();
+  }
+
+  function loadEntityTimeline(contentType, objectId, currentLogId) {
+    var typeMap = {
+      ticket: 'tickets.ticket', contact: 'contacts.contact', company: 'contacts.company',
+      comment: 'comments.comment', article: 'knowledge.article'
+    };
+    var apiType = typeMap[contentType] || contentType;
+
+    Api.get('/api/v1/comments/activity-logs/?content_type=' + apiType + '&object_id=' + objectId + '&page_size=10')
+      .then(function(data) {
+        if (!data.results || data.results.length <= 1) return;
+        renderTimeline(data.results, currentLogId);
+      }).catch(function() {});
+  }
+
+  function renderTimeline(entries, currentId) {
+    var body = dom.detailBody;
+    body.appendChild(document.createElement('hr'));
+    var heading = makeText('strong', 'Recent Activity on This Entity');
+    heading.style.display = 'block';
+    heading.style.marginBottom = '12px';
+    body.appendChild(heading);
+
+    var timeline = document.createElement('div');
+    timeline.className = 'audit-timeline';
+
+    entries.forEach(function(e) {
+      var item = document.createElement('div');
+      item.className = 'audit-timeline-item' + (e.id === currentId ? ' is-current' : '');
+
+      var dot = document.createElement('div');
+      dot.className = 'audit-timeline-dot';
+      var sc = ACTION_STYLES[e.action];
+      if (sc) dot.style.background = sc.color;
+
+      var time = makeText('div', formatDate(e.created_at) + ' by ' + (e.actor_name || 'System'), 'audit-timeline-time');
+      var desc = makeText('div', (e.action_display || e.action) + (e.description ? ' \u2014 ' + e.description : ''), 'audit-timeline-desc');
+
+      item.appendChild(dot);
+      item.appendChild(time);
+      item.appendChild(desc);
+      timeline.appendChild(item);
+    });
+
+    body.appendChild(timeline);
+  }
+
+  // ── Export ──
+
+  function buildExportParams() {
+    var params = new URLSearchParams();
+    params.set('page_size', 1000);
+    if (dom.filterAction.value) params.set('action', dom.filterAction.value);
+    if (dom.filterEntity.value) params.set('content_type', dom.filterEntity.value);
+    var q = dom.filterSearch.value.trim();
+    if (q) params.set('search', q);
+    if (dom.filterDateFrom.value) params.set('created_at__gte', dom.filterDateFrom.value + 'T00:00:00');
+    if (dom.filterDateTo.value) params.set('created_at__lte', dom.filterDateTo.value + 'T23:59:59');
+    if (activePreset === 'mine' && currentUserId) params.set('actor', currentUserId);
+    return params.toString();
+  }
+
+  dom.btnExportCsv.addEventListener('click', function(ev) {
+    ev.preventDefault();
+    Api.get('/api/v1/comments/activity-logs/?' + buildExportParams()).then(function(data) {
+      var rows = [['Date', 'User', 'Email', 'Action', 'Entity', 'Description', 'IP Address', 'Object ID']];
+      (data.results || []).forEach(function(e) {
+        rows.push([
+          formatFullDate(e.created_at),
+          e.actor_name || 'System',
+          e.actor_email || '',
+          e.action_display || e.action,
+          ENTITY_LABELS[e.content_type] || e.content_type,
+          (e.description || '').replace(/"/g, '""'),
+          e.ip_address || '',
+          e.object_id || ''
+        ]);
+      });
+      var csv = rows.map(function(r) {
+        return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(',');
+      }).join('\n');
+      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      var link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'audit-log-' + todayISO() + '.csv';
+      link.click();
+      URL.revokeObjectURL(link.href);
+      Toast.success('Audit log exported as CSV');
+    }).catch(function() { Toast.error('Failed to export audit log'); });
+  });
+
+  dom.btnExportJson.addEventListener('click', function(ev) {
+    ev.preventDefault();
+    Api.get('/api/v1/comments/activity-logs/?' + buildExportParams()).then(function(data) {
+      var blob = new Blob([JSON.stringify(data.results || [], null, 2)], { type: 'application/json' });
+      var link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'audit-log-' + todayISO() + '.json';
+      link.click();
+      URL.revokeObjectURL(link.href);
+      Toast.success('Audit log exported as JSON');
+    }).catch(function() { Toast.error('Failed to export audit log'); });
+  });
+
+  // ── Event listeners ──
+
+  dom.filterAction.addEventListener('change', function() { activePreset = 'all'; updatePresetButtons(); currentPage = 1; loadLogs(); });
+  dom.filterEntity.addEventListener('change', function() { activePreset = 'all'; updatePresetButtons(); currentPage = 1; loadLogs(); });
+  dom.filterDateFrom.addEventListener('change', function() { activePreset = 'all'; updatePresetButtons(); currentPage = 1; loadLogs(); });
+  dom.filterDateTo.addEventListener('change', function() { activePreset = 'all'; updatePresetButtons(); currentPage = 1; loadLogs(); });
+
+  var searchTimeout;
+  dom.filterSearch.addEventListener('input', function() {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(function() { activePreset = 'all'; updatePresetButtons(); currentPage = 1; loadLogs(); }, DEBOUNCE_MS);
+  });
+
+  // Quick filter presets
+  dom.quickFilters.addEventListener('click', function(ev) {
+    var btn = ev.target.closest('.audit-quick-btn');
+    if (!btn) return;
+    applyPreset(btn.dataset.preset);
+  });
+
+  // Clear filters
+  dom.btnClearFilters.addEventListener('click', clearAllFilters);
+  dom.emptyStateClear.addEventListener('click', clearAllFilters);
+
+  // Drawer navigation
+  dom.drawerPrev.addEventListener('click', function() {
+    if (currentDetailIndex > 0) showDetail(currentEntries[currentDetailIndex - 1], currentDetailIndex - 1);
+  });
+  dom.drawerNext.addEventListener('click', function() {
+    if (currentDetailIndex < currentEntries.length - 1) showDetail(currentEntries[currentDetailIndex + 1], currentDetailIndex + 1);
+  });
+
+  // ── Init ──
+  loadFiltersFromUrl();
+  loadLogs();
+  loadStats();
+  loadSparkline();
+})();
+</script>
+{% endblock %}

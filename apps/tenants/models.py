@@ -132,6 +132,25 @@ class TenantSettings(TimestampedModel):
         help_text="Custom inbound email address for this tenant (e.g. support@acme.com).",
     )
 
+    # --- Closure / CSAT ---
+    auto_close_days = models.PositiveIntegerField(
+        default=5,
+        help_text="Days after 'resolved' before auto-closing the ticket.",
+    )
+    csat_delay_minutes = models.PositiveIntegerField(
+        default=60,
+        help_text="Minutes after 'resolved' before sending CSAT survey email.",
+    )
+
+    # --- Workflow ---
+    auto_transition_on_assign = models.BooleanField(
+        default=True,
+        help_text=(
+            "When True, assigning a ticket on the default (Open) status "
+            "automatically transitions it to In Progress."
+        ),
+    )
+
     # --- Branding ---
     primary_color = models.CharField(
         max_length=7,

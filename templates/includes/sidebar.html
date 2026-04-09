@@ -22,6 +22,25 @@
       </a>
     </div>
 
+    <!-- Support -->
+    <div class="nav-section">
+      <span class="nav-section-label">Support</span>
+      <a href="{% url 'frontend:ticket-list' %}" class="sidebar-link {% if 'ticket' in request.resolver_match.url_name %}active{% endif %}" data-sidebar-tooltip="Tickets">
+        <i class="ti ti-ticket"></i>
+        <span class="sidebar-link-text">Tickets</span>
+        <span class="badge sidebar-badge" id="sidebarBadgeTickets" style="display:none;"></span>
+      </a>
+      <a href="{% url 'frontend:emails' %}" class="sidebar-link {% if request.resolver_match.url_name == 'emails' %}active{% endif %}" data-sidebar-tooltip="Emails">
+        <i class="ti ti-mail"></i>
+        <span class="sidebar-link-text">Emails</span>
+        <span class="badge sidebar-badge" id="sidebarBadgeEmails" style="display:none;"></span>
+      </a>
+      <a href="{% url 'frontend:knowledge-list' %}" class="sidebar-link {% if 'knowledge' in request.resolver_match.url_name %}active{% endif %}" data-sidebar-tooltip="Knowledge Base">
+        <i class="ti ti-book"></i>
+        <span class="sidebar-link-text">Knowledge Base</span>
+      </a>
+    </div>
+
     <!-- CRM -->
     <div class="nav-section">
       <span class="nav-section-label">CRM</span>
@@ -33,14 +52,10 @@
         <i class="ti ti-layout-kanban"></i>
         <span class="sidebar-link-text">Boards</span>
       </a>
-    </div>
-
-    <!-- Support -->
-    <div class="nav-section">
-      <span class="nav-section-label">Support</span>
-      <a href="{% url 'frontend:ticket-list' %}" class="sidebar-link {% if 'ticket' in request.resolver_match.url_name %}active{% endif %}" data-sidebar-tooltip="Tickets">
-        <i class="ti ti-ticket"></i>
-        <span class="sidebar-link-text">Tickets</span>
+      <a href="{% url 'frontend:reminders' %}" class="sidebar-link {% if request.resolver_match.url_name == 'reminders' %}active{% endif %}" data-sidebar-tooltip="Reminders">
+        <i class="ti ti-bell"></i>
+        <span class="sidebar-link-text">Reminders</span>
+        <span class="badge sidebar-badge" id="sidebarBadgeReminders" style="display:none;"></span>
       </a>
     </div>
 
@@ -50,34 +65,34 @@
       <a href="{% url 'frontend:calendar' %}" class="sidebar-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}" data-sidebar-tooltip="Calendar">
         <i class="ti ti-calendar"></i>
         <span class="sidebar-link-text">Calendar</span>
+        <span class="badge sidebar-badge" id="sidebarBadgeCalendar" style="display:none;"></span>
       </a>
       <a href="{% url 'frontend:messaging' %}" class="sidebar-link {% if request.resolver_match.url_name == 'messaging' %}active{% endif %}" data-sidebar-tooltip="Messages">
         <i class="ti ti-message"></i>
         <span class="sidebar-link-text">Messages</span>
+        <span class="badge sidebar-badge" id="sidebarBadgeMessages" style="display:none;"></span>
       </a>
     </div>
 
-    <!-- Operations -->
+    <!-- Management -->
     <div class="nav-section">
-      <span class="nav-section-label">Operations</span>
+      <span class="nav-section-label">Management</span>
       {% if is_admin_or_manager %}
       <a href="{% url 'frontend:analytics' %}" class="sidebar-link {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" data-sidebar-tooltip="Analytics">
         <i class="ti ti-chart-bar"></i>
         <span class="sidebar-link-text">Analytics</span>
       </a>
-      {% endif %}
-      <a href="{% url 'frontend:agents' %}" class="sidebar-link {% if request.resolver_match.url_name == 'agents' %}active{% endif %}" data-sidebar-tooltip="Agents & Email">
+      <a href="{% url 'frontend:agents' %}" class="sidebar-link {% if request.resolver_match.url_name == 'agents' %}active{% endif %}" data-sidebar-tooltip="Agents">
         <i class="ti ti-users"></i>
-        <span class="sidebar-link-text">Agents & Email</span>
+        <span class="sidebar-link-text">Agents</span>
       </a>
-      <a href="{% url 'frontend:inbound-email' %}" class="sidebar-link {% if request.resolver_match.url_name == 'inbound-email' %}active{% endif %}" data-sidebar-tooltip="Inbound Email">
-        <i class="ti ti-mail-forward"></i>
-        <span class="sidebar-link-text">Inbound Email</span>
-      </a>
-      {% if is_admin_or_manager %}
       <a href="{% url 'frontend:users' %}" class="sidebar-link {% if request.resolver_match.url_name == 'users' %}active{% endif %}" data-sidebar-tooltip="Users">
         <i class="ti ti-user-cog"></i>
         <span class="sidebar-link-text">Users</span>
+      </a>
+      <a href="{% url 'frontend:audit-log' %}" class="sidebar-link {% if request.resolver_match.url_name == 'audit-log' %}active{% endif %}" data-sidebar-tooltip="Audit Log">
+        <i class="ti ti-history"></i>
+        <span class="sidebar-link-text">Audit Log</span>
       </a>
       {% endif %}
     </div>

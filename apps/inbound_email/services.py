@@ -23,8 +23,8 @@ from django.db import IntegrityError, transaction
 
 from apps.comments.models import Comment
 from apps.contacts.models import Contact
-from apps.inbound_email.filters import run_all_filters
-from apps.inbound_email.models import InboundEmail
+from apps.inbound_email.filters import classify_email, run_all_filters
+from apps.inbound_email.models import BounceLog, InboundEmail
 from apps.inbound_email.threading import (  # noqa: F401 — re-exported for backward compat
     extract_ticket_number,
     find_existing_ticket,
@@ -196,9 +196,14 @@ def process_inbound_email(inbound_email_id):
 
     try:
         # Step 1: Run filters BEFORE tenant resolution (cheap, no DB)
+        # This ensures no Contact or Ticket is created for bounces/auto-replies.
         should_reject, reason = run_all_filters(inbound)
         if should_reject:
-            _reject(inbound, reason)
+            classification = classify_email(inbound)
+            if classification == "bounce":
+                _handle_bounce(inbound, reason)
+            else:
+                _reject(inbound, reason)
             return
 
         # Step 2: Resolve tenant
@@ -256,8 +261,11 @@ def process_inbound_email(inbound_email_id):
 
     except Exception as exc:
         logger.exception("Failed to process inbound email %s", inbound.pk)
+        # Mark as FAILED only on the final retry attempt — leave as
+        # PROCESSING for earlier attempts so the Celery retry mechanism
+        # can re-process it (the status guard allows PROCESSING).
         inbound.status = InboundEmail.Status.FAILED
-        inbound.error_message = str(exc)[:2000]
+        inbound.error_message = str(exc)
         inbound.save(update_fields=["status", "error_message", "updated_at"])
         raise
 
@@ -289,6 +297,10 @@ def _create_ticket_from_email(inbound, tenant, contact, system_user):
         custom_data={"source": "email", "message_id": inbound.message_id},
     )
     ticket.save()
+
+    # Initialize SLA deadlines based on priority
+    from apps.tickets.services import initialize_sla
+    initialize_sla(ticket)
 
     inbound.ticket = ticket
     inbound.status = InboundEmail.Status.TICKET_CREATED
@@ -347,12 +359,56 @@ def _add_reply_to_ticket(inbound, ticket, contact, system_user):
     inbound.status = InboundEmail.Status.REPLY_ADDED
     inbound.save(update_fields=["ticket", "status", "updated_at"])
 
+    # Resume SLA clock if paused (customer replied)
+    if inbound.sender_type == InboundEmail.SenderType.CUSTOMER:
+        from apps.tickets.signals import _resume_sla_pause
+        _resume_sla_pause(ticket, reason="customer_reply")
+
+    # Reopen ticket if it's in "resolved" status (customer reply cancels
+    # the auto-close window and returns the ticket to "open").
+    # NOTE: resolved→open always targets "open" regardless of pre_wait_status.
+    if ticket.status and ticket.status.slug == "resolved":
+        _reopen_resolved_ticket(ticket, system_user)
+
+    # Resume from a waiting (pauses_sla) status — restores to the
+    # pre-wait status (e.g. In Progress) rather than always going to Open.
+    elif ticket.status and getattr(ticket.status, "pauses_sla", False):
+        from apps.tickets.services import resume_from_wait
+        resume_from_wait(ticket, actor=system_user)
+
     logger.info(
         "Added reply to ticket #%d from %s",
         ticket.number,
         inbound.sender_email,
     )
     return comment
+
+
+def _reopen_resolved_ticket(ticket, system_user):
+    """
+    Reopen a resolved ticket when a customer replies.
+
+    Looks up the 'open' status and transitions via the service layer,
+    which handles auto-close task cancellation and field cleanup.
+    """
+    open_status = TicketStatus.objects.filter(
+        slug="open",
+    ).first()
+    if not open_status:
+        logger.warning(
+            "Cannot reopen ticket #%d: no 'open' status found for tenant %s.",
+            ticket.number,
+            ticket.tenant.slug,
+        )
+        return
+
+    from apps.tickets.services import change_ticket_status
+
+    change_ticket_status(ticket, open_status, actor=system_user)
+    logger.info(
+        "Ticket #%d reopened from 'resolved' due to customer reply.",
+        ticket.number,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -415,6 +471,75 @@ def _attach_inbound_files(inbound, ticket, system_user):
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def _handle_bounce(inbound, reason):
+    """
+    Handle a hard-bounce email: mark as bounced, write a BounceLog,
+    try to link to an existing ticket via threading, and flag the
+    target Contact as bouncing.
+
+    Runs before tenant/contact resolution, so tenant lookup is
+    best-effort for bounce logging.
+    """
+    inbound.status = InboundEmail.Status.BOUNCED
+    inbound.error_message = reason
+    inbound.save(update_fields=["status", "error_message", "updated_at"])
+
+    # Best-effort: resolve tenant for the BounceLog FK
+    tenant = inbound.tenant
+    if not tenant:
+        tenant = resolve_tenant_from_address(inbound.recipient_email)
+        if tenant:
+            inbound.tenant = tenant
+            inbound.save(update_fields=["tenant", "updated_at"])
+
+    # Best-effort: link to existing ticket via threading headers
+    linked_ticket = None
+    if tenant:
+        try:
+            with tenant_context(tenant):
+                linked_ticket = find_existing_ticket(tenant, inbound)
+                if linked_ticket:
+                    inbound.ticket = linked_ticket
+                    inbound.save(update_fields=["ticket", "updated_at"])
+        except Exception:
+            logger.debug("Could not link bounce to ticket for email %s", inbound.pk)
+
+    # Extract the failed recipient address from X-Failed-Recipients header
+    from apps.inbound_email.utils import extract_header
+    to_address = ""
+    raw = inbound.raw_headers or ""
+    if raw:
+        to_address = extract_header(raw, "X-Failed-Recipients").strip()
+    if not to_address:
+        to_address = inbound.recipient_email or ""
+
+    # Write BounceLog
+    try:
+        BounceLog.objects.create(
+            tenant=tenant,
+            inbound_email=inbound,
+            from_address=inbound.sender_email,
+            to_address=to_address,
+            subject=inbound.subject or "",
+            bounce_reason=reason,
+            ticket=linked_ticket,
+        )
+    except Exception:
+        logger.exception("Failed to write BounceLog for email %s", inbound.pk)
+
+    # Flag the Contact as bouncing (if the address matches an existing Contact)
+    if tenant and to_address:
+        try:
+            with tenant_context(tenant):
+                Contact.objects.filter(email=to_address).update(email_bouncing=True)
+        except Exception:
+            logger.exception(
+                "Failed to flag contact %s as bouncing", to_address,
+            )
+
+    logger.info("Hard bounce recorded for email %s: %s", inbound.pk, reason)
 
 
 def _reject(inbound, reason):

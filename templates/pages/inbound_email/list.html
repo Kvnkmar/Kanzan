@@ -227,6 +227,9 @@
       var colSender = document.createElement('div');
       colSender.className = 'tl-col';
       colSender.style.flex = '2';
+      colSender.style.flexDirection = 'column';
+      colSender.style.alignItems = 'flex-start';
+      colSender.style.minWidth = '0';
       var senderName = document.createElement('div');
       senderName.className = 'fw-medium text-truncate';
       senderName.style.fontSize = '0.85rem';

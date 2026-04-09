@@ -26,6 +26,11 @@ class NotificationType(models.TextChoices):
     PAYMENT_FAILED = "payment_failed", "Payment Failed"
     SUBSCRIPTION_CHANGE = "subscription_change", "Subscription Change"
     INVITATION = "invitation", "Invitation"
+    AGENT_STATUS_CHANGE = "agent_status_change", "Agent Status Change"
+    TICKET_FOLLOWUP_OVERDUE = "ticket_followup_overdue", "Ticket Follow-up Overdue"
+    REMINDER_OVERDUE = "reminder_overdue", "Reminder Overdue"
+    KB_REVIEW_REQUESTED = "kb_review_requested", "KB Review Requested"
+    KB_ARTICLE_REVIEWED = "kb_article_reviewed", "KB Article Reviewed"
 
 
 class Notification(TenantScopedModel):

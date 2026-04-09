@@ -9,8 +9,12 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.tickets.views import (
+    BusinessHoursViewSet,
     CannedResponseViewSet,
+    CSATSubmitView,
     EscalationRuleViewSet,
+    MacroViewSet,
+    PublicHolidayViewSet,
     QueueViewSet,
     SavedViewViewSet,
     SLAPolicyViewSet,
@@ -30,7 +34,21 @@ router.register(r"escalation-rules", EscalationRuleViewSet, basename="escalation
 router.register(r"ticket-categories", TicketCategoryViewSet, basename="ticketcategory")
 router.register(r"canned-responses", CannedResponseViewSet, basename="canned-response")
 router.register(r"saved-views", SavedViewViewSet, basename="saved-view")
+router.register(r"macros", MacroViewSet, basename="macro")
+router.register(r"public-holidays", PublicHolidayViewSet, basename="publicholiday")
 
 urlpatterns = [
     path("", include(router.urls)),
+    # BusinessHours singleton (no ID routing)
+    path(
+        "business-hours/",
+        BusinessHoursViewSet.as_view({"get": "retrieve", "patch": "partial_update"}),
+        name="business-hours",
+    ),
+    # Public CSAT submission (no auth required)
+    path(
+        "csat/",
+        CSATSubmitView.as_view({"post": "create"}),
+        name="csat-submit",
+    ),
 ]

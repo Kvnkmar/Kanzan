@@ -5,12 +5,98 @@ Provides customisable ticket statuses, queues, SLA policies with escalation
 rules, and full assignment history tracking -- all scoped per tenant.
 """
 
+import datetime
+
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 from django.db.models import F
 from django.utils import timezone
 
 from main.models import TenantScopedModel, TimestampedModel
+
+
+# ---------------------------------------------------------------------------
+# Business hours defaults
+# ---------------------------------------------------------------------------
+
+
+def default_business_hours_schedule():
+    """Default schedule: Mon–Fri 09:00–17:00, Sat–Sun off."""
+    schedule = {}
+    for day in range(7):  # 0=Mon .. 6=Sun
+        schedule[str(day)] = {
+            "is_active": day < 5,
+            "open_time": "09:00",
+            "close_time": "17:00",
+        }
+    return schedule
+
+
+class Pipeline(TenantScopedModel):
+    """
+    A sales or service pipeline belonging to a tenant.
+
+    Pipelines define a sequence of stages that tickets (deals) move through.
+    Each tenant can have multiple pipelines for different workflows.
+    """
+
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, default="")
+    is_default = models.BooleanField(
+        default=False,
+        help_text="If True, new deal-type tickets default to this pipeline.",
+    )
+
+    class Meta:
+        ordering = ["name"]
+        verbose_name = "pipeline"
+        verbose_name_plural = "pipelines"
+
+    def __str__(self):
+        return self.name
+
+
+class PipelineStage(TenantScopedModel):
+    """
+    A stage within a pipeline (e.g. Qualification, Proposal, Negotiation).
+
+    Stages are ordered by ``order`` and can be flagged as won/lost terminal
+    states. ``probability`` is a default win-probability percentage (0-100)
+    for deals entering this stage.
+    """
+
+    pipeline = models.ForeignKey(
+        Pipeline,
+        on_delete=models.CASCADE,
+        related_name="stages",
+    )
+    name = models.CharField(max_length=100)
+    order = models.PositiveIntegerField(
+        help_text="Display order within the pipeline.",
+    )
+    color = models.CharField(max_length=7, default="#6c757d")
+    probability = models.PositiveIntegerField(
+        default=0,
+        help_text="Default win probability percentage (0-100) for this stage.",
+    )
+    is_won = models.BooleanField(
+        default=False,
+        help_text="If True, reaching this stage marks the deal as won.",
+    )
+    is_lost = models.BooleanField(
+        default=False,
+        help_text="If True, reaching this stage marks the deal as lost.",
+    )
+
+    class Meta:
+        unique_together = [("pipeline", "order")]
+        ordering = ["order"]
+        verbose_name = "pipeline stage"
+        verbose_name_plural = "pipeline stages"
+
+    def __str__(self):
+        return f"{self.pipeline.name} - {self.name}"
 
 
 class TicketStatus(TenantScopedModel):
@@ -34,6 +120,10 @@ class TicketStatus(TenantScopedModel):
     is_default = models.BooleanField(
         default=False,
         help_text="If True, new tickets for this tenant receive this status.",
+    )
+    pauses_sla = models.BooleanField(
+        default=False,
+        help_text="If True, SLA clocks pause while a ticket is in this status.",
     )
 
     class Meta:
@@ -151,6 +241,12 @@ class Ticket(TenantScopedModel):
         HIGH = "high", "High"
         URGENT = "urgent", "Urgent"
 
+    class Channel(models.TextChoices):
+        EMAIL = "email", "Email"
+        PORTAL = "portal", "Portal"
+        AGENT = "agent", "Agent"
+        CHAT = "chat", "Chat"
+
     number = models.PositiveIntegerField(editable=False)
     subject = models.CharField(max_length=255)
     description = models.TextField()
@@ -236,6 +332,203 @@ class Ticket(TenantScopedModel):
         help_text="Arbitrary key/value data for custom fields.",
     )
 
+    # --- Phase 1 intake fields ---
+    channel = models.CharField(
+        max_length=20,
+        choices=Channel.choices,
+        default=Channel.AGENT,
+        help_text="Intake channel that created this ticket.",
+    )
+
+    # --- SLA deadline fields ---
+    sla_policy = models.ForeignKey(
+        "tickets.SLAPolicy",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tickets",
+        help_text="The SLA policy applied to this ticket.",
+    )
+    sla_first_response_due = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="UTC deadline for first agent response.",
+    )
+    sla_resolution_due = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="UTC deadline for full resolution.",
+    )
+    sla_paused_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the SLA clock was last paused. Null if not paused.",
+    )
+    sla_extended_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When an SLA deadline extension was last applied via escalation.",
+    )
+
+    # --- Wait-status restore ---
+    pre_wait_status = models.ForeignKey(
+        TicketStatus,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text=(
+            "Snapshot of the status before entering a pauses_sla status. "
+            "Used to restore the previous status when leaving Waiting."
+        ),
+    )
+
+    # --- Status transition tracking ---
+    status_changed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of the most recent status transition.",
+    )
+    status_changed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ticket_status_changes",
+        help_text="User who triggered the most recent status transition.",
+    )
+
+    # --- Escalation tracking ---
+    escalation_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of times this ticket has been escalated.",
+    )
+    escalated_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of the most recent escalation.",
+    )
+
+    # --- Closure / CSAT ---
+    solved_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the ticket moved to 'resolved' status.",
+    )
+    auto_close_task_id = models.CharField(
+        max_length=255,
+        null=True,
+        blank=True,
+        help_text="Celery task ID of the pending auto-close task.",
+    )
+    csat_rating = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Customer satisfaction rating (1-5).",
+    )
+    csat_comment = models.TextField(
+        blank=True,
+        default="",
+        help_text="Optional customer feedback text.",
+    )
+    csat_submitted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the CSAT survey was submitted.",
+    )
+    needs_kb_article = models.BooleanField(
+        default=False,
+        help_text="Set by post-closure check if category lacks KB articles.",
+    )
+    merged_into = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="merged_from",
+        help_text="If this ticket was merged, points to the primary ticket.",
+    )
+
+    # --- CRM follow-up tracking ---
+    follow_up_due_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When a follow-up action is due for this ticket.",
+    )
+    last_activity_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of the most recent CRM activity on this ticket.",
+    )
+
+    # --- CRM pipeline fields ---
+    class TicketType(models.TextChoices):
+        SUPPORT = "support", "Support"
+        DEAL = "deal", "Deal"
+        INQUIRY = "inquiry", "Inquiry"
+
+    ticket_type = models.CharField(
+        max_length=20,
+        choices=TicketType.choices,
+        default=TicketType.SUPPORT,
+        help_text="Classifies the ticket as support, deal, or inquiry.",
+    )
+    deal_value = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Monetary value of the deal (for deal-type tickets).",
+    )
+    expected_close_date = models.DateField(
+        null=True,
+        blank=True,
+        help_text="Expected close date for deal-type tickets.",
+    )
+    probability = models.PositiveSmallIntegerField(
+        null=True,
+        blank=True,
+        help_text="Win probability percentage (0-100) for deal-type tickets.",
+    )
+    account = models.ForeignKey(
+        "contacts.Account",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tickets",
+        help_text="CRM account associated with this ticket.",
+    )
+    pipeline_stage = models.ForeignKey(
+        "tickets.PipelineStage",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="tickets",
+        help_text="Current pipeline stage (for deal-type tickets).",
+    )
+    won_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the deal was marked as won.",
+    )
+    lost_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the deal was marked as lost.",
+    )
+    won_reason = models.CharField(
+        max_length=500,
+        null=True,
+        blank=True,
+        help_text="Reason the deal was won.",
+    )
+    lost_reason = models.CharField(
+        max_length=500,
+        null=True,
+        blank=True,
+        help_text="Reason the deal was lost.",
+    )
+
     class Meta:
         unique_together = [("tenant", "number")]
         indexes = [
@@ -271,6 +564,69 @@ class Ticket(TenantScopedModel):
             with transaction.atomic():
                 self.number = TicketCounter.next_number(self.tenant_id)
         super().save(*args, **kwargs)
+
+
+class TicketLink(TenantScopedModel):
+    """
+    A directed link between two tickets within the same tenant.
+
+    Supports duplicate tracking, dependency chains, and general relation
+    markers. Links are stored as a single directed record but displayed
+    bidirectionally in the UI.
+    """
+
+    class LinkType(models.TextChoices):
+        DUPLICATE_OF = "duplicate_of", "Duplicate of"
+        RELATED_TO = "related_to", "Related to"
+        BLOCKS = "blocks", "Blocks"
+        BLOCKED_BY = "blocked_by", "Blocked by"
+
+    source_ticket = models.ForeignKey(
+        Ticket,
+        on_delete=models.CASCADE,
+        related_name="outgoing_links",
+    )
+    target_ticket = models.ForeignKey(
+        Ticket,
+        on_delete=models.CASCADE,
+        related_name="incoming_links",
+    )
+    link_type = models.CharField(
+        max_length=20,
+        choices=LinkType.choices,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="+",
+    )
+
+    class Meta:
+        unique_together = [("source_ticket", "target_ticket", "link_type")]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(source_ticket=models.F("target_ticket")),
+                name="ticketlink_no_self_link",
+            ),
+        ]
+        ordering = ["-created_at"]
+        verbose_name = "ticket link"
+        verbose_name_plural = "ticket links"
+
+    def __str__(self):
+        return f"#{self.source_ticket_id} {self.get_link_type_display()} #{self.target_ticket_id}"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+
+        super().clean()
+        if (
+            self.source_ticket_id
+            and self.target_ticket_id
+            and self.source_ticket.tenant_id != self.target_ticket.tenant_id
+        ):
+            raise ValidationError("Both tickets must belong to the same tenant.")
 
 
 class SLAPolicy(TenantScopedModel):
@@ -362,6 +718,175 @@ class EscalationRule(TenantScopedModel):
         )
 
 
+class BusinessHours(TenantScopedModel):
+    """
+    Per-tenant business hours configuration for SLA calculations.
+
+    The ``schedule`` JSONField stores per-day open/close times::
+
+        {
+            "0": {"is_active": true, "open_time": "09:00", "close_time": "17:00"},
+            "1": {"is_active": true, "open_time": "09:00", "close_time": "17:00"},
+            ...
+            "6": {"is_active": false, "open_time": "09:00", "close_time": "17:00"}
+        }
+
+    Keys are ISO weekday integers as strings (``"0"``=Monday .. ``"6"``=Sunday).
+    Falls back to 24/7 when no ``BusinessHours`` row exists for a tenant.
+    """
+
+    timezone = models.CharField(
+        max_length=50,
+        default="UTC",
+        help_text="IANA timezone name (e.g. 'America/New_York').",
+    )
+    schedule = models.JSONField(
+        default=default_business_hours_schedule,
+        help_text="Per-day open/close times. Keys are weekday ints 0–6 as strings.",
+    )
+
+    class Meta:
+        verbose_name = "business hours"
+        verbose_name_plural = "business hours"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["tenant"],
+                name="unique_business_hours_per_tenant",
+            ),
+        ]
+
+    def __str__(self):
+        active_days = sum(
+            1 for d in self.schedule.values()
+            if isinstance(d, dict) and d.get("is_active")
+        )
+        return f"Business hours for {self.tenant} ({active_days} active days)"
+
+    def clean(self):
+        super().clean()
+        if not isinstance(self.schedule, dict):
+            raise ValidationError({"schedule": "Must be a JSON object."})
+        for key, day in self.schedule.items():
+            if key not in {str(i) for i in range(7)}:
+                raise ValidationError(
+                    {"schedule": f"Invalid day key: {key}. Must be '0'..'6'."}
+                )
+            if not isinstance(day, dict):
+                raise ValidationError(
+                    {"schedule": f"Day {key} must be an object."}
+                )
+            if day.get("is_active"):
+                for field in ("open_time", "close_time"):
+                    val = day.get(field)
+                    if not val:
+                        raise ValidationError(
+                            {"schedule": f"Day {key}: {field} is required when active."}
+                        )
+                    try:
+                        datetime.time.fromisoformat(val)
+                    except (ValueError, TypeError):
+                        raise ValidationError(
+                            {"schedule": f"Day {key}: {field} must be HH:MM format."}
+                        )
+
+    def get_day_config(self, weekday: int):
+        """Return (is_active, open_time, close_time) for a given weekday int."""
+        day = self.schedule.get(str(weekday), {})
+        if not isinstance(day, dict) or not day.get("is_active"):
+            return False, None, None
+        return (
+            True,
+            datetime.time.fromisoformat(day["open_time"]),
+            datetime.time.fromisoformat(day["close_time"]),
+        )
+
+    def weekly_business_minutes(self):
+        """Return total business minutes per week."""
+        total = 0
+        for weekday in range(7):
+            is_active, open_t, close_t = self.get_day_config(weekday)
+            if is_active and open_t and close_t and open_t < close_t:
+                delta = datetime.datetime.combine(datetime.date.min, close_t) - \
+                        datetime.datetime.combine(datetime.date.min, open_t)
+                total += delta.total_seconds() / 60
+        return int(total)
+
+
+class PublicHoliday(TenantScopedModel):
+    """
+    Public holiday that pauses SLA clocks for the entire day.
+
+    Holidays are specific to a tenant and a calendar date. Business hours
+    utilities skip any day that has a matching ``PublicHoliday`` record.
+    """
+
+    date = models.DateField(help_text="The holiday date.")
+    name = models.CharField(max_length=200, help_text="Holiday name (e.g. 'Christmas Day').")
+
+    class Meta:
+        unique_together = [("tenant", "date")]
+        ordering = ["date"]
+        verbose_name = "public holiday"
+        verbose_name_plural = "public holidays"
+
+    def __str__(self):
+        return f"{self.name} ({self.date})"
+
+
+class SLAPause(TenantScopedModel):
+    """
+    Records a period during which the SLA clock was paused for a ticket.
+
+    Created when a ticket transitions to a ``pauses_sla=True`` status
+    (e.g. "Waiting on Customer"). Closed (``resumed_at`` set) when the
+    ticket leaves that status or a customer reply arrives.
+    """
+
+    class Reason(models.TextChoices):
+        WAITING_ON_CUSTOMER = "waiting_on_customer", "Waiting on customer"
+        MANUAL = "manual", "Manual pause"
+
+    ticket = models.ForeignKey(
+        "tickets.Ticket",
+        on_delete=models.CASCADE,
+        related_name="sla_pauses",
+    )
+    paused_at = models.DateTimeField(
+        help_text="When the SLA clock was paused.",
+    )
+    resumed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the SLA clock was resumed. Null if still paused.",
+    )
+    reason = models.CharField(
+        max_length=30,
+        choices=Reason.choices,
+        default=Reason.WAITING_ON_CUSTOMER,
+    )
+
+    class Meta:
+        ordering = ["-paused_at"]
+        indexes = [
+            models.Index(
+                fields=["ticket", "resumed_at"],
+                name="slapause_ticket_resumed",
+            ),
+        ]
+        verbose_name = "SLA pause"
+        verbose_name_plural = "SLA pauses"
+
+    def __str__(self):
+        state = "active" if self.resumed_at is None else "closed"
+        return f"SLA pause for #{self.ticket.number} ({state})"
+
+    @property
+    def duration_minutes(self):
+        """Return pause duration in minutes. Uses now() if still open."""
+        end = self.resumed_at or timezone.now()
+        return (end - self.paused_at).total_seconds() / 60
+
+
 class TicketActivity(TenantScopedModel):
     """
     Human-readable timeline of events for a specific ticket.
@@ -388,13 +913,30 @@ class TicketActivity(TenantScopedModel):
         CLOSED = "closed", "Closed"
         REOPENED = "reopened", "Reopened"
         ESCALATED = "escalated", "Escalated"
+        ESCALATED_MANUAL = "escalated_manual", "Manually Escalated"
         ATTACHMENT_ADDED = "attachment_added", "Attachment Added"
         ATTACHMENT_REMOVED = "attachment_removed", "Attachment Removed"
+        SLA_PAUSED = "sla_paused", "SLA Paused"
+        SLA_RESUMED = "sla_resumed", "SLA Resumed"
+        AUTO_CLOSED = "auto_closed", "Auto-closed"
+        CSAT_RECEIVED = "csat_received", "CSAT Received"
+        FIRST_RESPONSE = "first_response", "First Response Sent"
+        PIPELINE_STAGE_CHANGED = "pipeline_stage_changed", "Pipeline Stage Changed"
+        EMAIL_LINKED = "email_linked", "Email Linked"
+        EMAIL_ACTIONED = "email_actioned", "Email Actioned"
 
     ticket = models.ForeignKey(
         Ticket,
         on_delete=models.CASCADE,
         related_name="activities",
+    )
+    contact = models.ForeignKey(
+        "contacts.Contact",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="ticket_activities",
+        help_text="Contact associated with the ticket at the time of this event.",
     )
     actor = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -472,6 +1014,55 @@ class CannedResponse(TenantScopedModel):
 
     def __str__(self):
         return f"{self.title} ({self.shortcut or 'no shortcut'})"
+
+
+class Macro(TenantScopedModel):
+    """
+    Agent macro: a reusable body template with optional ticket actions.
+
+    When applied to a ticket, the body is rendered with variable substitution
+    and posted as a comment, then each action in ``actions`` is executed
+    atomically (set_status, set_priority, add_tag).
+    """
+
+    name = models.CharField(max_length=200)
+    description = models.CharField(max_length=500, blank=True, default="")
+    body = models.TextField(
+        help_text=(
+            "Template body. Supports variables: "
+            "{{ticket.number}}, {{ticket.subject}}, {{contact.name}}, "
+            "{{agent.name}}, {{ticket.queue}}"
+        ),
+    )
+    actions = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            'List of actions, e.g. [{"action": "set_status", "value": "resolved"}, '
+            '{"action": "set_priority", "value": "low"}, '
+            '{"action": "add_tag", "value": "billing"}]'
+        ),
+    )
+    is_shared = models.BooleanField(
+        default=True,
+        help_text="False = personal to creator only.",
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="macros",
+    )
+
+    class Meta:
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["tenant", "is_shared"]),
+        ]
+        verbose_name = "macro"
+        verbose_name_plural = "macros"
+
+    def __str__(self):
+        return self.name
 
 
 class SavedView(TenantScopedModel):
@@ -557,3 +1148,4 @@ class TicketAssignment(TenantScopedModel):
 
     def __str__(self):
         return f"Ticket #{self.ticket.number} -> {self.assigned_to}"
+

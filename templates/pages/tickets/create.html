@@ -153,8 +153,8 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
       <i class="ti ti-arrow-left"></i>
     </a>
     <div>
-      <h1 class="page-title">Create Ticket</h1>
-      <p class="page-subtitle">Submit a new support ticket</p>
+      <h1 class="page-title">New Ticket</h1>
+      <p class="page-subtitle">Create a ticket for a contact or internal issue</p>
     </div>
   </div>
 </div>
@@ -162,122 +162,125 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 <!-- Form -->
 <div class="row justify-content-center">
   <div class="col-lg-8">
-    <div class="card">
-      <div class="card-body p-4">
-        <div id="formAlert" class="alert d-none" role="alert"></div>
-        <form id="createTicketForm" novalidate>
+    <div id="formAlert" class="alert d-none mb-3" role="alert"></div>
+    <form id="createTicketForm" novalidate>
 
-          <!-- Subject -->
-          <div class="mb-4">
-            <label for="ticketSubject" class="form-label">
-              Subject <span class="text-danger">*</span>
-            </label>
-            <input type="text" id="ticketSubject" name="subject" class="form-control" placeholder="Brief summary of the issue" required maxlength="255">
-            <div class="invalid-feedback" id="subjectError"></div>
-          </div>
-
-          <!-- Description -->
-          <div class="mb-4">
-            <label class="form-label">Description</label>
-            <div id="ticketDescriptionEditor"></div>
-            <div class="invalid-feedback" id="descriptionError"></div>
-          </div>
-
-          <!-- Attachments -->
-          <div class="mb-4">
-            <label class="form-label">Attachments</label>
-            <div id="dropZone" class="drop-zone">
-              <i class="ti ti-cloud-upload drop-zone-icon"></i>
-              <div class="drop-zone-text">
-                Drop files here or <span class="text-primary fw-medium">browse</span>
-              </div>
-              <div class="drop-zone-hint">Max 25 MB per file &middot; Images, PDF, Office docs, CSV, TXT</div>
-              <input type="file" id="ticketFiles" multiple class="d-none" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp">
-            </div>
-            <div id="fileList" class="mt-2"></div>
-          </div>
-
-          <!-- Properties Section -->
-          <div class="form-section">
-            <h6 class="form-section-title">Properties</h6>
-            <div class="row">
-              <div class="col-md-4 mb-3">
-                <label for="ticketPriority" class="form-label">
-                  Priority <span class="text-danger">*</span>
-                </label>
-                <select id="ticketPriority" name="priority" class="form-select" required>
-                  <option value="low">Low</option>
-                  <option value="medium" selected>Medium</option>
-                  <option value="high">High</option>
-                  <option value="urgent">Urgent</option>
-                </select>
-                <div class="invalid-feedback" id="priorityError"></div>
-              </div>
-              <div class="col-md-4 mb-3">
-                <label for="ticketQueue" class="form-label">
-                  Queue <span class="text-danger">*</span>
-                </label>
-                <select id="ticketQueue" name="queue" class="form-select" required>
-                  <option value="">Select a queue...</option>
-                </select>
-                <div class="invalid-feedback" id="queueError"></div>
-              </div>
-              <div class="col-md-4 mb-3">
-                <label for="ticketAssignee" class="form-label">Assignee</label>
-                <select id="ticketAssignee" name="assignee" class="form-select">
-                  <option value="">Unassigned</option>
-                </select>
-                <div class="invalid-feedback" id="assigneeError"></div>
-              </div>
-            </div>
-            <div class="row">
-              <div class="col-md-4 mb-3 mb-md-0">
-                <label for="ticketDueDate" class="form-label">Due Date</label>
-                <input type="text" id="ticketDueDate" name="due_date" class="form-control" placeholder="Select date & time" readonly>
-                <div class="invalid-feedback" id="due_dateError"></div>
-              </div>
-              <div class="col-md-4 mb-3 mb-md-0">
-                <label for="ticketCategory" class="form-label">Category</label>
-                <select id="ticketCategory" name="category" class="form-select">
-                  <option value="">No category</option>
-                </select>
-                <div class="invalid-feedback" id="categoryError"></div>
-              </div>
-              <div class="col-md-4">
-                <label for="ticketContact" class="form-label">Contact</label>
-                <select id="ticketContact" name="contact" class="form-select">
-                  <option value="">No contact</option>
-                </select>
-                <div class="invalid-feedback" id="contactError"></div>
-              </div>
-            </div>
-          </div>
-
-          <!-- Tags Section -->
-          <div class="form-section">
-            <h6 class="form-section-title">Tags</h6>
-            <div class="d-flex gap-2 mb-2">
-              <input type="text" id="tagInput" class="form-control" placeholder="Type a tag and press Enter">
-              <button type="button" id="addTagBtn" class="btn btn-outline-secondary" style="white-space:nowrap;">
-                <i class="ti ti-plus me-1"></i>Add
-              </button>
-            </div>
-            <div id="tagContainer" class="d-flex flex-wrap gap-1"></div>
-          </div>
-
-          <!-- Actions -->
-          <div class="form-actions">
-            <a href="{% url 'frontend:ticket-list' %}" class="btn btn-outline-secondary">Cancel</a>
-            <button type="submit" id="submitBtn" class="btn btn-primary">
-              <span id="submitText"><i class="ti ti-check me-1"></i>Create Ticket</span>
-              <span id="submitSpinner" class="d-none">
-                <span class="spinner-border spinner-border-sm me-1" role="status"></span>Creating...
-              </span>
-            </button>
-          </div>
-        </form>
+      <!-- Subject — full width, large input -->
+      <div class="ct-section ct-section--subject">
+        <input type="text" id="ticketSubject" name="subject" class="ct-subject-input" placeholder="What's the issue? Write a brief summary..." required maxlength="255">
+        <div class="invalid-feedback" id="subjectError"></div>
       </div>
-    </div>
+
+      <!-- Properties Card -->
+      <div class="ct-section">
+        <div class="ct-section-header">
+          <div class="ct-section-icon ct-section-icon--blue"><i class="ti ti-adjustments-horizontal" aria-hidden="true"></i></div>
+          <span class="ct-section-title">Properties</span>
+        </div>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="ticketPriority" class="ct-label">
+              Priority <span class="text-danger">*</span>
+            </label>
+            <select id="ticketPriority" name="priority" class="form-select ct-select" required>
+              <option value="low" data-priority="low">Low</option>
+              <option value="medium" selected data-priority="medium">Medium</option>
+              <option value="high" data-priority="high">High</option>
+              <option value="urgent" data-priority="urgent">Urgent</option>
+            </select>
+            <div class="invalid-feedback" id="priorityError"></div>
+          </div>
+          <div class="col-md-4">
+            <label for="ticketQueue" class="ct-label">
+              Queue <span class="text-danger">*</span>
+            </label>
+            <select id="ticketQueue" name="queue" class="form-select ct-select" required>
+              <option value="">Select a queue...</option>
+            </select>
+            <div class="invalid-feedback" id="queueError"></div>
+          </div>
+          <div class="col-md-4">
+            <label for="ticketAssignee" class="ct-label">Assignee</label>
+            <select id="ticketAssignee" name="assignee" class="form-select ct-select">
+              <option value="">Unassigned</option>
+            </select>
+            <div class="invalid-feedback" id="assigneeError"></div>
+          </div>
+          <div class="col-md-4">
+            <label for="ticketDueDate" class="ct-label">Due Date</label>
+            <input type="text" id="ticketDueDate" name="due_date" class="form-control ct-select" placeholder="Select date & time" readonly>
+            <div class="invalid-feedback" id="due_dateError"></div>
+          </div>
+          <div class="col-md-4">
+            <label for="ticketCategory" class="ct-label">Category</label>
+            <select id="ticketCategory" name="category" class="form-select ct-select">
+              <option value="">No category</option>
+            </select>
+            <div class="invalid-feedback" id="categoryError"></div>
+          </div>
+          <div class="col-md-4">
+            <label for="ticketContact" class="ct-label">Contact</label>
+            <select id="ticketContact" name="contact" class="form-select ct-select">
+              <option value="">No contact</option>
+            </select>
+            <div class="invalid-feedback" id="contactError"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Description -->
+      <div class="ct-section">
+        <div class="ct-section-header">
+          <div class="ct-section-icon ct-section-icon--slate"><i class="ti ti-align-left" aria-hidden="true"></i></div>
+          <span class="ct-section-title">Description</span>
+        </div>
+        <div id="ticketDescriptionEditor"></div>
+        <div class="invalid-feedback" id="descriptionError"></div>
+      </div>
+
+      <!-- Attachments -->
+      <div class="ct-section">
+        <div class="ct-section-header">
+          <div class="ct-section-icon ct-section-icon--amber"><i class="ti ti-paperclip" aria-hidden="true"></i></div>
+          <span class="ct-section-title">Attachments</span>
+        </div>
+        <div id="dropZone" class="drop-zone">
+          <i class="ti ti-cloud-upload drop-zone-icon"></i>
+          <div class="drop-zone-text">
+            Drop files here or <span class="text-primary fw-medium">browse</span>
+          </div>
+          <div class="drop-zone-hint">Max 25 MB per file &middot; Images, PDF, Office docs, CSV, TXT</div>
+          <input type="file" id="ticketFiles" multiple class="d-none" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp">
+        </div>
+        <div id="fileList" class="mt-2"></div>
+      </div>
+
+      <!-- Tags -->
+      <div class="ct-section">
+        <div class="ct-section-header">
+          <div class="ct-section-icon ct-section-icon--green"><i class="ti ti-tags" aria-hidden="true"></i></div>
+          <span class="ct-section-title">Tags</span>
+        </div>
+        <div class="d-flex gap-2">
+          <input type="text" id="tagInput" class="form-control" placeholder="Type a tag and press Enter">
+          <button type="button" id="addTagBtn" class="btn btn-outline-secondary" style="white-space:nowrap;">
+            <i class="ti ti-plus me-1"></i>Add
+          </button>
+        </div>
+        <div id="tagContainer" class="d-flex flex-wrap gap-1 mt-2"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="ct-actions">
+        <a href="{% url 'frontend:ticket-list' %}" class="btn btn-outline-secondary">Cancel</a>
+        <button type="submit" id="submitBtn" class="ct-submit-btn">
+          <span id="submitText"><i class="ti ti-check me-1"></i>Create Ticket</span>
+          <span id="submitSpinner" class="d-none">
+            <span class="spinner-border spinner-border-sm me-1" role="status"></span>Creating...
+          </span>
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %}
@@ -385,19 +388,30 @@ window.dispatchEvent(new Event('tiptap-ready'));
     }
   });
 
+  // --- Priority color indicator ---
+  var priorityEl = document.getElementById('ticketPriority');
+  priorityEl.setAttribute('data-selected-priority', priorityEl.value);
+  priorityEl.addEventListener('change', function() {
+    this.setAttribute('data-selected-priority', this.value);
+  });
+
   // --- Tag handling ---
   var tags = [];
   function renderTags() {
-    var c = document.getElementById('tagContainer'); c.innerHTML = '';
+    var c = document.getElementById('tagContainer'); c.textContent = '';
     tags.forEach(function(tag, i) {
-      c.insertAdjacentHTML('beforeend',
-        '<span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1 py-1 px-2">' +
-          escapeHtml(tag) +
-          '<button type="button" class="btn-close btn-close-sm" style="font-size:0.55rem;" data-idx="' + i + '"></button>' +
-        '</span>');
-    });
-    c.querySelectorAll('.btn-close').forEach(function(btn) {
-      btn.addEventListener('click', function() { tags.splice(parseInt(this.getAttribute('data-idx')), 1); renderTags(); });
+      var pill = document.createElement('span');
+      pill.className = 'td-tag d-inline-flex align-items-center gap-1';
+      pill.style.cssText = 'padding:0.25rem 0.5rem;font-size:0.75rem;';
+      pill.textContent = tag;
+      var closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.className = 'btn-close btn-close-sm';
+      closeBtn.style.fontSize = '0.5rem';
+      closeBtn.setAttribute('data-idx', i);
+      closeBtn.addEventListener('click', function() { tags.splice(parseInt(this.getAttribute('data-idx')), 1); renderTags(); });
+      pill.appendChild(closeBtn);
+      c.appendChild(pill);
     });
   }
   function addTag() {

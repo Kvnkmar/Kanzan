@@ -10,7 +10,7 @@ permission backend.
 import logging
 
 from django.contrib.contenttypes.models import ContentType
-from rest_framework import status
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -27,8 +27,10 @@ from apps.comments.serializers import (
 from apps.comments.services import log_activity
 from apps.tickets.filters import TicketFilter
 from apps.tickets.models import (
+    BusinessHours,
     CannedResponse,
     EscalationRule,
+    PublicHoliday,
     Queue,
     SavedView,
     SLAPolicy,
@@ -43,20 +45,27 @@ from apps.tickets.services import (
     change_ticket_status,
     close_ticket,
     create_ticket_activity,
+    escalate_ticket,
     log_ticket_comment,
+    transition_pipeline_stage,
+    transition_ticket_status,
 )
 from apps.tickets.serializers import (
+    BusinessHoursSerializer,
     CannedResponseSerializer,
     EscalationRuleSerializer,
+    PublicHolidaySerializer,
     QueueSerializer,
     SavedViewSerializer,
     SLAPolicySerializer,
     TicketActivitySerializer,
     TicketAssignmentSerializer,
     TicketCategorySerializer,
+    TicketChangeStatusSerializer,
     TicketCreateSerializer,
     TicketDetailSerializer,
     TicketEmailListSerializer,
+    TicketEscalateSerializer,
     TicketLinkEmailSerializer,
     TicketListSerializer,
     TicketSendEmailSerializer,
@@ -210,6 +219,8 @@ class TicketViewSet(ModelViewSet):
                 "contact",
                 "contact__company",
                 "company",
+                "sla_policy",
+                "status_changed_by",
             )
             .all()
         )
@@ -263,92 +274,61 @@ class TicketViewSet(ModelViewSet):
         # Use serializer.instance (not self.get_object()) to ensure the flag
         # is on the same Python object that the signal receives.
         instance = serializer.instance
-        from apps.tickets.models import TicketActivity
 
-        # Tell the signal not to log — the ViewSet handles dual-write below.
+        # Tell the signal not to log — the service layer handles dual-write.
         instance._skip_signal_logging = True
 
         # Snapshot old values before the serializer applies changes.
         old_status = instance.status
         old_status_id = instance.status_id
-        old_status_name = old_status.name if old_status_id else None
         old_priority = instance.priority
-        old_priority_display = instance.get_priority_display()
         old_assignee = instance.assignee
         old_assignee_id = old_assignee.pk if old_assignee else None
-        old_assignee_name = (
-            old_assignee.get_full_name() or str(old_assignee)
-            if old_assignee else None
-        )
 
-        # Serializer applies ALL changes in one save.
+        # Extract service-layer fields BEFORE serializer.save() so we can
+        # route them through the proper service functions (which handle
+        # Phase 4 hooks, SLA breach checks, and dual-write logging).
+        from apps.tickets.services import validate_status_transition
+
+        pending_status = serializer.validated_data.pop("status", None)
+        pending_priority = serializer.validated_data.pop("priority", None)
+        pending_assignee = serializer.validated_data.pop("assignee", None)
+
+        # Validate status transition before saving anything
+        if pending_status and pending_status.pk != old_status_id:
+            validate_status_transition(instance, pending_status)
+
+        # Save remaining simple fields (subject, description, tags, etc.)
         updated = serializer.save()
         actor = self.request.user
-        tenant = getattr(self.request, "tenant", None)
 
-        # --- Status change ---
-        if updated.status_id != old_status_id:
-            new_status_name = updated.status.name
-            was_closed = old_status.is_closed if old_status else False
-            now_closed = updated.status.is_closed
+        # Delegate tracked field changes to the service layer
+        if pending_status and pending_status.pk != old_status_id:
+            transition_ticket_status(updated, pending_status, actor, request=self.request)
 
-            if now_closed and not was_closed:
-                timeline_event = TicketActivity.Event.CLOSED
-                audit_action = ActivityLog.Action.CLOSED
-            elif was_closed and not now_closed:
-                timeline_event = TicketActivity.Event.REOPENED
-                audit_action = ActivityLog.Action.REOPENED
+        if pending_priority is not None and pending_priority != old_priority:
+            change_ticket_priority(updated, pending_priority, actor, request=self.request)
+
+        if pending_assignee is not None and (
+            (pending_assignee.pk if pending_assignee else None) != old_assignee_id
+        ):
+            if pending_assignee:
+                assign_ticket(updated, pending_assignee, actor, request=self.request)
             else:
-                timeline_event = TicketActivity.Event.STATUS_CHANGED
-                audit_action = ActivityLog.Action.STATUS_CHANGED
-
-            msg = f"Status changed from {old_status_name} to {new_status_name}"
-            log_activity(
-                tenant=tenant, actor=actor, content_object=updated,
-                action=audit_action, description=msg,
-                changes={"status": [old_status_name, new_status_name]},
-                request=self.request,
-            )
-            TicketActivity.objects.create(
-                tenant=tenant, ticket=updated, actor=actor,
-                event=timeline_event, message=msg,
-                metadata={"old_status": old_status_name, "new_status": new_status_name},
-            )
-
-        # --- Priority change ---
-        if updated.priority != old_priority:
-            new_priority_display = updated.get_priority_display()
-            msg = f"Priority changed from {old_priority_display} to {new_priority_display}"
-            log_activity(
-                tenant=tenant, actor=actor, content_object=updated,
-                action=ActivityLog.Action.FIELD_CHANGED, description=msg,
-                changes={"priority": [old_priority_display, new_priority_display]},
-                request=self.request,
-            )
-            TicketActivity.objects.create(
-                tenant=tenant, ticket=updated, actor=actor,
-                event=TicketActivity.Event.PRIORITY_CHANGED, message=msg,
-                metadata={"old_priority": old_priority, "new_priority": updated.priority},
-            )
-
-        # --- Assignee change ---
-        if updated.assignee_id != old_assignee_id:
-            new_assignee_name = (
-                updated.assignee.get_full_name() or str(updated.assignee)
-                if updated.assignee else None
-            )
-            msg = f"Assigned to {new_assignee_name}" if new_assignee_name else "Unassigned"
-            log_activity(
-                tenant=tenant, actor=actor, content_object=updated,
-                action=ActivityLog.Action.ASSIGNED, description=msg,
-                changes={"assignee": [old_assignee_name, new_assignee_name]},
-                request=self.request,
-            )
-            TicketActivity.objects.create(
-                tenant=tenant, ticket=updated, actor=actor,
-                event=TicketActivity.Event.ASSIGNED, message=msg,
-                metadata={"previous_assignee": old_assignee_name, "new_assignee": new_assignee_name},
-            )
+                # Unassign: update directly and log
+                updated.assignee = None
+                updated.save(update_fields=["assignee", "updated_at"])
+                from apps.comments.services import log_activity as _log_activity
+                _log_activity(
+                    tenant=getattr(self.request, "tenant", None),
+                    actor=actor, content_object=updated,
+                    action=ActivityLog.Action.ASSIGNED,
+                    description="Unassigned",
+                    changes={"assignee": [
+                        old_assignee.get_full_name() if old_assignee else None, None,
+                    ]},
+                    request=self.request,
+                )
 
     # ------------------------------------------------------------------
     # Custom actions
@@ -427,6 +407,161 @@ class TicketViewSet(ModelViewSet):
         ticket.refresh_from_db()
         serializer = TicketDetailSerializer(ticket, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="change-status")
+    def change_status(self, request, pk=None):
+        """
+        Change ticket status with transition enforcement.
+
+        Validates the transition against the allowed transition map before
+        applying. Illegal transitions return 400 with a descriptive error.
+
+        POST /api/v1/tickets/tickets/{id}/change-status/
+        {"status": "<ticketstatus-uuid>"}
+        """
+        ticket = self.get_object()
+        serializer = TicketChangeStatusSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        status_id = serializer.validated_data["status"]
+        try:
+            new_status = TicketStatus.objects.get(pk=status_id)
+        except TicketStatus.DoesNotExist:
+            return Response(
+                {"detail": "Status not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from django.core.exceptions import ValidationError
+
+        try:
+            transition_ticket_status(
+                ticket=ticket,
+                new_status=new_status,
+                actor=request.user,
+                request=request,
+            )
+        except ValidationError as exc:
+            return Response(
+                {"detail": exc.message if hasattr(exc, "message") else str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ticket.refresh_from_db()
+        serializer = TicketDetailSerializer(ticket, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="change-stage")
+    def change_stage(self, request, pk=None):
+        """
+        Change a ticket's pipeline stage.
+
+        POST /api/v1/tickets/tickets/{id}/change-stage/
+        {"stage": "<pipelinestage-uuid>", "reason": "optional string"}
+        """
+        from apps.tickets.models import PipelineStage
+        from apps.tickets.serializers import TicketChangeStageSerializer
+
+        ticket = self.get_object()
+        serializer = TicketChangeStageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        stage_id = serializer.validated_data["stage"]
+        reason = serializer.validated_data.get("reason", "")
+
+        try:
+            new_stage = PipelineStage.objects.get(pk=stage_id)
+        except PipelineStage.DoesNotExist:
+            return Response(
+                {"detail": "Pipeline stage not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            transition_pipeline_stage(
+                ticket=ticket,
+                new_stage=new_stage,
+                changed_by=request.user,
+                reason=reason,
+                request=request,
+            )
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ticket.refresh_from_db()
+        detail_serializer = TicketDetailSerializer(ticket, context={"request": request})
+        return Response(detail_serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="escalate")
+    def escalate(self, request, pk=None):
+        """
+        Escalate a ticket to a different agent or queue.
+
+        Reassigns the ticket, increments escalation_count, posts an
+        internal comment with the reason, and recalculates SLA deadlines
+        if the new context has a different SLA policy.
+
+        POST /api/v1/tickets/tickets/{id}/escalate/
+        {"assignee": "<user-uuid>", "queue": "<queue-uuid>", "reason": "..."}
+        """
+        ticket = self.get_object()
+        serializer = TicketEscalateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
+        assignee = None
+        queue = None
+
+        assignee_id = serializer.validated_data.get("assignee")
+        if assignee_id:
+            try:
+                assignee = User.objects.get(pk=assignee_id)
+            except User.DoesNotExist:
+                return Response(
+                    {"detail": "Assignee not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        queue_id = serializer.validated_data.get("queue")
+        if queue_id:
+            try:
+                queue = Queue.objects.get(pk=queue_id)
+            except Queue.DoesNotExist:
+                return Response(
+                    {"detail": "Queue not found."},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        try:
+            escalate_ticket(
+                ticket=ticket,
+                actor=request.user,
+                reason=serializer.validated_data["reason"],
+                assignee=assignee,
+                queue=queue,
+                request=request,
+            )
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ticket.refresh_from_db()
+        detail_serializer = TicketDetailSerializer(
+            ticket, context={"request": request},
+        )
+        return Response(detail_serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"], url_path="lookup")
     def lookup(self, request):
@@ -680,10 +815,12 @@ class TicketViewSet(ModelViewSet):
         # Ticket timeline (TicketActivity)
         log_ticket_comment(ticket, request.user, is_internal=comment.is_internal)
 
-        # Track first agent response
-        from apps.tickets.services import record_first_response
+        # Track first agent response — only outbound (non-internal) comments
+        # by a non-creator agent count as a customer-facing reply.
+        if not comment.is_internal:
+            from apps.tickets.services import record_first_response
 
-        record_first_response(ticket, request.user)
+            record_first_response(ticket, request.user)
 
         # Fire signal so the notification system can notify relevant users
         from apps.notifications.signal_handlers import ticket_comment_created
@@ -884,6 +1021,11 @@ class TicketViewSet(ModelViewSet):
             request=request,
         )
 
+        # Track first agent response — outbound email is customer-facing.
+        from apps.tickets.services import record_first_response
+
+        record_first_response(ticket, request.user)
+
         logger.info(
             "Agent %s queued email to %s for ticket #%d",
             request.user.email, to_email, ticket.number,
@@ -996,6 +1138,401 @@ class TicketViewSet(ModelViewSet):
         serializer = TicketEmailListSerializer(emails_qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    # ------------------------------------------------------------------
+    # Ticket linking
+    # ------------------------------------------------------------------
+
+    @action(detail=True, methods=["get", "post"], url_path="links")
+    def links(self, request, pk=None):
+        """
+        GET: List all links for this ticket (both directions).
+        POST: Create a new link from this ticket to another.
+
+        Agent+ can link tickets.
+        """
+        ticket = self.get_object()
+
+        if request.method == "GET":
+            from django.db.models import Q
+
+            from apps.tickets.models import TicketLink
+            from apps.tickets.serializers import TicketLinkSerializer
+
+            links_qs = (
+                TicketLink.objects.filter(
+                    Q(source_ticket=ticket) | Q(target_ticket=ticket),
+                )
+                .select_related(
+                    "source_ticket", "target_ticket", "created_by",
+                )
+                .order_by("-created_at")
+            )
+            serializer = TicketLinkSerializer(links_qs, many=True)
+            return Response(serializer.data)
+
+        # POST — create a link
+        from apps.tickets.models import TicketLink
+        from apps.tickets.serializers import (
+            TicketLinkCreateSerializer,
+            TicketLinkSerializer,
+        )
+
+        serializer = TicketLinkCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        target_id = serializer.validated_data["target"]
+        link_type = serializer.validated_data["link_type"]
+
+        try:
+            target_ticket = Ticket.objects.get(pk=target_id)
+        except Ticket.DoesNotExist:
+            return Response(
+                {"detail": "Target ticket not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if target_ticket.pk == ticket.pk:
+            return Response(
+                {"detail": "Cannot link a ticket to itself."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if target_ticket.tenant_id != ticket.tenant_id:
+            return Response(
+                {"detail": "Cannot link tickets from different tenants."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        link, created = TicketLink.objects.get_or_create(
+            source_ticket=ticket,
+            target_ticket=target_ticket,
+            link_type=link_type,
+            defaults={"created_by": request.user, "tenant": ticket.tenant},
+        )
+
+        if not created:
+            return Response(
+                {"detail": "This link already exists."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        out = TicketLinkSerializer(link)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path=r"links/(?P<link_id>[0-9a-f-]+)",
+    )
+    def delete_link(self, request, pk=None, link_id=None):
+        """Delete a ticket link. Agent+ can delete links."""
+        from apps.tickets.models import TicketLink
+
+        ticket = self.get_object()
+        from django.db.models import Q
+
+        try:
+            link = TicketLink.objects.get(
+                Q(source_ticket=ticket) | Q(target_ticket=ticket),
+                pk=link_id,
+            )
+        except TicketLink.DoesNotExist:
+            return Response(
+                {"detail": "Link not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        link.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    # ------------------------------------------------------------------
+    # Ticket merge
+    # ------------------------------------------------------------------
+
+    @action(detail=True, methods=["post"], url_path="merge")
+    def merge(self, request, pk=None):
+        """
+        Merge this ticket into another (primary) ticket.
+
+        Requires Manager+ role. Moves all comments, activities, and
+        attachments from this ticket to the primary, creates a
+        duplicate_of link, and closes this ticket.
+
+        POST /api/v1/tickets/tickets/{id}/merge/
+        {"merge_into": "<primary-ticket-uuid>"}
+        """
+        # Permission: Manager+ only
+        from apps.accounts.permissions import IsTenantAdminOrManager
+
+        perm = IsTenantAdminOrManager()
+        if not perm.has_permission(request, self):
+            return Response(
+                {"detail": "Manager or Admin role required to merge tickets."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        from apps.tickets.serializers import TicketMergeSerializer
+
+        secondary = self.get_object()  # the ticket being merged away
+        serializer = TicketMergeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        primary_id = serializer.validated_data["merge_into"]
+        try:
+            primary = Ticket.objects.get(pk=primary_id)
+        except Ticket.DoesNotExist:
+            return Response(
+                {"detail": "Primary ticket not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from apps.tickets.services import merge_tickets
+
+        try:
+            merge_tickets(primary, secondary, request.user, request=request)
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        primary.refresh_from_db()
+        detail_serializer = TicketDetailSerializer(
+            primary, context={"request": request},
+        )
+        return Response(detail_serializer.data, status=status.HTTP_200_OK)
+
+    # ------------------------------------------------------------------
+    # Ticket split
+    # ------------------------------------------------------------------
+
+    @action(detail=True, methods=["post"], url_path="split")
+    def split(self, request, pk=None):
+        """
+        Split selected comments from this ticket into a new child ticket.
+
+        Requires Manager+ role. Creates a new ticket, moves the specified
+        comments, links the two tickets as related_to, and initialises SLA
+        on the child.
+
+        POST /api/v1/tickets/tickets/{id}/split/
+        {"comment_ids": [...], "subject": "...", "priority": "...", "queue": "..."}
+        """
+        from apps.accounts.permissions import IsTenantAdminOrManager
+
+        perm = IsTenantAdminOrManager()
+        if not perm.has_permission(request, self):
+            return Response(
+                {"detail": "Manager or Admin role required to split tickets."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        source = self.get_object()
+
+        from apps.tickets.serializers import TicketSplitSerializer
+
+        serializer = TicketSplitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        from apps.tickets.services import split_ticket
+
+        try:
+            child = split_ticket(
+                source=source,
+                comment_ids=serializer.validated_data["comment_ids"],
+                actor=request.user,
+                new_ticket_data={
+                    "subject": serializer.validated_data["subject"],
+                    "queue": serializer.validated_data.get("queue"),
+                    "priority": serializer.validated_data.get("priority"),
+                },
+                request=request,
+            )
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        child.refresh_from_db()
+        detail_serializer = TicketDetailSerializer(
+            child, context={"request": request},
+        )
+        return Response(detail_serializer.data, status=status.HTTP_201_CREATED)
+
+    # ------------------------------------------------------------------
+    # Apply macro
+    # ------------------------------------------------------------------
+
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path=r"apply_macro/(?P<macro_id>[0-9a-f-]+)",
+    )
+    def apply_macro(self, request, pk=None, macro_id=None):
+        """
+        Apply a macro to this ticket.
+
+        Renders the macro body with variable substitution, creates a
+        comment, and executes all macro actions atomically.
+
+        POST /api/v1/tickets/tickets/{id}/apply_macro/{macro_id}/
+        """
+        from apps.tickets.models import Macro
+        from apps.tickets.services import apply_macro as _apply_macro
+
+        ticket = self.get_object()
+
+        try:
+            macro = Macro.objects.get(pk=macro_id)
+        except Macro.DoesNotExist:
+            return Response(
+                {"detail": "Macro not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            comment = _apply_macro(ticket, macro, request.user, request=request)
+        except ValueError as exc:
+            return Response(
+                {"detail": str(exc)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ticket.refresh_from_db()
+        return Response(
+            {
+                "detail": f"Macro '{macro.name}' applied.",
+                "comment_id": str(comment.pk),
+                "ticket": TicketDetailSerializer(
+                    ticket, context={"request": request},
+                ).data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=False, methods=["get"], url_path="search")
+    def search(self, request):
+        """
+        Search for a ticket by number. Returns ticket detail with linked
+        inbound emails regardless of ticket status (including closed).
+
+        GET /api/v1/tickets/tickets/search/?ticket_number=42
+
+        Permissions:
+        - Admin/Manager: see all tickets
+        - Agent: only if they were assignee or actioned_by on a linked email
+        """
+        ticket_number = request.query_params.get("ticket_number")
+        if not ticket_number:
+            return Response(
+                {"detail": "ticket_number query parameter is required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            ticket_number = int(ticket_number)
+        except (ValueError, TypeError):
+            return Response(
+                {"detail": "ticket_number must be an integer."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            return Response(
+                {"detail": "No tenant context."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Use unscoped since we want to find across all statuses
+        ticket = (
+            Ticket.objects.select_related("status", "assignee", "contact", "queue")
+            .filter(number=ticket_number)
+            .first()
+        )
+        if ticket is None:
+            return Response(
+                {"detail": f"No ticket found with number #{ticket_number}"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Permission check: Agent can only see if they are assignee or actioned_by
+        user = request.user
+        from apps.accounts.models import TenantMembership
+
+        membership = (
+            TenantMembership.objects.select_related("role")
+            .filter(user=user, tenant=tenant, is_active=True)
+            .first()
+        )
+        if membership and membership.role.hierarchy_level > 20:
+            # Agent: check if they are assignee or actioned_by on linked emails
+            from apps.inbound_email.models import InboundEmail
+
+            is_assignee = ticket.assignee_id == user.pk
+            is_actioned_by = InboundEmail.objects.filter(
+                linked_ticket=ticket,
+                actioned_by=user,
+            ).exists()
+            if not is_assignee and not is_actioned_by:
+                return Response(
+                    {"detail": f"No ticket found with number #{ticket_number}"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        # Build response with linked emails
+        from apps.inbound_email.models import InboundEmail
+        from apps.inbound_email.serializers import LinkedEmailForTicketSerializer
+
+        linked_emails = (
+            InboundEmail.objects.filter(linked_ticket=ticket)
+            .select_related("actioned_by")
+            .order_by("-created_at")
+        )
+
+        ticket_data = TicketDetailSerializer(
+            ticket, context={"request": request},
+        ).data
+        ticket_data["linked_emails"] = LinkedEmailForTicketSerializer(
+            linked_emails, many=True,
+        ).data
+
+        return Response(ticket_data)
+
+    @action(detail=True, methods=["post"], url_path="mark-all-read")
+    def mark_all_read(self, request, pk=None):
+        """
+        POST /api/v1/tickets/tickets/<id>/mark-all-read/
+
+        Mark all comments on this ticket as read for the requesting user.
+        Idempotent — uses bulk_create with ignore_conflicts.
+        """
+        from django.contrib.contenttypes.models import ContentType
+        from apps.comments.models import Comment, CommentRead
+
+        ticket = self.get_object()
+        ticket_ct = ContentType.objects.get_for_model(Ticket)
+
+        unread_comments = (
+            Comment.unscoped.filter(
+                content_type=ticket_ct,
+                object_id=ticket.pk,
+            )
+            .exclude(author=request.user)
+            .exclude(pk__in=CommentRead.objects.filter(
+                user=request.user,
+            ).values_list("comment_id", flat=True))
+        )
+
+        reads = [
+            CommentRead(comment_id=cid, user=request.user)
+            for cid in unread_comments.values_list("pk", flat=True)
+        ]
+        CommentRead.objects.bulk_create(reads, ignore_conflicts=True)
+
+        return Response({"marked": len(reads)}, status=status.HTTP_200_OK)
+
 
 # ---------------------------------------------------------------------------
 # CannedResponse
@@ -1087,6 +1624,66 @@ class CannedResponseViewSet(ModelViewSet):
 
 
 # ---------------------------------------------------------------------------
+# Macro
+# ---------------------------------------------------------------------------
+
+
+class MacroViewSet(ModelViewSet):
+    """
+    CRUD for ticket macros — reusable body templates with optional actions.
+
+    Agents see shared macros plus their own personal ones.
+    """
+
+    permission_classes = [IsAuthenticated]
+    search_fields = ["name", "description"]
+    ordering_fields = ["name", "created_at"]
+    ordering = ["name"]
+
+    def get_serializer_class(self):
+        from apps.tickets.serializers import MacroSerializer
+        return MacroSerializer
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            from apps.tickets.models import Macro
+            return Macro.objects.none()
+        from django.db.models import Q
+        from apps.tickets.models import Macro
+        return Macro.objects.select_related("created_by").filter(
+            Q(is_shared=True) | Q(created_by=self.request.user)
+        )
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        if instance.created_by_id != self.request.user.pk:
+            from apps.accounts.permissions import _get_membership
+            tenant = getattr(self.request, "tenant", None)
+            membership = _get_membership(self.request, tenant) if tenant else None
+            if not membership or membership.role.hierarchy_level > 20:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied(
+                    "Only the creator or a manager can edit this macro."
+                )
+        serializer.save()
+
+    def perform_destroy(self, instance):
+        if instance.created_by_id != self.request.user.pk:
+            from apps.accounts.permissions import _get_membership
+            tenant = getattr(self.request, "tenant", None)
+            membership = _get_membership(self.request, tenant) if tenant else None
+            if not membership or membership.role.hierarchy_level > 20:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied(
+                    "Only the creator or a manager can delete this macro."
+                )
+        instance.delete()
+
+
+# ---------------------------------------------------------------------------
 # SavedView
 # ---------------------------------------------------------------------------
 
@@ -1135,3 +1732,169 @@ class SavedViewViewSet(ModelViewSet):
             view.is_default = True
             view.save(update_fields=["is_default", "updated_at"])
         return Response({"status": "default set"})
+
+
+# ---------------------------------------------------------------------------
+# BusinessHours (singleton per tenant)
+# ---------------------------------------------------------------------------
+
+
+class BusinessHoursViewSet(viewsets.GenericViewSet):
+    """
+    Business hours configuration for the current tenant.
+
+    Singleton resource: only **retrieve** and **partial_update** are exposed.
+    A ``BusinessHours`` row is auto-created on first access if missing.
+    """
+
+    serializer_class = BusinessHoursSerializer
+    permission_classes = [IsAuthenticated, HasTenantPermission]
+    permission_resource = "settings"
+
+    def get_permissions(self):
+        if self.action == "retrieve":
+            return [IsAuthenticated()]
+        return super().get_permissions()
+
+    def get_object(self):
+        tenant = self.request.tenant
+        obj, _created = BusinessHours.objects.get_or_create(tenant=tenant)
+        return obj
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return BusinessHours.objects.none()
+        return BusinessHours.objects.filter(tenant=self.request.tenant)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+
+# ---------------------------------------------------------------------------
+# PublicHoliday
+# ---------------------------------------------------------------------------
+
+
+class PublicHolidayViewSet(ModelViewSet):
+    """CRUD for tenant public holidays."""
+
+    serializer_class = PublicHolidaySerializer
+    permission_classes = [IsAuthenticated, HasTenantPermission]
+    permission_resource = "settings"
+    search_fields = ["name"]
+    ordering_fields = ["date", "name", "created_at"]
+    ordering = ["date"]
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [IsAuthenticated()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return PublicHoliday.objects.none()
+        return PublicHoliday.objects.all()
+
+
+# ---------------------------------------------------------------------------
+# CSAT public endpoint (no auth required)
+# ---------------------------------------------------------------------------
+
+
+class CSATSubmitView(viewsets.ViewSet):
+    """
+    Public endpoint for CSAT survey submission.
+
+    Accepts a signed token + rating + optional comment. No authentication
+    required — the signed token proves the requester received the email.
+
+    POST /api/v1/tickets/csat/
+    {"token": "...", "rating": 4, "comment": "Great support!"}
+    """
+
+    authentication_classes = []
+    permission_classes = []
+
+    def create(self, request):
+        from django.core import signing
+        from django.utils import timezone as tz
+
+        from apps.tickets.serializers import CSATSubmitSerializer
+
+        serializer = CSATSubmitSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token = serializer.validated_data["token"]
+        rating = serializer.validated_data["rating"]
+        comment = serializer.validated_data.get("comment", "")
+
+        # Unsign the token (max_age = 12 days covers auto_close_days + buffer)
+        try:
+            payload = signing.loads(token, salt="csat", max_age=12 * 86400)
+        except signing.BadSignature:
+            return Response(
+                {"detail": "Invalid or expired survey token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ticket_id = payload.get("t")
+        tenant_id = payload.get("n")
+
+        if not ticket_id or not tenant_id:
+            return Response(
+                {"detail": "Malformed survey token."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            ticket = Ticket.unscoped.get(pk=ticket_id, tenant_id=tenant_id)
+        except Ticket.DoesNotExist:
+            return Response(
+                {"detail": "Ticket not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Idempotent: reject if already submitted
+        if ticket.csat_rating is not None:
+            return Response(
+                {"detail": "Survey already submitted for this ticket."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Save CSAT response
+        now = tz.now()
+        Ticket.unscoped.filter(
+            pk=ticket.pk,
+            csat_rating__isnull=True,
+        ).update(
+            csat_rating=rating,
+            csat_comment=comment,
+            csat_submitted_at=now,
+            updated_at=now,
+        )
+
+        # Log timeline event
+        from apps.tickets.models import TicketActivity
+
+        TicketActivity(
+            tenant_id=tenant_id,
+            ticket=ticket,
+            actor=None,
+            event=TicketActivity.Event.CSAT_RECEIVED,
+            message=f"CSAT received: {rating}/5",
+            metadata={"rating": rating, "comment": comment},
+        ).save()
+
+        return Response(
+            {"detail": "Thank you for your feedback.", "rating": rating},
+            status=status.HTTP_200_OK,
+        )

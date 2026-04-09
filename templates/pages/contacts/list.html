@@ -111,6 +111,82 @@
   <button class="btn btn-sm btn-link text-muted ms-auto" onclick="ContactBulk.clearSelection()">Clear</button>
 </div>
 
+<!-- Contact Detail Panel -->
+<div class="contact-detail-panel" id="contactDetailPanel">
+  <div class="contact-detail-panel-header">
+    <h6 class="contact-detail-panel-title" id="panelContactName">Contact</h6>
+    <button type="button" class="btn-close btn-close-white" id="closeDetailPanel" aria-label="Close"></button>
+  </div>
+  <div class="contact-detail-panel-body" id="panelBody">
+    <!-- Loading -->
+    <div id="panelLoading" class="text-center py-5">
+      <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+      <span class="loading-text ms-2">Loading...</span>
+    </div>
+    <!-- Content (hidden until loaded) -->
+    <div id="panelContent" class="d-none">
+      <!-- Avatar + name -->
+      <div class="cpanel-profile">
+        <div class="cpanel-avatar" id="panelAvatar">JS</div>
+        <div>
+          <div class="cpanel-name" id="panelFullName">--</div>
+          <div class="cpanel-job" id="panelJobTitle">--</div>
+        </div>
+        <span class="cpanel-status-badge" id="panelStatusBadge">Active</span>
+      </div>
+
+      <!-- Quick info -->
+      <div class="cpanel-info-grid">
+        <div class="cpanel-info-item">
+          <i class="ti ti-mail"></i>
+          <a href="#" id="panelEmail" class="cpanel-info-link">--</a>
+        </div>
+        <div class="cpanel-info-item">
+          <i class="ti ti-phone"></i>
+          <span id="panelPhone">--</span>
+        </div>
+        <div class="cpanel-info-item">
+          <i class="ti ti-building"></i>
+          <span id="panelCompany">--</span>
+        </div>
+        <div class="cpanel-info-item">
+          <i class="ti ti-source-code"></i>
+          <span id="panelSource">--</span>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="cpanel-section" id="panelNotesSection" style="display:none;">
+        <div class="cpanel-section-label">Notes</div>
+        <div class="cpanel-notes" id="panelNotes"></div>
+      </div>
+
+      <!-- Groups -->
+      <div class="cpanel-section" id="panelGroupsSection" style="display:none;">
+        <div class="cpanel-section-label">Groups</div>
+        <div class="cpanel-groups" id="panelGroups"></div>
+      </div>
+
+      <!-- Meta -->
+      <div class="cpanel-meta">
+        <div><span class="cpanel-meta-label">Created</span> <span id="panelCreated">--</span></div>
+        <div><span class="cpanel-meta-label">Updated</span> <span id="panelUpdated">--</span></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="cpanel-actions">
+        <a href="#" id="panelViewBtn" class="btn btn-primary btn-sm cpanel-action-btn">
+          <i class="ti ti-external-link me-1"></i>Open Full Profile
+        </a>
+        <button type="button" id="panelDeleteBtn" class="btn btn-outline-danger btn-sm cpanel-action-btn">
+          <i class="ti ti-trash me-1"></i>Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="contact-detail-overlay" id="contactDetailOverlay"></div>
+
 <!-- Add Contact Modal -->
 <div class="modal fade" id="addContactModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog">
@@ -213,7 +289,7 @@
           '<td class="pe-3 text-muted small">' + formatDate(c.created_at) + '</td>';
         row.addEventListener('click', function(e) {
           if (e.target.tagName === 'A' || e.target.tagName === 'INPUT') return;
-          window.location.href = '/contacts/' + c.id + '/';
+          ContactPanel.open(c.id);
         });
         tbody.appendChild(row);
       });
@@ -406,6 +482,128 @@
       } catch(e) { Toast.error('Failed to delete view'); }
     }
   };
+
+  // ============================================================
+  // Contact Detail Panel
+  // ============================================================
+  window.ContactPanel = {
+    panel: document.getElementById('contactDetailPanel'),
+    overlay: document.getElementById('contactDetailOverlay'),
+    currentId: null,
+
+    open: function(contactId) {
+      this.currentId = contactId;
+      document.getElementById('panelLoading').classList.remove('d-none');
+      document.getElementById('panelContent').classList.add('d-none');
+      this.panel.classList.add('open');
+      this.overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+
+      var self = this;
+      Api.get('/api/v1/contacts/contacts/' + contactId + '/').then(function(c) {
+        self.render(c);
+      }).catch(function() {
+        var loadEl = document.getElementById('panelLoading');
+        loadEl.textContent = '';
+        var errDiv = document.createElement('div');
+        errDiv.className = 'text-danger text-center';
+        var errIcon = document.createElement('i');
+        errIcon.className = 'ti ti-alert-triangle me-1';
+        errDiv.appendChild(errIcon);
+        errDiv.appendChild(document.createTextNode('Failed to load contact'));
+        loadEl.appendChild(errDiv);
+      });
+    },
+
+    render: function(c) {
+      var fn = ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || 'Unnamed';
+      var ini = fn.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
+      var bgColor = avatarColor(fn);
+
+      document.getElementById('panelContactName').textContent = fn;
+      document.getElementById('panelFullName').textContent = fn;
+      document.getElementById('panelAvatar').textContent = ini;
+      document.getElementById('panelAvatar').style.background = 'linear-gradient(135deg, ' + bgColor + ', ' + bgColor + 'cc)';
+
+      var jobTitle = c.job_title || '';
+      var compName = c.company ? (typeof c.company === 'object' ? c.company.name : '') : '';
+      document.getElementById('panelJobTitle').textContent = jobTitle || (compName ? compName : 'No title');
+
+      // Email
+      var emailEl = document.getElementById('panelEmail');
+      if (c.email) { emailEl.href = 'mailto:' + c.email; emailEl.textContent = c.email; }
+      else { emailEl.removeAttribute('href'); emailEl.textContent = '--'; }
+
+      // Phone
+      document.getElementById('panelPhone').textContent = c.phone || '--';
+
+      // Company
+      document.getElementById('panelCompany').textContent = compName || '--';
+
+      // Source
+      document.getElementById('panelSource').textContent = c.source ? c.source.charAt(0).toUpperCase() + c.source.slice(1) : '--';
+
+      // Status
+      var badge = document.getElementById('panelStatusBadge');
+      if (c.is_active !== false) { badge.textContent = 'Active'; badge.classList.remove('inactive'); }
+      else { badge.textContent = 'Inactive'; badge.classList.add('inactive'); }
+
+      // Notes
+      var notesSection = document.getElementById('panelNotesSection');
+      if (c.notes && c.notes.trim()) {
+        notesSection.style.display = '';
+        document.getElementById('panelNotes').textContent = c.notes;
+      } else { notesSection.style.display = 'none'; }
+
+      // Groups
+      var groupsSection = document.getElementById('panelGroupsSection');
+      var groups = c.groups || [];
+      if (groups.length > 0) {
+        groupsSection.style.display = '';
+        var groupsContainer = document.getElementById('panelGroups');
+        groupsContainer.textContent = '';
+        groups.forEach(function(g) {
+          var tag = document.createElement('span');
+          tag.className = 'cpanel-group-tag';
+          tag.textContent = g.name;
+          groupsContainer.appendChild(tag);
+        });
+      } else { groupsSection.style.display = 'none'; }
+
+      // Meta
+      document.getElementById('panelCreated').textContent = c.created_at ? Kanzan.formatDateTime(c.created_at) : '--';
+      document.getElementById('panelUpdated').textContent = c.updated_at ? Kanzan.formatDateTime(c.updated_at) : '--';
+
+      // Actions
+      document.getElementById('panelViewBtn').href = '/contacts/' + c.id + '/';
+
+      document.getElementById('panelLoading').classList.add('d-none');
+      document.getElementById('panelContent').classList.remove('d-none');
+    },
+
+    close: function() {
+      this.panel.classList.remove('open');
+      this.overlay.classList.remove('active');
+      document.body.style.overflow = '';
+      this.currentId = null;
+    },
+
+    deleteContact: function() {
+      if (!this.currentId) return;
+      if (!confirm('Delete this contact? This cannot be undone.')) return;
+      var self = this;
+      Api.delete('/api/v1/contacts/contacts/' + this.currentId + '/').then(function() {
+        self.close();
+        Toast.success('Contact deleted');
+        loadContacts();
+      }).catch(function() { Toast.error('Failed to delete contact'); });
+    }
+  };
+
+  document.getElementById('closeDetailPanel').addEventListener('click', function() { ContactPanel.close(); });
+  document.getElementById('contactDetailOverlay').addEventListener('click', function() { ContactPanel.close(); });
+  document.getElementById('panelDeleteBtn').addEventListener('click', function() { ContactPanel.deleteContact(); });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && ContactPanel.panel.classList.contains('open')) ContactPanel.close(); });
 
   loadContacts();
   ContactSavedViews.init();

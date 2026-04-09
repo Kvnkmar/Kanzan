@@ -36,6 +36,7 @@ class ArticleListSerializer(serializers.ModelSerializer):
         source="category.icon", read_only=True, default=""
     )
     author_name = serializers.SerializerMethodField()
+    reviewer_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Article
@@ -56,6 +57,11 @@ class ArticleListSerializer(serializers.ModelSerializer):
             "file",
             "file_name",
             "published_at",
+            "submitted_at",
+            "reviewed_at",
+            "reviewer",
+            "reviewer_name",
+            "rejection_reason",
             "created_at",
             "updated_at",
         ]
@@ -64,6 +70,12 @@ class ArticleListSerializer(serializers.ModelSerializer):
         if obj.author:
             name = f"{obj.author.first_name} {obj.author.last_name}".strip()
             return name or obj.author.email
+        return None
+
+    def get_reviewer_name(self, obj):
+        if obj.reviewer:
+            name = f"{obj.reviewer.first_name} {obj.reviewer.last_name}".strip()
+            return name or obj.reviewer.email
         return None
 
 
@@ -97,6 +109,10 @@ class ArticleCreateSerializer(serializers.ModelSerializer):
             "author",
             "view_count",
             "published_at",
+            "submitted_at",
+            "reviewed_at",
+            "reviewer",
+            "rejection_reason",
             "created_at",
             "updated_at",
         ]
@@ -105,6 +121,10 @@ class ArticleCreateSerializer(serializers.ModelSerializer):
             "author",
             "view_count",
             "published_at",
+            "submitted_at",
+            "reviewed_at",
+            "reviewer",
+            "rejection_reason",
             "created_at",
             "updated_at",
         ]
@@ -112,3 +132,13 @@ class ArticleCreateSerializer(serializers.ModelSerializer):
             "slug": {"required": False, "allow_blank": True},
             "content": {"required": False, "allow_blank": True},
         }
+
+
+class ArticleRejectSerializer(serializers.Serializer):
+    rejection_reason = serializers.CharField(required=True, min_length=1, max_length=2000)
+
+
+class KBArticleSearchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Article
+        fields = ["id", "title", "slug", "category", "updated_at"]

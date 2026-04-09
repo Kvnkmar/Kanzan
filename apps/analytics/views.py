@@ -28,10 +28,13 @@ from apps.accounts.permissions import HasTenantPermission, IsTenantAdminOrManage
 from apps.analytics.services import (
     clear_closed_status_cache,
     get_agent_performance,
+    get_dashboard_summary,
     get_due_today,
+    get_hourly_trends,
     get_overdue_tickets,
     get_sla_compliance,
     get_ticket_stats,
+    get_unresolved_by_queue,
 )
 
 logger = logging.getLogger(__name__)
@@ -173,6 +176,9 @@ class DashboardView(APIView):
         # Determine role level for the current user
         is_admin_or_manager = self._is_admin_or_manager(request.user, tenant)
 
+        # Overdue reminders summary
+        overdue_reminders = self._get_overdue_reminders_summary(request.user)
+
         data = {
             "ticket_stats": ticket_stats,
             "agent_performance": agent_performance,
@@ -180,12 +186,64 @@ class DashboardView(APIView):
             "sla_compliance": get_sla_compliance(tenant, date_from, date_to),
             "due_today": get_due_today(tenant, request.user),
             "overdue_tickets": get_overdue_tickets(tenant, request.user),
+            "summary": get_dashboard_summary(tenant, date_from, date_to, request.user),
+            "hourly_trends": get_hourly_trends(tenant, request.user, date_from, date_to),
+            "unresolved_by_queue": get_unresolved_by_queue(tenant, request.user),
+            "overdue_reminders": overdue_reminders,
         }
 
         # Clear per-request caches
         clear_closed_status_cache()
 
         return Response(data, status=status.HTTP_200_OK)
+
+    @staticmethod
+    def _get_overdue_reminders_summary(user):
+        """Return a lightweight overdue reminders summary for the dashboard."""
+        from apps.crm.models import Reminder
+
+        now = timezone.now()
+        overdue_qs = Reminder.objects.overdue(now)
+
+        total = overdue_qs.count()
+        mine = overdue_qs.filter(assigned_to=user).count()
+
+        # Top 5 most overdue for quick display
+        top_overdue = list(
+            overdue_qs.order_by("scheduled_at")
+            .select_related("contact", "assigned_to")
+            .values(
+                "id", "subject", "priority", "scheduled_at",
+                "contact__first_name", "contact__last_name",
+                "assigned_to__first_name", "assigned_to__last_name",
+            )[:5]
+        )
+
+        items = []
+        for item in top_overdue:
+            contact_name = f"{item['contact__first_name'] or ''} {item['contact__last_name'] or ''}".strip() or None
+            assigned_name = f"{item['assigned_to__first_name'] or ''} {item['assigned_to__last_name'] or ''}".strip() or None
+            overdue_secs = int((now - item["scheduled_at"]).total_seconds())
+            if overdue_secs >= 86400:
+                display = f"{overdue_secs // 86400}d overdue"
+            elif overdue_secs >= 3600:
+                display = f"{overdue_secs // 3600}h overdue"
+            else:
+                display = f"{overdue_secs // 60}m overdue"
+            items.append({
+                "id": str(item["id"]),
+                "subject": item["subject"],
+                "priority": item["priority"],
+                "contact_name": contact_name,
+                "assigned_to_name": assigned_name,
+                "overdue_display": display,
+            })
+
+        return {
+            "total": total,
+            "mine": mine,
+            "items": items,
+        }
 
     @staticmethod
     def _is_admin_or_manager(user, tenant):

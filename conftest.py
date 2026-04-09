@@ -131,41 +131,6 @@ class ContactGroupFactory(factory.django.DjangoModelFactory):
     tenant = factory.SubFactory(TenantFactory)
 
 
-class BoardFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = "kanban.Board"
-
-    name = factory.Sequence(lambda n: f"Board {n}")
-    tenant = factory.SubFactory(TenantFactory)
-    resource_type = "ticket"
-
-
-class ColumnFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = "kanban.Column"
-
-    name = factory.Sequence(lambda n: f"Column {n}")
-    board = factory.SubFactory(BoardFactory)
-    tenant = factory.SubFactory(TenantFactory)
-    order = factory.Sequence(lambda n: n)
-
-
-class CardPositionFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = "kanban.CardPosition"
-        exclude = ["content_object"]
-
-    column = factory.SubFactory(ColumnFactory)
-    tenant = factory.SubFactory(TenantFactory)
-    content_type = factory.LazyAttribute(
-        lambda o: __import__(
-            "django.contrib.contenttypes.models", fromlist=["ContentType"]
-        ).ContentType.objects.get_for_model(o.content_object)
-    )
-    object_id = factory.LazyAttribute(lambda o: o.content_object.pk)
-    order = factory.Sequence(lambda n: n)
-
-
 class NotificationFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "notifications.Notification"
@@ -208,6 +173,18 @@ class CustomFieldDefinitionFactory(factory.django.DjangoModelFactory):
     name = factory.Sequence(lambda n: f"Custom Field {n}")
     slug = factory.Sequence(lambda n: f"custom-field-{n}")
     field_type = "text"
+
+
+class ReminderFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = "crm.Reminder"
+
+    subject = factory.Faker("sentence", nb_words=4)
+    notes = factory.Faker("paragraph")
+    scheduled_at = factory.LazyFunction(lambda: __import__("django.utils.timezone", fromlist=["now"]).now())
+    priority = "medium"
+    tenant = factory.SubFactory(TenantFactory)
+    created_by = factory.SubFactory(UserFactory)
 
 
 class InboundEmailFactory(factory.django.DjangoModelFactory):

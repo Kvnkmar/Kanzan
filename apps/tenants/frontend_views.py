@@ -271,12 +271,17 @@ def analytics_page(request):
 
 @_membership_required
 def knowledge_list_page(request):
-    return render(request, "pages/knowledge/list.html")
+    return render(request, "pages/knowledge/list.html", {
+        "current_user_id": str(request.user.id) if request.user.is_authenticated else "",
+    })
 
 
 @_membership_required
 def knowledge_article_page(request, article_slug):
-    return render(request, "pages/knowledge/article.html", {"article_slug": article_slug})
+    return render(request, "pages/knowledge/article.html", {
+        "article_slug": article_slug,
+        "current_user_id": str(request.user.id) if request.user.is_authenticated else "",
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -302,11 +307,26 @@ def users_page(request):
     return render(request, "pages/users/list.html")
 
 
-@_role_required(30)
+@_role_required(20)
 def agents_page(request):
     return render(request, "pages/agents/list.html")
+
+
+@_role_required(30)
+def emails_page(request):
+    return render(request, "pages/emails/list.html")
 
 
 @_membership_required
 def inbound_email_page(request):
     return render(request, "pages/inbound_email/list.html")
+
+
+@_membership_required
+def reminders_page(request):
+    return render(request, "pages/reminders/list.html")
+
+
+@_role_required(20)
+def audit_log_page(request):
+    return render(request, "pages/audit_log/list.html")

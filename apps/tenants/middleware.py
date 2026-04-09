@@ -28,6 +28,7 @@ EXEMPT_PATH_PREFIXES = (
     "/api/v1/accounts/auth/",
     "/api/v1/billing/plans/",
     "/api/v1/billing/webhook/",
+    "/api/v1/tickets/csat/",
     "/api/docs/",
     "/api/schema/",
     "/accounts/",

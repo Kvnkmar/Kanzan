@@ -9,7 +9,7 @@
  */
 
 const PROJECT_ROOT = "/home/kavin/Kanzan";
-const VENV_BIN = `${PROJECT_ROOT}/env/bin`;
+const VENV_BIN = `${PROJECT_ROOT}/.venv/bin`;
 
 const COMMON_CONFIG = {
   cwd: PROJECT_ROOT,
@@ -26,7 +26,7 @@ const COMMON_CONFIG = {
 const BASE_ENV = {
   DJANGO_SETTINGS_MODULE: "main.settings",
   PYTHONUNBUFFERED: "1",
-  VIRTUAL_ENV: `${PROJECT_ROOT}/env`,
+  VIRTUAL_ENV: `${PROJECT_ROOT}/.venv`,
   PATH: `${VENV_BIN}:/usr/local/bin:/usr/bin:/bin`,
 };
 

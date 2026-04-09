@@ -145,12 +145,26 @@ class CommentCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
-        """Cross-field validation: parent must target the same content object."""
+        """Cross-field validation: parent must target the same content object, and target must belong to current tenant."""
+        content_type = attrs.get("content_type")
+        object_id = attrs.get("object_id")
+
+        # Verify the target object exists and belongs to the current tenant
+        request = self.context.get("request")
+        if request and content_type and object_id:
+            model_class = content_type.model_class()
+            if model_class is not None:
+                tenant = getattr(request, "tenant", None)
+                if tenant and hasattr(model_class, "tenant"):
+                    # Use unscoped to bypass tenant filtering, then check tenant explicitly
+                    manager = getattr(model_class, "unscoped", model_class.objects)
+                    if not manager.filter(pk=object_id, tenant=tenant).exists():
+                        raise serializers.ValidationError(
+                            {"object_id": "Target object not found."}
+                        )
+
         parent = attrs.get("parent")
         if parent is not None:
-            content_type = attrs.get("content_type")
-            object_id = attrs.get("object_id")
-
             if parent.content_type != content_type or parent.object_id != object_id:
                 raise serializers.ValidationError(
                     {"parent": "Parent comment must belong to the same content object."}

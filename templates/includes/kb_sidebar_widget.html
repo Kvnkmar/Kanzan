@@ -1,0 +1,158 @@
+<!-- Knowledge Base sidebar search widget -->
+<div class="td-sidebar-section mt-3">
+  <h6 class="td-sidebar-section-title d-flex align-items-center gap-2">
+    <i class="ti ti-book"></i> Knowledge Base
+  </h6>
+  <div id="kbSearchWidget">
+    <input
+      type="text"
+      id="kbSearchInput"
+      class="form-control form-control-sm mb-2"
+      placeholder="Search knowledge base..."
+      autocomplete="off"
+    >
+    <div id="kbSearchSpinner" class="text-center py-2 d-none">
+      <div class="spinner-border spinner-border-sm text-secondary" role="status">
+        <span class="visually-hidden">Searching...</span>
+      </div>
+    </div>
+    <div id="kbSearchResults" class="d-none"></div>
+    <div id="kbSearchEmpty" class="text-muted small py-2 d-none">
+      No articles found. Consider creating one.
+    </div>
+    <div id="kbSearchError" class="text-danger small py-2 d-none">
+      Search unavailable
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  var input = document.getElementById('kbSearchInput');
+  var spinner = document.getElementById('kbSearchSpinner');
+  var resultsDiv = document.getElementById('kbSearchResults');
+  var emptyDiv = document.getElementById('kbSearchEmpty');
+  var errorDiv = document.getElementById('kbSearchError');
+  var debounceTimer = null;
+
+  function hideAll() {
+    spinner.classList.add('d-none');
+    resultsDiv.classList.add('d-none');
+    emptyDiv.classList.add('d-none');
+    errorDiv.classList.add('d-none');
+  }
+
+  function getCookie(name) {
+    var cookies = document.cookie.split(';');
+    for (var i = 0; i < cookies.length; i++) {
+      var c = cookies[i].trim();
+      if (c.indexOf(name + '=') === 0) {
+        return decodeURIComponent(c.substring(name.length + 1));
+      }
+    }
+    return null;
+  }
+
+  function insertLink(title, slug) {
+    var editorContainer = document.getElementById('commentBodyEditor');
+    if (editorContainer) {
+      var editable = editorContainer.querySelector('[contenteditable]') || editorContainer;
+      editable.focus();
+      var link = '[' + title + '](/knowledge/' + slug + '/)';
+      document.execCommand('insertText', false, link);
+      return;
+    }
+    var emailBody = document.getElementById('emailBody');
+    if (emailBody) {
+      var pos = emailBody.selectionStart || emailBody.value.length;
+      var val = emailBody.value;
+      var linkText = '[' + title + '](/knowledge/' + slug + '/)';
+      emailBody.value = val.slice(0, pos) + linkText + val.slice(pos);
+      emailBody.focus();
+    }
+  }
+
+  function buildResultItem(article) {
+    var item = document.createElement('div');
+    item.className = 'list-group-item px-0 py-1 bg-transparent border-0 d-flex align-items-center justify-content-between gap-1';
+
+    var link = document.createElement('a');
+    link.href = '/knowledge/' + encodeURIComponent(article.slug) + '/';
+    link.target = '_blank';
+    link.className = 'text-decoration-none small text-truncate flex-grow-1';
+    link.textContent = article.title;
+    link.title = article.title;
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-outline-secondary btn-sm py-0 px-1 flex-shrink-0';
+    btn.title = 'Insert link into comment';
+    btn.setAttribute('style', 'font-size:.7rem;line-height:1.4;');
+    var icon = document.createElement('i');
+    icon.className = 'ti ti-link';
+    btn.appendChild(icon);
+    btn.addEventListener('click', function() {
+      insertLink(article.title, article.slug);
+    });
+
+    item.appendChild(link);
+    item.appendChild(btn);
+    return item;
+  }
+
+  function doSearch(query) {
+    hideAll();
+    if (query.length < 2) return;
+
+    spinner.classList.remove('d-none');
+
+    fetch('/api/v1/knowledge/search/?q=' + encodeURIComponent(query), {
+      method: 'GET',
+      credentials: 'same-origin',
+      headers: {
+        'X-CSRFToken': getCookie('csrftoken'),
+        'Accept': 'application/json'
+      }
+    })
+    .then(function(resp) {
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      return resp.json();
+    })
+    .then(function(data) {
+      hideAll();
+      if (!data || data.length === 0) {
+        emptyDiv.classList.remove('d-none');
+        return;
+      }
+      while (resultsDiv.firstChild) {
+        resultsDiv.removeChild(resultsDiv.firstChild);
+      }
+      var list = document.createElement('div');
+      list.className = 'list-group list-group-flush';
+      data.forEach(function(article) {
+        list.appendChild(buildResultItem(article));
+      });
+      resultsDiv.appendChild(list);
+      resultsDiv.classList.remove('d-none');
+    })
+    .catch(function() {
+      hideAll();
+      errorDiv.classList.remove('d-none');
+    });
+  }
+
+  input.addEventListener('input', function() {
+    clearTimeout(debounceTimer);
+    var q = input.value.trim();
+    if (q.length < 2) {
+      hideAll();
+      return;
+    }
+    debounceTimer = setTimeout(function() {
+      doSearch(q);
+    }, 300);
+  });
+})();
+</script>

@@ -7,7 +7,7 @@ List serializers return lightweight payloads; detail serializers include nested 
 
 from rest_framework import serializers
 
-from apps.contacts.models import Company, Contact, ContactGroup
+from apps.contacts.models import Account, Company, Contact, ContactEvent, ContactGroup
 
 
 # ---------------------------------------------------------------------------
@@ -75,6 +75,47 @@ class CompanySerializer(serializers.ModelSerializer):
 
 
 # ---------------------------------------------------------------------------
+# Account
+# ---------------------------------------------------------------------------
+
+
+class AccountListSerializer(serializers.ModelSerializer):
+    """Lightweight account representation for list endpoints."""
+
+    class Meta:
+        model = Account
+        fields = [
+            "id",
+            "name",
+            "industry",
+            "company_size",
+            "mrr",
+            "health_score",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+
+class AccountSerializer(serializers.ModelSerializer):
+    """Full account serializer for detail / create / update."""
+
+    class Meta:
+        model = Account
+        fields = [
+            "id",
+            "name",
+            "industry",
+            "company_size",
+            "website",
+            "mrr",
+            "health_score",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "health_score", "created_at", "updated_at"]
+
+
+# ---------------------------------------------------------------------------
 # Contact
 # ---------------------------------------------------------------------------
 
@@ -98,6 +139,8 @@ class ContactListSerializer(serializers.ModelSerializer):
             "job_title",
             "source",
             "is_active",
+            "email_bouncing",
+            "lead_score",
             "created_at",
         ]
         read_only_fields = fields
@@ -124,12 +167,14 @@ class ContactSerializer(serializers.ModelSerializer):
             "source",
             "notes",
             "is_active",
+            "email_bouncing",
+            "lead_score",
             "custom_data",
             "groups",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "lead_score", "created_at", "updated_at"]
 
     def get_groups(self, obj):
         """Return minimal group information for the contact."""
@@ -233,3 +278,33 @@ class ContactGroupSerializer(serializers.ModelSerializer):
 
     def get_contact_count(self, obj):
         return obj.contacts.count()
+
+
+# ---------------------------------------------------------------------------
+# ContactEvent (Timeline)
+# ---------------------------------------------------------------------------
+
+
+class ContactEventSerializer(serializers.ModelSerializer):
+    """Read-only serializer for the unified contact timeline."""
+
+    actor_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ContactEvent
+        fields = [
+            "id",
+            "event_type",
+            "description",
+            "metadata",
+            "actor",
+            "actor_name",
+            "occurred_at",
+            "source",
+        ]
+        read_only_fields = fields
+
+    def get_actor_name(self, obj):
+        if obj.actor:
+            return obj.actor.get_full_name() or str(obj.actor)
+        return None

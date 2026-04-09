@@ -467,7 +467,7 @@ class TestInboundProcessingPipeline:
         process_inbound_email(inbound.pk)
 
         inbound.refresh_from_db()
-        assert inbound.status == "rejected"
+        assert inbound.status == "bounced"
 
 
 @pytest.mark.django_db

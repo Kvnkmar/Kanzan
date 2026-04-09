@@ -265,8 +265,35 @@
     });
   }
 
+  function getStatusDotClass(status) {
+    switch (status) {
+      case 'online': return 'status-dot-active';
+      case 'away': return 'status-dot-away';
+      case 'busy': return 'status-dot-busy';
+      default: return 'status-dot-inactive';
+    }
+  }
+
+  function getStatusLabel(status) {
+    switch (status) {
+      case 'online': return 'Online';
+      case 'away': return 'Away';
+      case 'busy': return 'Busy';
+      default: return 'Offline';
+    }
+  }
+
   function loadUsers() {
-    loadMemberships().then(function() { return Api.get('/api/v1/accounts/users/'); }).then(function(data) {
+    Promise.all([
+      loadMemberships().then(function() { return Api.get('/api/v1/accounts/users/'); }),
+      Api.get('/api/v1/agents/agents/all-members/').catch(function() { return []; })
+    ]).then(function(results) {
+      var data = results[0], agentData = results[1];
+      var agentStatusMap = {};
+      (Array.isArray(agentData) ? agentData : (agentData.results || [])).forEach(function(a) {
+        agentStatusMap[a.user_id] = a.status || 'offline';
+      });
+
       var users = data.results || data, tbody = document.getElementById('usersTableBody');
       document.getElementById('userCount').textContent = users ? users.length : 0;
       if (!users || users.length === 0) {
@@ -281,11 +308,12 @@
         var fn = ((u.first_name || '') + ' ' + (u.last_name || '')).trim() || 'No Name';
         var m = membershipMap[u.id], rn = m && m.role_detail ? m.role_detail.name : 'No Role', mid = m ? m.id : '';
         var bgColor = avatarColor(fn);
+        var agentStatus = agentStatusMap[u.id] || 'offline';
         html += '<tr>' +
           '<td class="ps-3"><div class="d-flex align-items-center gap-2"><div class="user-avatar" style="background:' + bgColor + ';">' + getInitials(fn) + '</div><div class="fw-medium">' + escapeHtml(fn) + '</div></div></td>' +
           '<td class="text-muted small">' + escapeHtml(u.email) + '</td>' +
           '<td><span class="badge ' + getRoleBadgeClass(rn) + '">' + escapeHtml(rn) + '</span></td>' +
-          '<td><span class="status-indicator"><span class="status-dot ' + (u.is_active ? 'status-dot-active' : 'status-dot-inactive') + '"></span>' + (u.is_active ? 'Active' : 'Inactive') + '</span></td>' +
+          '<td><span class="status-indicator"><span class="status-dot ' + getStatusDotClass(agentStatus) + '"></span>' + getStatusLabel(agentStatus) + '</span></td>' +
           '<td class="text-muted small">' + formatDate(u.date_joined) + '</td>' +
           '<td class="text-end pe-3">' + (IS_ADMIN_OR_MANAGER ? '<div class="dropdown"><button class="btn btn-sm btn-ghost dropdown-toggle" data-bs-toggle="dropdown"><i class="ti ti-dots"></i></button>' +
           '<ul class="dropdown-menu dropdown-menu-end">' +

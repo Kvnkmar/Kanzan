@@ -83,15 +83,17 @@ def _check_tenant_sla(tenant, now):
 
 def _check_ticket_sla(ticket, policy, tenant, tenant_settings, now):
     """Check a single ticket against its SLA policy and fire escalations."""
+    from apps.tickets.sla import get_effective_elapsed_minutes
+
     update_fields = []
+
+    # Compute pause-adjusted elapsed time once for both checks
+    effective_elapsed = get_effective_elapsed_minutes(ticket, policy, tenant, now)
 
     # --- Response SLA ---
     response_breached = False
     if not ticket.sla_response_breached and ticket.first_responded_at is None:
-        elapsed = _elapsed(
-            ticket.created_at, now, policy, tenant_settings
-        )
-        if elapsed > policy.first_response_minutes:
+        if effective_elapsed > policy.first_response_minutes:
             ticket.sla_response_breached = True
             update_fields.append("sla_response_breached")
             response_breached = True
@@ -99,10 +101,7 @@ def _check_ticket_sla(ticket, policy, tenant, tenant_settings, now):
     # --- Resolution SLA ---
     resolution_breached = False
     if not ticket.sla_resolution_breached and ticket.resolved_at is None:
-        elapsed = _elapsed(
-            ticket.created_at, now, policy, tenant_settings
-        )
-        if elapsed > policy.resolution_minutes:
+        if effective_elapsed > policy.resolution_minutes:
             ticket.sla_resolution_breached = True
             update_fields.append("sla_resolution_breached")
             resolution_breached = True
@@ -229,6 +228,11 @@ def _check_escalation_rules(ticket, policy, tenant, tenant_settings, now):
         if isinstance(meta, dict) and "escalation_rule_id" in meta:
             fired_rule_ids.add(meta["escalation_rule_id"])
 
+    from apps.tickets.sla import get_effective_elapsed_minutes
+
+    # Pre-compute effective elapsed for breach triggers (pause-aware)
+    effective_elapsed = get_effective_elapsed_minutes(ticket, policy, tenant, now)
+
     for rule in rules:
         rule_id_str = str(rule.id)
         if rule_id_str in fired_rule_ids:
@@ -238,20 +242,19 @@ def _check_escalation_rules(ticket, policy, tenant, tenant_settings, now):
         if rule.trigger == EscalationRule.Trigger.RESPONSE_BREACH:
             if ticket.first_responded_at is not None:
                 continue
-            reference_time = ticket.created_at
             sla_minutes = policy.first_response_minutes
+            elapsed = effective_elapsed
         elif rule.trigger == EscalationRule.Trigger.RESOLUTION_BREACH:
             if ticket.resolved_at is not None:
                 continue
-            reference_time = ticket.created_at
             sla_minutes = policy.resolution_minutes
+            elapsed = effective_elapsed
         elif rule.trigger == EscalationRule.Trigger.IDLE_TIME:
-            reference_time = ticket.updated_at
+            # Idle time uses raw elapsed from last update (not pause-adjusted)
+            elapsed = _elapsed(ticket.updated_at, now, policy, tenant_settings)
             sla_minutes = 0
         else:
             continue
-
-        elapsed = _elapsed(reference_time, now, policy, tenant_settings)
 
         # threshold_minutes is added to the SLA target for breach triggers,
         # or stands alone for idle_time
@@ -294,7 +297,7 @@ def check_overdue_tickets(self):
 
 
 def _check_tenant_overdue(tenant, now):
-    """Send overdue reminders for a single tenant."""
+    """Send overdue reminders for a single tenant (due_date + follow_up_due_at)."""
     from apps.accounts.models import TenantMembership
     from apps.notifications.models import Notification, NotificationType
     from apps.notifications.services import send_notification
@@ -305,6 +308,17 @@ def _check_tenant_overdue(tenant, now):
         .values_list("id", flat=True)
     )
 
+    # Dedup window: start of today (UTC)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Cache admin memberships for the tenant
+    admin_memberships = list(
+        TenantMembership.objects.filter(
+            tenant=tenant, is_active=True, role__hierarchy_level__lte=20,
+        ).select_related("user")[:5]
+    )
+
+    # --- Due date overdue ---
     overdue_tickets = (
         Ticket.unscoped.filter(
             tenant=tenant,
@@ -315,35 +329,104 @@ def _check_tenant_overdue(tenant, now):
         .select_related("status", "assignee")
     )
 
-    if not overdue_tickets.exists():
+    if overdue_tickets.exists():
+        already_notified_ids = set(
+            Notification.unscoped.filter(
+                tenant=tenant,
+                type=NotificationType.TICKET_OVERDUE,
+                created_at__gte=today_start,
+            )
+            .values_list("data__ticket_id", flat=True)
+        )
+
+        for ticket in overdue_tickets:
+            ticket_id_str = str(ticket.id)
+            if ticket_id_str in already_notified_ids:
+                continue
+
+            overdue_delta = now - ticket.due_date
+            overdue_hours = int(overdue_delta.total_seconds() / 3600)
+            if overdue_hours < 1:
+                overdue_label = f"{int(overdue_delta.total_seconds() / 60)}m"
+            elif overdue_hours < 24:
+                overdue_label = f"{overdue_hours}h"
+            else:
+                overdue_label = f"{overdue_hours // 24}d {overdue_hours % 24}h"
+
+            notif_data = {
+                "ticket_id": ticket_id_str,
+                "ticket_number": ticket.number,
+                "overdue_by": overdue_label,
+            }
+
+            if ticket.assignee:
+                send_notification(
+                    tenant=tenant,
+                    recipient=ticket.assignee,
+                    notification_type=NotificationType.TICKET_OVERDUE,
+                    title=f"Overdue: Ticket #{ticket.number}",
+                    body=(
+                        f'"{ticket.subject}" is overdue by {overdue_label}. '
+                        f"It was due {ticket.due_date.strftime('%b %d, %Y %H:%M')}."
+                    ),
+                    data=notif_data,
+                )
+
+            for membership in admin_memberships:
+                if ticket.assignee_id and membership.user_id == ticket.assignee_id:
+                    continue
+                send_notification(
+                    tenant=tenant,
+                    recipient=membership.user,
+                    notification_type=NotificationType.TICKET_OVERDUE,
+                    title=f"Overdue: Ticket #{ticket.number}",
+                    body=(
+                        f'"{ticket.subject}" assigned to '
+                        f"{ticket.assignee.get_full_name() if ticket.assignee else 'Unassigned'} "
+                        f"is overdue by {overdue_label}."
+                    ),
+                    data=notif_data,
+                )
+
+            logger.info(
+                "Overdue notification sent for ticket #%s (tenant: %s, overdue by: %s)",
+                ticket.number,
+                tenant.slug,
+                overdue_label,
+            )
+
+    # --- Follow-up overdue ---
+    followup_tickets = (
+        Ticket.unscoped.filter(
+            tenant=tenant,
+            follow_up_due_at__lt=now,
+            follow_up_due_at__isnull=False,
+        )
+        .exclude(status_id__in=closed_status_ids)
+        .select_related("status", "assignee")
+    )
+
+    if not followup_tickets.exists():
         return
 
-    # Dedup window: start of today (UTC)
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    # Pre-fetch ticket IDs that already received an overdue notification today
-    already_notified_ids = set(
+    already_followup_notified_ids = set(
         Notification.unscoped.filter(
             tenant=tenant,
-            type=NotificationType.TICKET_OVERDUE,
+            type=NotificationType.TICKET_FOLLOWUP_OVERDUE,
             created_at__gte=today_start,
         )
         .values_list("data__ticket_id", flat=True)
     )
 
-    # Cache admin memberships for the tenant
-    admin_memberships = list(
-        TenantMembership.objects.filter(
-            tenant=tenant, is_active=True, role__hierarchy_level__lte=20,
-        ).select_related("user")[:5]
-    )
-
-    for ticket in overdue_tickets:
+    for ticket in followup_tickets:
         ticket_id_str = str(ticket.id)
-        if ticket_id_str in already_notified_ids:
+        if ticket_id_str in already_followup_notified_ids:
             continue
 
-        overdue_delta = now - ticket.due_date
+        if not ticket.assignee:
+            continue
+
+        overdue_delta = now - ticket.follow_up_due_at
         overdue_hours = int(overdue_delta.total_seconds() / 3600)
         if overdue_hours < 1:
             overdue_label = f"{int(overdue_delta.total_seconds() / 60)}m"
@@ -352,45 +435,24 @@ def _check_tenant_overdue(tenant, now):
         else:
             overdue_label = f"{overdue_hours // 24}d {overdue_hours % 24}h"
 
-        notif_data = {
-            "ticket_id": ticket_id_str,
-            "ticket_number": ticket.number,
-            "overdue_by": overdue_label,
-        }
-
-        # Notify assignee
-        if ticket.assignee:
-            send_notification(
-                tenant=tenant,
-                recipient=ticket.assignee,
-                notification_type=NotificationType.TICKET_OVERDUE,
-                title=f"Overdue: Ticket #{ticket.number}",
-                body=(
-                    f'"{ticket.subject}" is overdue by {overdue_label}. '
-                    f"It was due {ticket.due_date.strftime('%b %d, %Y %H:%M')}."
-                ),
-                data=notif_data,
-            )
-
-        # Notify admins/managers (excluding assignee)
-        for membership in admin_memberships:
-            if ticket.assignee_id and membership.user_id == ticket.assignee_id:
-                continue
-            send_notification(
-                tenant=tenant,
-                recipient=membership.user,
-                notification_type=NotificationType.TICKET_OVERDUE,
-                title=f"Overdue: Ticket #{ticket.number}",
-                body=(
-                    f'"{ticket.subject}" assigned to '
-                    f"{ticket.assignee.get_full_name() if ticket.assignee else 'Unassigned'} "
-                    f"is overdue by {overdue_label}."
-                ),
-                data=notif_data,
-            )
+        send_notification(
+            tenant=tenant,
+            recipient=ticket.assignee,
+            notification_type=NotificationType.TICKET_FOLLOWUP_OVERDUE,
+            title=f"Follow-up overdue: Ticket #{ticket.number}",
+            body=(
+                f'Follow-up for "{ticket.subject}" is overdue by {overdue_label}. '
+                f"It was due {ticket.follow_up_due_at.strftime('%b %d, %Y %H:%M')}."
+            ),
+            data={
+                "ticket_id": ticket_id_str,
+                "ticket_number": ticket.number,
+                "overdue_by": overdue_label,
+            },
+        )
 
         logger.info(
-            "Overdue notification sent for ticket #%s (tenant: %s, overdue by: %s)",
+            "Follow-up overdue notification sent for ticket #%s (tenant: %s, overdue by: %s)",
             ticket.number,
             tenant.slug,
             overdue_label,
@@ -642,3 +704,249 @@ def send_ticket_email_task(self, ticket_id, tenant_id, to_email, subject, body_t
                 self.request.retries + 1, self.max_retries + 1,
             )
             raise self.retry(exc=exc)
+
+
+# ---------------------------------------------------------------------------
+# Auto-close task (Phase 4)
+# ---------------------------------------------------------------------------
+
+
+@shared_task(
+    bind=True,
+    max_retries=0,
+    acks_late=True,
+)
+def auto_close_ticket(self, ticket_id):
+    """
+    Auto-close a ticket that has been in 'resolved' status for N days.
+
+    Idempotency guards:
+    1. Ticket must still be in 'resolved' status (not reopened).
+    2. ``ticket.auto_close_task_id`` must match ``self.request.id``
+       (authoritative guard — handles the case where revoke() was
+       best-effort and a stale task executes).
+    """
+    from apps.tickets.models import Ticket, TicketActivity, TicketStatus
+    from main.context import tenant_context
+
+    try:
+        ticket = Ticket.unscoped.select_related("status", "tenant").get(pk=ticket_id)
+    except Ticket.DoesNotExist:
+        logger.warning("auto_close_ticket: ticket %s not found.", ticket_id)
+        return
+
+    # Guard 1: still in resolved status?
+    if not ticket.status or ticket.status.slug != "resolved":
+        logger.info(
+            "auto_close_ticket: ticket #%s is no longer resolved (status=%s), skipping.",
+            ticket.number,
+            ticket.status.slug if ticket.status else None,
+        )
+        return
+
+    # Guard 2: is this the authoritative task?
+    if ticket.auto_close_task_id != self.request.id:
+        logger.info(
+            "auto_close_ticket: task ID mismatch for ticket #%s "
+            "(expected=%s, got=%s), skipping.",
+            ticket.number,
+            ticket.auto_close_task_id,
+            self.request.id,
+        )
+        return
+
+    tenant = ticket.tenant
+
+    with tenant_context(tenant):
+        closed_status = (
+            TicketStatus.objects.filter(is_closed=True)
+            .order_by("order")
+            .first()
+        )
+        if closed_status is None:
+            logger.error(
+                "auto_close_ticket: no closed status for tenant %s.", tenant.slug,
+            )
+            return
+
+        from apps.tickets.services import change_ticket_status
+
+        change_ticket_status(ticket, closed_status, actor=None)
+
+        # Log auto-close event
+        from apps.tickets.services import _create_ticket_activity
+
+        _create_ticket_activity(
+            ticket,
+            actor=None,
+            event=TicketActivity.Event.AUTO_CLOSED,
+            message="Ticket auto-closed after resolved period expired.",
+            metadata={"task_id": self.request.id},
+        )
+
+        # Clear the task ID
+        Ticket.unscoped.filter(pk=ticket.pk).update(auto_close_task_id=None)
+
+    logger.info(
+        "auto_close_ticket: ticket #%s auto-closed (tenant: %s).",
+        ticket.number,
+        tenant.slug,
+    )
+
+
+# ---------------------------------------------------------------------------
+# CSAT survey email task (Phase 4)
+# ---------------------------------------------------------------------------
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=60,
+    acks_late=True,
+)
+def send_csat_survey_email(self, ticket_id, tenant_id):
+    """
+    Send a CSAT survey email to the ticket's contact.
+
+    Idempotent: skips if the ticket is no longer in 'resolved' status
+    (was reopened before the delay elapsed) or if CSAT was already submitted.
+    """
+    from django.conf import settings as django_settings
+    from django.core import signing
+    from django.core.mail import send_mail
+    from django.template.loader import render_to_string
+
+    from apps.tenants.models import Tenant
+    from apps.tickets.models import Ticket
+    from main.context import tenant_context
+
+    try:
+        ticket = Ticket.unscoped.select_related(
+            "status", "tenant", "contact",
+        ).get(pk=ticket_id)
+        tenant = Tenant.objects.select_related("settings").get(pk=tenant_id)
+    except (Ticket.DoesNotExist, Tenant.DoesNotExist):
+        logger.warning(
+            "send_csat_survey_email: ticket %s or tenant %s not found.",
+            ticket_id, tenant_id,
+        )
+        return
+
+    # Guard: only send if still resolved (not reopened)
+    if not ticket.status or ticket.status.slug != "resolved":
+        logger.info(
+            "send_csat_survey_email: ticket #%s no longer resolved, skipping.",
+            ticket.number,
+        )
+        return
+
+    # Guard: already submitted
+    if ticket.csat_rating is not None:
+        logger.info(
+            "send_csat_survey_email: ticket #%s already has CSAT, skipping.",
+            ticket.number,
+        )
+        return
+
+    # Guard: must have a contact with an email
+    if not ticket.contact or not ticket.contact.email:
+        logger.info(
+            "send_csat_survey_email: ticket #%s has no contact email, skipping.",
+            ticket.number,
+        )
+        return
+
+    # Generate signed token
+    token = signing.dumps(
+        {"t": str(ticket.pk), "n": str(tenant.pk)},
+        salt="csat",
+    )
+
+    base_domain = getattr(django_settings, "BASE_DOMAIN", "localhost:8001")
+    scheme = "https" if not base_domain.startswith("localhost") else "http"
+    survey_url = (
+        f"{scheme}://{tenant.slug}.{base_domain}"
+        f"/tickets/{ticket.number}/csat/?token={token}"
+    )
+
+    tenant_name = tenant.name
+
+    with tenant_context(tenant):
+        try:
+            context = {
+                "ticket": ticket,
+                "tenant_name": tenant_name,
+                "survey_url": survey_url,
+                "contact_name": (
+                    ticket.contact.first_name
+                    or ticket.contact.email.split("@")[0]
+                ),
+            }
+
+            subject = f"How did we do? Ticket #{ticket.number}"
+            html_body = render_to_string(
+                "tickets/email/csat_survey.html", context,
+            )
+            text_body = render_to_string(
+                "tickets/email/csat_survey.txt", context,
+            )
+
+            from_email = getattr(
+                django_settings, "DEFAULT_FROM_EMAIL", "noreply@kanzan.io",
+            )
+
+            send_mail(
+                subject=subject,
+                message=text_body,
+                from_email=from_email,
+                recipient_list=[ticket.contact.email],
+                html_message=html_body,
+                fail_silently=False,
+            )
+
+            logger.info(
+                "CSAT survey sent for ticket #%s to %s.",
+                ticket.number,
+                ticket.contact.email,
+            )
+
+        except Exception as exc:
+            logger.exception(
+                "Failed to send CSAT email for ticket #%s (attempt %d/%d)",
+                ticket.number,
+                self.request.retries + 1,
+                self.max_retries + 1,
+            )
+            raise self.retry(exc=exc)
+
+
+@shared_task(bind=True, max_retries=1, acks_late=True)
+def propagate_sla_policy_change_task(self, policy_id, tenant_id, ticket_ids):
+    """
+    Async bulk recalculation of SLA deadlines after an SLAPolicy is edited.
+
+    Called when >50 tickets are affected to avoid blocking the web request.
+    """
+    from apps.tenants.models import Tenant
+    from apps.tickets.models import SLAPolicy
+    from apps.tickets.signals import _apply_policy_to_tickets
+    from main.context import tenant_context
+
+    try:
+        tenant = Tenant.objects.get(pk=tenant_id)
+        policy = SLAPolicy.unscoped.get(pk=policy_id)
+    except (Tenant.DoesNotExist, SLAPolicy.DoesNotExist):
+        logger.error(
+            "propagate_sla_policy_change_task: policy %s or tenant %s not found.",
+            policy_id, tenant_id,
+        )
+        return
+
+    with tenant_context(tenant):
+        _apply_policy_to_tickets(policy, ticket_ids)
+
+    logger.info(
+        "Async SLA propagation complete for %d tickets (policy %s).",
+        len(ticket_ids), policy.name,
+    )

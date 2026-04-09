@@ -147,6 +147,53 @@
     </div>
   </div>
 </div>
+<!-- Conversation Details Modal -->
+<div class="modal fade" id="conversationDetailsModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content new-conv-modal">
+      <div class="new-conv-header">
+        <div class="new-conv-header-icon">
+          <i class="ti ti-info-circle"></i>
+        </div>
+        <div>
+          <h5 class="modal-title" id="detailsModalTitle">Conversation Details</h5>
+          <p class="new-conv-subtitle" id="detailsModalSubtitle"></p>
+        </div>
+        <button type="button" class="btn-close ms-auto" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Conversation Info -->
+        <div class="mb-3" id="detailsConvInfo">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="chat-avatar" id="detailsAvatar" style="width:48px;height:48px;font-size:1.125rem;"></div>
+            <div>
+              <h6 class="mb-0" id="detailsConvName"></h6>
+              <span class="text-muted small" id="detailsConvType"></span>
+            </div>
+          </div>
+          <div class="d-flex gap-4 text-muted small mb-2">
+            <span><i class="ti ti-calendar me-1"></i>Created <span id="detailsCreatedAt"></span></span>
+          </div>
+        </div>
+
+        <hr class="my-3">
+
+        <!-- Participants -->
+        <div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <h6 class="mb-0 small text-uppercase text-muted fw-semibold" style="letter-spacing:0.05em;">
+              <i class="ti ti-users me-1"></i>Participants (<span id="detailsParticipantCount">0</span>)
+            </h6>
+          </div>
+          <div id="detailsParticipantList" class="d-flex flex-column gap-1"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost btn-sm" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -724,7 +771,80 @@
   }
 
   function viewConversationDetails() {
-    // Placeholder for conversation details view
+    if (!activeConversationId) return;
+    const conv = conversations.find(c => c.id === activeConversationId);
+    if (!conv) return;
+
+    const title = conv.title || conv.name || 'Conversation';
+    document.getElementById('detailsModalTitle').textContent = title;
+
+    const typeLabels = { direct: 'Direct Message', group: 'Group Chat', ticket: 'Ticket Conversation' };
+    document.getElementById('detailsModalSubtitle').textContent = typeLabels[conv.type] || conv.type;
+    document.getElementById('detailsConvName').textContent = title;
+    document.getElementById('detailsConvType').textContent = typeLabels[conv.type] || conv.type;
+
+    const avatarEl = document.getElementById('detailsAvatar');
+    avatarEl.textContent = getInitials(title);
+    avatarEl.style.background = avatarColor(title);
+
+    const createdAt = conv.created_at ? new Date(conv.created_at).toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' }) : 'Unknown';
+    document.getElementById('detailsCreatedAt').textContent = createdAt;
+
+    const participants = conv.participants || [];
+    document.getElementById('detailsParticipantCount').textContent = participants.length;
+
+    const listEl = document.getElementById('detailsParticipantList');
+    listEl.textContent = '';
+
+    participants.forEach(function(p) {
+      const user = p.user || p;
+      const name = user.full_name || ((user.first_name || '') + ' ' + (user.last_name || '')).trim() || user.email || 'Unknown';
+      const isCurrentUser = user.id === currentUserId;
+
+      const row = document.createElement('div');
+      row.className = 'd-flex align-items-center gap-2 p-2 rounded';
+      row.style.cssText = 'background:var(--crm-surface-alt, rgba(255,255,255,0.03));';
+
+      const av = document.createElement('div');
+      av.className = 'chat-avatar';
+      av.style.cssText = 'width:32px;height:32px;font-size:0.75rem;flex-shrink:0;';
+      av.textContent = getInitials(name);
+      av.style.background = avatarColor(name);
+
+      const info = document.createElement('div');
+      info.className = 'flex-grow-1 min-width-0';
+      const nameEl = document.createElement('div');
+      nameEl.className = 'small fw-medium';
+      nameEl.textContent = name + (isCurrentUser ? ' (You)' : '');
+      const emailEl = document.createElement('div');
+      emailEl.className = 'text-muted';
+      emailEl.style.fontSize = '0.75rem';
+      emailEl.textContent = user.email || '';
+      info.appendChild(nameEl);
+      info.appendChild(emailEl);
+
+      row.appendChild(av);
+      row.appendChild(info);
+
+      if (p.joined_at) {
+        const joinedEl = document.createElement('span');
+        joinedEl.className = 'text-muted flex-shrink-0';
+        joinedEl.style.fontSize = '0.6875rem';
+        joinedEl.textContent = 'Joined ' + new Date(p.joined_at).toLocaleDateString([], { month: 'short', day: 'numeric' });
+        row.appendChild(joinedEl);
+      }
+
+      listEl.appendChild(row);
+    });
+
+    if (!participants.length) {
+      var emptyEl = document.createElement('div');
+      emptyEl.className = 'text-muted small text-center p-3';
+      emptyEl.textContent = 'No participants found';
+      listEl.appendChild(emptyEl);
+    }
+
+    new bootstrap.Modal(document.getElementById('conversationDetailsModal')).show();
   }
 
   function leaveConversation() {

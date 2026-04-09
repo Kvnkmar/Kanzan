@@ -2,397 +2,300 @@
 
 {% block title %}Dashboard - Kanzen Suite{% endblock %}
 
-{% block extra_css %}
-<style>
-.ws-event--dark { background: transparent !important; color: #FFFFFF !important; }
-.ws-event--dark:hover { background: rgba(255,255,255,0.06) !important; }
-</style>
-{% endblock %}
-
 {% block content %}
 <!-- Page Header -->
-<div class="page-header">
-  <div>
-    <h1 class="page-title">Overview</h1>
-    <p class="page-subtitle">Monitor every activity of your company</p>
-  </div>
-  <div class="header-actions">
-    <div class="date-range-picker" id="dateRangePicker">
-      <button type="button" class="btn-date-pill active" data-range="today">Today</button>
-      <button type="button" class="btn-date-pill" data-range="7d">7 Days</button>
-      <button type="button" class="btn-date-pill" data-range="30d">30 Days</button>
-      <button type="button" class="btn-date-pill" data-range="1y">1 Year</button>
-      <button type="button" class="btn-date-pill btn-date-pill--custom" data-range="custom">
-        <i class="ti ti-calendar"></i>
-        Custom
-      </button>
-    </div>
-    <!-- Custom date range popover -->
-    <div class="custom-date-popover" id="customDatePopover" style="display:none;">
-      <div class="custom-date-popover-header">
-        <span class="custom-date-popover-title">Custom Range</span>
-        <button type="button" class="custom-date-popover-close" id="customDateClose">&times;</button>
+<div class="page-header fd-dash-header">
+  <div class="fd-dash-header__top">
+    <h1 class="page-title">Dashboard</h1>
+    <div class="header-actions">
+      <div class="date-range-picker" id="dateRangePicker">
+        <button type="button" class="btn-date-pill active" data-range="today">Today</button>
+        <button type="button" class="btn-date-pill" data-range="7d">7 Days</button>
+        <button type="button" class="btn-date-pill" data-range="30d">30 Days</button>
+        <button type="button" class="btn-date-pill" data-range="1y">1 Year</button>
+        <button type="button" class="btn-date-pill btn-date-pill--custom" data-range="custom">
+          <i class="ti ti-calendar"></i> Custom
+        </button>
       </div>
-      <div class="custom-date-popover-body">
-        <div class="custom-date-field">
-          <label for="customDateFrom">From</label>
-          <input type="date" id="customDateFrom" class="custom-date-input">
+      <div class="custom-date-popover" id="customDatePopover" style="display:none;">
+        <div class="custom-date-popover-header">
+          <span class="custom-date-popover-title">Custom Range</span>
+          <button type="button" class="custom-date-popover-close" id="customDateClose">&times;</button>
         </div>
-        <div class="custom-date-field">
-          <label for="customDateTo">To</label>
-          <input type="date" id="customDateTo" class="custom-date-input">
+        <div class="custom-date-popover-body">
+          <div class="custom-date-field">
+            <label for="customDateFrom">From</label>
+            <input type="date" id="customDateFrom" class="custom-date-input">
+          </div>
+          <div class="custom-date-field">
+            <label for="customDateTo">To</label>
+            <input type="date" id="customDateTo" class="custom-date-input">
+          </div>
+          <button type="button" class="btn-apply-custom-date" id="applyCustomDate">Apply</button>
         </div>
-        <button type="button" class="btn-apply-custom-date" id="applyCustomDate">Apply</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Stat Cards -->
-<div class="row g-3 mb-4">
-  <div class="col-sm-6 col-xl-3">
-    <div class="stat-card stat-card--open">
-      <div class="stat-card-header">
-        <span class="stat-label">Open Tickets</span>
-        <div class="stat-icon-circle stat-icon-circle--open">
-          <i class="ti ti-inbox"></i>
-        </div>
-      </div>
-      <div class="stat-value" id="statOpen">
-        <span class="skeleton skeleton-text" style="width:60px;">&nbsp;</span>
-      </div>
-      <div class="stat-trend trend-up" id="trendOpen" style="display:none;">
-        <i class="ti ti-arrow-up-right"></i>
-        <span>from last month</span>
-      </div>
-    </div>
+{% if is_admin_or_manager %}
+<!-- Agent Status -->
+<div class="fd-agent-strip" id="agentStatsGrid">
+  <div class="fd-agent-strip__item fd-agent-strip__item--online">
+    <span class="fd-agent-strip__dot"></span>
+    <span class="fd-agent-strip__label">Online</span>
+    <span class="fd-agent-strip__value" id="countOnline">0</span>
   </div>
-  <div class="col-sm-6 col-xl-3">
-    <div class="stat-card stat-card--progress">
-      <div class="stat-card-header">
-        <span class="stat-label">In Progress</span>
-        <div class="stat-icon-circle stat-icon-circle--progress">
-          <i class="ti ti-refresh"></i>
-        </div>
-      </div>
-      <div class="stat-value" id="statInProgress">
-        <span class="skeleton skeleton-text" style="width:60px;">&nbsp;</span>
-      </div>
-      <div class="stat-trend trend-up" id="trendInProgress" style="display:none;">
-        <i class="ti ti-arrow-up-right"></i>
-        <span>from last month</span>
-      </div>
-    </div>
+  <div class="fd-agent-strip__divider"></div>
+  <div class="fd-agent-strip__item fd-agent-strip__item--offline">
+    <span class="fd-agent-strip__dot"></span>
+    <span class="fd-agent-strip__label">Offline</span>
+    <span class="fd-agent-strip__value" id="countOffline">0</span>
   </div>
-  <div class="col-sm-6 col-xl-3">
-    <div class="stat-card stat-card--resolved">
-      <div class="stat-card-header">
-        <span class="stat-label">Resolved</span>
-        <div class="stat-icon-circle stat-icon-circle--resolved">
-          <i class="ti ti-circle-check-filled"></i>
-        </div>
-      </div>
-      <div class="stat-value" id="statResolved">
-        <span class="skeleton skeleton-text" style="width:60px;">&nbsp;</span>
-      </div>
-      <div class="stat-trend trend-up" id="trendResolved" style="display:none;">
-        <i class="ti ti-arrow-up-right"></i>
-        <span>from last month</span>
-      </div>
-    </div>
+  <div class="fd-agent-strip__divider"></div>
+  <div class="fd-agent-strip__item fd-agent-strip__item--total">
+    <span class="fd-agent-strip__dot"></span>
+    <span class="fd-agent-strip__label">Total</span>
+    <span class="fd-agent-strip__value" id="countTotal">0</span>
   </div>
-  <div class="col-sm-6 col-xl-3">
-    <div class="stat-card stat-card--avgres">
-      <div class="stat-card-header">
-        <span class="stat-label">Avg Resolution</span>
-        <div class="stat-icon-circle stat-icon-circle--avgres">
-          <i class="ti ti-hourglass"></i>
-        </div>
-      </div>
-      <div class="stat-value" id="statAvgResolution">
-        <span class="skeleton skeleton-text" style="width:60px;">&nbsp;</span>
-      </div>
-    </div>
+  <div class="fd-agent-strip__divider"></div>
+  <div class="fd-agent-strip__item fd-agent-strip__item--capacity">
+    <span class="fd-agent-strip__dot"></span>
+    <span class="fd-agent-strip__label">At Capacity</span>
+    <span class="fd-agent-strip__value" id="countAtCapacity">0</span>
   </div>
 </div>
+{% endif %}
 
-<!-- This Week's Events -->
-<div class="row g-4 mb-4">
-  <div class="col-12">
-    <div class="card">
-      <div class="card-header">
-        <h5 class="card-title">This Week</h5>
-        <a href="{% url 'frontend:calendar' %}" class="card-link">Full calendar</a>
-      </div>
-      <div class="card-body p-0">
-        <div class="week-strip" id="weekStrip">
-          <div class="week-strip-loading">
-            <div class="skeleton skeleton-text" style="width:100%;height:120px;">&nbsp;</div>
+<!-- Summary Stat Cards -->
+<div class="fd-summary-row mb-3" id="summaryCards">
+  <a href="{% url 'frontend:ticket-list' %}?filter=unresolved" class="fd-summary-card fd-summary-card--warning" style="text-decoration:none;color:inherit;">
+    <span class="fd-summary-label">Unresolved</span>
+    <span class="fd-summary-value" id="sumUnresolved">
+      <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+    </span>
+  </a>
+  <a href="{% url 'frontend:ticket-list' %}?filter=open" class="fd-summary-card fd-summary-card--primary" style="text-decoration:none;color:inherit;">
+    <span class="fd-summary-label">Open</span>
+    <span class="fd-summary-value" id="sumOpen">
+      <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+    </span>
+  </a>
+  <a href="{% url 'frontend:ticket-list' %}?filter=overdue" class="fd-summary-card fd-summary-card--danger" style="text-decoration:none;color:inherit;">
+    <span class="fd-summary-label">Overdue</span>
+    <span class="fd-summary-value" id="sumOverdue">
+      <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+    </span>
+  </a>
+  <a href="{% url 'frontend:ticket-list' %}?filter=unassigned" class="fd-summary-card fd-summary-card--muted" style="text-decoration:none;color:inherit;">
+    <span class="fd-summary-label">Unassigned</span>
+    <span class="fd-summary-value" id="sumUnassigned">
+      <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+    </span>
+  </a>
+</div>
+
+<!-- Today's Trends -->
+<div class="card mb-3">
+  <div class="card-body p-0">
+    <div class="fd-trends-wrap">
+      <div class="fd-trends-chart-area">
+        <div class="fd-trends-header">
+          <div>
+            <h5 class="fd-trends-title">Today's trends</h5>
+            <span class="fd-trends-date" id="trendsDate"></span>
           </div>
         </div>
+        <div class="fd-trends-canvas-wrap">
+          <canvas id="trendsChart" height="220"></canvas>
+        </div>
+        <div class="fd-trends-legend">
+          <span class="fd-trends-legend-item">
+            <span class="fd-trends-legend-dot" style="background:#2563EB;"></span> Today
+          </span>
+          <span class="fd-trends-legend-item">
+            <span class="fd-trends-legend-dot" style="background:#CBD5E1;"></span> Yesterday
+          </span>
+        </div>
+      </div>
+      <div class="fd-trends-stats">
+        <div class="fd-trends-stat">
+          <span class="fd-trends-stat-label">Resolved</span>
+          <span class="fd-trends-stat-value" id="trendResolved">
+            <span class="skeleton skeleton-text" style="width:30px;">&nbsp;</span>
+          </span>
+        </div>
+        <div class="fd-trends-stat">
+          <span class="fd-trends-stat-label">Received</span>
+          <span class="fd-trends-stat-value" id="trendReceived">
+            <span class="skeleton skeleton-text" style="width:30px;">&nbsp;</span>
+          </span>
+        </div>
+        <div class="fd-trends-stat">
+          <span class="fd-trends-stat-label">Avg first response time</span>
+          <span class="fd-trends-stat-value" id="trendAvgFirst">
+            <span class="skeleton skeleton-text" style="width:50px;">&nbsp;</span>
+          </span>
+        </div>
+        <div class="fd-trends-stat">
+          <span class="fd-trends-stat-label">Avg response time</span>
+          <span class="fd-trends-stat-value" id="trendAvgResp">
+            <span class="skeleton skeleton-text" style="width:50px;">&nbsp;</span>
+          </span>
+        </div>
+        <div class="fd-trends-stat">
+          <span class="fd-trends-stat-label">Resolution within SLA</span>
+          <span class="fd-trends-stat-value" id="trendSlaPct">
+            <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+          </span>
+        </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Main Content Grid: Ticket Overview + SLA Compliance -->
-<div class="row g-4 mb-4">
-  <!-- Left Column: Ticket Overview -->
-  <div class="col-lg-8 d-flex">
+<!-- SLA Compliance (admin/manager only) -->
+<div class="card mb-3" id="slaComplianceCard" style="display:none;">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <div>
+      <h5 class="card-title mb-0">SLA Compliance</h5>
+      <small class="text-muted">Policy performance overview</small>
+    </div>
+  </div>
+  <div class="card-body p-0" id="slaComplianceBody">
+    <div class="p-3">
+      <div class="skeleton skeleton-text mb-2" style="width:100%;">&nbsp;</div>
+      <div class="skeleton skeleton-text mb-2" style="width:80%;">&nbsp;</div>
+      <div class="skeleton skeleton-text" style="width:60%;">&nbsp;</div>
+    </div>
+  </div>
+</div>
+
+<!-- Ticket Breakdown -->
+<div class="row g-3 mb-3">
+  <!-- Ticket Overview (Tabbed: Status / Priority) -->
+  <div class="col-lg-5 d-flex">
     <div class="card flex-fill">
       <div class="card-header">
-        <h5 class="card-title">Ticket Overview</h5>
-        <div class="card-header-actions">
-          <div class="btn-group btn-group-sm period-tabs" role="group" id="periodSelector">
-            <button type="button" class="btn btn-period active" data-period="week">Week</button>
-            <button type="button" class="btn btn-period" data-period="month">Month</button>
-            <button type="button" class="btn btn-period" data-period="quarter">Quarter</button>
+        <div class="d-flex align-items-center justify-content-between w-100">
+          <h5 class="card-title mb-0">Ticket Overview</h5>
+          <div class="fd-tab-toggle" id="overviewTabs">
+            <button type="button" class="fd-tab-btn active" data-tab="status">Status</button>
+            <button type="button" class="fd-tab-btn" data-tab="priority">Priority</button>
           </div>
         </div>
       </div>
-      <div class="card-body" id="ticketOverviewContent">
-        <div class="row align-items-center">
-          <div class="col-md-5">
-            <div class="chart-container-loading">
-              <div class="skeleton skeleton-circle mx-auto" style="width:180px;height:180px;"></div>
-              <div class="d-flex justify-content-center gap-3 mt-3">
-                <div class="skeleton skeleton-text" style="width:60px;">&nbsp;</div>
-                <div class="skeleton skeleton-text" style="width:60px;">&nbsp;</div>
-                <div class="skeleton skeleton-text" style="width:60px;">&nbsp;</div>
-              </div>
-            </div>
-          </div>
-          <div class="col-md-7 mt-3 mt-md-0">
-            <h6 class="section-subtitle">Priority Distribution</h6>
-            <div id="priorityBars">
-              <div class="priority-bar-row">
-                <span class="skeleton skeleton-text" style="width:100%;">&nbsp;</span>
-              </div>
-              <div class="priority-bar-row">
-                <span class="skeleton skeleton-text" style="width:100%;">&nbsp;</span>
-              </div>
-              <div class="priority-bar-row">
-                <span class="skeleton skeleton-text" style="width:100%;">&nbsp;</span>
-              </div>
-              <div class="priority-bar-row">
-                <span class="skeleton skeleton-text" style="width:100%;">&nbsp;</span>
-              </div>
-            </div>
-          </div>
+      <div class="card-body" id="middleWidgetBody">
+        <div class="d-flex justify-content-center">
+          <div class="skeleton skeleton-circle" style="width:160px;height:160px;"></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Right Column: SLA Compliance (admin/manager) or Due Today (agent) — JS-driven -->
-  <div class="col-lg-4 d-flex">
+  <!-- Overdue / Due Today / By Queue (Tabbed) -->
+  <div class="col-lg-7 d-flex">
     <div class="card flex-fill">
-      <div class="card-header d-flex align-items-center justify-content-between" id="rightWidgetHeader">
-        <h5 class="card-title mb-0">
-          <span class="skeleton skeleton-text" style="width:120px;">&nbsp;</span>
-        </h5>
+      <div class="card-header d-flex align-items-center justify-content-between">
+        <div class="fd-tab-toggle" id="urgentTabs">
+          <button type="button" class="fd-tab-btn active" data-tab="overdue">Overdue</button>
+          <button type="button" class="fd-tab-btn" data-tab="due_today">Due Today</button>
+          <button type="button" class="fd-tab-btn" data-tab="by_queue">By Queue</button>
+        </div>
+        <a href="{% url 'frontend:ticket-list' %}?filter=overdue" class="card-link" id="urgentViewAllLink">View all</a>
       </div>
-      <div class="card-body" id="rightWidgetBody">
-        <div class="d-flex align-items-center gap-3 mb-3">
-          <div class="skeleton skeleton-circle" style="width:56px;height:56px;"></div>
-          <div>
-            <div class="skeleton skeleton-text mb-1" style="width:120px;">&nbsp;</div>
-            <div class="skeleton skeleton-text" style="width:80px;">&nbsp;</div>
-          </div>
-        </div>
-        <div class="d-flex align-items-center gap-3 mb-3">
-          <div class="skeleton skeleton-circle" style="width:56px;height:56px;"></div>
-          <div>
-            <div class="skeleton skeleton-text mb-1" style="width:120px;">&nbsp;</div>
-            <div class="skeleton skeleton-text" style="width:80px;">&nbsp;</div>
-          </div>
-        </div>
-        <div class="d-flex align-items-center gap-3">
-          <div class="skeleton skeleton-circle" style="width:56px;height:56px;"></div>
-          <div>
-            <div class="skeleton skeleton-text mb-1" style="width:120px;">&nbsp;</div>
-            <div class="skeleton skeleton-text" style="width:80px;">&nbsp;</div>
-          </div>
+      <div class="card-body p-0" id="rightPanelBody" style="max-height:360px;overflow-y:auto;">
+        <div class="p-3">
+          <div class="skeleton skeleton-text mb-2" style="width:100%;">&nbsp;</div>
+          <div class="skeleton skeleton-text mb-2" style="width:90%;">&nbsp;</div>
+          <div class="skeleton skeleton-text mb-2" style="width:85%;">&nbsp;</div>
+          <div class="skeleton skeleton-text" style="width:70%;">&nbsp;</div>
         </div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Overdue Tickets -->
-<div class="row g-4 mb-4">
-  <div class="col-12">
-    <div class="card" id="overdueCard" style="display:none;">
-      <div class="card-header d-flex align-items-center justify-content-between" id="overdueHeader">
-        <h5 class="card-title mb-0">Overdue Tickets</h5>
-      </div>
-      <div class="card-body" id="overdueBody" style="overflow-y:auto;max-height:320px;">
-      </div>
+<!-- Overdue Reminders Widget -->
+<div class="card mb-3" id="overdueRemindersCard">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <div>
+      <h5 class="card-title mb-0">Overdue Reminders</h5>
+      <small class="text-muted">Reminders past due</small>
+    </div>
+    <a href="{% url 'frontend:reminders' %}" class="card-link">View all</a>
+  </div>
+  <div class="card-body p-0" id="overdueRemindersBody">
+    <div class="p-3">
+      <div class="skeleton skeleton-text mb-2" style="width:100%;">&nbsp;</div>
+      <div class="skeleton skeleton-text mb-2" style="width:80%;">&nbsp;</div>
+      <div class="skeleton skeleton-text" style="width:60%;">&nbsp;</div>
     </div>
   </div>
 </div>
 
-<!-- Top Agents + Recent Tickets (side-by-side, equal width, matching heights) -->
-<div class="row g-4 mb-4">
-  {% if is_admin_or_manager %}
-  <!-- Top Agents -->
+{% if is_admin_or_manager %}
+<!-- Top Agents + Recent Activity -->
+<div class="row g-3 mb-3">
   <div class="col-lg-6 d-flex">
     <div class="card flex-fill">
       <div class="card-header">
         <h5 class="card-title">Top Agents</h5>
       </div>
-      <div class="card-body p-0 d-flex flex-column">
-        <div id="teamTable" class="flex-fill">
-          <div class="table-responsive">
-            <table class="table table-modern">
-              <thead>
-                <tr>
-                  <th>Agent</th>
-                  <th>Assigned</th>
-                  <th>Closed</th>
-                  <th>Close Rate</th>
-                  <th>Avg Time</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td colspan="5">
-                    <div class="d-flex align-items-center gap-3 py-2">
-                      <div class="skeleton skeleton-circle" style="width:32px;height:32px;"></div>
-                      <div class="skeleton skeleton-text" style="width:200px;">&nbsp;</div>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td colspan="5">
-                    <div class="d-flex align-items-center gap-3 py-2">
-                      <div class="skeleton skeleton-circle" style="width:32px;height:32px;"></div>
-                      <div class="skeleton skeleton-text" style="width:200px;">&nbsp;</div>
-                    </div>
-                  </td>
-                </tr>
-                <tr>
-                  <td colspan="5">
-                    <div class="d-flex align-items-center gap-3 py-2">
-                      <div class="skeleton skeleton-circle" style="width:32px;height:32px;"></div>
-                      <div class="skeleton skeleton-text" style="width:200px;">&nbsp;</div>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+      <div class="card-body p-0" id="teamTable">
+        <div class="p-3">
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="skeleton skeleton-circle" style="width:32px;height:32px;"></div>
+            <div class="skeleton skeleton-text" style="width:200px;">&nbsp;</div>
+          </div>
+          <div class="d-flex align-items-center gap-3 mb-3">
+            <div class="skeleton skeleton-circle" style="width:32px;height:32px;"></div>
+            <div class="skeleton skeleton-text" style="width:200px;">&nbsp;</div>
+          </div>
+          <div class="d-flex align-items-center gap-3">
+            <div class="skeleton skeleton-circle" style="width:32px;height:32px;"></div>
+            <div class="skeleton skeleton-text" style="width:200px;">&nbsp;</div>
           </div>
         </div>
       </div>
     </div>
   </div>
-  {% endif %}
-
-  <!-- Recent Tickets -->
-  <div class="{% if is_admin_or_manager %}col-lg-6{% else %}col-12{% endif %} d-flex">
+  <div class="col-lg-6 d-flex">
     <div class="card flex-fill">
       <div class="card-header">
-        <h5 class="card-title">Recent Tickets</h5>
+        <h5 class="card-title">Recent Activity</h5>
         <a href="{% url 'frontend:ticket-list' %}" class="card-link">View all</a>
       </div>
       <div class="card-body p-0">
-        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
-          <table class="table table-modern">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Subject</th>
-                <th>Status</th>
-                <th>Priority</th>
-              </tr>
-            </thead>
-            <tbody id="recentTickets">
-              <tr class="skeleton-row">
-                <td><span class="skeleton skeleton-text" style="width:30px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:140px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:60px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:50px;">&nbsp;</span></td>
-              </tr>
-              <tr class="skeleton-row">
-                <td><span class="skeleton skeleton-text" style="width:30px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:120px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:60px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:50px;">&nbsp;</span></td>
-              </tr>
-              <tr class="skeleton-row">
-                <td><span class="skeleton skeleton-text" style="width:30px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:130px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:60px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:50px;">&nbsp;</span></td>
-              </tr>
-              <tr class="skeleton-row">
-                <td><span class="skeleton skeleton-text" style="width:30px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:150px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:60px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:50px;">&nbsp;</span></td>
-              </tr>
-              <tr class="skeleton-row">
-                <td><span class="skeleton skeleton-text" style="width:30px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:110px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:60px;">&nbsp;</span></td>
-                <td><span class="skeleton skeleton-text" style="width:50px;">&nbsp;</span></td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="activity-list" id="activityList">
+          <div class="p-3">
+            <div class="skeleton skeleton-text mb-2" style="width:80%;">&nbsp;</div>
+            <div class="skeleton skeleton-text mb-2" style="width:70%;">&nbsp;</div>
+            <div class="skeleton skeleton-text" style="width:60%;">&nbsp;</div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </div>
-
-<!-- Recent Activity -->
-<div class="card">
+{% else %}
+<!-- Recent Activity (full width for agents) -->
+<div class="card mb-3">
   <div class="card-header">
     <h5 class="card-title">Recent Activity</h5>
     <a href="{% url 'frontend:ticket-list' %}" class="card-link">View all</a>
   </div>
   <div class="card-body p-0">
     <div class="activity-list" id="activityList">
-      <div class="activity-loading">
-        <div class="activity-item-skeleton">
-          <div class="skeleton skeleton-circle" style="width:8px;height:8px;"></div>
-          <div style="flex:1;">
-            <div class="skeleton skeleton-text mb-1" style="width:80%;">&nbsp;</div>
-            <div class="skeleton skeleton-text" style="width:50%;">&nbsp;</div>
-          </div>
-        </div>
-        <div class="activity-item-skeleton">
-          <div class="skeleton skeleton-circle" style="width:8px;height:8px;"></div>
-          <div style="flex:1;">
-            <div class="skeleton skeleton-text mb-1" style="width:70%;">&nbsp;</div>
-            <div class="skeleton skeleton-text" style="width:40%;">&nbsp;</div>
-          </div>
-        </div>
-        <div class="activity-item-skeleton">
-          <div class="skeleton skeleton-circle" style="width:8px;height:8px;"></div>
-          <div style="flex:1;">
-            <div class="skeleton skeleton-text mb-1" style="width:90%;">&nbsp;</div>
-            <div class="skeleton skeleton-text" style="width:60%;">&nbsp;</div>
-          </div>
-        </div>
-        <div class="activity-item-skeleton">
-          <div class="skeleton skeleton-circle" style="width:8px;height:8px;"></div>
-          <div style="flex:1;">
-            <div class="skeleton skeleton-text mb-1" style="width:75%;">&nbsp;</div>
-            <div class="skeleton skeleton-text" style="width:45%;">&nbsp;</div>
-          </div>
-        </div>
-        <div class="activity-item-skeleton">
-          <div class="skeleton skeleton-circle" style="width:8px;height:8px;"></div>
-          <div style="flex:1;">
-            <div class="skeleton skeleton-text mb-1" style="width:85%;">&nbsp;</div>
-            <div class="skeleton skeleton-text" style="width:55%;">&nbsp;</div>
-          </div>
-        </div>
+      <div class="p-3">
+        <div class="skeleton skeleton-text mb-2" style="width:80%;">&nbsp;</div>
+        <div class="skeleton skeleton-text mb-2" style="width:70%;">&nbsp;</div>
+        <div class="skeleton skeleton-text" style="width:60%;">&nbsp;</div>
       </div>
     </div>
   </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
@@ -401,9 +304,6 @@
 (function () {
   "use strict";
 
-  /* ------------------------------------------------------------------ */
-  /*  Color Palette                                                      */
-  /* ------------------------------------------------------------------ */
   var STATUS_COLORS = {
     'Open':        '#F59E0B',
     'In Progress': '#3B82F6',
@@ -413,23 +313,20 @@
     'Closed':      '#6B7280'
   };
 
-  var PRIORITY_COLORS = {
-    urgent: '#EF4444',
-    high:   '#F97316',
-    medium: '#F59E0B',
-    low:    '#22C55E'
-  };
-
   var PRIORITY_LABELS = {
-    urgent: 'Urgent',
-    high:   'High',
-    medium: 'Medium',
-    low:    'Low'
+    urgent: 'Urgent', high: 'High', medium: 'Medium', low: 'Low'
   };
 
-  /* ------------------------------------------------------------------ */
-  /*  Date Range Picker                                                  */
-  /* ------------------------------------------------------------------ */
+  var PRIORITY_COLORS = {
+    urgent: '#EF4444', high: '#F97316', medium: '#F59E0B', low: '#22C55E'
+  };
+
+  // Cached dashboard data for tab switching
+  var cachedDashboardData = null;
+  var currentOverviewTab = 'status';
+  var currentUrgentTab = 'overdue';
+
+  /* ---- Date Range Picker ---- */
   var currentDateRange = 'today';
   var customDateFrom = null;
   var customDateTo = null;
@@ -438,20 +335,15 @@
     var now = new Date();
     var from = new Date();
     var to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
     switch (rangeKey) {
       case 'today':
-        from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
-        break;
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0); break;
       case '7d':
-        from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0);
-        break;
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0); break;
       case '30d':
-        from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0);
-        break;
+        from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 29, 0, 0, 0); break;
       case '1y':
-        from = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), 0, 0, 0);
-        break;
+        from = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate(), 0, 0, 0); break;
       case 'custom':
         if (customDateFrom) from = new Date(customDateFrom + 'T00:00:00');
         if (customDateTo) to = new Date(customDateTo + 'T23:59:59');
@@ -462,62 +354,44 @@
     return { date_from: from.toISOString(), date_to: to.toISOString() };
   }
 
-  // Date range picker buttons
   var pickerEl = document.getElementById('dateRangePicker');
   var popoverEl = document.getElementById('customDatePopover');
   var customCloseEl = document.getElementById('customDateClose');
   var applyCustomEl = document.getElementById('applyCustomDate');
 
   if (pickerEl) {
-    var pillBtns = pickerEl.querySelectorAll('.btn-date-pill');
-    pillBtns.forEach(function(btn) {
+    pickerEl.querySelectorAll('.btn-date-pill').forEach(function(btn) {
       btn.addEventListener('click', function() {
         var range = btn.getAttribute('data-range');
         if (range === 'custom') {
-          // Toggle popover
           popoverEl.style.display = popoverEl.style.display === 'none' ? 'block' : 'none';
           return;
         }
-        // Hide popover if open
         if (popoverEl) popoverEl.style.display = 'none';
-        // Update active state
-        pillBtns.forEach(function(b) { b.classList.remove('active'); });
+        pickerEl.querySelectorAll('.btn-date-pill').forEach(function(b) { b.classList.remove('active'); });
         btn.classList.add('active');
         currentDateRange = range;
         fetchDashboardData();
       });
     });
   }
-
-  if (customCloseEl) {
-    customCloseEl.addEventListener('click', function() {
-      popoverEl.style.display = 'none';
-    });
-  }
-
+  if (customCloseEl) customCloseEl.addEventListener('click', function() { popoverEl.style.display = 'none'; });
   if (applyCustomEl) {
     applyCustomEl.addEventListener('click', function() {
       var fromInput = document.getElementById('customDateFrom');
       var toInput = document.getElementById('customDateTo');
-      if (!fromInput.value || !toInput.value) {
-        Toast.warning('Please select both start and end dates.');
-        return;
-      }
+      if (!fromInput.value || !toInput.value) { Toast.warning('Please select both dates.'); return; }
       customDateFrom = fromInput.value;
       customDateTo = toInput.value;
       currentDateRange = 'custom';
-      // Update active state
-      var pillBtns = pickerEl.querySelectorAll('.btn-date-pill');
-      pillBtns.forEach(function(b) { b.classList.remove('active'); });
+      pickerEl.querySelectorAll('.btn-date-pill').forEach(function(b) { b.classList.remove('active'); });
       pickerEl.querySelector('[data-range="custom"]').classList.add('active');
       popoverEl.style.display = 'none';
       fetchDashboardData();
     });
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Utility Functions                                                  */
-  /* ------------------------------------------------------------------ */
+  /* ---- Utilities ---- */
   function escapeHtml(str) {
     if (!str) return '';
     var div = document.createElement('div');
@@ -527,8 +401,7 @@
 
   function formatRelativeTime(dateStr) {
     if (!dateStr) return '';
-    var now = new Date();
-    var date = new Date(dateStr);
+    var now = new Date(), date = new Date(dateStr);
     var diffMs = now - date;
     var diffMins = Math.floor(diffMs / 60000);
     var diffHours = Math.floor(diffMs / 3600000);
@@ -545,819 +418,951 @@
     return name.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
   }
 
-  /** Animate a number counting up from 0 to `target`. */
   function animateValue(el, target, suffix) {
     suffix = suffix || '';
-    if (typeof target !== 'number' || isNaN(target)) {
-      el.textContent = target || '\u2014';
-      return;
-    }
-    var duration = 600;
-    var start = 0;
-    var startTime = null;
-
+    if (typeof target !== 'number' || isNaN(target)) { el.textContent = target || '\u2014'; return; }
+    var duration = 600, start = 0, startTime = null;
     function step(timestamp) {
       if (!startTime) startTime = timestamp;
       var progress = Math.min((timestamp - startTime) / duration, 1);
-      // ease-out cubic
       var eased = 1 - Math.pow(1 - progress, 3);
-      var current = Math.round(start + (target - start) * eased);
-      el.textContent = current + suffix;
-      if (progress < 1) {
-        requestAnimationFrame(step);
-      }
+      el.textContent = Math.round(start + (target - start) * eased) + suffix;
+      if (progress < 1) requestAnimationFrame(step);
     }
     requestAnimationFrame(step);
   }
 
   function showEmpty(container, icon, message) {
-    container.innerHTML =
-      '<div class="empty-state">' +
-        '<div class="empty-icon"><i class="ti ti-' + icon + '"></i></div>' +
-        '<p class="empty-text">' + escapeHtml(message) + '</p>' +
-      '</div>';
+    while (container.firstChild) container.removeChild(container.firstChild);
+    var wrap = document.createElement('div');
+    wrap.className = 'empty-state';
+    var iconDiv = document.createElement('div');
+    iconDiv.className = 'empty-icon';
+    var i = document.createElement('i');
+    i.className = 'ti ti-' + icon;
+    iconDiv.appendChild(i);
+    var p = document.createElement('p');
+    p.className = 'empty-text';
+    p.textContent = message;
+    wrap.appendChild(iconDiv);
+    wrap.appendChild(p);
+    container.appendChild(wrap);
   }
 
   function showError(container, message) {
-    container.innerHTML =
-      '<div class="empty-state">' +
-        '<div class="empty-icon text-danger"><i class="ti ti-alert-triangle"></i></div>' +
-        '<p class="empty-text">' + escapeHtml(message || 'Unable to load data.') + '</p>' +
-      '</div>';
+    while (container.firstChild) container.removeChild(container.firstChild);
+    var wrap = document.createElement('div');
+    wrap.className = 'empty-state';
+    var iconDiv = document.createElement('div');
+    iconDiv.className = 'empty-icon text-danger';
+    var i = document.createElement('i');
+    i.className = 'ti ti-alert-triangle';
+    iconDiv.appendChild(i);
+    var p = document.createElement('p');
+    p.className = 'empty-text';
+    p.textContent = message || 'Unable to load data.';
+    wrap.appendChild(iconDiv);
+    wrap.appendChild(p);
+    container.appendChild(wrap);
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Chart.js - Doughnut                                                */
-  /* ------------------------------------------------------------------ */
-  var statusChartInstance = null;
+  function formatMinutes(mins) {
+    if (mins === null || mins === undefined) return '\u2014';
+    if (mins < 60) return Math.round(mins) + 'm';
+    var h = Math.floor(mins / 60);
+    var m = Math.round(mins % 60);
+    return h + 'h' + (m > 0 ? ' ' + m + 'm' : '');
+  }
 
-  function createDoughnut(canvasId, labels, values, colors) {
-    var canvas = document.getElementById(canvasId);
-    if (!canvas) return null;
-    var ctx = canvas.getContext('2d');
-    statusChartInstance = new Chart(ctx, {
-      type: 'doughnut',
+  /* ---- Set trends date ---- */
+  function updateTrendsHeader() {
+    var titleEl = document.querySelector('.fd-trends-title');
+    var dateEl = document.getElementById('trendsDate');
+    if (!titleEl || !dateEl) return;
+    var now = new Date();
+    var range = getDateRange(currentDateRange);
+    var from = new Date(range.date_from);
+    var to = new Date(range.date_to);
+    var opts = { day: 'numeric', month: 'long', year: 'numeric' };
+    switch (currentDateRange) {
+      case 'today':
+        titleEl.textContent = "Today's trends";
+        dateEl.textContent = now.toLocaleDateString('en-US', opts) + ', ' +
+          now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        break;
+      case '7d':
+        titleEl.textContent = 'Trends — Last 7 Days';
+        dateEl.textContent = from.toLocaleDateString('en-US', opts) + ' – ' + to.toLocaleDateString('en-US', opts);
+        break;
+      case '30d':
+        titleEl.textContent = 'Trends — Last 30 Days';
+        dateEl.textContent = from.toLocaleDateString('en-US', opts) + ' – ' + to.toLocaleDateString('en-US', opts);
+        break;
+      case '1y':
+        titleEl.textContent = 'Trends — Last Year';
+        dateEl.textContent = from.toLocaleDateString('en-US', opts) + ' – ' + to.toLocaleDateString('en-US', opts);
+        break;
+      case 'custom':
+        titleEl.textContent = 'Trends — Custom Range';
+        dateEl.textContent = from.toLocaleDateString('en-US', opts) + ' – ' + to.toLocaleDateString('en-US', opts);
+        break;
+    }
+  }
+  updateTrendsHeader();
+
+  /* ---- Render: Summary Cards ---- */
+  function renderSummaryCards(summary) {
+    [
+      { id: 'sumUnresolved', key: 'unresolved' },
+      { id: 'sumOpen', key: 'open' },
+      { id: 'sumOverdue', key: 'overdue' },
+      { id: 'sumUnassigned', key: 'unassigned' }
+    ].forEach(function(f) {
+      var el = document.getElementById(f.id);
+      if (el) { el.textContent = ''; animateValue(el, summary[f.key] || 0); }
+    });
+  }
+
+  /* ---- Render: Trends Chart ---- */
+  var trendsChartInstance = null;
+
+  function renderTrendsChart(trends) {
+    var canvas = document.getElementById('trendsChart');
+    if (!canvas) return;
+    if (trendsChartInstance) { trendsChartInstance.destroy(); trendsChartInstance = null; }
+
+    var mode = trends.mode || 'hourly';
+    var labels = trends.labels || [];
+    var currentData = trends.current || [];
+    var previousData = trends.previous || [];
+
+    // Fallback for old API format
+    if (!labels.length && trends.today) {
+      labels = []; for (var i = 0; i < 24; i++) labels.push(String(i));
+      currentData = trends.today;
+      previousData = trends.yesterday || new Array(24).fill(0);
+      mode = 'hourly';
+    }
+
+    var isDaily = mode === 'daily';
+    var currentLabel = isDaily ? 'Selected period' : 'Today';
+    var prevLabel = isDaily ? 'Previous period' : 'Yesterday';
+    var xTitle = isDaily ? '' : 'Hours';
+
+    // For daily mode with many labels, skip some to avoid crowding
+    var maxTicks = isDaily && labels.length > 15 ? 15 : undefined;
+
+    var textColor = getComputedStyle(document.documentElement).getPropertyValue('--crm-text-muted').trim() || '#94A3B8';
+
+    trendsChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'line',
       data: {
         labels: labels,
-        datasets: [{
-          data: values,
-          backgroundColor: colors,
-          borderWidth: 0,
-          hoverBorderWidth: 0,
-          spacing: 2
-        }]
+        datasets: [
+          {
+            label: currentLabel,
+            data: currentData,
+            borderColor: '#2563EB',
+            backgroundColor: 'rgba(37,99,235,0.08)',
+            borderWidth: 2, fill: true, tension: 0.35,
+            pointRadius: isDaily && labels.length > 30 ? 0 : 4,
+            pointBackgroundColor: '#ffffff',
+            pointBorderColor: '#2563EB', pointBorderWidth: 2, pointHoverRadius: 6
+          },
+          {
+            label: prevLabel,
+            data: previousData,
+            borderColor: '#CBD5E1',
+            backgroundColor: 'transparent',
+            borderWidth: 1.5, fill: false, tension: 0.35,
+            pointRadius: 0, pointHoverRadius: 4
+          }
+        ]
       },
       options: {
-        cutout: '72%',
-        responsive: true,
-        maintainAspectRatio: true,
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: getComputedStyle(document.documentElement).getPropertyValue('--crm-surface-elevated').trim() || '#1E293B',
-            titleColor: getComputedStyle(document.documentElement).getPropertyValue('--crm-text').trim() || '#F9FAFB',
-            bodyColor: getComputedStyle(document.documentElement).getPropertyValue('--crm-text-secondary').trim() || '#94A3B8',
-            titleFont: { family: 'Inter', size: 12, weight: '600' },
-            bodyFont: { family: 'Inter', size: 11 },
-            padding: 10,
-            cornerRadius: 8,
-            displayColors: true,
-            boxWidth: 8,
-            boxHeight: 8,
-            boxPadding: 4,
-            borderColor: getComputedStyle(document.documentElement).getPropertyValue('--crm-border').trim() || 'transparent',
-            borderWidth: 1
+            backgroundColor: '#1E293B', titleColor: '#F9FAFB', bodyColor: '#94A3B8',
+            padding: 10, cornerRadius: 8, displayColors: true, boxWidth: 8, boxHeight: 8
+          }
+        },
+        scales: {
+          x: {
+            grid: { display: false },
+            ticks: {
+              color: textColor, font: { family: 'Inter', size: 11 }, maxRotation: isDaily ? 45 : 0,
+              maxTicksLimit: maxTicks
+            },
+            title: xTitle ? { display: true, text: xTitle, color: textColor, font: { family: 'Inter', size: 12 } } : { display: false }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(148,163,184,0.1)', drawBorder: false },
+            ticks: { color: textColor, font: { family: 'Inter', size: 11 }, stepSize: 1 }
           }
         }
       }
     });
-    return statusChartInstance;
+
+    // Update legend labels
+    var legendItems = document.querySelectorAll('.fd-trends-legend-item');
+    if (legendItems.length >= 2) {
+      legendItems[0].lastElementChild ? null : null;
+      // Update text nodes
+      var items = document.querySelectorAll('.fd-trends-legend-item');
+      if (items[0]) items[0].childNodes[items[0].childNodes.length - 1].textContent = ' ' + currentLabel;
+      if (items[1]) items[1].childNodes[items[1].childNodes.length - 1].textContent = ' ' + prevLabel;
+    }
+
+    // Stats beside chart
+    var elResolved = document.getElementById('trendResolved');
+    var elReceived = document.getElementById('trendReceived');
+    var elAvgFirst = document.getElementById('trendAvgFirst');
+    var elAvgResp = document.getElementById('trendAvgResp');
+    var elSlaPct = document.getElementById('trendSlaPct');
+
+    if (elResolved) { elResolved.textContent = ''; animateValue(elResolved, trends.resolved || 0); }
+    if (elReceived) { elReceived.textContent = ''; animateValue(elReceived, trends.received || 0); }
+    if (elAvgFirst) elAvgFirst.textContent = formatMinutes(trends.avg_first_response_minutes);
+    if (elAvgResp) elAvgResp.textContent = formatMinutes(trends.avg_response_minutes);
+    if (elSlaPct) elSlaPct.textContent = (trends.sla_resolution_pct !== null && trends.sla_resolution_pct !== undefined)
+      ? Math.round(trends.sla_resolution_pct) + '%' : '\u2014';
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Render: Ticket Overview (Status Doughnut + Priority Bars)          */
-  /* ------------------------------------------------------------------ */
-  function renderTicketOverview(byStatus, byPriority, total) {
-    var wrap = document.getElementById('ticketOverviewContent');
-    var statusKeys = Object.keys(byStatus);
+  /* ---- Render: Unresolved by Queue ---- */
+  function renderUnresolvedByQueue(queues) {
+    var container = document.getElementById('rightPanelBody');
+    if (!container) return;
+    while (container.firstChild) container.removeChild(container.firstChild);
 
-    if (statusKeys.length === 0 && Object.keys(byPriority).length === 0) {
-      showEmpty(wrap, 'pie-chart', 'No ticket data yet.');
+    if (!queues || queues.length === 0) {
+      showEmpty(container, 'inbox', 'No unresolved tickets.');
       return;
     }
 
-    var statusLabels = statusKeys;
-    var statusValues = statusKeys.map(function(k) { return byStatus[k]; });
-    var statusColorList = statusKeys.map(function(k) { return STATUS_COLORS[k] || '#94A3B8'; });
+    var table = document.createElement('table');
+    table.className = 'fd-queue-table';
 
-    // Priority bars
-    var priorityOrder = ['urgent', 'high', 'medium', 'low'];
-    var maxPriorityVal = 0;
-    priorityOrder.forEach(function(p) {
-      if ((byPriority[p] || 0) > maxPriorityVal) maxPriorityVal = byPriority[p];
+    var thead = document.createElement('thead');
+    var headRow = document.createElement('tr');
+    var th1 = document.createElement('th');
+    th1.textContent = 'Group';
+    var th2 = document.createElement('th');
+    th2.className = 'text-end';
+    th2.textContent = 'Open';
+    headRow.appendChild(th1);
+    headRow.appendChild(th2);
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    var tbody = document.createElement('tbody');
+    queues.forEach(function(q) {
+      var tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.addEventListener('click', function() {
+        window.location.href = '/tickets/?queue=' + encodeURIComponent(q.name || '');
+      });
+      var td1 = document.createElement('td');
+      td1.textContent = q.name || 'Unassigned';
+      var td2 = document.createElement('td');
+      td2.className = 'text-end fw-semibold';
+      td2.textContent = String(q.open_count);
+      tr.appendChild(td1);
+      tr.appendChild(td2);
+      tbody.appendChild(tr);
     });
-
-    var priorityBarsHtml = '';
-    priorityOrder.forEach(function(p) {
-      var count = byPriority[p] || 0;
-      var pct = maxPriorityVal > 0 ? Math.round((count / maxPriorityVal) * 100) : 0;
-      var color = PRIORITY_COLORS[p];
-      priorityBarsHtml +=
-        '<div class="priority-bar-row">' +
-          '<span class="priority-bar-label">' + escapeHtml(PRIORITY_LABELS[p]) + '</span>' +
-          '<div class="priority-bar-track">' +
-            '<div class="priority-bar-fill" style="width:' + pct + '%;background:' + color + ';"></div>' +
-          '</div>' +
-          '<span class="priority-bar-count">' + count + '</span>' +
-        '</div>';
-    });
-
-    // Status legend
-    var legendHtml = '<div class="chart-legend">';
-    for (var i = 0; i < statusLabels.length; i++) {
-      var clr = STATUS_COLORS[statusLabels[i]] || '#94A3B8';
-      legendHtml +=
-        '<div class="chart-legend-item">' +
-          '<span class="chart-legend-dot" style="background:' + clr + ';"></span>' +
-          '<span class="chart-legend-label">' + escapeHtml(statusLabels[i]) + '</span>' +
-          '<span class="chart-legend-value">' + statusValues[i] + '</span>' +
-        '</div>';
-    }
-    legendHtml += '</div>';
-
-    wrap.innerHTML =
-      '<div class="row align-items-center">' +
-        '<div class="col-md-5">' +
-          '<div class="chart-wrap mx-auto" style="max-width:180px;position:relative;">' +
-            '<canvas id="statusChart"></canvas>' +
-            '<div class="chart-center-label">' +
-              '<span class="chart-center-value">' + total + '</span>' +
-              '<span class="chart-center-text">Total</span>' +
-            '</div>' +
-          '</div>' +
-          legendHtml +
-        '</div>' +
-        '<div class="col-md-7 mt-3 mt-md-0">' +
-          '<h6 class="section-subtitle">Priority Distribution</h6>' +
-          '<div id="priorityBars">' + priorityBarsHtml + '</div>' +
-        '</div>' +
-      '</div>';
-
-    if (statusKeys.length > 0) {
-      createDoughnut('statusChart', statusLabels, statusValues, statusColorList);
-    }
+    table.appendChild(tbody);
+    container.appendChild(table);
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Render: Right Widget (SLA or Due Today based on API role flag)      */
-  /* ------------------------------------------------------------------ */
-  function renderRightWidget(data) {
-    var header = document.getElementById('rightWidgetHeader');
-    var body = document.getElementById('rightWidgetBody');
-    if (!header || !body) return;
+  /* ---- Render: Middle Widget (Ticket Overview doughnut — Status or Priority) ---- */
+  var overviewChartInstance = null;
 
-    if (data.is_admin_or_manager) {
-      // SLA Compliance for admin/manager
-      header.innerHTML = '<h5 class="card-title mb-0">SLA Compliance</h5>';
-      renderSlaCompliance(body, data.sla_compliance || {});
+  function renderOverviewDoughnut(body, labels, values, colors, total, filterType) {
+    while (body.firstChild) body.removeChild(body.firstChild);
+
+    if (labels.length === 0 || total === 0) {
+      showEmpty(body, 'pie-chart', 'No ticket data yet.');
+      return;
+    }
+
+    var chartWrap = document.createElement('div');
+    chartWrap.className = 'chart-wrap mx-auto';
+    chartWrap.style.maxWidth = '160px';
+    chartWrap.style.position = 'relative';
+
+    var canvas = document.createElement('canvas');
+    canvas.id = 'overviewChart';
+    chartWrap.appendChild(canvas);
+
+    var centerLabel = document.createElement('div');
+    centerLabel.className = 'chart-center-label';
+    var centerVal = document.createElement('span');
+    centerVal.className = 'chart-center-value';
+    centerVal.textContent = String(total);
+    var centerText = document.createElement('span');
+    centerText.className = 'chart-center-text';
+    centerText.textContent = 'Total';
+    centerLabel.appendChild(centerVal);
+    centerLabel.appendChild(centerText);
+    chartWrap.appendChild(centerLabel);
+    body.appendChild(chartWrap);
+
+    var legend = document.createElement('div');
+    legend.className = 'chart-legend mt-3';
+    for (var i = 0; i < labels.length; i++) {
+      (function(label) {
+        var item = document.createElement('a');
+        item.className = 'chart-legend-item';
+        item.style.textDecoration = 'none';
+        item.style.color = 'inherit';
+        item.style.cursor = 'pointer';
+        // Build the correct filter URL based on status vs priority
+        if (filterType === 'priority') {
+          item.href = '/tickets/?priority=' + encodeURIComponent(label.toLowerCase());
+        } else {
+          item.href = '/tickets/?status=' + encodeURIComponent(label);
+        }
+        var dot = document.createElement('span');
+        dot.className = 'chart-legend-dot';
+        dot.style.background = colors[i];
+        var lbl = document.createElement('span');
+        lbl.className = 'chart-legend-label';
+        lbl.textContent = label;
+        var val = document.createElement('span');
+        val.className = 'chart-legend-value';
+        val.textContent = String(values[i]);
+        item.appendChild(dot);
+        item.appendChild(lbl);
+        item.appendChild(val);
+        legend.appendChild(item);
+      })(labels[i]);
+    }
+    body.appendChild(legend);
+
+    if (overviewChartInstance) overviewChartInstance.destroy();
+    overviewChartInstance = new Chart(canvas.getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: labels,
+        datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, spacing: 2 }]
+      },
+      options: {
+        cutout: '72%', responsive: true, maintainAspectRatio: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { backgroundColor: '#1E293B', titleColor: '#F9FAFB', bodyColor: '#94A3B8', padding: 10, cornerRadius: 8 }
+        },
+        onClick: function(evt, elements) {
+          if (elements.length > 0) {
+            var idx = elements[0].index;
+            var clickedLabel = labels[idx];
+            if (filterType === 'priority') {
+              window.location.href = '/tickets/?priority=' + encodeURIComponent(clickedLabel.toLowerCase());
+            } else {
+              window.location.href = '/tickets/?status=' + encodeURIComponent(clickedLabel);
+            }
+          }
+        }
+      }
+    });
+    canvas.style.cursor = 'pointer';
+  }
+
+  function renderMiddleWidget(tab) {
+    var body = document.getElementById('middleWidgetBody');
+    if (!body || !cachedDashboardData) return;
+    var stats = cachedDashboardData.ticket_stats || {};
+
+    if (tab === 'priority') {
+      var byPriority = stats.by_priority || {};
+      var pKeys = ['urgent', 'high', 'medium', 'low'];
+      var pLabels = [], pValues = [], pColors = [];
+      var pTotal = 0;
+      pKeys.forEach(function(k) {
+        var count = byPriority[k] || 0;
+        if (count > 0) {
+          pLabels.push(PRIORITY_LABELS[k] || k);
+          pValues.push(count);
+          pColors.push(PRIORITY_COLORS[k] || '#94A3B8');
+        }
+        pTotal += count;
+      });
+      renderOverviewDoughnut(body, pLabels, pValues, pColors, pTotal, 'priority');
     } else {
-      // Due Today for agents
-      var dueTodayData = data.due_today || { count: 0, tickets: [] };
-      var count = dueTodayData.count || 0;
-      var badgeHtml = count > 0
-        ? ' <span class="badge badge-soft-danger">' + count + '</span>'
-        : '';
-      header.innerHTML = '<h5 class="card-title mb-0">Due Today</h5>' + badgeHtml;
-      body.style.overflowY = 'auto';
-      body.style.maxHeight = '320px';
-      renderDueToday(body, dueTodayData);
+      var byStatus = stats.by_status || {};
+      var sKeys = Object.keys(byStatus);
+      var sLabels = sKeys;
+      var sValues = sKeys.map(function(k) { return byStatus[k]; });
+      var sColors = sKeys.map(function(k) { return STATUS_COLORS[k] || '#94A3B8'; });
+      var sTotal = (stats.open_count || 0) + (stats.closed_count || 0);
+      renderOverviewDoughnut(body, sLabels, sValues, sColors, sTotal, 'status');
     }
   }
 
-  function renderSlaCompliance(container, slaData) {
-    var policies = slaData.policies || [];
+  /* ---- Render: Right Panel (Overdue / Due Today / By Queue tabbed) ---- */
+  function renderUrgentPanel(tab) {
+    var body = document.getElementById('rightPanelBody');
+    if (!body || !cachedDashboardData) return;
 
-    if (policies.length === 0) {
-      showEmpty(container, 'shield-check', 'No SLA policies configured.');
-      return;
+    if (tab === 'due_today') {
+      renderDueTodayTickets(body, cachedDashboardData.due_today || {});
+    } else if (tab === 'by_queue') {
+      renderUnresolvedByQueue(cachedDashboardData.unresolved_by_queue || []);
+    } else {
+      renderOverdueTickets(body, cachedDashboardData.overdue_tickets || {});
     }
-
-    var html = '';
-    policies.forEach(function(p) {
-      var rate = p.compliance_rate !== null && p.compliance_rate !== undefined ? Math.round(p.compliance_rate) : 0;
-      var ringColor = rate >= 90 ? '#22C55E' : rate >= 70 ? '#F59E0B' : '#EF4444';
-      var prBadge = p.priority
-        ? '<span class="badge badge-priority-' + p.priority + '" style="font-size:0.625rem;margin-left:0.375rem;">' +
-            escapeHtml(PRIORITY_LABELS[p.priority] || p.priority) + '</span>'
-        : '';
-
-      html +=
-        '<div class="sla-row">' +
-          '<div class="sla-ring" style="--sla-pct:' + rate + ';--sla-color:' + ringColor + ';">' +
-            '<span class="sla-ring-value">' + rate + '%</span>' +
-          '</div>' +
-          '<div class="sla-info">' +
-            '<div class="sla-name">' + escapeHtml(p.policy_name || 'Unnamed Policy') + prBadge + '</div>' +
-            '<div class="sla-detail">' + (p.compliant_tickets || 0) + '/' + (p.total_tickets || 0) + ' tickets compliant</div>' +
-          '</div>' +
-        '</div>';
-    });
-
-    container.innerHTML = html;
   }
 
-  function renderDueToday(container, dueTodayData) {
-    var tickets = dueTodayData.tickets || [];
-    var count = dueTodayData.count || 0;
+  function renderOverdueTickets(body, overdueData) {
+    while (body.firstChild) body.removeChild(body.firstChild);
+    var tickets = overdueData.tickets || [];
 
     if (tickets.length === 0) {
-      showEmpty(container, 'calendar-check', 'No tickets due today.');
+      showEmpty(body, 'circle-check', 'No overdue tickets.');
       return;
     }
 
-    var html = '';
+    var fragment = document.createDocumentFragment();
     tickets.forEach(function(t) {
-      var prLabel = PRIORITY_LABELS[t.priority] || t.priority || 'Low';
-      var dueTime = '';
-      if (t.due_date) {
-        var d = new Date(t.due_date);
-        dueTime = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      }
+      var link = document.createElement('a');
+      link.href = '/tickets/' + (t.number || t.id) + '/';
+      link.className = 'fd-ticket-row';
 
-      html +=
-        '<a href="/tickets/' + t.number + '/" class="due-today-item">' +
-          '<div class="d-flex align-items-center justify-content-between">' +
-            '<div class="d-flex align-items-center gap-2" style="min-width:0;">' +
-              '<span class="text-muted fw-medium" style="font-size:0.75rem;">#' + t.number + '</span>' +
-              '<span class="fw-medium text-truncate">' + escapeHtml(t.subject) + '</span>' +
-            '</div>' +
-            '<div class="d-flex align-items-center gap-2 flex-shrink-0">' +
-              '<span class="badge badge-priority-' + (t.priority || 'low') + '" style="font-size:0.625rem;">' + escapeHtml(prLabel) + '</span>' +
-              (dueTime ? '<span class="text-muted" style="font-size:0.75rem;"><i class="ti ti-clock" style="font-size:0.75rem;"></i> ' + dueTime + '</span>' : '') +
-            '</div>' +
-          '</div>' +
-        '</a>';
+      var left = document.createElement('div');
+      left.className = 'fd-ticket-row-left';
+      var dot = document.createElement('span');
+      dot.className = 'fd-priority-dot fd-priority-dot--' + (t.priority || 'medium');
+      var num = document.createElement('span');
+      num.className = 'fd-ticket-num';
+      num.textContent = '#' + (t.number || '');
+      var subj = document.createElement('span');
+      subj.className = 'fd-ticket-subj';
+      subj.textContent = t.subject || '';
+      left.appendChild(dot);
+      left.appendChild(num);
+      left.appendChild(subj);
+
+      var right = document.createElement('div');
+      right.className = 'fd-ticket-row-right d-flex align-items-center gap-2';
+      var overdueBadge = document.createElement('span');
+      overdueBadge.className = 'fd-overdue-badge';
+      overdueBadge.textContent = t.overdue_by || 'overdue';
+      right.appendChild(overdueBadge);
+
+      link.appendChild(left);
+      link.appendChild(right);
+      fragment.appendChild(link);
     });
-
-    if (count > tickets.length) {
-      html += '<div class="text-center mt-2"><a href="/tickets/?due=today" class="text-muted" style="font-size:0.8125rem;">View all ' + count + ' tickets</a></div>';
-    }
-
-    container.innerHTML = html;
+    body.appendChild(fragment);
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Render: Overdue Tickets                                            */
-  /* ------------------------------------------------------------------ */
-  function renderOverdueTickets(overdueData) {
-    var card = document.getElementById('overdueCard');
-    var header = document.getElementById('overdueHeader');
-    var body = document.getElementById('overdueBody');
+  function renderDueTodayTickets(body, dueTodayData) {
+    while (body.firstChild) body.removeChild(body.firstChild);
+    var tickets = dueTodayData.tickets || [];
+
+    if (tickets.length === 0) {
+      showEmpty(body, 'calendar-check', 'No tickets due today.');
+      return;
+    }
+
+    var fragment = document.createDocumentFragment();
+    tickets.forEach(function(t) {
+      var link = document.createElement('a');
+      link.href = '/tickets/' + (t.number || t.id) + '/';
+      link.className = 'fd-ticket-row';
+
+      var left = document.createElement('div');
+      left.className = 'fd-ticket-row-left';
+      var dot = document.createElement('span');
+      dot.className = 'fd-priority-dot fd-priority-dot--' + (t.priority || 'medium');
+      var num = document.createElement('span');
+      num.className = 'fd-ticket-num';
+      num.textContent = '#' + (t.number || '');
+      var subj = document.createElement('span');
+      subj.className = 'fd-ticket-subj';
+      subj.textContent = t.subject || '';
+      left.appendChild(dot);
+      left.appendChild(num);
+      left.appendChild(subj);
+
+      var right = document.createElement('div');
+      right.className = 'fd-ticket-row-right d-flex align-items-center gap-2';
+      var badge = document.createElement('span');
+      badge.className = 'fd-due-badge';
+      var dueDate = t.due_date ? new Date(t.due_date) : null;
+      badge.textContent = dueDate ? dueDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : 'today';
+      right.appendChild(badge);
+
+      link.appendChild(left);
+      link.appendChild(right);
+      fragment.appendChild(link);
+    });
+    body.appendChild(fragment);
+  }
+
+  /* ---- Render: SLA Compliance ---- */
+  function renderSLACompliance(slaData, isAdminOrManager) {
+    var card = document.getElementById('slaComplianceCard');
+    var body = document.getElementById('slaComplianceBody');
     if (!card || !body) return;
 
-    var tickets = overdueData.tickets || [];
-    var count = overdueData.count || 0;
+    if (!isAdminOrManager) { card.style.display = 'none'; return; }
 
-    if (count === 0) {
+    var policies = slaData.policies || [];
+    if (policies.length === 0) {
       card.style.display = 'none';
       return;
     }
 
     card.style.display = '';
-
-    // Build header safely
-    while (header.firstChild) header.removeChild(header.firstChild);
-    var h5 = document.createElement('h5');
-    h5.className = 'card-title mb-0';
-    var icon = document.createElement('i');
-    icon.className = 'ti ti-alert-triangle text-danger';
-    icon.style.fontSize = '1.1rem';
-    h5.appendChild(icon);
-    h5.appendChild(document.createTextNode(' Overdue Tickets '));
-    var badge = document.createElement('span');
-    badge.className = 'badge bg-danger';
-    badge.textContent = String(count);
-    h5.appendChild(badge);
-    header.appendChild(h5);
-
-    // Build ticket list
-    var fragment = document.createDocumentFragment();
-    tickets.forEach(function(t) {
-      var prLabel = PRIORITY_LABELS[t.priority] || t.priority || 'Low';
-
-      var link = document.createElement('a');
-      link.href = '/tickets/' + t.number + '/';
-      link.className = 'due-today-item';
-      link.style.borderLeft = '3px solid #EF4444';
-
-      var row = document.createElement('div');
-      row.className = 'd-flex align-items-center justify-content-between';
-
-      var left = document.createElement('div');
-      left.className = 'd-flex align-items-center gap-2';
-      left.style.minWidth = '0';
-
-      var numSpan = document.createElement('span');
-      numSpan.className = 'text-muted fw-medium';
-      numSpan.style.fontSize = '0.75rem';
-      numSpan.textContent = '#' + t.number;
-      left.appendChild(numSpan);
-
-      var subSpan = document.createElement('span');
-      subSpan.className = 'fw-medium text-truncate';
-      subSpan.textContent = t.subject || '';
-      left.appendChild(subSpan);
-
-      var right = document.createElement('div');
-      right.className = 'd-flex align-items-center gap-2 flex-shrink-0';
-
-      var prBadge = document.createElement('span');
-      prBadge.className = 'badge badge-priority-' + (t.priority || 'low');
-      prBadge.style.fontSize = '0.625rem';
-      prBadge.textContent = prLabel;
-      right.appendChild(prBadge);
-
-      var odBadge = document.createElement('span');
-      odBadge.className = 'badge bg-danger';
-      odBadge.style.fontSize = '0.625rem';
-      odBadge.textContent = t.overdue_by || '';
-      right.appendChild(odBadge);
-
-      var assignee = document.createElement('span');
-      assignee.className = 'text-muted';
-      assignee.style.fontSize = '0.75rem';
-      assignee.textContent = t.assignee_name || '';
-      right.appendChild(assignee);
-
-      row.appendChild(left);
-      row.appendChild(right);
-      link.appendChild(row);
-      fragment.appendChild(link);
-    });
-
-    if (count > tickets.length) {
-      var more = document.createElement('div');
-      more.className = 'text-center mt-2';
-      var moreLink = document.createElement('a');
-      moreLink.href = '/tickets/?status=overdue';
-      moreLink.className = 'text-muted';
-      moreLink.style.fontSize = '0.8125rem';
-      moreLink.textContent = 'View all ' + count + ' overdue tickets';
-      more.appendChild(moreLink);
-      fragment.appendChild(more);
-    }
-
     while (body.firstChild) body.removeChild(body.firstChild);
-    body.appendChild(fragment);
+
+    var table = document.createElement('table');
+    table.className = 'fd-sla-table';
+
+    var thead = document.createElement('thead');
+    var headRow = document.createElement('tr');
+    ['Policy', 'Priority', 'Response', 'Resolution', 'Breaches'].forEach(function(h) {
+      var th = document.createElement('th');
+      th.textContent = h;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    var tbody = document.createElement('tbody');
+    policies.forEach(function(p) {
+      var tr = document.createElement('tr');
+
+      // Policy name
+      var tdName = document.createElement('td');
+      tdName.className = 'fw-medium';
+      tdName.textContent = p.policy_name || 'Unnamed';
+      tr.appendChild(tdName);
+
+      // Priority badge
+      var tdPriority = document.createElement('td');
+      var priBadge = document.createElement('span');
+      priBadge.className = 'badge';
+      var priColor = PRIORITY_COLORS[p.priority] || '#94A3B8';
+      priBadge.style.backgroundColor = priColor;
+      priBadge.style.fontSize = '0.625rem';
+      priBadge.textContent = PRIORITY_LABELS[p.priority] || p.priority || '';
+      tdPriority.appendChild(priBadge);
+      tr.appendChild(tdPriority);
+
+      // Response compliance bar
+      var tdResp = document.createElement('td');
+      tdResp.appendChild(createSLABar(p.response_compliance_rate));
+      tr.appendChild(tdResp);
+
+      // Resolution compliance bar
+      var tdRes = document.createElement('td');
+      tdRes.appendChild(createSLABar(p.compliance_rate));
+      tr.appendChild(tdRes);
+
+      // Breaches
+      var tdBreach = document.createElement('td');
+      var totalBreaches = (p.response_breached_count || 0) + (p.resolution_breached_count || 0);
+      var breachSpan = document.createElement('span');
+      breachSpan.className = totalBreaches > 0 ? 'fd-sla-breach' : 'fd-sla-breach fd-sla-breach--zero';
+      breachSpan.textContent = String(totalBreaches);
+      tdBreach.appendChild(breachSpan);
+      tr.appendChild(tdBreach);
+
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    body.appendChild(table);
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Render: Team Performance (Top Agents)                              */
-  /* ------------------------------------------------------------------ */
+  function createSLABar(pct) {
+    var wrap = document.createElement('div');
+    wrap.className = 'fd-sla-bar-wrap';
+    var track = document.createElement('div');
+    track.className = 'fd-sla-bar-track';
+    var fill = document.createElement('div');
+    fill.className = 'fd-sla-bar-fill';
+    var rate = (pct !== null && pct !== undefined) ? Math.round(pct) : 0;
+    fill.classList.add(rate >= 90 ? 'fd-sla-bar-fill--green' : rate >= 70 ? 'fd-sla-bar-fill--yellow' : 'fd-sla-bar-fill--red');
+    fill.style.width = rate + '%';
+    track.appendChild(fill);
+    var label = document.createElement('span');
+    label.className = 'fd-sla-pct';
+    label.classList.add(rate >= 90 ? 'fd-sla-pct--green' : rate >= 70 ? 'fd-sla-pct--yellow' : 'fd-sla-pct--red');
+    label.textContent = rate + '%';
+    wrap.appendChild(track);
+    wrap.appendChild(label);
+    return wrap;
+  }
+
+  /* ---- Render: Team Performance ---- */
   function renderTeamPerformance(perfData) {
     var container = document.getElementById('teamTable');
     if (!container) return;
+    while (container.firstChild) container.removeChild(container.firstChild);
 
     var agents = perfData.agents || [];
-
     if (agents.length === 0) {
-      container.classList.add('d-flex', 'align-items-center', 'justify-content-center');
-      container.innerHTML =
-        '<div class="empty-state py-4">' +
-          '<div class="empty-icon"><i class="ti ti-id-badge-2"></i></div>' +
-          '<p class="empty-text">No agent data yet.</p>' +
-        '</div>';
+      showEmpty(container, 'id-badge-2', 'No agent data yet.');
       return;
     }
 
     var maxAssigned = 1;
-    agents.forEach(function(a) {
-      if (a.total_tickets > maxAssigned) maxAssigned = a.total_tickets;
+    agents.forEach(function(a) { if (a.total_tickets > maxAssigned) maxAssigned = a.total_tickets; });
+
+    var tableWrap = document.createElement('div');
+    tableWrap.className = 'table-responsive';
+    var table = document.createElement('table');
+    table.className = 'table table-modern';
+
+    var thead = document.createElement('thead');
+    var headTr = document.createElement('tr');
+    ['Agent','Assigned','Closed','Close Rate','Avg Time'].forEach(function(h) {
+      var th = document.createElement('th');
+      th.textContent = h;
+      headTr.appendChild(th);
     });
+    thead.appendChild(headTr);
+    table.appendChild(thead);
 
-    var html =
-      '<div class="table-responsive">' +
-        '<table class="table table-modern">' +
-          '<thead>' +
-            '<tr>' +
-              '<th>Agent</th>' +
-              '<th>Assigned</th>' +
-              '<th>Closed</th>' +
-              '<th>Close Rate</th>' +
-              '<th>Avg Time</th>' +
-            '</tr>' +
-          '</thead>' +
-          '<tbody>';
-
+    var tbody = document.createElement('tbody');
     agents.forEach(function(agent) {
       var initials = getInitials(agent.user_name || agent.user_email);
-      var displayName = escapeHtml(agent.user_name || agent.user_email || 'Unknown');
+      var displayName = agent.user_name || agent.user_email || 'Unknown';
       var assignedPct = Math.round((agent.total_tickets / maxAssigned) * 100);
       var closedPct = agent.total_tickets > 0 ? Math.round((agent.closed_tickets / maxAssigned) * 100) : 0;
       var closeRate = agent.total_tickets > 0 ? Math.round((agent.closed_tickets / agent.total_tickets) * 100) : 0;
-      var rateBadgeClass = closeRate >= 50 ? 'badge-soft-success' : 'badge-soft-warning';
 
-      // Average time
       var avgTimeStr = '\u2014';
       if (agent.avg_resolution_hours !== null && agent.avg_resolution_hours !== undefined) {
         var hrs = agent.avg_resolution_hours;
         avgTimeStr = hrs < 1 ? Math.round(hrs * 60) + 'm' : Math.round(hrs) + 'h';
       }
 
-      html +=
-        '<tr>' +
-          '<td>' +
-            '<div class="d-flex align-items-center gap-2">' +
-              '<div class="agent-avatar">' + initials + '</div>' +
-              '<span class="fw-medium">' + displayName + '</span>' +
-            '</div>' +
-          '</td>' +
-          '<td>' +
-            '<div class="d-flex align-items-center gap-2">' +
-              '<div class="perf-bar-track">' +
-                '<div class="perf-bar-fill perf-bar-fill--assigned" style="width:' + assignedPct + '%;"></div>' +
-              '</div>' +
-              '<span class="fw-semibold text-nowrap">' + agent.total_tickets + '</span>' +
-            '</div>' +
-          '</td>' +
-          '<td>' +
-            '<div class="d-flex align-items-center gap-2">' +
-              '<div class="perf-bar-track">' +
-                '<div class="perf-bar-fill perf-bar-fill--closed" style="width:' + closedPct + '%;"></div>' +
-              '</div>' +
-              '<span class="fw-semibold text-nowrap">' + agent.closed_tickets + '</span>' +
-            '</div>' +
-          '</td>' +
-          '<td><span class="badge ' + rateBadgeClass + '">' + closeRate + '%</span></td>' +
-          '<td class="text-muted">' + avgTimeStr + '</td>' +
-        '</tr>';
-    });
+      var tr = document.createElement('tr');
 
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
+      // Agent cell
+      var tdAgent = document.createElement('td');
+      var agentWrap = document.createElement('div');
+      agentWrap.className = 'd-flex align-items-center gap-2';
+      var avatar = document.createElement('div');
+      avatar.className = 'agent-avatar';
+      avatar.textContent = initials;
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'fw-medium';
+      nameSpan.textContent = displayName;
+      agentWrap.appendChild(avatar);
+      agentWrap.appendChild(nameSpan);
+      tdAgent.appendChild(agentWrap);
+      tr.appendChild(tdAgent);
+
+      // Assigned cell
+      var tdAssigned = document.createElement('td');
+      var assignedWrap = document.createElement('div');
+      assignedWrap.className = 'd-flex align-items-center gap-2';
+      var assignedTrack = document.createElement('div');
+      assignedTrack.className = 'perf-bar-track';
+      var assignedFill = document.createElement('div');
+      assignedFill.className = 'perf-bar-fill perf-bar-fill--assigned';
+      assignedFill.style.width = assignedPct + '%';
+      assignedTrack.appendChild(assignedFill);
+      var assignedNum = document.createElement('span');
+      assignedNum.className = 'fw-semibold text-nowrap';
+      assignedNum.textContent = String(agent.total_tickets);
+      assignedWrap.appendChild(assignedTrack);
+      assignedWrap.appendChild(assignedNum);
+      tdAssigned.appendChild(assignedWrap);
+      tr.appendChild(tdAssigned);
+
+      // Closed cell
+      var tdClosed = document.createElement('td');
+      var closedWrap = document.createElement('div');
+      closedWrap.className = 'd-flex align-items-center gap-2';
+      var closedTrack = document.createElement('div');
+      closedTrack.className = 'perf-bar-track';
+      var closedFill = document.createElement('div');
+      closedFill.className = 'perf-bar-fill perf-bar-fill--closed';
+      closedFill.style.width = closedPct + '%';
+      closedTrack.appendChild(closedFill);
+      var closedNum = document.createElement('span');
+      closedNum.className = 'fw-semibold text-nowrap';
+      closedNum.textContent = String(agent.closed_tickets);
+      closedWrap.appendChild(closedTrack);
+      closedWrap.appendChild(closedNum);
+      tdClosed.appendChild(closedWrap);
+      tr.appendChild(tdClosed);
+
+      // Close rate cell
+      var tdRate = document.createElement('td');
+      var rateBadge = document.createElement('span');
+      rateBadge.className = 'badge ' + (closeRate >= 50 ? 'badge-soft-success' : 'badge-soft-warning');
+      rateBadge.textContent = closeRate + '%';
+      tdRate.appendChild(rateBadge);
+      tr.appendChild(tdRate);
+
+      // Avg time cell
+      var tdAvg = document.createElement('td');
+      tdAvg.className = 'text-muted';
+      tdAvg.textContent = avgTimeStr;
+      tr.appendChild(tdAvg);
+
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    tableWrap.appendChild(table);
+    container.appendChild(tableWrap);
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Render: Recent Activity                                            */
-  /* ------------------------------------------------------------------ */
+  /* ---- Render: Overdue Reminders Widget ---- */
+  function renderOverdueRemindersWidget(reminderData) {
+    var container = document.getElementById('overdueRemindersBody');
+    if (!container) return;
+    while (container.firstChild) container.removeChild(container.firstChild);
+
+    var total = reminderData.total || 0;
+    var mine = reminderData.mine || 0;
+    var items = reminderData.items || [];
+
+    if (total === 0) {
+      var emptyDiv = document.createElement('div');
+      emptyDiv.className = 'p-3 text-center text-muted';
+      emptyDiv.textContent = 'No overdue reminders.';
+      container.appendChild(emptyDiv);
+      return;
+    }
+
+    // Summary line
+    var summaryDiv = document.createElement('div');
+    summaryDiv.className = 'px-3 pt-3 pb-2 d-flex gap-3';
+    var totalBadge = document.createElement('span');
+    totalBadge.className = 'badge bg-danger';
+    totalBadge.textContent = total + ' overdue';
+    summaryDiv.appendChild(totalBadge);
+    if (mine > 0) {
+      var mineBadge = document.createElement('span');
+      mineBadge.className = 'badge bg-warning text-dark';
+      mineBadge.textContent = mine + ' assigned to you';
+      summaryDiv.appendChild(mineBadge);
+    }
+    container.appendChild(summaryDiv);
+
+    // List items
+    var listDiv = document.createElement('div');
+    listDiv.className = 'list-group list-group-flush';
+    items.forEach(function(item) {
+      var a = document.createElement('a');
+      a.href = '/reminders/';
+      a.className = 'list-group-item list-group-item-action py-2 px-3';
+      a.style.fontSize = '0.8125rem';
+
+      var row = document.createElement('div');
+      row.className = 'd-flex justify-content-between align-items-center';
+
+      var leftDiv = document.createElement('div');
+      var subjectSpan = document.createElement('span');
+      subjectSpan.className = 'fw-semibold';
+      subjectSpan.textContent = item.subject;
+      leftDiv.appendChild(subjectSpan);
+
+      if (item.contact_name) {
+        var contactSmall = document.createElement('small');
+        contactSmall.className = 'text-muted ms-2';
+        contactSmall.textContent = item.contact_name;
+        leftDiv.appendChild(contactSmall);
+      }
+
+      var rightDiv = document.createElement('div');
+      var overdueBadge = document.createElement('span');
+      overdueBadge.className = 'badge bg-danger';
+      overdueBadge.textContent = item.overdue_display;
+      rightDiv.appendChild(overdueBadge);
+
+      row.appendChild(leftDiv);
+      row.appendChild(rightDiv);
+      a.appendChild(row);
+      listDiv.appendChild(a);
+    });
+    container.appendChild(listDiv);
+
+    // Update sidebar badge
+    var badge = document.getElementById('sidebarBadgeReminders');
+    if (badge && total > 0) {
+      badge.textContent = total;
+      badge.style.display = '';
+    }
+  }
+
+  /* ---- Render: Recent Activity ---- */
   function renderRecentActivity(tickets) {
     var container = document.getElementById('activityList');
+    if (!container) return;
+    while (container.firstChild) container.removeChild(container.firstChild);
 
     if (!tickets || tickets.length === 0) {
       showEmpty(container, 'activity', 'No recent activity.');
       return;
     }
 
-    var html = '';
+    var fragment = document.createDocumentFragment();
     tickets.forEach(function(t, idx) {
       var dotColor = t.status_color || '#94A3B8';
       var isLast = idx === tickets.length - 1;
 
-      html +=
-        '<a href="/tickets/' + (t.number || t.id) + '/" class="activity-item' + (isLast ? ' activity-item--last' : '') + '">' +
-          '<div class="activity-timeline">' +
-            '<div class="activity-dot" style="background:' + dotColor + ';"></div>' +
-            (isLast ? '' : '<div class="activity-line"></div>') +
-          '</div>' +
-          '<div class="activity-content">' +
-            '<div class="activity-subject">' + escapeHtml(t.subject || 'Untitled') + '</div>' +
-            '<div class="activity-meta">' +
-              '<span class="badge badge-status" style="background-color:' + dotColor + ';">' +
-                escapeHtml(t.status_name || '') +
-              '</span>' +
-              '<span class="activity-time">' + formatRelativeTime(t.updated_at) + '</span>' +
-            '</div>' +
-          '</div>' +
-        '</a>';
-    });
+      var link = document.createElement('a');
+      link.href = '/tickets/' + (t.number || t.id) + '/';
+      link.className = 'activity-item' + (isLast ? ' activity-item--last' : '');
 
-    container.innerHTML = html;
+      var timeline = document.createElement('div');
+      timeline.className = 'activity-timeline';
+      var dot = document.createElement('div');
+      dot.className = 'activity-dot';
+      dot.style.background = dotColor;
+      timeline.appendChild(dot);
+      if (!isLast) {
+        var line = document.createElement('div');
+        line.className = 'activity-line';
+        timeline.appendChild(line);
+      }
+
+      var content = document.createElement('div');
+      content.className = 'activity-content';
+      var subj = document.createElement('div');
+      subj.className = 'activity-subject';
+      subj.textContent = t.subject || 'Untitled';
+      var meta = document.createElement('div');
+      meta.className = 'activity-meta';
+      var badge = document.createElement('span');
+      badge.className = 'badge badge-status';
+      badge.style.backgroundColor = dotColor;
+      badge.textContent = t.status_name || '';
+      var time = document.createElement('span');
+      time.className = 'activity-time';
+      time.textContent = formatRelativeTime(t.updated_at);
+      meta.appendChild(badge);
+      meta.appendChild(time);
+      content.appendChild(subj);
+      content.appendChild(meta);
+
+      link.appendChild(timeline);
+      link.appendChild(content);
+      fragment.appendChild(link);
+    });
+    container.appendChild(fragment);
   }
 
-  /* ------------------------------------------------------------------ */
-  /*  Render: Recent Tickets Table                                       */
-  /* ------------------------------------------------------------------ */
-  function renderRecentTickets(tickets) {
-    var tbody = document.getElementById('recentTickets');
-
-    if (!tickets || tickets.length === 0) {
-      tbody.innerHTML =
-        '<tr><td colspan="4">' +
-          '<div class="empty-state py-5">' +
-            '<div class="empty-icon"><i class="ti ti-inbox"></i></div>' +
-            '<p class="empty-title">No tickets yet</p>' +
-            '<p class="empty-text">Create your first ticket to get started.</p>' +
-          '</div>' +
-        '</td></tr>';
-      return;
-    }
-
-    var html = '';
-    tickets.slice(0, 10).forEach(function(t) {
-      var prLabel = t.priority ? t.priority.charAt(0).toUpperCase() + t.priority.slice(1) : '';
-      var statusColor = t.status_color || '#94A3B8';
-
-      html +=
-        '<tr class="table-row-clickable" onclick="window.location.href=\'/tickets/' + (t.number || t.id) + '/\'">' +
-          '<td><span class="text-muted fw-medium">' + escapeHtml(String(t.number || '')) + '</span></td>' +
-          '<td><span class="fw-medium">' + escapeHtml(t.subject || '') + '</span></td>' +
-          '<td><span class="badge badge-status" style="background-color:' + statusColor + ';">' + escapeHtml(t.status_name || '') + '</span></td>' +
-          '<td><span class="badge badge-priority-' + (t.priority || 'low') + '">' + escapeHtml(prLabel) + '</span></td>' +
-        '</tr>';
-    });
-
-    tbody.innerHTML = html;
-  }
-
-  /* ------------------------------------------------------------------ */
-  /*  Period Selector Tabs                                               */
-  /* ------------------------------------------------------------------ */
-  var periodBtns = document.querySelectorAll('#periodSelector .btn-period');
-  periodBtns.forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      periodBtns.forEach(function(b) { b.classList.remove('active'); });
-      btn.classList.add('active');
-      // Could re-fetch data with ?period=week|month|quarter in the future
-    });
-  });
-
-  /* ------------------------------------------------------------------ */
-  /*  Fetch Dashboard Analytics (reusable with date range)               */
-  /* ------------------------------------------------------------------ */
+  /* ---- Fetch Dashboard Data ---- */
   function fetchDashboardData() {
     var range = getDateRange(currentDateRange);
     var qs = '?date_from=' + encodeURIComponent(range.date_from) +
              '&date_to=' + encodeURIComponent(range.date_to);
 
-    // Reset stat cards to loading state
-    ['statOpen', 'statInProgress', 'statResolved', 'statAvgResolution'].forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) el.innerHTML = '<span class="skeleton skeleton-text" style="width:60px;">&nbsp;</span>';
-    });
-
     Api.get('/api/v1/analytics/dashboard/' + qs)
       .then(function(data) {
-        var stats = data.ticket_stats || {};
-        var openCount = stats.open_count || 0;
-        var closedCount = stats.closed_count || 0;
-        var byStatus = stats.by_status || {};
-        var inProgressCount = byStatus['In Progress'] || 0;
-        var totalCount = openCount + closedCount;
+        cachedDashboardData = data;
+        var summary = data.summary || {};
+        var trends = data.hourly_trends || {};
 
-        // Animate stat values
-        var elOpen = document.getElementById('statOpen');
-        var elInProgress = document.getElementById('statInProgress');
-        var elResolved = document.getElementById('statResolved');
-        var elAvg = document.getElementById('statAvgResolution');
+        renderSummaryCards(summary);
+        updateTrendsHeader();
+        renderTrendsChart(trends);
+        renderMiddleWidget(currentOverviewTab);
+        renderUrgentPanel(currentUrgentTab);
+        renderSLACompliance(data.sla_compliance || {}, data.is_admin_or_manager);
+        renderOverdueRemindersWidget(data.overdue_reminders || {});
 
-        elOpen.textContent = '';
-        elInProgress.textContent = '';
-        elResolved.textContent = '';
-
-        animateValue(elOpen, openCount);
-        animateValue(elInProgress, inProgressCount);
-        animateValue(elResolved, closedCount);
-
-        if (stats.avg_resolution_time !== null && stats.avg_resolution_time !== undefined) {
-          var hrs = stats.avg_resolution_time;
-          if (hrs < 1) {
-            animateValue(elAvg, Math.round(hrs * 60), 'm');
-          } else {
-            animateValue(elAvg, Math.round(hrs), 'h');
-          }
-        } else {
-          elAvg.textContent = '\u2014';
-        }
-
-        // Ticket overview
-        renderTicketOverview(byStatus, stats.by_priority || {}, totalCount);
-
-        // Right widget: SLA (admin/manager) or Due Today (agent) — driven by API
-        renderRightWidget(data);
-
-        // Overdue tickets
-        renderOverdueTickets(data.overdue_tickets || { count: 0, tickets: [] });
-
-        // Team performance (admin/manager only)
         if (document.getElementById('teamTable')) {
           renderTeamPerformance(data.agent_performance || {});
         }
       })
       .catch(function(err) {
         console.error('Dashboard analytics error:', err);
-
-        // Set stat fallbacks
-        ['statOpen', 'statInProgress', 'statResolved'].forEach(function(id) {
+        ['sumUnresolved','sumOpen','sumOverdue','sumUnassigned'].forEach(function(id) {
           var el = document.getElementById(id);
           if (el) el.textContent = '0';
         });
-        var avgEl = document.getElementById('statAvgResolution');
-        if (avgEl) avgEl.textContent = '\u2014';
-
-        // Error states
-        var overviewEl = document.getElementById('ticketOverviewContent');
-        if (overviewEl) showError(overviewEl, 'Unable to load ticket data.');
-
-        var rightBody = document.getElementById('rightWidgetBody');
-        if (rightBody) showError(rightBody, 'Unable to load data.');
-
-        var overdueCard = document.getElementById('overdueCard');
-        if (overdueCard) overdueCard.style.display = 'none';
-
+        var middleBody = document.getElementById('middleWidgetBody');
+        if (middleBody) showError(middleBody, 'Unable to load data.');
         var teamEl = document.getElementById('teamTable');
-        if (teamEl) showError(teamEl, 'Unable to load team data.');
+        if (teamEl) showError(teamEl, 'Unable to load data.');
+        var rightBody = document.getElementById('rightPanelBody');
+        if (rightBody) showError(rightBody, 'Unable to load data.');
+        var slaCard = document.getElementById('slaComplianceCard');
+        if (slaCard) slaCard.style.display = 'none';
       });
   }
 
-  // Initial dashboard load
+  /* ---- Tab Toggle Listeners ---- */
+  var overviewTabsEl = document.getElementById('overviewTabs');
+  if (overviewTabsEl) {
+    overviewTabsEl.querySelectorAll('.fd-tab-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        overviewTabsEl.querySelectorAll('.fd-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        currentOverviewTab = btn.getAttribute('data-tab');
+        renderMiddleWidget(currentOverviewTab);
+      });
+    });
+  }
+
+  var urgentTabsEl = document.getElementById('urgentTabs');
+  if (urgentTabsEl) {
+    urgentTabsEl.querySelectorAll('.fd-tab-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        urgentTabsEl.querySelectorAll('.fd-tab-btn').forEach(function(b) { b.classList.remove('active'); });
+        btn.classList.add('active');
+        currentUrgentTab = btn.getAttribute('data-tab');
+        renderUrgentPanel(currentUrgentTab);
+        var viewAllLink = document.getElementById('urgentViewAllLink');
+        if (viewAllLink) {
+          if (currentUrgentTab === 'by_queue') {
+            viewAllLink.href = '/tickets/?filter=unresolved';
+            viewAllLink.textContent = 'View all';
+          } else {
+            viewAllLink.href = '/tickets/?filter=' + (currentUrgentTab === 'due_today' ? 'due_today' : 'overdue');
+            viewAllLink.textContent = 'View all';
+          }
+        }
+      });
+    });
+  }
+
   fetchDashboardData();
 
-  /* ------------------------------------------------------------------ */
-  /*  Fetch Recent Activity                                              */
-  /* ------------------------------------------------------------------ */
+  /* ---- Fetch Recent Activity ---- */
   Api.get('/api/v1/tickets/tickets/?ordering=-updated_at&page_size=5')
-    .then(function(data) {
-      var tickets = data.results || data;
-      renderRecentActivity(tickets);
-    })
+    .then(function(data) { renderRecentActivity(data.results || data); })
     .catch(function(err) {
       console.error('Recent activity error:', err);
       var container = document.getElementById('activityList');
       if (container) showError(container, 'Unable to load activity.');
     });
 
-  /* ------------------------------------------------------------------ */
-  /*  Fetch Recent Tickets                                               */
-  /* ------------------------------------------------------------------ */
-  Api.get('/api/v1/tickets/tickets/?ordering=-created_at&page_size=10')
-    .then(function(data) {
-      var tickets = data.results || data;
-      renderRecentTickets(tickets);
-    })
-    .catch(function(err) {
-      console.error('Recent tickets error:', err);
-      var tbody = document.getElementById('recentTickets');
-      if (tbody) {
-        tbody.innerHTML =
-          '<tr><td colspan="4" class="text-center py-4 text-muted">' +
-            '<i class="ti ti-alert-triangle me-1"></i>Unable to load tickets.' +
-          '</td></tr>';
-      }
-    });
-
-  /* ------------------------------------------------------------------ */
-  /*  Week Strip — Current Week Events for Dashboard                     */
-  /* ------------------------------------------------------------------ */
-  (function initWeekStrip() {
-    var stripEl = document.getElementById('weekStrip');
-    if (!stripEl) return;
-
-    var DAY_NAMES = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
-    var MONTH_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-
-    var EVENT_BAR_LIGHT = {
-      'ticket_created': { bg: '#EFF6FF', border: '#2563EB', text: '#1E40AF' },
-      'ticket_closed':  { bg: '#ECFDF5', border: '#10B981', text: '#065F46' },
-      'ticket_due':     { bg: '#EFF6FF', border: '#60A5FA', text: '#1E40AF' },
-      'meeting':        { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E' },
-      'call':           { bg: '#EFF6FF', border: '#3B82F6', text: '#1E40AF' },
-      'task':           { bg: '#FFFBEB', border: '#F59E0B', text: '#92400E' },
-      'reminder':       { bg: '#F5F3FF', border: '#7C3AED', text: '#5B21B6' },
-      'other':          { bg: '#F1F5F9', border: '#6B7280', text: '#374151' }
-    };
-    var EVENT_BAR_DARK = {
-      'ticket_created': { bg: 'rgba(37,99,235,0.12)', border: '#2563EB', text: '#93C5FD' },
-      'ticket_closed':  { bg: 'rgba(16,185,129,0.12)', border: '#10B981', text: '#6EE7B7' },
-      'ticket_due':     { bg: 'rgba(96,165,250,0.12)', border: '#60A5FA', text: '#BFDBFE' },
-      'meeting':        { bg: 'rgba(245,158,11,0.12)', border: '#F59E0B', text: '#FCD34D' },
-      'call':           { bg: 'rgba(59,130,246,0.12)', border: '#3B82F6', text: '#93C5FD' },
-      'task':           { bg: 'rgba(245,158,11,0.12)', border: '#F59E0B', text: '#FCD34D' },
-      'reminder':       { bg: 'rgba(124,58,237,0.12)', border: '#7C3AED', text: '#C4B5FD' },
-      'other':          { bg: 'rgba(255,255,255,0.06)', border: '#6B7280', text: '#9CA3AF' }
-    };
-    var DEFAULT_BAR_LIGHT = { bg: '#F1F5F9', border: '#6B7280', text: '#374151' };
-    var DEFAULT_BAR_DARK = { bg: 'rgba(255,255,255,0.06)', border: '#6B7280', text: '#9CA3AF' };
-    function isDark() { return document.documentElement.getAttribute('data-bs-theme') === 'dark'; }
-    function getBarColors() { return isDark() ? EVENT_BAR_DARK : EVENT_BAR_LIGHT; }
-    function getDefaultBar() { return isDark() ? DEFAULT_BAR_DARK : DEFAULT_BAR_LIGHT; }
-
-    function pad(n) { return n < 10 ? '0' + n : '' + n; }
-    function dk(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
-    function localDateKey(isoStr) { if (!isoStr) return null; var d = new Date(isoStr); return isNaN(d.getTime()) ? null : dk(d); }
-    function localTime(isoStr) { if (!isoStr) return null; var d = new Date(isoStr); return isNaN(d.getTime()) ? null : pad(d.getHours()) + ':' + pad(d.getMinutes()); }
-
-    // Get Mon-Sun of current week
-    var today = new Date();
-    var dayOfWeek = today.getDay();
-    var monday = new Date(today);
-    monday.setDate(today.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
-
-    var weekDays = [];
-    for (var i = 0; i < 7; i++) {
-      var d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      weekDays.push(d);
-    }
-
-    var startDate = dk(weekDays[0]);
-    var endDate = dk(weekDays[6]);
-
-    var ticketPromise = Api.get(
-      '/api/v1/tickets/tickets/?created_at_after=' + startDate +
-      '&created_at_before=' + endDate + 'T23:59:59&page_size=200'
-    ).catch(function() { return { results: [] }; });
-
-    var calEventPromise = Api.get(
-      '/api/v1/analytics/calendar-events/?date_from=' + startDate +
-      '&date_to=' + endDate + '&page_size=200'
-    ).catch(function() { return { results: [] }; });
-
-    Promise.all([ticketPromise, calEventPromise]).then(function(results) {
-      var events = {};
-      var tickets = results[0].results || results[0] || [];
-      tickets.forEach(function(t) {
-        var created = localDateKey(t.created_at);
-        if (created) {
-          if (!events[created]) events[created] = [];
-          events[created].push({ type: 'ticket_created', label: '#' + t.number + ' ' + (t.subject || ''), time: localTime(t.created_at), ticket: t });
-        }
-        if (t.resolved_at) {
-          var resolved = localDateKey(t.resolved_at);
-          if (resolved) {
-            if (!events[resolved]) events[resolved] = [];
-            events[resolved].push({ type: 'ticket_closed', label: '#' + t.number + ' ' + (t.subject || '') + ' — resolved', time: localTime(t.resolved_at), ticket: t });
-          }
-        }
-        if (t.due_date) {
-          var due = localDateKey(t.due_date);
-          if (due) {
-            if (!events[due]) events[due] = [];
-            events[due].push({ type: 'ticket_due', label: '#' + t.number + ' ' + (t.subject || '') + ' — due', time: localTime(t.due_date), ticket: t });
-          }
-        }
-      });
-      var calEvents = results[1].results || results[1] || [];
-      calEvents.forEach(function(ce) {
-        var d = ce.event_date;
-        if (!events[d]) events[d] = [];
-        events[d].push({ type: ce.event_type, label: ce.title, time: ce.event_time ? ce.event_time.substring(0, 5) : null, calEvent: ce });
-      });
-
-      renderWeekStrip(events);
-    }).catch(function() {
-      stripEl.innerHTML = '<div class="text-muted text-center py-4">Unable to load events.</div>';
-    });
-
-    function renderWeekStrip(events) {
-      var todayKey = dk(today);
-      var html = '<div class="ws-grid">';
-
-      weekDays.forEach(function(day) {
-        var key = dk(day);
-        var isToday = key === todayKey;
-        var cls = 'ws-day' + (isToday ? ' ws-day--today' : '');
-        var dayEvents = events[key] || [];
-
-        // Sort by time
-        dayEvents.sort(function(a, b) {
-          if (a.time && !b.time) return -1;
-          if (!a.time && b.time) return 1;
-          if (a.time && b.time) return a.time.localeCompare(b.time);
-          return 0;
+  /* ---- Fetch Agent Availability Stats (admin/manager only) ---- */
+  if (document.getElementById('agentStatsGrid')) {
+    Api.get('/api/v1/agents/agents/all-members/')
+      .then(function(data) {
+        var agents = data.results || data;
+        var counts = { online: 0, offline: 0, total: 0, atCap: 0 };
+        agents.forEach(function(a) {
+          counts.total++;
+          if (a.status === 'online') counts.online++; else counts.offline++;
+          if ((a.current_ticket_count || 0) >= (a.max_concurrent_tickets || 10)) counts.atCap++;
         });
-
-        html += '<div class="' + cls + '">';
-        html += '<div class="ws-day-header">';
-        html += '<span class="ws-day-name">' + DAY_NAMES[day.getDay()] + '</span>';
-        html += '<span class="ws-day-num' + (isToday ? ' ws-day-num--today' : '') + '">' + day.getDate() + '</span>';
-        html += '<span class="ws-day-month">' + MONTH_SHORT[day.getMonth()] + '</span>';
-        html += '</div>';
-        html += '<div class="ws-day-events">';
-
-        if (dayEvents.length === 0) {
-          html += '<span class="ws-no-events">No events</span>';
-        } else {
-          dayEvents.forEach(function(ev) {
-            var colors = getBarColors()[ev.type] || getDefaultBar();
-            var href = ev.ticket ? '/tickets/' + ev.ticket.number + '/' : '/calendar/';
-            var timeStr = ev.time ? '<span class="ws-event-time">' + escapeHtml(ev.time) + '</span>' : '';
-            if (isDark()) {
-              html += '<a class="ws-event ws-event--dark" href="' + href + '" style="border-left-color:' + colors.border + ';">';
-            } else {
-              html += '<a class="ws-event" href="' + href + '" style="background:' + colors.bg + ';border-left-color:' + colors.border + ';color:' + colors.text + ';">';
-            }
-            html += timeStr + '<span class="ws-event-label">' + escapeHtml(ev.label) + '</span>';
-            html += '</a>';
-          });
-        }
-
-        html += '</div></div>';
+        var el;
+        el = document.getElementById('countOnline'); if (el) animateValue(el, counts.online);
+        el = document.getElementById('countOffline'); if (el) animateValue(el, counts.offline);
+        el = document.getElementById('countTotal'); if (el) animateValue(el, counts.total);
+        el = document.getElementById('countAtCapacity'); if (el) animateValue(el, counts.atCap);
+      })
+      .catch(function(err) {
+        console.error('Agent stats error:', err);
       });
-
-      html += '</div>';
-      stripEl.innerHTML = html;
-    }
-  })();
+  }
 
 })();
 </script>

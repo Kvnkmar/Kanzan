@@ -14,7 +14,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.comments.models import ActivityLog, Comment
+from apps.comments.models import ActivityLog, Comment, CommentRead
 from apps.comments.serializers import (
     ActivityLogSerializer,
     CommentCreateSerializer,
@@ -70,6 +70,12 @@ class ActivityLogFilter(django_filters.FilterSet):
     """
 
     content_type = django_filters.CharFilter(method="filter_content_type")
+    created_at__gte = django_filters.IsoDateTimeFilter(
+        field_name="created_at", lookup_expr="gte"
+    )
+    created_at__lte = django_filters.IsoDateTimeFilter(
+        field_name="created_at", lookup_expr="lte"
+    )
 
     class Meta:
         model = ActivityLog
@@ -211,6 +217,18 @@ class CommentViewSet(viewsets.ModelViewSet):
 
         serializer = CommentSerializer(replies_qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+    @action(detail=True, methods=["post"], url_path="mark-read")
+    def mark_read(self, request, pk=None):
+        """
+        POST /api/v1/comments/comments/<id>/mark-read/
+
+        Mark a single comment as read for the requesting user. Idempotent.
+        """
+        comment = self.get_object()
+        CommentRead.objects.get_or_create(comment=comment, user=request.user)
+        return Response({"status": "marked"}, status=status.HTTP_200_OK)
 
 
 class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):

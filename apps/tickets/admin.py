@@ -10,11 +10,16 @@ from django.contrib import admin
 from main.admin import TenantFilteredAdmin
 
 from apps.tickets.models import (
+    BusinessHours,
     CannedResponse,
     EscalationRule,
+    Pipeline,
+    PipelineStage,
+    PublicHoliday,
     Queue,
     SavedView,
     SLAPolicy,
+    SLAPause,
     Ticket,
     TicketAssignment,
     TicketCategory,
@@ -125,3 +130,42 @@ class SavedViewAdmin(TenantFilteredAdmin, admin.ModelAdmin):
     search_fields = ["name"]
     ordering = ["tenant", "resource_type", "name"]
     raw_id_fields = ["user"]
+
+
+@admin.register(BusinessHours)
+class BusinessHoursAdmin(TenantFilteredAdmin, admin.ModelAdmin):
+    list_display = ["tenant", "timezone", "created_at", "updated_at"]
+    list_filter = ["tenant"]
+    ordering = ["tenant"]
+
+
+@admin.register(PublicHoliday)
+class PublicHolidayAdmin(TenantFilteredAdmin, admin.ModelAdmin):
+    list_display = ["name", "date", "tenant"]
+    list_filter = ["tenant"]
+    search_fields = ["name"]
+    ordering = ["tenant", "date"]
+
+
+@admin.register(SLAPause)
+class SLAPauseAdmin(TenantFilteredAdmin, admin.ModelAdmin):
+    list_display = ["ticket", "paused_at", "resumed_at", "reason", "tenant"]
+    list_filter = ["reason", "tenant"]
+    ordering = ["-paused_at"]
+    raw_id_fields = ["ticket"]
+
+
+@admin.register(Pipeline)
+class PipelineAdmin(TenantFilteredAdmin, admin.ModelAdmin):
+    list_display = ["name", "is_default", "tenant", "created_at"]
+    list_filter = ["is_default", "tenant"]
+    search_fields = ["name"]
+    ordering = ["tenant", "name"]
+
+
+@admin.register(PipelineStage)
+class PipelineStageAdmin(admin.ModelAdmin):
+    list_display = ["name", "pipeline", "order", "is_won", "is_lost", "color"]
+    list_filter = ["is_won", "is_lost", "pipeline"]
+    search_fields = ["name", "pipeline__name"]
+    ordering = ["pipeline", "order"]

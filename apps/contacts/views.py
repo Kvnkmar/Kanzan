@@ -13,15 +13,43 @@ from rest_framework.response import Response
 
 from apps.accounts.permissions import HasTenantPermission
 from apps.contacts.filters import CompanyFilter, ContactFilter
-from apps.contacts.models import Company, Contact, ContactGroup
+from apps.contacts.models import Account, Company, Contact, ContactEvent, ContactGroup
 from apps.contacts.serializers import (
+    AccountListSerializer,
+    AccountSerializer,
     CompanyListSerializer,
     CompanySerializer,
     ContactCreateSerializer,
+    ContactEventSerializer,
     ContactGroupSerializer,
     ContactListSerializer,
     ContactSerializer,
 )
+
+
+class AccountViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for CRM accounts within the current tenant.
+
+    health_score is read-only (calculated nightly by Celery task).
+    """
+
+    permission_classes = [IsAuthenticated, HasTenantPermission]
+    search_fields = ["name"]
+    ordering_fields = ["name", "health_score", "mrr", "created_at"]
+    ordering = ["-created_at"]
+    permission_resource = "account"
+
+    def get_queryset(self):
+        return Account.objects.all()
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return AccountListSerializer
+        return AccountSerializer
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
 
 
 class CompanyViewSet(viewsets.ModelViewSet):
@@ -89,6 +117,7 @@ class ContactViewSet(viewsets.ModelViewSet):
         "first_name",
         "last_name",
         "email",
+        "lead_score",
         "created_at",
         "updated_at",
     ]
@@ -233,6 +262,134 @@ class ContactViewSet(viewsets.ModelViewSet):
             },
             status=status.HTTP_200_OK,
         )
+
+    @action(detail=True, methods=["get"], url_path="context")
+    def context(self, request, pk=None):
+        """
+        Return a contact context summary for the ticket detail sidebar.
+
+        Includes the contact's profile, ticket stats (total, open, avg CSAT),
+        and the last 5 tickets for this contact within the current tenant.
+
+        Accepts an optional ``?exclude_ticket=<uuid>`` query param to omit
+        the currently viewed ticket from recent_tickets.
+
+        Cached per contact per tenant for 60 seconds.
+        """
+        from django.core.cache import cache
+        from django.db.models import Avg, Q
+
+        from apps.tickets.models import Ticket
+
+        contact = self.get_object()
+        tenant = getattr(request, "tenant", None)
+        exclude_ticket = request.query_params.get("exclude_ticket")
+
+        cache_key = f"contact_context:{tenant.pk}:{contact.pk}"
+        cached = cache.get(cache_key)
+        if cached and not exclude_ticket:
+            return Response(cached)
+
+        # All tickets for this contact in this tenant
+        tickets_qs = Ticket.objects.filter(contact=contact)
+
+        total_tickets = tickets_qs.count()
+        open_tickets = tickets_qs.filter(status__is_closed=False).count()
+
+        # Average CSAT across tickets that have a rating
+        avg_csat_raw = tickets_qs.filter(
+            csat_rating__isnull=False,
+        ).aggregate(avg=Avg("csat_rating"))["avg"]
+        avg_csat = round(avg_csat_raw, 1) if avg_csat_raw is not None else None
+
+        last_ticket_at = None
+        latest = tickets_qs.order_by("-created_at").values_list("created_at", flat=True).first()
+        if latest:
+            last_ticket_at = latest.isoformat()
+
+        # Recent tickets (last 5, excluding current if specified)
+        recent_qs = tickets_qs.select_related("status").order_by("-created_at")
+        if exclude_ticket:
+            recent_qs = recent_qs.exclude(pk=exclude_ticket)
+        recent_tickets = [
+            {
+                "id": str(t.pk),
+                "number": t.number,
+                "subject": t.subject,
+                "status": t.status.name if t.status else None,
+                "status_color": t.status.color if t.status else None,
+                "priority": t.priority,
+                "created_at": t.created_at.isoformat(),
+            }
+            for t in recent_qs[:5]
+        ]
+
+        data = {
+            "contact": {
+                "id": str(contact.pk),
+                "name": contact.full_name,
+                "email": contact.email,
+                "email_bouncing": contact.email_bouncing,
+                "created_at": contact.created_at.isoformat(),
+            },
+            "stats": {
+                "total_tickets": total_tickets,
+                "open_tickets": open_tickets,
+                "avg_csat": avg_csat,
+                "last_ticket_at": last_ticket_at,
+            },
+            "recent_tickets": recent_tickets,
+        }
+
+        cache.set(cache_key, data, 60)
+        return Response(data)
+
+    @action(detail=True, methods=["get"], url_path="timeline")
+    def timeline(self, request, pk=None):
+        """
+        Return a paginated, unified timeline of ContactEvents for a contact.
+
+        GET /api/v1/contacts/contacts/{id}/timeline/
+
+        Query params:
+            source      — filter by source (ticket, activity, email, manual)
+            event_type  — filter by event_type
+            after       — ISO datetime, events after this timestamp
+            before      — ISO datetime, events before this timestamp
+        """
+        contact = self.get_object()
+
+        qs = ContactEvent.objects.filter(contact=contact)
+
+        # Optional filters
+        source = request.query_params.get("source")
+        if source:
+            qs = qs.filter(source=source)
+
+        event_type = request.query_params.get("event_type")
+        if event_type:
+            qs = qs.filter(event_type=event_type)
+
+        after = request.query_params.get("after")
+        if after:
+            qs = qs.filter(occurred_at__gte=after)
+
+        before = request.query_params.get("before")
+        if before:
+            qs = qs.filter(occurred_at__lte=before)
+
+        # Paginate with page_size=25
+        from rest_framework.pagination import PageNumberPagination
+
+        class TimelinePagination(PageNumberPagination):
+            page_size = 25
+            page_size_query_param = "page_size"
+            max_page_size = 100
+
+        paginator = TimelinePagination()
+        page = paginator.paginate_queryset(qs, request)
+        serializer = ContactEventSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
 
 
 class ContactGroupViewSet(viewsets.ModelViewSet):

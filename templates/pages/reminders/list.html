@@ -1,0 +1,642 @@
+{% extends "base.html" %}
+{% block title %}Reminders - Kanzen Suite{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+  <div style="display:flex;align-items:center;gap:0.75rem;">
+    <div class="ae-page-icon">
+      <i class="ti ti-bell"></i>
+    </div>
+    <div>
+      <h1 class="page-title" style="margin:0;">Reminders</h1>
+      <p class="text-muted mb-0" style="font-size:0.8125rem;">Manage your scheduled reminders</p>
+    </div>
+  </div>
+  <div style="display:flex;gap:0.5rem;">
+    <button class="btn btn-sm btn-outline-secondary" id="filterMineBtn" title="Show only my reminders">
+      <i class="ti ti-user"></i> Mine
+    </button>
+    <button class="btn btn-sm btn-outline-secondary" id="filterAllBtn" title="Show all reminders">
+      <i class="ti ti-users"></i> All
+    </button>
+    <select class="form-select form-select-sm" id="statusFilter" style="width:auto;">
+      <option value="">All Statuses</option>
+      <option value="overdue" selected>Overdue</option>
+      <option value="pending">Pending</option>
+      <option value="completed">Completed</option>
+      <option value="cancelled">Cancelled</option>
+    </select>
+    <select class="form-select form-select-sm" id="priorityFilter" style="width:auto;">
+      <option value="">All Priorities</option>
+      <option value="urgent">Urgent</option>
+      <option value="high">High</option>
+      <option value="medium">Medium</option>
+      <option value="low">Low</option>
+    </select>
+    <button class="btn btn-sm btn-primary" id="newReminderBtn">
+      <i class="ti ti-plus"></i> New Reminder
+    </button>
+  </div>
+</div>
+
+<!-- Stats Row -->
+<div class="fd-summary-row mb-3" id="reminderStats">
+  <div class="fd-summary-card fd-summary-card--danger">
+    <span class="fd-summary-label">Overdue</span>
+    <span class="fd-summary-value" id="statOverdue">-</span>
+  </div>
+  <div class="fd-summary-card fd-summary-card--warning">
+    <span class="fd-summary-label">My Overdue</span>
+    <span class="fd-summary-value" id="statMyOverdue">-</span>
+  </div>
+  <div class="fd-summary-card fd-summary-card--primary">
+    <span class="fd-summary-label">Completed Today</span>
+    <span class="fd-summary-value" id="statCompletedToday">-</span>
+  </div>
+</div>
+
+<!-- Reminders Table -->
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0" style="font-size:0.8125rem;">
+        <thead>
+          <tr>
+            <th style="padding-left:1rem;">
+              <input type="checkbox" id="selectAll" class="form-check-input">
+            </th>
+            <th>Contact</th>
+            <th>Subject</th>
+            <th>Ticket</th>
+            <th>Assigned To</th>
+            <th>Scheduled</th>
+            <th>Overdue</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="remindersTableBody">
+          <tr>
+            <td colspan="10" class="text-center py-5">
+              <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+              <span class="text-muted">Loading reminders...</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Bulk Actions Bar -->
+<div class="card mt-2" id="bulkBar" style="display:none;">
+  <div class="card-body py-2 d-flex align-items-center gap-2">
+    <span id="selectedCount" class="text-muted me-2">0 selected</span>
+    <button class="btn btn-sm btn-success" id="bulkCompleteBtn">
+      <i class="ti ti-check"></i> Complete
+    </button>
+    <button class="btn btn-sm btn-warning" id="bulkRescheduleBtn">
+      <i class="ti ti-calendar"></i> Reschedule
+    </button>
+    <button class="btn btn-sm btn-secondary" id="bulkCancelBtn">
+      <i class="ti ti-x"></i> Cancel
+    </button>
+  </div>
+</div>
+
+<!-- Pagination -->
+<nav id="paginationNav" class="mt-3" style="display:none;">
+  <ul class="pagination pagination-sm justify-content-center">
+    <li class="page-item" id="prevPage"><a class="page-link" href="#">Prev</a></li>
+    <li class="page-item disabled"><span class="page-link" id="pageInfo">1 / 1</span></li>
+    <li class="page-item" id="nextPage"><a class="page-link" href="#">Next</a></li>
+  </ul>
+</nav>
+
+<!-- New/Edit Reminder Modal -->
+<div class="modal fade" id="reminderModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="reminderModalTitle">New Reminder</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="reminderId">
+        <div class="mb-3">
+          <label class="form-label">Subject</label>
+          <input type="text" class="form-control" id="reminderSubject" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Scheduled At</label>
+          <input type="datetime-local" class="form-control" id="reminderScheduledAt" required>
+        </div>
+        <div class="row mb-3">
+          <div class="col-6">
+            <label class="form-label">Priority</label>
+            <select class="form-select" id="reminderPriority">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">Assigned To</label>
+            <select class="form-select" id="reminderAssignedTo">
+              <option value="">Unassigned</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Contact</label>
+          <select class="form-select" id="reminderContact">
+            <option value="">None</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Notes</label>
+          <textarea class="form-control" id="reminderNotes" rows="3"></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveReminderBtn">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reschedule Modal -->
+<div class="modal fade" id="rescheduleModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Reschedule Reminder</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="rescheduleReminderId">
+        <div class="mb-3">
+          <label class="form-label">New Date/Time</label>
+          <input type="datetime-local" class="form-control" id="rescheduleAt" required>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Note (optional)</label>
+          <input type="text" class="form-control" id="rescheduleNote">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmRescheduleBtn">Reschedule</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+
+  var API_BASE = '/api/v1/crm/reminders/';
+  var currentPage = 1;
+  var totalPages = 1;
+  var mineOnly = false;
+  var selectedIds = new Set();
+
+  function createBadge(text, bgColor, textColor) {
+    var span = document.createElement('span');
+    span.className = 'badge';
+    span.style.background = bgColor;
+    span.style.color = textColor;
+    span.textContent = text;
+    return span;
+  }
+
+  function priorityBadge(priority) {
+    var map = {
+      urgent: ['Urgent', '#dc3545', '#fff'],
+      high: ['High', '#fd7e14', '#fff'],
+      medium: ['Medium', '#0d6efd', '#fff'],
+      low: ['Low', '#6c757d', '#fff'],
+    };
+    var cfg = map[priority] || [priority, '#6c757d', '#fff'];
+    return createBadge(cfg[0], cfg[1], cfg[2]);
+  }
+
+  function statusBadge(st) {
+    var map = {
+      overdue: ['Overdue', '#dc3545', '#fff'],
+      pending: ['Pending', '#ffc107', '#000'],
+      completed: ['Completed', '#198754', '#fff'],
+      cancelled: ['Cancelled', '#6c757d', '#fff'],
+    };
+    var cfg = map[st] || [st, '#6c757d', '#fff'];
+    return createBadge(cfg[0], cfg[1], cfg[2]);
+  }
+
+  function getFilters() {
+    var params = new URLSearchParams();
+    params.set('page', currentPage);
+    var st = document.getElementById('statusFilter').value;
+    if (st) params.set('status', st);
+    var pr = document.getElementById('priorityFilter').value;
+    if (pr) params.set('priority', pr);
+    if (mineOnly) params.set('mine', 'true');
+    return params.toString();
+  }
+
+  function createTextCell(text, opts) {
+    var td = document.createElement('td');
+    if (opts && opts.style) td.style.cssText = opts.style;
+    if (opts && opts.className) td.className = opts.className;
+    td.textContent = text || '-';
+    return td;
+  }
+
+  function buildReminderRow(r) {
+    var tr = document.createElement('tr');
+    tr.dataset.id = r.id;
+    var isActionable = r.status === 'overdue' || r.status === 'pending';
+
+    // Checkbox
+    var tdCheck = document.createElement('td');
+    tdCheck.style.paddingLeft = '1rem';
+    var cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.className = 'form-check-input reminder-check';
+    cb.dataset.id = r.id;
+    if (!isActionable) cb.disabled = true;
+    tdCheck.appendChild(cb);
+    tr.appendChild(tdCheck);
+
+    // Contact
+    tr.appendChild(createTextCell(r.contact_name || r.contact_email || '-'));
+
+    // Subject (bold)
+    var tdSubject = document.createElement('td');
+    var strong = document.createElement('strong');
+    strong.textContent = r.subject || '';
+    tdSubject.appendChild(strong);
+    tr.appendChild(tdSubject);
+
+    // Ticket
+    tr.appendChild(createTextCell(r.ticket_number ? '#' + r.ticket_number : '-'));
+
+    // Assigned to
+    tr.appendChild(createTextCell(r.assigned_to_name || 'Unassigned'));
+
+    // Scheduled
+    var scheduledText = r.scheduled_at ? new Date(r.scheduled_at).toLocaleString() : '-';
+    tr.appendChild(createTextCell(scheduledText));
+
+    // Overdue
+    var tdOverdue = document.createElement('td');
+    if (r.overdue_display) {
+      var overdueSpan = document.createElement('span');
+      overdueSpan.className = 'text-danger fw-semibold';
+      overdueSpan.textContent = r.overdue_display;
+      tdOverdue.appendChild(overdueSpan);
+    } else {
+      tdOverdue.textContent = '-';
+    }
+    tr.appendChild(tdOverdue);
+
+    // Priority badge
+    var tdPriority = document.createElement('td');
+    tdPriority.appendChild(priorityBadge(r.priority));
+    tr.appendChild(tdPriority);
+
+    // Status badge
+    var tdStatus = document.createElement('td');
+    tdStatus.appendChild(statusBadge(r.status));
+    tr.appendChild(tdStatus);
+
+    // Actions
+    var tdActions = document.createElement('td');
+    if (isActionable) {
+      var btnGroup = document.createElement('div');
+      btnGroup.className = 'btn-group btn-group-sm';
+
+      var btnComplete = document.createElement('button');
+      btnComplete.className = 'btn btn-sm btn-outline-success';
+      btnComplete.title = 'Complete';
+      btnComplete.dataset.id = r.id;
+      var iCheck = document.createElement('i');
+      iCheck.className = 'ti ti-check';
+      btnComplete.appendChild(iCheck);
+      btnComplete.addEventListener('click', function() { completeReminder(r.id); });
+      btnGroup.appendChild(btnComplete);
+
+      var btnReschedule = document.createElement('button');
+      btnReschedule.className = 'btn btn-sm btn-outline-warning';
+      btnReschedule.title = 'Reschedule';
+      btnReschedule.dataset.id = r.id;
+      var iCal = document.createElement('i');
+      iCal.className = 'ti ti-calendar';
+      btnReschedule.appendChild(iCal);
+      btnReschedule.addEventListener('click', function() { openReschedule(r.id); });
+      btnGroup.appendChild(btnReschedule);
+
+      var btnCancel = document.createElement('button');
+      btnCancel.className = 'btn btn-sm btn-outline-secondary';
+      btnCancel.title = 'Cancel';
+      btnCancel.dataset.id = r.id;
+      var iX = document.createElement('i');
+      iX.className = 'ti ti-x';
+      btnCancel.appendChild(iX);
+      btnCancel.addEventListener('click', function() { cancelReminder(r.id); });
+      btnGroup.appendChild(btnCancel);
+
+      tdActions.appendChild(btnGroup);
+    }
+    tr.appendChild(tdActions);
+
+    return tr;
+  }
+
+  function loadReminders() {
+    Api.get(API_BASE + '?' + getFilters()).then(function(data) {
+      var results = data.results || data;
+      var tbody = document.getElementById('remindersTableBody');
+      tbody.textContent = '';
+      selectedIds.clear();
+      updateBulkBar();
+
+      if (!results || results.length === 0) {
+        var emptyRow = document.createElement('tr');
+        var emptyCell = document.createElement('td');
+        emptyCell.colSpan = 10;
+        emptyCell.className = 'text-center py-4 text-muted';
+        emptyCell.textContent = 'No reminders found.';
+        emptyRow.appendChild(emptyCell);
+        tbody.appendChild(emptyRow);
+        document.getElementById('paginationNav').style.display = 'none';
+        return;
+      }
+
+      results.forEach(function(r) {
+        tbody.appendChild(buildReminderRow(r));
+      });
+
+      // Pagination
+      if (data.count !== undefined) {
+        var pageSize = results.length || 50;
+        totalPages = Math.ceil(data.count / pageSize) || 1;
+        document.getElementById('pageInfo').textContent = currentPage + ' / ' + totalPages;
+        document.getElementById('paginationNav').style.display = '';
+        document.getElementById('prevPage').classList.toggle('disabled', currentPage <= 1);
+        document.getElementById('nextPage').classList.toggle('disabled', !data.next);
+      }
+
+      bindCheckboxes();
+    }).catch(function(err) {
+      console.error('Failed to load reminders', err);
+      var tbody = document.getElementById('remindersTableBody');
+      tbody.textContent = '';
+      var errRow = document.createElement('tr');
+      var errCell = document.createElement('td');
+      errCell.colSpan = 10;
+      errCell.className = 'text-center py-4 text-danger';
+      errCell.textContent = 'Failed to load reminders.';
+      errRow.appendChild(errCell);
+      tbody.appendChild(errRow);
+    });
+  }
+
+  function loadStats() {
+    Api.get(API_BASE + 'stats/').then(function(data) {
+      document.getElementById('statOverdue').textContent = data.total_overdue || 0;
+      document.getElementById('statMyOverdue').textContent = '-';
+      document.getElementById('statCompletedToday').textContent = data.completed_today || 0;
+
+      var badge = document.getElementById('sidebarBadgeReminders');
+      if (badge && data.total_overdue > 0) {
+        badge.textContent = data.total_overdue;
+        badge.style.display = '';
+      } else if (badge) {
+        badge.style.display = 'none';
+      }
+    }).catch(function() {});
+  }
+
+  function completeReminder(id) {
+    Api.post(API_BASE + id + '/complete/').then(function() {
+      Toast.success('Reminder marked as completed.');
+      loadReminders();
+      loadStats();
+    }).catch(function(err) { Toast.error(err.detail || 'Failed to complete reminder.'); });
+  }
+
+  function openReschedule(id) {
+    document.getElementById('rescheduleReminderId').value = id;
+    document.getElementById('rescheduleAt').value = '';
+    document.getElementById('rescheduleNote').value = '';
+    new bootstrap.Modal(document.getElementById('rescheduleModal')).show();
+  }
+
+  function cancelReminder(id) {
+    if (!confirm('Cancel this reminder?')) return;
+    Api.post(API_BASE + id + '/cancel/').then(function() {
+      Toast.success('Reminder cancelled.');
+      loadReminders();
+      loadStats();
+    }).catch(function(err) { Toast.error(err.detail || 'Failed to cancel reminder.'); });
+  }
+
+  function bindCheckboxes() {
+    document.querySelectorAll('.reminder-check').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        if (this.checked) selectedIds.add(this.dataset.id);
+        else selectedIds.delete(this.dataset.id);
+        updateBulkBar();
+      });
+    });
+  }
+
+  function updateBulkBar() {
+    var bar = document.getElementById('bulkBar');
+    if (selectedIds.size > 0) {
+      bar.style.display = '';
+      document.getElementById('selectedCount').textContent = selectedIds.size + ' selected';
+    } else {
+      bar.style.display = 'none';
+    }
+  }
+
+  function bulkAction(action, extra) {
+    var payload = { action: action, reminder_ids: Array.from(selectedIds) };
+    if (extra) Object.assign(payload, extra);
+    Api.post(API_BASE + 'bulk-action/', payload).then(function(data) {
+      Toast.success(data.updated + ' reminder(s) updated.');
+      selectedIds.clear();
+      updateBulkBar();
+      loadReminders();
+      loadStats();
+    }).catch(function(err) { Toast.error(err.detail || 'Bulk action failed.'); });
+  }
+
+  // Event listeners
+  document.getElementById('selectAll').addEventListener('change', function() {
+    var checked = this.checked;
+    selectedIds.clear();
+    document.querySelectorAll('.reminder-check:not(:disabled)').forEach(function(cb) {
+      cb.checked = checked;
+      if (checked) selectedIds.add(cb.dataset.id);
+    });
+    updateBulkBar();
+  });
+
+  document.getElementById('filterMineBtn').addEventListener('click', function() {
+    mineOnly = true;
+    this.classList.add('active');
+    document.getElementById('filterAllBtn').classList.remove('active');
+    currentPage = 1;
+    loadReminders();
+  });
+
+  document.getElementById('filterAllBtn').addEventListener('click', function() {
+    mineOnly = false;
+    this.classList.add('active');
+    document.getElementById('filterMineBtn').classList.remove('active');
+    currentPage = 1;
+    loadReminders();
+  });
+
+  document.getElementById('statusFilter').addEventListener('change', function() {
+    currentPage = 1;
+    loadReminders();
+  });
+
+  document.getElementById('priorityFilter').addEventListener('change', function() {
+    currentPage = 1;
+    loadReminders();
+  });
+
+  document.getElementById('prevPage').addEventListener('click', function(e) {
+    e.preventDefault();
+    if (currentPage > 1) { currentPage--; loadReminders(); }
+  });
+
+  document.getElementById('nextPage').addEventListener('click', function(e) {
+    e.preventDefault();
+    if (currentPage < totalPages) { currentPage++; loadReminders(); }
+  });
+
+  document.getElementById('bulkCompleteBtn').addEventListener('click', function() {
+    bulkAction('complete');
+  });
+
+  document.getElementById('bulkRescheduleBtn').addEventListener('click', function() {
+    document.getElementById('rescheduleReminderId').value = '__bulk__';
+    document.getElementById('rescheduleAt').value = '';
+    document.getElementById('rescheduleNote').value = '';
+    new bootstrap.Modal(document.getElementById('rescheduleModal')).show();
+  });
+
+  document.getElementById('bulkCancelBtn').addEventListener('click', function() {
+    if (!confirm('Cancel ' + selectedIds.size + ' reminder(s)?')) return;
+    bulkAction('cancel');
+  });
+
+  document.getElementById('confirmRescheduleBtn').addEventListener('click', function() {
+    var id = document.getElementById('rescheduleReminderId').value;
+    var at = document.getElementById('rescheduleAt').value;
+    var note = document.getElementById('rescheduleNote').value;
+    if (!at) { Toast.error('Please select a date/time.'); return; }
+
+    var isoAt = new Date(at).toISOString();
+    var modal = bootstrap.Modal.getInstance(document.getElementById('rescheduleModal'));
+
+    if (id === '__bulk__') {
+      bulkAction('reschedule', { scheduled_at: isoAt, note: note });
+      modal.hide();
+    } else {
+      Api.post(API_BASE + id + '/reschedule/', { scheduled_at: isoAt, note: note }).then(function() {
+        Toast.success('Reminder rescheduled.');
+        modal.hide();
+        loadReminders();
+        loadStats();
+      }).catch(function(err) { Toast.error(err.detail || 'Reschedule failed.'); });
+    }
+  });
+
+  // New reminder modal
+  document.getElementById('newReminderBtn').addEventListener('click', function() {
+    document.getElementById('reminderId').value = '';
+    document.getElementById('reminderSubject').value = '';
+    document.getElementById('reminderScheduledAt').value = '';
+    document.getElementById('reminderPriority').value = 'medium';
+    document.getElementById('reminderNotes').value = '';
+    document.getElementById('reminderModalTitle').textContent = 'New Reminder';
+
+    // Load users for assignment dropdown using safe DOM methods
+    Api.get('/api/v1/agents/agents/all-members/').then(function(data) {
+      var sel = document.getElementById('reminderAssignedTo');
+      sel.textContent = '';
+      var defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'Unassigned';
+      sel.appendChild(defaultOpt);
+      (data.results || data || []).forEach(function(u) {
+        var opt = document.createElement('option');
+        opt.value = u.user_id;
+        opt.textContent = u.full_name || u.email;
+        sel.appendChild(opt);
+      });
+    }).catch(function() {});
+
+    // Load contacts for dropdown using safe DOM methods
+    Api.get('/api/v1/contacts/contacts/?page_size=100').then(function(data) {
+      var sel = document.getElementById('reminderContact');
+      sel.textContent = '';
+      var defaultOpt = document.createElement('option');
+      defaultOpt.value = '';
+      defaultOpt.textContent = 'None';
+      sel.appendChild(defaultOpt);
+      (data.results || []).forEach(function(c) {
+        var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
+        var opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = name || c.email;
+        sel.appendChild(opt);
+      });
+    }).catch(function() {});
+
+    new bootstrap.Modal(document.getElementById('reminderModal')).show();
+  });
+
+  document.getElementById('saveReminderBtn').addEventListener('click', function() {
+    var id = document.getElementById('reminderId').value;
+    var payload = {
+      subject: document.getElementById('reminderSubject').value,
+      scheduled_at: new Date(document.getElementById('reminderScheduledAt').value).toISOString(),
+      priority: document.getElementById('reminderPriority').value,
+      notes: document.getElementById('reminderNotes').value,
+    };
+    var assignedTo = document.getElementById('reminderAssignedTo').value;
+    if (assignedTo) payload.assigned_to = assignedTo;
+    var contact = document.getElementById('reminderContact').value;
+    if (contact) payload.contact = contact;
+
+    var promise = id ? Api.patch(API_BASE + id + '/', payload) : Api.post(API_BASE, payload);
+    promise.then(function() {
+      Toast.success(id ? 'Reminder updated.' : 'Reminder created.');
+      bootstrap.Modal.getInstance(document.getElementById('reminderModal')).hide();
+      loadReminders();
+      loadStats();
+    }).catch(function(err) {
+      Toast.error(err.detail || err.scheduled_at || 'Failed to save reminder.');
+    });
+  });
+
+  // Initial load
+  loadReminders();
+  loadStats();
+})();
+</script>
+{% endblock %}

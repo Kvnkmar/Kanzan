@@ -2,183 +2,1300 @@
 {% block title %}Knowledge Base - Kanzen Suite{% endblock %}
 
 {% block content %}
-<!-- Hero Header -->
-<div class="kb-hero">
-  <div class="kb-hero-content">
-    <h1 class="kb-hero-title">Knowledge Base</h1>
-    <p class="kb-hero-subtitle">Find answers, guides, and documentation</p>
-    <div class="kb-hero-search">
-      <i class="ti ti-search kb-hero-search-icon"></i>
-      <input type="text" id="kbSearch" class="form-control kb-hero-search-input" placeholder="Search for articles...">
+{% if is_admin_or_manager %}
+
+<!-- Page Header -->
+<div class="kb-page-header">
+  <div>
+    <h1 class="kb-page-title">Knowledge Base</h1>
+    <p class="kb-page-subtitle">Deflect common queries by adding support articles to your support portal for self-service. <a href="#" class="kb-learn-more">Learn more</a></p>
+  </div>
+</div>
+<hr class="kb-divider">
+
+<!-- Onboarding Empty State -->
+<div id="kbAdminOnboarding" class="kb-onboarding-card" style="display:none;">
+  <div class="kb-onboarding-inner">
+    <div class="kb-onboarding-left">
+      <div class="kb-onboarding-icon"><i class="ti ti-file-text"></i></div>
+      <h5 class="kb-onboarding-heading">Let's create your first solution article</h5>
+      <p class="kb-onboarding-desc">Use solution articles to offer detailed self-serve instructions, helping customers resolve common questions.</p>
+      <button class="btn btn-primary" onclick="openCreateModal()">Create new</button>
+    </div>
+    <div class="kb-onboarding-divider"><span>or</span></div>
+    <div class="kb-onboarding-right">
+      <h5 class="kb-suggestions-title">Use our suggestions</h5>
+      <p class="kb-suggestions-subtitle">Here are some solution articles commonly used in your industry</p>
+      <div class="kb-suggestions-list" id="suggestionsList">
+        <div class="kb-suggestion-item" data-title="How to Install Our Software">
+          <i class="ti ti-settings kb-suggestion-icon"></i>
+          <span class="kb-suggestion-name">How to Install Our Software</span>
+          <button class="kb-suggestion-preview" onclick="previewSuggestion(this)">Preview</button>
+        </div>
+        <div class="kb-suggestion-item" data-title="How to Create a New User Account">
+          <i class="ti ti-settings kb-suggestion-icon"></i>
+          <span class="kb-suggestion-name">How to Create a New User Account</span>
+          <button class="kb-suggestion-preview" onclick="previewSuggestion(this)">Preview</button>
+        </div>
+        <div class="kb-suggestion-item" data-title="How to Update Software Settings">
+          <i class="ti ti-settings kb-suggestion-icon"></i>
+          <span class="kb-suggestion-name">How to Update Software Settings</span>
+          <button class="kb-suggestion-preview" onclick="previewSuggestion(this)">Preview</button>
+        </div>
+        <div class="kb-suggestion-item" data-title="What to Do if the Software Crashes Frequently">
+          <i class="ti ti-settings kb-suggestion-icon"></i>
+          <span class="kb-suggestion-name">What to Do if the Software Crashes Frequently</span>
+          <button class="kb-suggestion-preview" onclick="previewSuggestion(this)">Preview</button>
+        </div>
+        <div class="kb-suggestion-item" data-title="How to Fix Login Issues">
+          <i class="ti ti-settings kb-suggestion-icon"></i>
+          <span class="kb-suggestion-name">How to Fix Login Issues</span>
+          <button class="kb-suggestion-preview" onclick="previewSuggestion(this)">Preview</button>
+        </div>
+      </div>
+      <button class="btn btn-outline-secondary btn-sm mt-3" onclick="useSuggestions()">Use suggestions</button>
     </div>
   </div>
 </div>
 
-<!-- Category Filter -->
-<div class="kb-category-bar">
-  <div class="kb-category-pills" id="categoryPills">
-    <button class="kb-pill active" data-category="" onclick="KB.filterCategory('')">
-      <i class="ti ti-apps me-1"></i>All
-    </button>
-  </div>
-</div>
+<!-- Main Content (shown when articles exist) -->
+<div id="kbAdminContent" style="display:none;">
 
-<!-- Pinned / Featured -->
-<div id="pinnedSection" class="kb-section" style="display:none;">
-  <div class="kb-section-header">
-    <h6 class="kb-section-title"><i class="ti ti-pin me-1"></i> Pinned</h6>
+  <!-- Review Queue Banner -->
+  <div class="kb-review-queue" id="kbReviewQueue" style="display:none;" onclick="KBAdmin.filterStatus('pending_review')">
+    <div class="kb-review-queue-icon"><i class="ti ti-clock-check"></i></div>
+    <div class="kb-review-queue-text">
+      <div class="kb-review-queue-title">Articles awaiting review</div>
+      <div class="kb-review-queue-count" id="reviewQueueText">0 articles need your review</div>
+    </div>
+    <span class="kb-review-queue-badge" id="reviewQueueBadge">0</span>
   </div>
-  <div class="kb-featured-grid" id="pinnedGrid"></div>
-</div>
 
-<!-- Articles -->
-<div class="kb-section">
-  <div class="kb-section-header">
-    <h6 class="kb-section-title" id="articlesTitle">All Articles</h6>
-    <span class="kb-article-count" id="articleCount"></span>
+  <!-- Admin Toolbar -->
+  <div class="kb-admin-toolbar">
+    <div class="kb-admin-toolbar-left">
+      <div class="kb-search-box">
+        <i class="ti ti-search kb-search-icon"></i>
+        <input type="text" id="kbAdminSearch" class="form-control kb-search-input" placeholder="Search articles...">
+      </div>
+      <div class="kb-category-pills" id="adminCategoryPills">
+        <button class="kb-pill active" data-category="" onclick="KBAdmin.filterCategory('')">All</button>
+      </div>
+      <select id="kbStatusFilter" class="form-select form-select-sm kb-status-filter">
+        <option value="">All Statuses</option>
+        <option value="published">Published</option>
+        <option value="draft">Draft</option>
+        <option value="pending_review">Pending Review</option>
+        <option value="rejected">Rejected</option>
+      </select>
+    </div>
+    <div class="kb-admin-toolbar-right">
+      <button class="btn btn-outline-secondary btn-sm" onclick="KBAdmin.openCategoryModal()">
+        <i class="ti ti-folders me-1"></i>Categories
+      </button>
+      <button class="btn btn-primary btn-sm" onclick="openCreateModal()">
+        <i class="ti ti-plus me-1"></i>New Article
+      </button>
+    </div>
   </div>
-  <div class="kb-list" id="articlesList"></div>
 
-  <div id="kbEmpty" class="kb-empty-state" style="display:none;">
+  <!-- Stats Summary -->
+  <div class="kb-admin-stats-bar" id="kbStatsBar">
+    <span class="kb-stat-chip"><strong id="statTotalArticles">0</strong> articles</span>
+    <span class="kb-stat-sep"></span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot kb-stat-dot--published"></span><strong id="statPublished">0</strong> published</span>
+    <span class="kb-stat-sep"></span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot kb-stat-dot--draft"></span><strong id="statDrafts">0</strong> drafts</span>
+    <span class="kb-stat-sep"></span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#F59E0B;"></span><strong id="statPending">0</strong> pending</span>
+    <span class="kb-stat-sep"></span>
+    <span class="kb-stat-chip"><i class="ti ti-folders me-1" style="font-size:0.75rem;opacity:0.5;"></i><strong id="statCategories">0</strong> categories</span>
+  </div>
+
+  <!-- Article List -->
+  <div class="kb-admin-list" id="kbAdminList">
+    <div class="kb-loading"><div class="spinner-border spinner-border-sm text-primary" role="status"></div><span class="ms-2">Loading articles...</span></div>
+  </div>
+
+  <!-- Empty filter state -->
+  <div id="kbAdminEmpty" class="kb-empty-state" style="display:none;">
     <div class="kb-empty-icon"><i class="ti ti-book-off"></i></div>
     <h6>No articles found</h6>
-    <p>Try adjusting your search or category filter</p>
+    <p>Try adjusting your search or filters</p>
   </div>
 
-  <div id="kbLoading" class="kb-loading">
-    <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-    <span class="ms-2">Loading articles...</span>
+  <!-- Bulk Actions Bar -->
+  <div class="kb-bulk-bar" id="kbBulkBar" style="display:none;">
+    <span class="kb-bulk-count" id="kbBulkCount">0 selected</span>
+    <button class="btn btn-sm btn-outline-success" onclick="KBAdmin.bulkPublish()"><i class="ti ti-check me-1"></i>Publish</button>
+    <button class="btn btn-sm btn-outline-secondary" onclick="KBAdmin.bulkDraft()"><i class="ti ti-pencil-off me-1"></i>Unpublish</button>
+    <button class="btn btn-sm btn-outline-danger" onclick="KBAdmin.bulkDelete()"><i class="ti ti-trash me-1"></i>Delete</button>
+  </div>
+
+  <!-- Pagination -->
+  <div class="kb-pagination" id="kbAdminPagination"></div>
+</div>
+
+<!-- Create / Edit Article Modal -->
+<div class="modal fade" id="createArticleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="articleModalTitle">Create New Article</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <form id="createArticleForm">
+          <input type="hidden" id="editArticleId" value="">
+          <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" id="createArticleTitle" class="form-control" required>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Category</label>
+              <select id="createArticleCategory" class="form-select"><option value="">No Category</option></select>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Status</label>
+              <select id="createArticleStatus" class="form-select">
+                <option value="draft">Draft</option>
+                <option value="published">Published</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Excerpt</label>
+            <textarea id="createArticleExcerpt" class="form-control" rows="2" placeholder="Brief summary of the article..."></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Content</label>
+            <textarea id="createArticleContent" class="form-control" rows="10" required></textarea>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Tags (comma-separated)</label>
+              <input type="text" id="createArticleTags" class="form-control" placeholder="e.g. setup, getting-started">
+            </div>
+            <div class="col-md-6 d-flex align-items-end">
+              <div class="form-check">
+                <input type="checkbox" id="createArticlePinned" class="form-check-input">
+                <label class="form-check-label" for="createArticlePinned">Pin this article</label>
+              </div>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Attach File</label>
+            <input type="file" id="createArticleFile" class="form-control">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="articleModalSave" onclick="saveNewArticle()">Create Article</button>
+      </div>
+    </div>
   </div>
 </div>
 
-<!-- Pagination -->
-<div class="kb-pagination" id="kbPagination"></div>
+<!-- Category Management Modal -->
+<div class="modal fade" id="categoryModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Manage Categories</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="kb-cat-create-row mb-3">
+          <input type="text" id="newCategoryName" class="form-control form-control-sm" placeholder="New category name...">
+          <button class="btn btn-primary btn-sm" onclick="KBAdmin.createCategory()"><i class="ti ti-plus"></i></button>
+        </div>
+        <div class="kb-cat-list" id="categoryList">
+          <div class="text-center py-3 text-muted small">Loading categories...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Suggestion Preview Modal -->
+<div class="modal fade" id="suggestionPreviewModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="suggestionPreviewTitle">Preview</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body kb-article-body" id="suggestionPreviewBody"></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal fade" id="deleteArticleModal" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Delete Article</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-0">Are you sure you want to delete <strong id="deleteArticleName"></strong>? This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm" id="confirmDeleteBtn" onclick="KBAdmin.confirmDelete()">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Reject Article Modal -->
+<div class="modal fade" id="rejectArticleModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Reject Article</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-2">Provide feedback for <strong id="rejectArticleName"></strong>:</p>
+        <textarea id="rejectReasonInput" class="form-control" rows="4" placeholder="Explain what needs to change..." required></textarea>
+        <small class="text-muted mt-1 d-block">The author will see this feedback and can revise the article.</small>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm" onclick="KBAdmin.confirmReject()"><i class="ti ti-x me-1"></i>Reject</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% else %}
+
+<!-- Page Header -->
+<div class="kb-page-header">
+  <div>
+    <h1 class="kb-page-title">Knowledge Base</h1>
+    <p class="kb-page-subtitle">Deflect common queries by adding support articles to your support portal for self-service. <a href="#" class="kb-learn-more">Learn more</a></p>
+  </div>
+</div>
+<hr class="kb-divider">
+
+<!-- Tab Navigation for Agents -->
+<div class="kb-tab-nav" id="kbTabNav">
+  <button class="kb-tab-btn active" data-tab="browse" onclick="KBAgent.switchTab('browse')">
+    <i class="ti ti-book me-1"></i>Knowledge Base
+  </button>
+  <button class="kb-tab-btn" data-tab="my" onclick="KBAgent.switchTab('my')">
+    <i class="ti ti-file-text me-1"></i>My Articles<span class="kb-tab-badge" id="myArticlesBadge" style="display:none;">0</span>
+  </button>
+</div>
+
+<!-- Browse Tab (published articles) -->
+<div id="kbBrowseTab">
+  <!-- Onboarding Empty State -->
+  <div id="kbOnboarding" class="kb-onboarding-card" style="display:none;">
+    <div class="kb-onboarding-inner">
+      <div class="kb-onboarding-left">
+        <div class="kb-onboarding-icon"><i class="ti ti-file-text"></i></div>
+        <h5 class="kb-onboarding-heading">No articles yet</h5>
+        <p class="kb-onboarding-desc">Your team hasn't published any knowledge base articles yet. Check back later for helpful resources.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div id="kbMainContent" style="display:none;">
+    <div class="kb-toolbar">
+      <div class="kb-search-box">
+        <i class="ti ti-search kb-search-icon"></i>
+        <input type="text" id="kbSearch" class="form-control kb-search-input" placeholder="Search articles...">
+      </div>
+      <div class="kb-category-pills" id="categoryPills">
+        <button class="kb-pill active" data-category="" onclick="KB.filterCategory('')">All</button>
+      </div>
+    </div>
+
+    <div id="pinnedSection" class="kb-section" style="display:none;">
+      <div class="kb-section-header">
+        <h6 class="kb-section-title"><i class="ti ti-pin me-1"></i> Pinned</h6>
+      </div>
+      <div class="kb-featured-grid" id="pinnedGrid"></div>
+    </div>
+
+    <div class="kb-section">
+      <div class="kb-section-header">
+        <h6 class="kb-section-title" id="articlesTitle">All Articles</h6>
+        <span class="kb-article-count" id="articleCount"></span>
+      </div>
+      <div class="kb-list" id="articlesList"></div>
+      <div id="kbEmpty" class="kb-empty-state" style="display:none;">
+        <div class="kb-empty-icon"><i class="ti ti-book-off"></i></div>
+        <h6>No articles found</h6>
+        <p>Try adjusting your search or category filter</p>
+      </div>
+      <div id="kbLoading" class="kb-loading">
+        <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        <span class="ms-2">Loading articles...</span>
+      </div>
+    </div>
+
+    <div class="kb-pagination" id="kbPagination"></div>
+  </div>
+</div>
+
+<!-- My Articles Tab (agent's own articles) -->
+<div id="kbMyTab" style="display:none;">
+  <div class="kb-admin-toolbar">
+    <div class="kb-admin-toolbar-left">
+      <div class="kb-search-box">
+        <i class="ti ti-search kb-search-icon"></i>
+        <input type="text" id="mySearch" class="form-control kb-search-input" placeholder="Search my articles...">
+      </div>
+      <select id="myStatusFilter" class="form-select form-select-sm kb-status-filter">
+        <option value="">All Statuses</option>
+        <option value="draft">Draft</option>
+        <option value="pending_review">Pending Review</option>
+        <option value="published">Published</option>
+        <option value="rejected">Rejected</option>
+      </select>
+    </div>
+    <div class="kb-admin-toolbar-right">
+      <button class="btn btn-primary btn-sm" onclick="openAgentCreateModal()">
+        <i class="ti ti-plus me-1"></i>New Article
+      </button>
+    </div>
+  </div>
+
+  <!-- My Articles Stats -->
+  <div class="kb-admin-stats-bar" id="myStatsBar">
+    <span class="kb-stat-chip"><strong id="myStatTotal">0</strong> articles</span>
+    <span class="kb-stat-sep"></span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#9CA3AF;"></span><strong id="myStatDraft">0</strong> drafts</span>
+    <span class="kb-stat-sep"></span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#F59E0B;"></span><strong id="myStatPending">0</strong> pending</span>
+    <span class="kb-stat-sep"></span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot kb-stat-dot--published"></span><strong id="myStatPublished">0</strong> published</span>
+    <span class="kb-stat-sep"></span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#EF4444;"></span><strong id="myStatRejected">0</strong> rejected</span>
+  </div>
+
+  <!-- My Articles List -->
+  <div class="kb-admin-list" id="myArticlesList">
+    <div class="kb-loading"><div class="spinner-border spinner-border-sm text-primary"></div><span class="ms-2">Loading...</span></div>
+  </div>
+
+  <div id="myEmpty" class="kb-empty-state" style="display:none;">
+    <div class="kb-empty-icon"><i class="ti ti-file-text"></i></div>
+    <h6>No articles yet</h6>
+    <p>Create your first article and submit it for review</p>
+    <button class="btn btn-primary btn-sm mt-2" onclick="openAgentCreateModal()"><i class="ti ti-plus me-1"></i>New Article</button>
+  </div>
+
+  <div class="kb-pagination" id="myPagination"></div>
+</div>
+
+<!-- Agent Create/Edit Article Modal -->
+<div class="modal fade" id="agentArticleModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="agentArticleModalTitle">Create New Article</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <!-- Rejection feedback alert -->
+        <div id="agentRejectionAlert" class="kb-rejection-callout" style="display:none;">
+          <div class="kb-rejection-callout-label"><i class="ti ti-alert-triangle me-1"></i>Previous Review Feedback</div>
+          <div id="agentRejectionText"></div>
+        </div>
+        <form id="agentArticleForm">
+          <input type="hidden" id="agentEditId" value="">
+          <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" id="agentArticleTitle" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Category</label>
+            <select id="agentArticleCategory" class="form-select"><option value="">No Category</option></select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Excerpt</label>
+            <textarea id="agentArticleExcerpt" class="form-control" rows="2" placeholder="Brief summary of the article..."></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Content</label>
+            <textarea id="agentArticleContent" class="form-control" rows="10" required></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Tags (comma-separated)</label>
+            <input type="text" id="agentArticleTags" class="form-control" placeholder="e.g. setup, getting-started">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Attach File</label>
+            <input type="file" id="agentArticleFile" class="form-control">
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-outline-primary" onclick="KBAgent.saveArticle('draft')"><i class="ti ti-device-floppy me-1"></i>Save as Draft</button>
+        <button type="button" class="btn btn-primary" onclick="KBAgent.saveArticle('submit')"><i class="ti ti-send me-1"></i>Save & Submit for Review</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}
 <script>
+/* Safe: All dynamic values in innerHTML assignments below are escaped
+   via the esc() helper (textContent-based escaping) before insertion.
+   This pattern is used consistently throughout the codebase. */
+{% if is_admin_or_manager %}
 (function() {
   const API = '/api/v1/knowledge';
-  const PAGE_SIZE = 15;
-  let page = 1, catFilter = '', search = '', cats = [], timer = null;
+  const PAGE_SIZE = 20;
+  let page = 1, statusFilter = '', catFilter = '', search = '', cats = [], timer = null;
+  let selectedIds = new Set();
+  let deleteTargetId = null;
+  let rejectTargetId = null, rejectTargetTitle = '';
+
+  const SUGGESTIONS = [
+    { title: 'How to Install Our Software', content: '<h2>System Requirements</h2><p>Before installing, ensure your system meets the minimum requirements.</p><h2>Installation Steps</h2><ol><li>Download the installer from our website</li><li>Run the installer and follow the on-screen instructions</li><li>Accept the license agreement</li><li>Choose your installation directory</li><li>Click Install and wait for the process to complete</li></ol><h2>Post-Installation</h2><p>After installation, launch the application and complete the initial setup wizard.</p>' },
+    { title: 'How to Create a New User Account', content: '<h2>Creating an Account</h2><ol><li>Navigate to the registration page</li><li>Enter your email address and create a password</li><li>Fill in your profile information</li><li>Verify your email address</li><li>Log in with your new credentials</li></ol><h2>Account Settings</h2><p>After creating your account, you can customize your profile settings, notification preferences, and security options.</p>' },
+    { title: 'How to Update Software Settings', content: '<h2>Accessing Settings</h2><p>Navigate to the Settings page from your dashboard or sidebar menu.</p><h2>Common Settings</h2><ul><li><strong>General:</strong> Update your organization name, timezone, and language</li><li><strong>Notifications:</strong> Configure email and in-app notification preferences</li><li><strong>Security:</strong> Manage authentication methods and session settings</li><li><strong>Integrations:</strong> Connect third-party services</li></ul><h2>Saving Changes</h2><p>Click Save after making any changes. Some settings may require a page refresh to take effect.</p>' },
+    { title: 'What to Do if the Software Crashes Frequently', content: '<h2>Troubleshooting Steps</h2><ol><li><strong>Clear your browser cache:</strong> Old cached data can cause conflicts</li><li><strong>Check your internet connection:</strong> Ensure you have a stable connection</li><li><strong>Disable browser extensions:</strong> Some extensions may interfere with the application</li><li><strong>Update your browser:</strong> Make sure you are using the latest version</li><li><strong>Contact support:</strong> If the issue persists, reach out to our support team</li></ol><h2>Reporting a Bug</h2><p>When reporting a crash, include your browser version, operating system, and steps to reproduce the issue.</p>' },
+    { title: 'How to Fix Login Issues', content: '<h2>Common Login Problems</h2><h3>Forgot Password</h3><p>Click the "Forgot Password" link on the login page and follow the instructions to reset your password.</p><h3>Account Locked</h3><p>After multiple failed login attempts, your account may be temporarily locked. Wait 15 minutes and try again.</p><h3>Email Not Recognized</h3><p>Ensure you are using the email address associated with your account. Check for typos.</p><h2>Still Having Issues?</h2><p>Contact your administrator or our support team for further assistance.</p>' }
+  ];
 
   document.addEventListener('DOMContentLoaded', () => {
     loadCategories();
-    loadArticles();
-    document.getElementById('kbSearch').addEventListener('input', e => {
+    loadAdminArticles();
+    loadStats();
+    document.getElementById('kbAdminSearch').addEventListener('input', e => {
       clearTimeout(timer);
-      timer = setTimeout(() => { search = e.target.value.trim(); page = 1; loadArticles(); }, 400);
+      timer = setTimeout(() => { search = e.target.value.trim(); page = 1; loadAdminArticles(); }, 400);
+    });
+    document.getElementById('kbStatusFilter').addEventListener('change', e => {
+      statusFilter = e.target.value; page = 1; loadAdminArticles();
+    });
+  });
+
+  async function loadStats() {
+    try {
+      const [pubRes, draftRes, pendingRes, allRes] = await Promise.all([
+        Api.get(API + '/articles/?status=published&page_size=1'),
+        Api.get(API + '/articles/?status=draft&page_size=1'),
+        Api.get(API + '/articles/?status=pending_review&page_size=1'),
+        Api.get(API + '/articles/?page_size=1')
+      ]);
+      document.getElementById('statTotalArticles').textContent = allRes.count || 0;
+      document.getElementById('statPublished').textContent = pubRes.count || 0;
+      document.getElementById('statDrafts').textContent = draftRes.count || 0;
+      document.getElementById('statPending').textContent = pendingRes.count || 0;
+      document.getElementById('statCategories').textContent = cats.length || 0;
+
+      var pendingCount = pendingRes.count || 0;
+      var queueEl = document.getElementById('kbReviewQueue');
+      if (pendingCount > 0) {
+        queueEl.style.display = 'flex';
+        document.getElementById('reviewQueueBadge').textContent = pendingCount;
+        document.getElementById('reviewQueueText').textContent =
+          pendingCount === 1 ? '1 article needs your review' : pendingCount + ' articles need your review';
+      } else {
+        queueEl.style.display = 'none';
+      }
+    } catch(e) { console.error('Stats error:', e); }
+  }
+
+  async function loadCategories() {
+    try {
+      var r = await Api.get(API + '/categories/?page_size=50');
+      cats = r.results || r;
+      var pills = document.getElementById('adminCategoryPills');
+      var ph = '<button class="kb-pill ' + (!catFilter ? 'active' : '') + '" data-category="" onclick="KBAdmin.filterCategory(\'\')">All</button>';
+      cats.forEach(function(cat) {
+        ph += '<button class="kb-pill ' + (catFilter === cat.id ? 'active' : '') + '" data-category="' + cat.id + '" onclick="KBAdmin.filterCategory(\'' + cat.id + '\')">' + esc(cat.name) + '<span class="kb-pill-count">' + (cat.article_count || 0) + '</span></button>';
+      });
+      pills.innerHTML = ph;
+      var sel = document.getElementById('createArticleCategory');
+      if (sel) sel.innerHTML = '<option value="">No Category</option>' + cats.map(function(c) { return '<option value="' + c.id + '">' + esc(c.name) + '</option>'; }).join('');
+      var statEl = document.getElementById('statCategories');
+      if (statEl) statEl.textContent = cats.length;
+    } catch(e) { console.error(e); }
+  }
+
+  async function loadAdminArticles() {
+    var list = document.getElementById('kbAdminList');
+    var empty = document.getElementById('kbAdminEmpty');
+    list.innerHTML = '<div class="kb-loading"><div class="spinner-border spinner-border-sm text-primary"></div><span class="ms-2">Loading...</span></div>';
+    empty.style.display = 'none';
+    selectedIds.clear();
+    updateBulkBar();
+
+    var q = '?page=' + page + '&page_size=' + PAGE_SIZE;
+    if (statusFilter) q += '&status=' + statusFilter;
+    if (catFilter) q += '&category=' + catFilter;
+    if (search) q += '&search=' + encodeURIComponent(search);
+
+    try {
+      var r = await Api.get(API + '/articles/' + q);
+      var arts = r.results || r, total = r.count || arts.length;
+
+      if (total === 0 && !search && !catFilter && !statusFilter && page === 1) {
+        document.getElementById('kbAdminOnboarding').style.display = 'block';
+        document.getElementById('kbAdminContent').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('kbAdminOnboarding').style.display = 'none';
+      document.getElementById('kbAdminContent').style.display = 'block';
+
+      if (!arts.length) {
+        list.innerHTML = '';
+        empty.style.display = 'flex';
+        document.getElementById('kbAdminPagination').innerHTML = '';
+        return;
+      }
+
+      list.innerHTML = arts.map(adminRow).join('');
+      renderAdminPag(total);
+    } catch(e) {
+      list.innerHTML = '<div class="text-center py-4 text-danger">Failed to load articles</div>';
+    }
+  }
+
+  function statusBadge(s) {
+    var m = {
+      'published': { cls: 'kb-status-published', label: 'Published' },
+      'draft': { cls: 'kb-status-draft', label: 'Draft' },
+      'pending_review': { cls: 'kb-status-pending', label: 'Pending Review' },
+      'rejected': { cls: 'kb-status-rejected', label: 'Rejected' }
+    };
+    var info = m[s] || m['draft'];
+    return '<span class="kb-status-badge ' + info.cls + '">' + info.label + '</span>';
+  }
+
+  function adminRow(a) {
+    var updated = a.updated_at ? relDate(a.updated_at) : '';
+    var catName = a.category_name || '';
+    var pinIcon = a.is_pinned ? 'ti-pin-filled' : 'ti-pin';
+    var pinTitle = a.is_pinned ? 'Unpin' : 'Pin';
+    var authorName = a.author_name || '';
+    var safeTitle = esc(a.title).replace(/'/g, "\\'");
+    var icon = a.file ? 'ti ti-file-filled' : 'ti ti-file-text';
+    var isPending = a.status === 'pending_review';
+
+    var actions = '<button class="kb-action-btn" title="' + pinTitle + '" onclick="KBAdmin.togglePin(\'' + a.id + '\', ' + a.is_pinned + ')"><i class="ti ' + pinIcon + '"></i></button>';
+    if (isPending) {
+      actions += '<button class="kb-action-btn" title="Approve" style="color:#10B981;" onclick="KBAdmin.approveArticle(\'' + a.id + '\')"><i class="ti ti-check"></i></button>';
+      actions += '<button class="kb-action-btn" title="Reject" style="color:#EF4444;" onclick="KBAdmin.showReject(\'' + a.id + '\', \'' + safeTitle + '\')"><i class="ti ti-x"></i></button>';
+    }
+    actions += '<button class="kb-action-btn" title="Edit" onclick="KBAdmin.editArticle(\'' + a.id + '\')"><i class="ti ti-pencil"></i></button>';
+    actions += '<button class="kb-action-btn kb-action-btn--danger" title="Delete" onclick="KBAdmin.showDelete(\'' + a.id + '\', \'' + safeTitle + '\')"><i class="ti ti-trash"></i></button>';
+
+    var metaExtra = '';
+    if (isPending && a.submitted_at) {
+      metaExtra = '<span class="kb-row-dot"></span><span><i class="ti ti-send me-1"></i>Submitted ' + relDate(a.submitted_at) + '</span>';
+    }
+    if (a.status === 'rejected' && a.reviewer_name) {
+      metaExtra = '<span class="kb-row-dot"></span><span style="color:#EF4444;"><i class="ti ti-x me-1"></i>Rejected by ' + esc(a.reviewer_name) + '</span>';
+    }
+
+    var rejectionRow = '';
+    if (a.status === 'rejected' && a.rejection_reason) {
+      rejectionRow = '<div class="kb-rejection-callout"><div class="kb-rejection-callout-label">Feedback</div>' + esc(a.rejection_reason) + '</div>';
+    }
+
+    return '<div class="kb-admin-row" data-id="' + a.id + '">' +
+      '<div class="kb-admin-row-check">' +
+        '<input type="checkbox" class="form-check-input kb-row-check" value="' + a.id + '" onchange="KBAdmin.toggleSelect(\'' + a.id + '\', this)">' +
+      '</div>' +
+      '<div class="kb-admin-row-icon"><i class="' + icon + '"></i></div>' +
+      '<div class="kb-admin-row-main">' +
+        '<div class="kb-admin-row-top">' +
+          '<a href="/knowledge/' + esc(a.slug) + '/" class="kb-admin-row-title">' + esc(a.title) + '</a>' +
+          (a.is_pinned ? '<i class="ti ti-pin-filled kb-pinned-badge"></i>' : '') +
+          statusBadge(a.status) +
+        '</div>' +
+        '<div class="kb-admin-row-meta">' +
+          (catName ? '<span class="kb-row-cat"><i class="ti ti-folder me-1"></i>' + esc(catName) + '</span><span class="kb-row-dot"></span>' : '') +
+          '<span><i class="ti ti-eye me-1"></i>' + (a.view_count || 0) + '</span>' +
+          '<span class="kb-row-dot"></span>' +
+          '<span><i class="ti ti-clock me-1"></i>' + updated + '</span>' +
+          (authorName ? '<span class="kb-row-dot"></span><span><i class="ti ti-user me-1"></i>' + esc(authorName) + '</span>' : '') +
+          metaExtra +
+        '</div>' +
+        rejectionRow +
+      '</div>' +
+      '<div class="kb-admin-row-actions">' + actions + '</div>' +
+    '</div>';
+  }
+
+  function renderAdminPag(total) {
+    var tp = Math.ceil(total / PAGE_SIZE), c = document.getElementById('kbAdminPagination');
+    if (tp <= 1) { c.innerHTML = ''; return; }
+    var h = '';
+    if (page > 1) h += '<button class="kb-page-btn" onclick="KBAdmin.goPage(' + (page - 1) + ')"><i class="ti ti-chevron-left me-1"></i>Prev</button>';
+    h += '<span class="kb-page-info">Page ' + page + ' of ' + tp + '</span>';
+    if (page < tp) h += '<button class="kb-page-btn" onclick="KBAdmin.goPage(' + (page + 1) + ')">Next<i class="ti ti-chevron-right ms-1"></i></button>';
+    c.innerHTML = h;
+  }
+
+  function relDate(iso) {
+    var diff = Math.floor((new Date() - new Date(iso)) / 86400000);
+    if (diff === 0) return 'Today'; if (diff === 1) return 'Yesterday';
+    if (diff < 7) return diff + 'd ago'; if (diff < 30) return Math.floor(diff / 7) + 'w ago';
+    return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+
+  function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  function updateBulkBar() {
+    var bar = document.getElementById('kbBulkBar');
+    if (selectedIds.size > 0) {
+      bar.style.display = 'flex';
+      document.getElementById('kbBulkCount').textContent = selectedIds.size + ' selected';
+    } else {
+      bar.style.display = 'none';
+    }
+  }
+
+  window.KBAdmin = {
+    goPage: function(p) { page = p; loadAdminArticles(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
+
+    filterCategory: function(id) {
+      catFilter = id; page = 1; loadAdminArticles();
+      document.querySelectorAll('#adminCategoryPills .kb-pill').forEach(function(p) { p.classList.toggle('active', (p.dataset.category||'') === (id||'')); });
+    },
+
+    filterStatus: function(s) {
+      statusFilter = s;
+      document.getElementById('kbStatusFilter').value = s;
+      page = 1; loadAdminArticles();
+    },
+
+    toggleSelect: function(id, cb) {
+      if (cb.checked) selectedIds.add(id); else selectedIds.delete(id);
+      updateBulkBar();
+    },
+
+    toggleSelectAll: function(cb) {
+      document.querySelectorAll('.kb-row-check').forEach(function(c) { c.checked = cb.checked; if (cb.checked) selectedIds.add(c.value); else selectedIds.delete(c.value); });
+      updateBulkBar();
+    },
+
+    togglePin: async function(id, isPinned) {
+      try {
+        await Api.patch(API + '/articles/' + id + '/', { is_pinned: !isPinned });
+        Toast.success(isPinned ? 'Article unpinned' : 'Article pinned');
+        loadAdminArticles();
+      } catch(e) { Toast.error('Failed to update pin status'); }
+    },
+
+    editArticle: async function(id) {
+      try {
+        var a = await Api.get(API + '/articles/' + id + '/');
+        document.getElementById('editArticleId').value = id;
+        document.getElementById('articleModalTitle').textContent = 'Edit Article';
+        document.getElementById('articleModalSave').textContent = 'Save Changes';
+        document.getElementById('createArticleTitle').value = a.title || '';
+        document.getElementById('createArticleContent').value = a.content || '';
+        document.getElementById('createArticleExcerpt').value = a.excerpt || '';
+        document.getElementById('createArticleCategory').value = a.category || '';
+        document.getElementById('createArticleStatus').value = a.status || 'draft';
+        document.getElementById('createArticleTags').value = (a.tags || []).join(', ');
+        document.getElementById('createArticlePinned').checked = a.is_pinned || false;
+        new bootstrap.Modal(document.getElementById('createArticleModal')).show();
+      } catch(e) { Toast.error('Failed to load article'); }
+    },
+
+    showDelete: function(id, title) {
+      deleteTargetId = id;
+      document.getElementById('deleteArticleName').textContent = title;
+      new bootstrap.Modal(document.getElementById('deleteArticleModal')).show();
+    },
+
+    confirmDelete: async function() {
+      if (!deleteTargetId) return;
+      try {
+        await Api.delete(API + '/articles/' + deleteTargetId + '/');
+        Toast.success('Article deleted');
+        bootstrap.Modal.getInstance(document.getElementById('deleteArticleModal')).hide();
+        deleteTargetId = null;
+        loadAdminArticles(); loadStats();
+      } catch(e) { Toast.error('Failed to delete article'); }
+    },
+
+    approveArticle: async function(id) {
+      if (!confirm('Approve and publish this article?')) return;
+      try {
+        await Api.post(API + '/articles/' + id + '/approve/');
+        Toast.success('Article approved and published');
+        loadAdminArticles(); loadStats();
+      } catch(e) { Toast.error(e.detail || 'Failed to approve article'); }
+    },
+
+    showReject: function(id, title) {
+      rejectTargetId = id;
+      rejectTargetTitle = title;
+      document.getElementById('rejectArticleName').textContent = title;
+      document.getElementById('rejectReasonInput').value = '';
+      new bootstrap.Modal(document.getElementById('rejectArticleModal')).show();
+    },
+
+    confirmReject: async function() {
+      if (!rejectTargetId) return;
+      var reason = document.getElementById('rejectReasonInput').value.trim();
+      if (!reason) { Toast.error('Please provide a reason for rejection'); return; }
+      try {
+        await Api.post(API + '/articles/' + rejectTargetId + '/reject/', { rejection_reason: reason });
+        Toast.success('Article rejected with feedback');
+        bootstrap.Modal.getInstance(document.getElementById('rejectArticleModal')).hide();
+        rejectTargetId = null;
+        loadAdminArticles(); loadStats();
+      } catch(e) { Toast.error(e.detail || 'Failed to reject article'); }
+    },
+
+    bulkPublish: async function() {
+      var ok = 0;
+      for (var id of selectedIds) { try { await Api.patch(API + '/articles/' + id + '/', { status: 'published' }); ok++; } catch(e) {} }
+      Toast.success(ok + ' article' + (ok !== 1 ? 's' : '') + ' published');
+      selectedIds.clear(); loadAdminArticles(); loadStats();
+    },
+
+    bulkDraft: async function() {
+      var ok = 0;
+      for (var id of selectedIds) { try { await Api.patch(API + '/articles/' + id + '/', { status: 'draft' }); ok++; } catch(e) {} }
+      Toast.success(ok + ' article' + (ok !== 1 ? 's' : '') + ' unpublished');
+      selectedIds.clear(); loadAdminArticles(); loadStats();
+    },
+
+    bulkDelete: async function() {
+      if (!confirm('Delete ' + selectedIds.size + ' article(s)? This cannot be undone.')) return;
+      var ok = 0;
+      for (var id of selectedIds) { try { await Api.delete(API + '/articles/' + id + '/'); ok++; } catch(e) {} }
+      Toast.success(ok + ' article' + (ok !== 1 ? 's' : '') + ' deleted');
+      selectedIds.clear(); loadAdminArticles(); loadStats();
+    },
+
+    openCategoryModal: function() {
+      loadCategoryList();
+      new bootstrap.Modal(document.getElementById('categoryModal')).show();
+    },
+
+    createCategory: async function() {
+      var input = document.getElementById('newCategoryName');
+      var name = input.value.trim();
+      if (!name) { Toast.error('Category name is required'); return; }
+      try {
+        await Api.post(API + '/categories/', { name: name, is_active: true });
+        Toast.success('Category created');
+        input.value = '';
+        loadCategoryList(); loadCategories(); loadStats();
+      } catch(e) { Toast.error(e.detail || 'Failed to create category'); }
+    },
+
+    deleteCategory: async function(id) {
+      if (!confirm('Delete this category? Articles in it will become uncategorized.')) return;
+      try {
+        await Api.delete(API + '/categories/' + id + '/');
+        Toast.success('Category deleted');
+        loadCategoryList(); loadCategories(); loadStats();
+      } catch(e) { Toast.error('Failed to delete category'); }
+    },
+
+    renameCategoryInline: async function(id, newName) {
+      if (!newName.trim()) return;
+      try {
+        await Api.patch(API + '/categories/' + id + '/', { name: newName.trim() });
+        Toast.success('Category renamed');
+        loadCategories();
+      } catch(e) { Toast.error('Failed to rename category'); }
+    }
+  };
+
+  async function loadCategoryList() {
+    var list = document.getElementById('categoryList');
+    try {
+      var r = await Api.get(API + '/categories/?page_size=50');
+      var items = r.results || r;
+      if (!items.length) { list.innerHTML = '<div class="text-center py-3 text-muted small">No categories yet</div>'; return; }
+      list.innerHTML = items.map(function(c) {
+        var name = esc(c.name);
+        return '<div class="kb-cat-item">' +
+          '<div class="kb-cat-item-info">' +
+            '<i class="ti ti-folder me-2 text-muted"></i>' +
+            '<span class="kb-cat-item-name" contenteditable="true" spellcheck="false"' +
+              ' onblur="KBAdmin.renameCategoryInline(\'' + c.id + '\', this.textContent)"' +
+              ' onkeydown="if(event.key===\'Enter\'){event.preventDefault();this.blur();}">' + name + '</span>' +
+            '<span class="kb-cat-item-count">' + (c.article_count || 0) + ' articles</span>' +
+          '</div>' +
+          '<button class="kb-action-btn kb-action-btn--danger" onclick="KBAdmin.deleteCategory(\'' + c.id + '\')"><i class="ti ti-trash"></i></button>' +
+        '</div>';
+      }).join('');
+    } catch(e) { list.innerHTML = '<div class="text-center py-3 text-danger small">Failed to load</div>'; }
+  }
+
+  window.openCreateModal = function() {
+    document.getElementById('editArticleId').value = '';
+    document.getElementById('articleModalTitle').textContent = 'Create New Article';
+    document.getElementById('articleModalSave').textContent = 'Create Article';
+    var form = document.getElementById('createArticleForm');
+    if (form) form.reset();
+    new bootstrap.Modal(document.getElementById('createArticleModal')).show();
+  };
+
+  window.saveNewArticle = async function() {
+    var title = document.getElementById('createArticleTitle').value.trim();
+    var content = document.getElementById('createArticleContent').value.trim();
+    if (!title || !content) { Toast.error('Title and content are required'); return; }
+
+    var editId = document.getElementById('editArticleId').value;
+    var fileInput = document.getElementById('createArticleFile');
+    var hasFile = fileInput.files && fileInput.files.length > 0;
+    var tags = document.getElementById('createArticleTags').value.split(',').map(function(t) { return t.trim(); }).filter(Boolean);
+    var isEdit = !!editId;
+
+    var data = {
+      title: title, content: content,
+      excerpt: document.getElementById('createArticleExcerpt').value,
+      category: document.getElementById('createArticleCategory').value || null,
+      status: document.getElementById('createArticleStatus').value,
+      tags: tags,
+      is_pinned: document.getElementById('createArticlePinned').checked,
+    };
+
+    try {
+      if (hasFile) {
+        var fd = new FormData();
+        Object.entries(data).forEach(function(entry) {
+          if (entry[0] === 'tags') tags.forEach(function(t) { fd.append('tags', t); });
+          else if (entry[1] !== null && entry[1] !== undefined) fd.append(entry[0], entry[1]);
+        });
+        fd.append('file', fileInput.files[0]);
+        fd.append('file_name', fileInput.files[0].name);
+        if (isEdit) await Api.upload(API + '/articles/' + editId + '/', fd, 'PATCH');
+        else await Api.upload(API + '/articles/', fd, 'POST');
+      } else {
+        if (isEdit) await Api.patch(API + '/articles/' + editId + '/', data);
+        else await Api.post(API + '/articles/', data);
+      }
+      Toast.success(isEdit ? 'Article updated' : 'Article created');
+      bootstrap.Modal.getInstance(document.getElementById('createArticleModal')).hide();
+      page = 1; loadAdminArticles(); loadStats();
+    } catch(e) { Toast.error(e.detail || (isEdit ? 'Failed to update article' : 'Failed to create article')); }
+  };
+
+  window.previewSuggestion = function(btn) {
+    var item = btn.closest('.kb-suggestion-item');
+    var title = item.dataset.title;
+    var suggestion = SUGGESTIONS.find(function(s) { return s.title === title; });
+    if (!suggestion) return;
+    document.getElementById('suggestionPreviewTitle').textContent = suggestion.title;
+    /* Safe: SUGGESTIONS is a hardcoded constant defined above, not user input */
+    document.getElementById('suggestionPreviewBody').innerHTML = suggestion.content;
+    new bootstrap.Modal(document.getElementById('suggestionPreviewModal')).show();
+  };
+
+  window.useSuggestions = async function() {
+    if (!confirm('This will create 5 template articles. Continue?')) return;
+    var created = 0;
+    for (var i = 0; i < SUGGESTIONS.length; i++) {
+      try { await Api.post(API + '/articles/', { title: SUGGESTIONS[i].title, content: SUGGESTIONS[i].content, status: 'published', tags: [], is_pinned: false }); created++; } catch(e) {}
+    }
+    if (created) { Toast.success(created + ' template articles created'); page = 1; loadAdminArticles(); loadStats(); }
+    else Toast.error('Failed to create template articles');
+  };
+})();
+
+{% else %}
+(function() {
+  var API = '/api/v1/knowledge';
+  var PAGE_SIZE = 15;
+  var CURRENT_USER_ID = '{{ current_user_id|escapejs }}';
+  var page = 1, catFilter = '', search = '', cats = [], timer = null;
+  var myPage = 1, myStatusFilter = '', mySearch = '', myTimer = null;
+  var currentTab = 'browse';
+
+  document.addEventListener('DOMContentLoaded', function() {
+    loadCategories();
+    loadArticles();
+    loadMyStats();
+    document.getElementById('kbSearch').addEventListener('input', function(e) {
+      clearTimeout(timer);
+      timer = setTimeout(function() { search = e.target.value.trim(); page = 1; loadArticles(); }, 400);
+    });
+    document.getElementById('mySearch').addEventListener('input', function(e) {
+      clearTimeout(myTimer);
+      myTimer = setTimeout(function() { mySearch = e.target.value.trim(); myPage = 1; loadMyArticles(); }, 400);
+    });
+    document.getElementById('myStatusFilter').addEventListener('change', function(e) {
+      myStatusFilter = e.target.value; myPage = 1; loadMyArticles();
     });
   });
 
   async function loadCategories() {
     try {
-      const r = await Api.get(`${API}/categories/?active_only=true&page_size=50`);
+      var r = await Api.get(API + '/categories/?active_only=true&page_size=50');
       cats = r.results || r;
-      const c = document.getElementById('categoryPills');
-      let h = `<button class="kb-pill ${!catFilter ? 'active' : ''}" data-category="" onclick="KB.filterCategory('')"><i class="ti ti-apps me-1"></i>All</button>`;
-      cats.forEach(cat => {
-        h += `<button class="kb-pill ${catFilter === cat.id ? 'active' : ''}" data-category="${cat.id}" onclick="KB.filterCategory('${cat.id}')">
-          <i class="${cat.icon || 'ti ti-folder'} me-1"></i>${esc(cat.name)}
-          <span class="kb-pill-count">${cat.article_count}</span>
-        </button>`;
+      var c = document.getElementById('categoryPills');
+      var h = '<button class="kb-pill ' + (!catFilter ? 'active' : '') + '" data-category="" onclick="KB.filterCategory(\'\')">All</button>';
+      cats.forEach(function(cat) {
+        h += '<button class="kb-pill ' + (catFilter === cat.id ? 'active' : '') + '" data-category="' + cat.id + '" onclick="KB.filterCategory(\'' + cat.id + '\')">' + esc(cat.name) + '<span class="kb-pill-count">' + cat.article_count + '</span></button>';
       });
       c.innerHTML = h;
+      var sel = document.getElementById('agentArticleCategory');
+      if (sel) sel.innerHTML = '<option value="">No Category</option>' + cats.map(function(cc) { return '<option value="' + cc.id + '">' + esc(cc.name) + '</option>'; }).join('');
     } catch(e) { console.error(e); }
   }
 
   async function loadArticles() {
-    const ld = document.getElementById('kbLoading'), em = document.getElementById('kbEmpty'),
-          list = document.getElementById('articlesList'), pg = document.getElementById('pinnedGrid'),
-          ps = document.getElementById('pinnedSection');
+    var ld = document.getElementById('kbLoading'), em = document.getElementById('kbEmpty'),
+        list = document.getElementById('articlesList'), pg = document.getElementById('pinnedGrid'),
+        ps = document.getElementById('pinnedSection');
     ld.style.display = 'flex'; em.style.display = 'none'; list.innerHTML = '';
 
-    let q = `?page=${page}&page_size=${PAGE_SIZE}&status=published`;
-    if (catFilter) q += `&category=${catFilter}`;
-    if (search) q += `&search=${encodeURIComponent(search)}`;
+    var q = '?page=' + page + '&page_size=' + PAGE_SIZE + '&status=published';
+    if (catFilter) q += '&category=' + catFilter;
+    if (search) q += '&search=' + encodeURIComponent(search);
 
     try {
-      const r = await Api.get(`${API}/articles/${q}`);
-      const arts = r.results || r, total = r.count || arts.length;
+      var r = await Api.get(API + '/articles/' + q);
+      var arts = r.results || r, total = r.count || arts.length;
       ld.style.display = 'none';
-      document.getElementById('articleCount').textContent = `${total} article${total !== 1 ? 's' : ''}`;
+
+      if (total === 0 && !search && !catFilter && page === 1) {
+        document.getElementById('kbOnboarding').style.display = 'block';
+        document.getElementById('kbMainContent').style.display = 'none';
+        return;
+      }
+
+      document.getElementById('kbOnboarding').style.display = 'none';
+      document.getElementById('kbMainContent').style.display = 'block';
+      document.getElementById('articleCount').textContent = total + ' article' + (total !== 1 ? 's' : '');
 
       if (!arts.length) { em.style.display = 'flex'; ps.style.display = 'none'; document.getElementById('kbPagination').innerHTML = ''; return; }
 
-      const pinned = (!search && page === 1) ? arts.filter(a => a.is_pinned) : [];
-      const regular = (!search && page === 1) ? arts.filter(a => !a.is_pinned) : arts;
+      var pinned = (!search && page === 1) ? arts.filter(function(a) { return a.is_pinned; }) : [];
+      var regular = (!search && page === 1) ? arts.filter(function(a) { return !a.is_pinned; }) : arts;
 
       if (pinned.length) { ps.style.display = 'block'; pg.innerHTML = pinned.map(featCard).join(''); }
       else { ps.style.display = 'none'; }
 
       list.innerHTML = regular.map(artRow).join('');
 
-      const t = document.getElementById('articlesTitle');
-      if (catFilter) { const c = cats.find(x => x.id === catFilter); t.textContent = c ? c.name : 'Articles'; }
+      var t = document.getElementById('articlesTitle');
+      if (catFilter) { var cc = cats.find(function(x) { return x.id === catFilter; }); t.textContent = cc ? cc.name : 'Articles'; }
       else t.textContent = search ? 'Search Results' : 'All Articles';
 
       renderPag(total);
     } catch(e) { ld.style.display = 'none'; list.innerHTML = '<p class="text-danger p-3">Failed to load articles.</p>'; }
   }
 
+  async function loadMyStats() {
+    try {
+      var results = await Promise.all([
+        Api.get(API + '/articles/?author=' + CURRENT_USER_ID + '&status=draft&page_size=1'),
+        Api.get(API + '/articles/?author=' + CURRENT_USER_ID + '&status=pending_review&page_size=1'),
+        Api.get(API + '/articles/?author=' + CURRENT_USER_ID + '&status=published&page_size=1'),
+        Api.get(API + '/articles/?author=' + CURRENT_USER_ID + '&status=rejected&page_size=1'),
+        Api.get(API + '/articles/?author=' + CURRENT_USER_ID + '&page_size=1')
+      ]);
+      document.getElementById('myStatTotal').textContent = results[4].count || 0;
+      document.getElementById('myStatDraft').textContent = results[0].count || 0;
+      document.getElementById('myStatPending').textContent = results[1].count || 0;
+      document.getElementById('myStatPublished').textContent = results[2].count || 0;
+      document.getElementById('myStatRejected').textContent = results[3].count || 0;
+      var total = results[4].count || 0;
+      var badge = document.getElementById('myArticlesBadge');
+      if (total > 0) { badge.textContent = total; badge.style.display = 'inline-flex'; }
+      else { badge.style.display = 'none'; }
+    } catch(e) { console.error(e); }
+  }
+
+  async function loadMyArticles() {
+    var list = document.getElementById('myArticlesList');
+    var empty = document.getElementById('myEmpty');
+    list.innerHTML = '<div class="kb-loading"><div class="spinner-border spinner-border-sm text-primary"></div><span class="ms-2">Loading...</span></div>';
+    empty.style.display = 'none';
+
+    var q = '?page=' + myPage + '&page_size=' + PAGE_SIZE + '&author=' + CURRENT_USER_ID;
+    if (myStatusFilter) q += '&status=' + myStatusFilter;
+    if (mySearch) q += '&search=' + encodeURIComponent(mySearch);
+
+    try {
+      var r = await Api.get(API + '/articles/' + q);
+      var arts = r.results || r, total = r.count || arts.length;
+
+      if (!arts.length) {
+        list.innerHTML = '';
+        empty.style.display = total === 0 && !mySearch && !myStatusFilter ? 'flex' : 'none';
+        if (total === 0 && (mySearch || myStatusFilter)) {
+          list.innerHTML = '<div class="kb-empty-state" style="display:flex;"><div class="kb-empty-icon"><i class="ti ti-search-off"></i></div><h6>No articles match your filters</h6></div>';
+        }
+        document.getElementById('myPagination').innerHTML = '';
+        return;
+      }
+
+      list.innerHTML = arts.map(myArticleRow).join('');
+      renderMyPag(total);
+    } catch(e) {
+      list.innerHTML = '<div class="text-center py-4 text-danger">Failed to load articles</div>';
+    }
+  }
+
+  function statusBadge(s) {
+    var m = {
+      'published': { cls: 'kb-status-published', label: 'Published' },
+      'draft': { cls: 'kb-status-draft', label: 'Draft' },
+      'pending_review': { cls: 'kb-status-pending', label: 'Pending Review' },
+      'rejected': { cls: 'kb-status-rejected', label: 'Rejected' }
+    };
+    var info = m[s] || m['draft'];
+    return '<span class="kb-status-badge ' + info.cls + '">' + info.label + '</span>';
+  }
+
+  function myArticleRow(a) {
+    var updated = a.updated_at ? relDate(a.updated_at) : '';
+    var catName = a.category_name || '';
+    var icon = a.file ? 'ti ti-file-filled' : 'ti ti-file-text';
+    var canEdit = a.status === 'draft' || a.status === 'rejected';
+    var canSubmit = a.status === 'draft' || a.status === 'rejected';
+    var safeTitle = esc(a.title).replace(/'/g, "\\'");
+
+    var actions = '';
+    if (canEdit) {
+      actions += '<button class="kb-action-btn" title="Edit" onclick="KBAgent.editArticle(\'' + a.id + '\')"><i class="ti ti-pencil"></i></button>';
+    }
+    if (canSubmit) {
+      actions += '<button class="kb-action-btn" title="Submit for Review" style="color:var(--crm-primary);" onclick="KBAgent.submitForReview(\'' + a.id + '\')"><i class="ti ti-send"></i></button>';
+    }
+    actions += '<a href="/knowledge/' + esc(a.slug) + '/" class="kb-action-btn" title="View"><i class="ti ti-eye"></i></a>';
+    if (canEdit) {
+      actions += '<button class="kb-action-btn kb-action-btn--danger" title="Delete" onclick="KBAgent.deleteArticle(\'' + a.id + '\', \'' + safeTitle + '\')"><i class="ti ti-trash"></i></button>';
+    }
+
+    var rejectionRow = '';
+    if (a.status === 'rejected' && a.rejection_reason) {
+      rejectionRow = '<div class="kb-rejection-callout">' +
+        '<div class="kb-rejection-callout-label"><i class="ti ti-alert-triangle me-1"></i>Feedback' + (a.reviewer_name ? ' from ' + esc(a.reviewer_name) : '') + '</div>' +
+        esc(a.rejection_reason) +
+      '</div>';
+    }
+
+    var statusExtra = '';
+    if (a.status === 'pending_review') {
+      statusExtra = '<span class="kb-row-dot"></span><span style="color:#F59E0B;"><i class="ti ti-clock me-1"></i>Awaiting review</span>';
+    }
+
+    return '<div class="kb-admin-row" data-id="' + a.id + '">' +
+      '<div class="kb-admin-row-icon"><i class="' + icon + '"></i></div>' +
+      '<div class="kb-admin-row-main">' +
+        '<div class="kb-admin-row-top">' +
+          '<a href="/knowledge/' + esc(a.slug) + '/" class="kb-admin-row-title">' + esc(a.title) + '</a>' +
+          statusBadge(a.status) +
+        '</div>' +
+        '<div class="kb-admin-row-meta">' +
+          (catName ? '<span class="kb-row-cat"><i class="ti ti-folder me-1"></i>' + esc(catName) + '</span><span class="kb-row-dot"></span>' : '') +
+          '<span><i class="ti ti-clock me-1"></i>' + updated + '</span>' +
+          statusExtra +
+        '</div>' +
+        rejectionRow +
+      '</div>' +
+      '<div class="kb-admin-row-actions">' + actions + '</div>' +
+    '</div>';
+  }
+
+  function renderMyPag(total) {
+    var tp = Math.ceil(total / PAGE_SIZE), c = document.getElementById('myPagination');
+    if (tp <= 1) { c.innerHTML = ''; return; }
+    var h = '';
+    if (myPage > 1) h += '<button class="kb-page-btn" onclick="KBAgent.myGoPage(' + (myPage - 1) + ')"><i class="ti ti-chevron-left me-1"></i>Prev</button>';
+    h += '<span class="kb-page-info">Page ' + myPage + ' of ' + tp + '</span>';
+    if (myPage < tp) h += '<button class="kb-page-btn" onclick="KBAgent.myGoPage(' + (myPage + 1) + ')">Next<i class="ti ti-chevron-right ms-1"></i></button>';
+    c.innerHTML = h;
+  }
+
   function featCard(a) {
-    const d = a.published_at ? relDate(a.published_at) : '';
-    const cat = a.category_name ? `<span class="kb-feat-cat"><i class="${a.category_icon || 'ti ti-folder'} me-1"></i>${esc(a.category_name)}</span>` : '';
-    const ex = a.excerpt || (a.content ? a.content.substring(0, 150).replace(/<[^>]*>/g, '') : '');
-    return `<a href="/knowledge/${a.slug}/" class="kb-featured-card">
-      <div class="kb-feat-pin"><i class="ti ti-pin-filled"></i></div>
-      <h6 class="kb-feat-title">${esc(a.title)}</h6>
-      <p class="kb-feat-excerpt">${esc(ex)}</p>
-      <div class="kb-feat-footer">${cat}<span class="kb-feat-meta">${d}</span></div>
-    </a>`;
+    var d = a.published_at ? relDate(a.published_at) : '';
+    var cat = a.category_name ? '<span class="kb-feat-cat"><i class="' + (a.category_icon || 'ti ti-folder') + ' me-1"></i>' + esc(a.category_name) + '</span>' : '';
+    var ex = a.excerpt || (a.content ? a.content.substring(0, 150).replace(/<[^>]*>/g, '') : '');
+    return '<a href="/knowledge/' + a.slug + '/" class="kb-featured-card">' +
+      '<div class="kb-feat-pin"><i class="ti ti-pin-filled"></i></div>' +
+      '<h6 class="kb-feat-title">' + esc(a.title) + '</h6>' +
+      '<p class="kb-feat-excerpt">' + esc(ex) + '</p>' +
+      '<div class="kb-feat-footer">' + cat + '<span class="kb-feat-meta">' + d + '</span></div>' +
+    '</a>';
   }
 
   function artRow(a) {
-    const d = a.published_at ? relDate(a.published_at) : '';
-    const cat = a.category_name ? `<span class="kb-row-cat"><i class="${a.category_icon || 'ti ti-folder'} me-1"></i>${esc(a.category_name)}</span>` : '';
-    const ex = a.excerpt || (a.content ? a.content.substring(0, 200).replace(/<[^>]*>/g, '') : '');
-    const icon = a.file ? 'ti ti-file-filled' : 'ti ti-file-text';
-    return `<a href="/knowledge/${a.slug}/" class="kb-article-row">
-      <div class="kb-row-icon"><i class="${icon}"></i></div>
-      <div class="kb-row-main">
-        <h6 class="kb-row-title">${esc(a.title)}</h6>
-        <p class="kb-row-excerpt">${esc(ex)}</p>
-        <div class="kb-row-bottom">
-          ${cat}
-          <span class="kb-row-dot"></span>
-          <span class="kb-row-meta"><i class="ti ti-eye me-1"></i>${a.view_count || 0}</span>
-          <span class="kb-row-dot"></span>
-          <span class="kb-row-meta"><i class="ti ti-clock me-1"></i>${d}</span>
-          ${a.author_name ? `<span class="kb-row-dot"></span><span class="kb-row-meta"><i class="ti ti-user me-1"></i>${esc(a.author_name)}</span>` : ''}
-        </div>
-      </div>
-      <div class="kb-row-arrow"><i class="ti ti-chevron-right"></i></div>
-    </a>`;
+    var d = a.published_at ? relDate(a.published_at) : '';
+    var cat = a.category_name ? '<span class="kb-row-cat"><i class="' + (a.category_icon || 'ti ti-folder') + ' me-1"></i>' + esc(a.category_name) + '</span>' : '';
+    var ex = a.excerpt || (a.content ? a.content.substring(0, 200).replace(/<[^>]*>/g, '') : '');
+    var icon = a.file ? 'ti ti-file-filled' : 'ti ti-file-text';
+    return '<a href="/knowledge/' + a.slug + '/" class="kb-article-row">' +
+      '<div class="kb-row-icon"><i class="' + icon + '"></i></div>' +
+      '<div class="kb-row-main">' +
+        '<h6 class="kb-row-title">' + esc(a.title) + '</h6>' +
+        '<p class="kb-row-excerpt">' + esc(ex) + '</p>' +
+        '<div class="kb-row-bottom">' +
+          cat +
+          '<span class="kb-row-dot"></span>' +
+          '<span class="kb-row-meta"><i class="ti ti-eye me-1"></i>' + (a.view_count || 0) + '</span>' +
+          '<span class="kb-row-dot"></span>' +
+          '<span class="kb-row-meta"><i class="ti ti-clock me-1"></i>' + d + '</span>' +
+          (a.author_name ? '<span class="kb-row-dot"></span><span class="kb-row-meta"><i class="ti ti-user me-1"></i>' + esc(a.author_name) + '</span>' : '') +
+        '</div>' +
+      '</div>' +
+      '<div class="kb-row-arrow"><i class="ti ti-chevron-right"></i></div>' +
+    '</a>';
   }
 
   function renderPag(total) {
-    const tp = Math.ceil(total / PAGE_SIZE), c = document.getElementById('kbPagination');
+    var tp = Math.ceil(total / PAGE_SIZE), c = document.getElementById('kbPagination');
     if (tp <= 1) { c.innerHTML = ''; return; }
-    let h = '';
-    if (page > 1) h += `<button class="kb-page-btn" onclick="KB.goPage(${page - 1})"><i class="ti ti-chevron-left me-1"></i>Prev</button>`;
-    h += `<span class="kb-page-info">Page ${page} of ${tp}</span>`;
-    if (page < tp) h += `<button class="kb-page-btn" onclick="KB.goPage(${page + 1})">Next<i class="ti ti-chevron-right ms-1"></i></button>`;
+    var h = '';
+    if (page > 1) h += '<button class="kb-page-btn" onclick="KB.goPage(' + (page - 1) + ')"><i class="ti ti-chevron-left me-1"></i>Prev</button>';
+    h += '<span class="kb-page-info">Page ' + page + ' of ' + tp + '</span>';
+    if (page < tp) h += '<button class="kb-page-btn" onclick="KB.goPage(' + (page + 1) + ')">Next<i class="ti ti-chevron-right ms-1"></i></button>';
     c.innerHTML = h;
   }
 
   function relDate(iso) {
-    const diff = Math.floor((new Date() - new Date(iso)) / 86400000);
+    var diff = Math.floor((new Date() - new Date(iso)) / 86400000);
     if (diff === 0) return 'Today'; if (diff === 1) return 'Yesterday';
     if (diff < 7) return diff + 'd ago'; if (diff < 30) return Math.floor(diff / 7) + 'w ago';
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
 
-  function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+  function esc(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
   window.KB = {
-    filterCategory(id) { catFilter = id; page = 1; loadArticles(); document.querySelectorAll('.kb-pill').forEach(p => p.classList.toggle('active', (p.dataset.category||'') === (id||''))); },
-    goPage(p) { page = p; loadArticles(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+    filterCategory: function(id) { catFilter = id; page = 1; loadArticles(); document.querySelectorAll('#categoryPills .kb-pill').forEach(function(p) { p.classList.toggle('active', (p.dataset.category||'') === (id||'')); }); },
+    goPage: function(p) { page = p; loadArticles(); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  };
+
+  window.openAgentCreateModal = function() {
+    document.getElementById('agentEditId').value = '';
+    document.getElementById('agentArticleModalTitle').textContent = 'Create New Article';
+    document.getElementById('agentRejectionAlert').style.display = 'none';
+    var form = document.getElementById('agentArticleForm');
+    if (form) form.reset();
+    new bootstrap.Modal(document.getElementById('agentArticleModal')).show();
+  };
+
+  window.KBAgent = {
+    switchTab: function(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.kb-tab-btn').forEach(function(b) { b.classList.toggle('active', b.dataset.tab === tab); });
+      document.getElementById('kbBrowseTab').style.display = tab === 'browse' ? '' : 'none';
+      document.getElementById('kbMyTab').style.display = tab === 'my' ? '' : 'none';
+      if (tab === 'my') { loadMyArticles(); loadMyStats(); }
+    },
+
+    myGoPage: function(p) { myPage = p; loadMyArticles(); window.scrollTo({ top: 0, behavior: 'smooth' }); },
+
+    editArticle: async function(id) {
+      try {
+        var a = await Api.get(API + '/articles/' + id + '/');
+        document.getElementById('agentEditId').value = id;
+        document.getElementById('agentArticleModalTitle').textContent = 'Edit Article';
+        document.getElementById('agentArticleTitle').value = a.title || '';
+        document.getElementById('agentArticleContent').value = a.content || '';
+        document.getElementById('agentArticleExcerpt').value = a.excerpt || '';
+        document.getElementById('agentArticleCategory').value = a.category || '';
+        document.getElementById('agentArticleTags').value = (a.tags || []).join(', ');
+        var alertEl = document.getElementById('agentRejectionAlert');
+        if (a.status === 'rejected' && a.rejection_reason) {
+          alertEl.style.display = 'block';
+          document.getElementById('agentRejectionText').textContent = a.rejection_reason;
+        } else {
+          alertEl.style.display = 'none';
+        }
+        new bootstrap.Modal(document.getElementById('agentArticleModal')).show();
+      } catch(e) { Toast.error('Failed to load article'); }
+    },
+
+    saveArticle: async function(action) {
+      var title = document.getElementById('agentArticleTitle').value.trim();
+      var content = document.getElementById('agentArticleContent').value.trim();
+      if (!title || !content) { Toast.error('Title and content are required'); return; }
+
+      var editId = document.getElementById('agentEditId').value;
+      var fileInput = document.getElementById('agentArticleFile');
+      var hasFile = fileInput.files && fileInput.files.length > 0;
+      var tags = document.getElementById('agentArticleTags').value.split(',').map(function(t) { return t.trim(); }).filter(Boolean);
+      var isEdit = !!editId;
+
+      var data = {
+        title: title, content: content,
+        excerpt: document.getElementById('agentArticleExcerpt').value,
+        category: document.getElementById('agentArticleCategory').value || null,
+        status: 'draft',
+        tags: tags,
+      };
+
+      try {
+        var article;
+        if (hasFile) {
+          var fd = new FormData();
+          Object.entries(data).forEach(function(entry) {
+            if (entry[0] === 'tags') tags.forEach(function(t) { fd.append('tags', t); });
+            else if (entry[1] !== null && entry[1] !== undefined) fd.append(entry[0], entry[1]);
+          });
+          fd.append('file', fileInput.files[0]);
+          fd.append('file_name', fileInput.files[0].name);
+          article = isEdit
+            ? await Api.upload(API + '/articles/' + editId + '/', fd, 'PATCH')
+            : await Api.upload(API + '/articles/', fd, 'POST');
+        } else {
+          article = isEdit
+            ? await Api.patch(API + '/articles/' + editId + '/', data)
+            : await Api.post(API + '/articles/', data);
+        }
+
+        var articleId = article.id || editId;
+
+        if (action === 'submit' && articleId) {
+          await Api.post(API + '/articles/' + articleId + '/submit-for-review/');
+          Toast.success(isEdit ? 'Article updated and submitted for review' : 'Article created and submitted for review');
+        } else {
+          Toast.success(isEdit ? 'Article saved as draft' : 'Article created as draft');
+        }
+
+        bootstrap.Modal.getInstance(document.getElementById('agentArticleModal')).hide();
+        loadMyArticles(); loadMyStats();
+      } catch(e) { Toast.error(e.detail || 'Failed to save article'); }
+    },
+
+    submitForReview: async function(id) {
+      if (!confirm('Submit this article for review?')) return;
+      try {
+        await Api.post(API + '/articles/' + id + '/submit-for-review/');
+        Toast.success('Article submitted for review');
+        loadMyArticles(); loadMyStats();
+      } catch(e) { Toast.error(e.detail || 'Failed to submit for review'); }
+    },
+
+    deleteArticle: async function(id, title) {
+      if (!confirm('Delete "' + title + '"? This cannot be undone.')) return;
+      try {
+        await Api.delete(API + '/articles/' + id + '/');
+        Toast.success('Article deleted');
+        loadMyArticles(); loadMyStats();
+      } catch(e) { Toast.error('Failed to delete article'); }
+    }
   };
 })();
+{% endif %}
 </script>
 {% endblock %}

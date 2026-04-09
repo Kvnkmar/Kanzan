@@ -50,7 +50,7 @@ DEFAULT_STATUSES = [
         "slug": "resolved",
         "color": "#198754",
         "order": 40,
-        "is_closed": True,
+        "is_closed": False,
         "is_default": False,
     },
     {

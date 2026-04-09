@@ -136,6 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
     initNotifications();
   }
 
+  // Load sidebar notification badges
+  initSidebarBadges();
+
   // Show toast from sessionStorage (for cross-page redirects)
   const pendingToast = sessionStorage.getItem('toast');
   if (pendingToast) {
@@ -333,6 +336,37 @@ function initNotifications() {
 }
 
 /**
+ * Sidebar notification badges — loads counts from unified badge endpoint.
+ */
+function initSidebarBadges() {
+  function setBadge(id, count) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (count > 0) {
+      el.textContent = count > 99 ? '99+' : count;
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  var badgeMap = {
+    tickets:  'sidebarBadgeTickets',
+    emails:   'sidebarBadgeEmails',
+    messages: 'sidebarBadgeMessages',
+    calendar: 'sidebarBadgeCalendar',
+    reminders: 'sidebarBadgeReminders',
+  };
+
+  Api.get('/api/v1/nav/badge-counts/').then(function(data) {
+    if (!data) return;
+    Object.keys(badgeMap).forEach(function(key) {
+      setBadge(badgeMap[key], data[key] || 0);
+    });
+  }).catch(function() {});
+}
+
+/**
  * Global toast notification system.
  */
 const Toast = {
@@ -366,7 +400,7 @@ const Toast = {
     const title = this._titles[type] || 'Notification';
 
     const el = document.createElement('div');
-    el.className = 'toast crm-toast border-0 show';
+    el.className = 'toast crm-toast border-0';
     el.setAttribute('role', 'alert');
     el.setAttribute('aria-live', 'assertive');
     el.setAttribute('aria-atomic', 'true');
@@ -386,9 +420,19 @@ const Toast = {
       '</div>';
 
     container.appendChild(el);
+    /* Trigger transition by adding .show in next frame */
+    requestAnimationFrame(function() {
+      el.classList.add('show');
+    });
     setTimeout(function() {
+      el.classList.remove('show');
       el.classList.add('crm-toast-exit');
-      setTimeout(function() { el.remove(); }, 300);
+      el.addEventListener('transitionend', function handler() {
+        el.removeEventListener('transitionend', handler);
+        el.remove();
+      });
+      /* Fallback removal if transitionend doesn't fire */
+      setTimeout(function() { if (el.parentNode) el.remove(); }, 500);
     }, duration);
   },
 

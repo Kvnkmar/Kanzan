@@ -40,9 +40,10 @@ def _log_attachment_to_ticket(ticket, actor, attachment, event, action, request=
         request=request,
     )
 
-    TicketActivity.objects.create(
-        tenant=ticket.tenant,
-        ticket=ticket,
+    from apps.tickets.services import _create_ticket_activity
+
+    _create_ticket_activity(
+        ticket,
         actor=actor,
         event=event,
         message=msg,

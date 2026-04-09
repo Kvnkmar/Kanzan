@@ -289,7 +289,7 @@ span.flatpickr-weekday {
 <div id="ticketContent" class="d-none td-page">
 
   <!-- Hero Banner -->
-  <div class="td-hero">
+  <div class="td-hero" id="ticketHero">
     <nav class="td-breadcrumb" aria-label="Breadcrumb">
       <a href="{% url 'frontend:ticket-list' %}"><i class="ti ti-arrow-left me-1" aria-hidden="true"></i>Tickets</a>
       <span class="td-bc-sep" aria-hidden="true"><i class="ti ti-chevron-right"></i></span>
@@ -300,6 +300,11 @@ span.flatpickr-weekday {
       <div class="td-header-row">
         <h1 class="td-subject" id="ticketSubject" contenteditable="true" spellcheck="false" role="textbox" aria-label="Ticket subject (click to edit)"></h1>
         <div class="td-header-actions">
+          {% if is_admin_or_manager %}
+          <button type="button" id="splitTicketBtn" class="td-btn-icon" title="Split ticket" aria-label="Split ticket into new ticket">
+            <i class="ti ti-arrows-split-2" aria-hidden="true"></i>
+          </button>
+          {% endif %}
           <button type="button" id="deleteTicketBtn" class="td-btn-icon td-btn-danger" title="Delete ticket" aria-label="Delete ticket">
             <i class="ti ti-trash" aria-hidden="true"></i>
           </button>
@@ -314,6 +319,8 @@ span.flatpickr-weekday {
         </span>
         <span class="td-meta-divider" aria-hidden="true"></span>
         <span class="td-meta-item"><i class="ti ti-clock" aria-hidden="true"></i> <span id="ticketCreated">--</span></span>
+        <span class="td-meta-divider td-meta-assignee-sep d-none" aria-hidden="true"></span>
+        <span class="td-meta-item td-meta-assignee d-none"><i class="ti ti-user" aria-hidden="true"></i> <span id="ticketAssigneeMeta">--</span></span>
       </div>
     </div>
   </div>
@@ -391,6 +398,16 @@ span.flatpickr-weekday {
             <div id="commentsList"></div>
           </div>
 
+          <!-- Presence Bar -->
+          <div id="presenceBar" class="d-none px-3 py-2 border-bottom" style="background:var(--bs-body-bg);">
+            <div class="d-flex align-items-center gap-2">
+              <div id="presenceAvatars" class="d-flex align-items-center" style="gap:-.25rem;"></div>
+              <span id="presenceWarning" class="small text-warning d-none">
+                <i class="ti ti-alert-triangle me-1"></i><span id="presenceWarningText"></span>
+              </span>
+            </div>
+          </div>
+
           <!-- Composer -->
           <div class="td-composer">
             <form id="addCommentForm">
@@ -410,6 +427,15 @@ span.flatpickr-weekday {
                   <button type="button" id="cannedResponseBtn" class="td-composer-icon-btn" title="Insert canned response" aria-label="Insert canned response">
                     <i class="ti ti-message-chatbot" aria-hidden="true"></i>
                   </button>
+                  <div class="position-relative d-inline-block">
+                    <button type="button" id="macroBtn" class="td-composer-icon-btn" title="Apply macro" aria-label="Apply macro">
+                      <i class="ti ti-bolt" aria-hidden="true"></i>
+                    </button>
+                    <div id="macroDropdown" class="dropdown-menu p-2 shadow" style="min-width:280px;max-height:320px;overflow-y:auto;display:none;position:absolute;bottom:100%;left:0;z-index:1050;">
+                      <input type="text" id="macroSearch" class="form-control form-control-sm mb-2" placeholder="Search macros..." autocomplete="off">
+                      <div id="macroList"><span class="text-muted small px-2">Loading...</span></div>
+                    </div>
+                  </div>
                 </div>
                 <button type="submit" class="td-post-btn">
                   <i class="ti ti-send me-1" aria-hidden="true"></i>Post
@@ -430,22 +456,41 @@ span.flatpickr-weekday {
           </div>
           <div id="emailsList"></div>
 
-          <!-- Compose Email -->
-          <div class="td-composer">
+          <!-- Email Actions Bar -->
+          <div class="td-composer" style="padding: 0.5rem 1rem;">
+            <div class="d-flex align-items-center gap-2 w-100">
+              <button type="button" id="newEmailBtn" class="td-post-btn" title="Compose a new email">
+                <i class="ti ti-mail-forward me-1" aria-hidden="true"></i>New Email
+              </button>
+              <button type="button" id="linkEmailBtn" class="btn btn-sm btn-outline-secondary" title="Link an existing email to this ticket">
+                <i class="ti ti-link me-1" aria-hidden="true"></i>Link Email
+              </button>
+            </div>
+          </div>
+
+          <!-- Compose Email (hidden by default) -->
+          <div id="emailComposerWrap" class="td-composer d-none">
             <form id="sendEmailForm">
+              <div class="d-flex align-items-center justify-content-between mb-2">
+                <strong class="small" id="emailComposerLabel">New Email</strong>
+                <button type="button" id="emailComposerClose" class="btn btn-sm btn-link text-muted p-0" title="Close">
+                  <i class="ti ti-x" aria-hidden="true"></i>
+                </button>
+              </div>
               <div class="mb-2">
                 <input type="email" id="emailTo" class="form-control form-control-sm" placeholder="Recipient email address" required>
               </div>
               <div class="mb-2">
                 <input type="text" id="emailSubject" class="form-control form-control-sm" placeholder="Subject">
               </div>
-              <div class="mb-2">
+              <div class="mb-2" style="position:relative;">
+                <div id="emailCannedPickerDropdown" class="canned-picker-dropdown d-none"></div>
                 <textarea id="emailBody" class="form-control form-control-sm" rows="4" placeholder="Write your email..." required></textarea>
               </div>
               <div class="td-composer-actions">
                 <div class="d-flex align-items-center gap-2">
-                  <button type="button" id="linkEmailBtn" class="btn btn-sm btn-outline-secondary" title="Link an existing email to this ticket">
-                    <i class="ti ti-link me-1" aria-hidden="true"></i>Link Email
+                  <button type="button" id="emailCannedResponseBtn" class="td-composer-icon-btn" title="Insert canned response" aria-label="Insert canned response">
+                    <i class="ti ti-message-chatbot" aria-hidden="true"></i>
                   </button>
                 </div>
                 <button type="submit" class="td-post-btn">
@@ -471,6 +516,50 @@ span.flatpickr-weekday {
                 </div>
                 <div id="unlinkEmailsList"></div>
                 <div id="unlinkEmailsEmpty" class="text-center text-muted py-3 d-none">No unlinked emails found.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Email View Modal (Thread Conversation) -->
+        <div class="modal fade" id="emailViewModal" tabindex="-1" aria-labelledby="emailViewModalLabel" aria-hidden="true">
+          <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+              <div class="modal-header">
+                <div class="d-flex align-items-center gap-2">
+                  <div id="emailViewAvatar" class="td-email-modal-avatar">
+                    <i class="ti ti-mail" aria-hidden="true"></i>
+                  </div>
+                  <div>
+                    <h6 class="modal-title mb-0" id="emailViewModalLabel">Email</h6>
+                    <small class="text-muted" id="emailViewMeta"></small>
+                  </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <div class="modal-body p-0">
+                <div id="emailViewSingleFields" class="d-none px-3 pt-3">
+                  <div class="td-email-modal-field">
+                    <span class="td-email-modal-label">From</span>
+                    <span id="emailViewFrom"></span>
+                  </div>
+                  <div class="td-email-modal-field" id="emailViewToWrap">
+                    <span class="td-email-modal-label">To</span>
+                    <span id="emailViewTo"></span>
+                  </div>
+                  <div class="td-email-modal-field">
+                    <span class="td-email-modal-label">Date</span>
+                    <span id="emailViewDate"></span>
+                  </div>
+                  <hr class="my-3" style="border-color: var(--crm-border);">
+                </div>
+                <div id="emailViewBody" class="td-email-thread-body"></div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" id="emailViewReplyBtn" class="btn btn-sm btn-primary">
+                  <i class="ti ti-arrow-back-up me-1" aria-hidden="true"></i>Reply
+                </button>
               </div>
             </div>
           </div>
@@ -554,6 +643,40 @@ span.flatpickr-weekday {
         </div>
       </div>
 
+      <!-- Requester History -->
+      <div class="td-sb-section" id="requesterSection" style="display:none;">
+        <div class="td-sb-label" role="button" data-bs-toggle="collapse" data-bs-target="#requesterCollapse" aria-expanded="true">
+          <div class="td-sb-icon td-sb-icon--amber"><i class="ti ti-history" aria-hidden="true"></i></div>
+          Requester History
+          <i class="ti ti-chevron-down ms-auto small"></i>
+        </div>
+        <div class="collapse show" id="requesterCollapse">
+          <div id="requesterContext">
+            <span class="text-muted small">Loading...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Related Tickets -->
+      <div class="td-sb-section">
+        <div class="td-sb-label">
+          <div class="td-sb-icon td-sb-icon--indigo"><i class="ti ti-link" aria-hidden="true"></i></div>
+          Related Tickets
+          <button type="button" id="addLinkBtn" class="td-section-action ms-auto" title="Link ticket" aria-label="Link a related ticket">
+            <i class="ti ti-plus" aria-hidden="true"></i>
+          </button>
+        </div>
+        <div id="mergedBanner" class="d-none mb-2">
+          <div class="alert alert-warning py-2 px-3 mb-0 small d-flex align-items-center gap-2">
+            <i class="ti ti-git-merge"></i>
+            <span id="mergedBannerText"></span>
+          </div>
+        </div>
+        <div id="linkedTicketsList">
+          <span class="text-muted small">No linked tickets</span>
+        </div>
+      </div>
+
       <!-- Details -->
       <div class="td-sb-section">
         <div class="td-sb-label">
@@ -605,6 +728,8 @@ span.flatpickr-weekday {
         </div>
       </div>
 
+      {% include 'includes/kb_sidebar_widget.html' %}
+
     </aside>
   </div>
 </div>
@@ -629,6 +754,109 @@ span.flatpickr-weekday {
     </div>
   </div>
 </div>
+
+{% if is_admin_or_manager %}
+<!-- Split Ticket Modal -->
+<div class="modal fade" id="splitTicketModal" tabindex="-1" aria-labelledby="splitTicketModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="splitTicketModalLabel"><i class="ti ti-arrows-split-2 me-2"></i>Split Ticket</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">Select the comments to move to the new ticket, then set the new ticket details.</p>
+
+        <div class="mb-3">
+          <label class="form-label fw-medium">Comments to move</label>
+          <div id="splitCommentList" class="border rounded p-2" style="max-height:250px;overflow-y:auto;">
+            <span class="text-muted small">Loading comments...</span>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label for="splitSubject" class="form-label fw-medium">New ticket subject <span class="text-danger">*</span></label>
+          <input type="text" class="form-control form-control-sm" id="splitSubject" required>
+        </div>
+
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="splitPriority" class="form-label fw-medium">Priority</label>
+            <select class="form-select form-select-sm" id="splitPriority">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="splitQueue" class="form-label fw-medium">Queue</label>
+            <select class="form-select form-select-sm" id="splitQueue">
+              <option value="">None</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-sm btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm btn-primary" id="confirmSplitBtn">
+          <span class="spinner-border spinner-border-sm d-none me-1" id="splitSpinner" role="status"></span>
+          Split Ticket
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Contact Detail Slide Panel -->
+<div class="contact-detail-panel" id="contactDetailPanel">
+  <div class="contact-detail-panel-header">
+    <h6 class="contact-detail-panel-title" id="panelContactName">Contact</h6>
+    <button type="button" class="btn-close btn-close-white" id="closeContactPanel" aria-label="Close"></button>
+  </div>
+  <div class="contact-detail-panel-body" id="contactPanelBody">
+    <div id="contactPanelLoading" class="text-center py-5">
+      <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+      <span class="loading-text ms-2">Loading...</span>
+    </div>
+    <div id="contactPanelContent" class="d-none">
+      <div class="cpanel-profile">
+        <div class="cpanel-avatar" id="cpAvatar">?</div>
+        <div>
+          <div class="cpanel-name" id="cpFullName">--</div>
+          <div class="cpanel-job" id="cpJobTitle">--</div>
+        </div>
+        <span class="cpanel-status-badge" id="cpStatusBadge">Active</span>
+      </div>
+      <div class="cpanel-info-grid">
+        <div class="cpanel-info-item"><i class="ti ti-mail"></i><a href="#" id="cpEmail" class="cpanel-info-link">--</a></div>
+        <div class="cpanel-info-item"><i class="ti ti-phone"></i><span id="cpPhone">--</span></div>
+        <div class="cpanel-info-item"><i class="ti ti-building"></i><span id="cpCompany">--</span></div>
+        <div class="cpanel-info-item"><i class="ti ti-source-code"></i><span id="cpSource">--</span></div>
+      </div>
+      <div class="cpanel-section" id="cpNotesSection" style="display:none;">
+        <div class="cpanel-section-label">Notes</div>
+        <div class="cpanel-notes" id="cpNotes"></div>
+      </div>
+      <div class="cpanel-section" id="cpGroupsSection" style="display:none;">
+        <div class="cpanel-section-label">Groups</div>
+        <div class="cpanel-groups" id="cpGroups"></div>
+      </div>
+      <div class="cpanel-meta">
+        <div><span class="cpanel-meta-label">Created</span> <span id="cpCreated">--</span></div>
+        <div><span class="cpanel-meta-label">Updated</span> <span id="cpUpdated">--</span></div>
+      </div>
+      <div class="cpanel-actions">
+        <a href="#" id="cpViewBtn" class="btn btn-primary btn-sm cpanel-action-btn">
+          <i class="ti ti-external-link me-1"></i>Open Full Profile
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="contact-detail-overlay" id="contactDetailOverlay"></div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -723,7 +951,11 @@ window.dispatchEvent(new Event('tiptap-ready'));
     cannedToggleBtn: document.getElementById('cannedResponseBtn'),
     emailsList: document.getElementById('emailsList'),
     emailsEmpty: document.getElementById('emailsEmpty'),
-    emailCount: document.getElementById('emailCount')
+    emailCount: document.getElementById('emailCount'),
+    emailComposerWrap: document.getElementById('emailComposerWrap'),
+    emailComposerLabel: document.getElementById('emailComposerLabel'),
+    emailCannedDropdown: document.getElementById('emailCannedPickerDropdown'),
+    emailCannedToggleBtn: document.getElementById('emailCannedResponseBtn')
   };
 
   /* ── Rich Text Editors ── */
@@ -826,27 +1058,101 @@ window.dispatchEvent(new Event('tiptap-ready'));
 
   /* ── Contact Card ── */
   function renderContactCard(contact) {
+    dom.contactCard.textContent = '';
     if (!contact) {
-      dom.contactCard.innerHTML = '<div class="td-empty-hint"><i class="ti ti-user-plus" aria-hidden="true"></i><span>No contact linked</span></div>';
-      dom.linkContactBtn.innerHTML = '<i class="ti ti-plus" aria-hidden="true"></i>';
+      var emptyHint = document.createElement('div');
+      emptyHint.className = 'td-empty-hint';
+      var emptyIcon = document.createElement('i');
+      emptyIcon.className = 'ti ti-user-plus';
+      emptyIcon.setAttribute('aria-hidden', 'true');
+      emptyHint.appendChild(emptyIcon);
+      var emptySpan = document.createElement('span');
+      emptySpan.textContent = 'No contact linked';
+      emptyHint.appendChild(emptySpan);
+      dom.contactCard.appendChild(emptyHint);
+      dom.linkContactBtn.textContent = '';
+      var plusIcon = document.createElement('i');
+      plusIcon.className = 'ti ti-plus';
+      plusIcon.setAttribute('aria-hidden', 'true');
+      dom.linkContactBtn.appendChild(plusIcon);
       dom.linkContactBtn.title = 'Link contact';
       return;
     }
-    dom.linkContactBtn.innerHTML = '<i class="ti ti-x" aria-hidden="true"></i>';
+    dom.linkContactBtn.textContent = '';
+    var xIcon = document.createElement('i');
+    xIcon.className = 'ti ti-x';
+    xIcon.setAttribute('aria-hidden', 'true');
+    dom.linkContactBtn.appendChild(xIcon);
     dom.linkContactBtn.title = 'Unlink contact';
+
     var initials = ((contact.first_name || '').charAt(0) + (contact.last_name || '').charAt(0)).toUpperCase() || '?';
     var bgColor = avatarColor(contact.full_name || '');
-    var html = '<div class="td-contact-card">';
-    html += '<div class="td-contact-card-header">';
-    html += '<div class="avatar avatar-sm td-contact-avatar" style="background:' + bgColor + '15;color:' + bgColor + ';border-color:' + bgColor + '25;">' + initials + '</div>';
-    html += '<div><div class="td-contact-card-name">' + escapeHtml(contact.full_name || '') + '</div>';
-    if (contact.job_title) html += '<div class="td-contact-card-role">' + escapeHtml(contact.job_title) + '</div>';
-    html += '</div></div>';
-    if (contact.email) html += '<div class="td-contact-card-row"><i class="ti ti-mail" aria-hidden="true"></i><a href="mailto:' + escapeHtml(contact.email) + '">' + escapeHtml(contact.email) + '</a></div>';
-    if (contact.phone) html += '<div class="td-contact-card-row"><i class="ti ti-phone" aria-hidden="true"></i><span>' + escapeHtml(contact.phone) + '</span></div>';
-    if (contact.company_name) html += '<div class="td-contact-card-row"><i class="ti ti-building" aria-hidden="true"></i><span>' + escapeHtml(contact.company_name) + '</span></div>';
-    html += '</div>';
-    dom.contactCard.innerHTML = html;
+
+    var card = document.createElement('div');
+    card.className = 'td-contact-card';
+
+    /* Header: avatar + name (clickable) */
+    var header = document.createElement('div');
+    header.className = 'td-contact-card-header';
+
+    var avatar = document.createElement('div');
+    avatar.className = 'avatar avatar-sm td-contact-avatar';
+    avatar.style.cssText = 'background:' + bgColor + '15;color:' + bgColor + ';border-color:' + bgColor + '25;';
+    avatar.textContent = initials;
+    header.appendChild(avatar);
+
+    var info = document.createElement('div');
+    var nameLink = document.createElement('a');
+    nameLink.className = 'td-contact-card-name td-contact-card-link';
+    nameLink.href = '/contacts/' + contact.id + '/';
+    nameLink.textContent = contact.full_name || '';
+    nameLink.title = 'View contact details';
+    nameLink.addEventListener('click', function(e) {
+      e.preventDefault();
+      TicketContactPanel.open(contact.id);
+    });
+    info.appendChild(nameLink);
+
+    if (contact.job_title) {
+      var role = document.createElement('div');
+      role.className = 'td-contact-card-role';
+      role.textContent = contact.job_title;
+      info.appendChild(role);
+    }
+    header.appendChild(info);
+    card.appendChild(header);
+
+    /* Rows: email, phone, company */
+    function addRow(iconClass, text, opts) {
+      var row = document.createElement('div');
+      row.className = 'td-contact-card-row' + (opts && opts.danger ? ' text-danger' : '');
+      var icon = document.createElement('i');
+      icon.className = 'ti ' + iconClass;
+      icon.setAttribute('aria-hidden', 'true');
+      row.appendChild(icon);
+      if (opts && opts.mailto) {
+        var a = document.createElement('a');
+        a.href = 'mailto:' + text;
+        a.textContent = text;
+        row.appendChild(a);
+      } else if (opts && opts.small) {
+        var sm = document.createElement('small');
+        sm.textContent = text;
+        row.appendChild(sm);
+      } else {
+        var span = document.createElement('span');
+        span.textContent = text;
+        row.appendChild(span);
+      }
+      card.appendChild(row);
+    }
+
+    if (contact.email) addRow('ti-mail', contact.email, { mailto: true });
+    if (contact.email_bouncing) addRow('ti-alert-triangle', 'Email bouncing \u2014 delivery may fail', { danger: true, small: true });
+    if (contact.phone) addRow('ti-phone', contact.phone);
+    if (contact.company_name) addRow('ti-building', contact.company_name);
+
+    dom.contactCard.appendChild(card);
   }
 
   dom.linkContactBtn.addEventListener('click', function() {
@@ -932,8 +1238,24 @@ window.dispatchEvent(new Event('tiptap-ready'));
     currentSubject = ticket.subject || 'Untitled';
     dom.subject.textContent = currentSubject;
 
+    // Merged ticket banner
+    var banner = document.getElementById('mergedBanner');
+    if (ticket.merged_into) {
+      banner.classList.remove('d-none');
+      var bannerText = document.getElementById('mergedBannerText');
+      bannerText.textContent = '';
+      bannerText.appendChild(document.createTextNode('This ticket was merged into '));
+      var link = document.createElement('a');
+      link.href = '/tickets/' + encodeURIComponent(ticket.merged_into) + '/';
+      link.textContent = '#' + ticket.merged_into;
+      bannerText.appendChild(link);
+    } else {
+      banner.classList.add('d-none');
+    }
+
     if (ticket.description && ticket.description.trim()) {
-      dom.descView.textContent = ticket.description;
+      /* Description is authored via rich-text editor; sanitize before rendering */
+      dom.descView.innerHTML = DOMPurify.sanitize(ticket.description);
       dom.descView.classList.remove('text-muted');
     } else {
       dom.descView.textContent = 'No description provided.';
@@ -954,8 +1276,29 @@ window.dispatchEvent(new Event('tiptap-ready'));
     if (statusesLoaded && statusId) dom.statusSelect.value = statusId;
 
     var prLabel = ticket.priority ? ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) : 'None';
-    dom.priorityBadge.innerHTML = '<span class="badge badge-priority-' + (ticket.priority || 'low') + '">' + prLabel + '</span>';
+    var prBadge = document.createElement('span');
+    prBadge.className = 'badge badge-priority-' + (ticket.priority || 'low');
+    prBadge.textContent = prLabel;
+    dom.priorityBadge.textContent = '';
+    dom.priorityBadge.appendChild(prBadge);
     dom.prioritySelect.value = ticket.priority || 'medium';
+
+    /* Priority accent bar on hero */
+    document.getElementById('ticketHero').setAttribute('data-priority', ticket.priority || 'low');
+
+    /* Assignee in meta row */
+    var assigneeName = ticket.assignee_name || '';
+    var assigneeMeta = document.getElementById('ticketAssigneeMeta');
+    var assigneeSep = document.querySelector('.td-meta-assignee-sep');
+    var assigneeItem = document.querySelector('.td-meta-assignee');
+    if (assigneeName) {
+      assigneeMeta.textContent = assigneeName;
+      assigneeSep.classList.remove('d-none');
+      assigneeItem.classList.remove('d-none');
+    } else {
+      assigneeSep.classList.add('d-none');
+      assigneeItem.classList.add('d-none');
+    }
 
     setSelectValue(dom.queueSelect, ticket.queue, ticket.queue_name || 'Queue');
     setSelectValue(dom.assigneeSelect, ticket.assignee, ticket.assignee_name || 'Assigned');
@@ -1162,7 +1505,16 @@ window.dispatchEvent(new Event('tiptap-ready'));
 
   /* ── Property Auto-save Listeners ── */
   dom.statusSelect.addEventListener('change', function() { autoSaveField('status', this.value); });
-  dom.prioritySelect.addEventListener('change', function() { autoSaveField('priority', this.value); });
+  dom.prioritySelect.addEventListener('change', function() {
+    autoSaveField('priority', this.value);
+    document.getElementById('ticketHero').setAttribute('data-priority', this.value || 'low');
+    var label = this.value ? this.value.charAt(0).toUpperCase() + this.value.slice(1) : 'None';
+    var b = document.createElement('span');
+    b.className = 'badge badge-priority-' + (this.value || 'low');
+    b.textContent = label;
+    dom.priorityBadge.textContent = '';
+    dom.priorityBadge.appendChild(b);
+  });
   dom.assigneeSelect.addEventListener('change', function() { autoSaveField('assignee', this.value || null); });
   dom.queueSelect.addEventListener('change', function() { autoSaveField('queue', this.value || null); });
   dom.categorySelect.addEventListener('change', function() { autoSaveField('category', this.value || null); });
@@ -1255,6 +1607,8 @@ window.dispatchEvent(new Event('tiptap-ready'));
       loadComments();
       loadTicketAttachments();
       loadActivity();
+      loadLinkedTickets();
+      loadRequesterContext();
       prefillEmailTo();
     }).catch(function() { showError('Failed to load ticket.'); });
   }
@@ -1464,7 +1818,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
     var btn = this;
     btn.disabled = true;
     Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', { description: newDesc }).then(function() {
-      if (newDesc) { dom.descView.innerHTML = newDesc; dom.descView.classList.remove('text-muted'); }
+      if (newDesc) { dom.descView.innerHTML = DOMPurify.sanitize(newDesc); dom.descView.classList.remove('text-muted'); }
       else { dom.descView.textContent = 'No description provided.'; dom.descView.classList.add('text-muted'); }
       dom.descView.classList.remove('d-none');
       dom.descEdit.classList.add('d-none');
@@ -1632,79 +1986,304 @@ window.dispatchEvent(new Event('tiptap-ready'));
   })();
 
   /* ── Emails ── */
+  var allEmails = [];
+  var emailThreads = [];
+  var emailViewModal = null;
+  var currentViewThread = null;
+
   function loadEmails() {
     if (!ticketId) return;
     Api.get('/api/v1/tickets/tickets/' + ticketId + '/emails/').then(function(data) {
-      var emails = data.results || data;
-      renderEmails(emails);
+      allEmails = data.results || data;
+      emailThreads = buildThreads(allEmails);
+      renderEmails(emailThreads);
     }).catch(function(err) { console.error('Error loading emails:', err); });
   }
 
-  function renderEmails(emails) {
+  /* Group emails into threads using message_id / in_reply_to + subject normalization */
+  function normalizeSubject(s) {
+    return (s || '').replace(/^(re:|fw:|fwd:)\s*/gi, '').replace(/\[#\d+\]\s*/g, '').trim().toLowerCase();
+  }
+
+  function buildThreads(emails) {
+    var byMsgId = {};
+    emails.forEach(function(e) { if (e.message_id) byMsgId[e.message_id] = e; });
+
+    var threadMap = {};  // rootId -> [emails]
+    var emailToRoot = {};
+
+    function findRoot(e) {
+      if (emailToRoot[e.id]) return emailToRoot[e.id];
+      if (e.in_reply_to && byMsgId[e.in_reply_to]) {
+        var parent = byMsgId[e.in_reply_to];
+        var root = findRoot(parent);
+        emailToRoot[e.id] = root;
+        return root;
+      }
+      emailToRoot[e.id] = e.id;
+      return e.id;
+    }
+
+    /* First pass: link by in_reply_to */
+    emails.forEach(function(e) { findRoot(e); });
+
+    /* Second pass: merge threads with same normalized subject */
+    var subjToRoot = {};
+    var rootRemap = {};
+    emails.forEach(function(e) {
+      var root = emailToRoot[e.id];
+      var nSubj = normalizeSubject(e.subject);
+      if (nSubj && subjToRoot[nSubj] && subjToRoot[nSubj] !== root) {
+        rootRemap[root] = subjToRoot[nSubj];
+      } else if (nSubj) {
+        subjToRoot[nSubj] = root;
+      }
+    });
+
+    emails.forEach(function(e) {
+      var root = emailToRoot[e.id];
+      while (rootRemap[root]) root = rootRemap[root];
+      emailToRoot[e.id] = root;
+    });
+
+    /* Build thread groups */
+    emails.forEach(function(e) {
+      var root = emailToRoot[e.id];
+      if (!threadMap[root]) threadMap[root] = [];
+      threadMap[root].push(e);
+    });
+
+    /* Sort each thread oldest-first, then sort threads by latest email desc */
+    var threads = Object.values(threadMap);
+    threads.forEach(function(t) {
+      t.sort(function(a, b) { return new Date(a.created_at) - new Date(b.created_at); });
+    });
+    threads.sort(function(a, b) {
+      return new Date(b[b.length - 1].created_at) - new Date(a[a.length - 1].created_at);
+    });
+    return threads;
+  }
+
+  function renderEmails(threads) {
     dom.emailsList.textContent = '';
-    dom.emailCount.textContent = (emails && emails.length) ? emails.length : '0';
-    if (!emails || emails.length === 0) { dom.emailsEmpty.classList.remove('d-none'); return; }
+    var total = threads.reduce(function(sum, t) { return sum + t.length; }, 0);
+    dom.emailCount.textContent = total || '0';
+    if (!threads || threads.length === 0) { dom.emailsEmpty.classList.remove('d-none'); return; }
     dom.emailsEmpty.classList.add('d-none');
 
     var fragment = document.createDocumentFragment();
-    emails.forEach(function(e) {
-      var div = document.createElement('div');
-      div.className = 'td-comment';
+    threads.forEach(function(thread) {
+      var latest = thread[thread.length - 1];
+      var first = thread[0];
+      var isOutbound = latest.direction === 'outbound';
 
-      /* Avatar icon */
-      var avatarDiv = document.createElement('div');
-      avatarDiv.className = 'td-comment-avatar';
-      avatarDiv.style.cssText = 'background:#3B82F615;color:#3B82F6;border:2px solid #3B82F620;';
+      var row = document.createElement('div');
+      row.className = 'td-email-row';
+      row.style.cursor = 'pointer';
+
+      /* Direction icon */
+      var iconWrap = document.createElement('div');
+      iconWrap.className = 'td-email-row-icon' + (isOutbound ? ' td-email-row-icon--sent' : ' td-email-row-icon--received');
       var icon = document.createElement('i');
-      icon.className = 'ti ti-mail';
+      icon.className = isOutbound ? 'ti ti-mail-forward' : 'ti ti-mail';
       icon.setAttribute('aria-hidden', 'true');
-      avatarDiv.appendChild(icon);
+      iconWrap.appendChild(icon);
 
-      /* Body wrapper */
-      var bodyDiv = document.createElement('div');
-      bodyDiv.className = 'td-comment-body';
+      /* Content */
+      var content = document.createElement('div');
+      content.className = 'td-email-row-content';
 
-      /* Header: sender + badge + time */
-      var headerDiv = document.createElement('div');
-      headerDiv.className = 'td-comment-header';
-      var senderStrong = document.createElement('strong');
-      senderStrong.textContent = e.sender_name ? (e.sender_name + ' <' + e.sender_email + '>') : e.sender_email;
-      headerDiv.appendChild(senderStrong);
+      /* Top row */
+      var topRow = document.createElement('div');
+      topRow.className = 'td-email-row-top';
 
-      var badge = document.createElement('span');
-      var statusClass = e.status === 'ticket_created' ? 'bg-success' : e.status === 'reply_added' ? 'bg-info' : e.status === 'failed' ? 'bg-danger' : 'bg-secondary';
-      badge.className = 'badge ' + statusClass + ' bg-opacity-25 text-capitalize ms-2';
-      badge.style.fontSize = '0.65rem';
-      badge.textContent = e.status.replace(/_/g, ' ');
-      headerDiv.appendChild(badge);
+      /* Participants */
+      var participants = [];
+      var seen = {};
+      thread.forEach(function(e) {
+        var name = e.sender_name || e.sender_email;
+        if (!seen[name]) { seen[name] = true; participants.push(name); }
+      });
+      var senderSpan = document.createElement('span');
+      senderSpan.className = 'td-email-row-sender';
+      senderSpan.textContent = participants.join(', ');
+
+      /* Count badge if multiple emails in thread */
+      var badgeWrap = document.createElement('span');
+      badgeWrap.className = 'd-flex align-items-center gap-1';
+      if (thread.length > 1) {
+        var countBadge = document.createElement('span');
+        countBadge.className = 'td-email-badge td-email-badge--count';
+        countBadge.textContent = thread.length;
+        badgeWrap.appendChild(countBadge);
+      }
+      var hasFailed = thread.some(function(e) { return e.status === 'failed'; });
+      if (hasFailed) {
+        var failBadge = document.createElement('span');
+        failBadge.className = 'td-email-badge td-email-badge--failed';
+        failBadge.textContent = 'Failed';
+        badgeWrap.appendChild(failBadge);
+      }
 
       var timeSpan = document.createElement('span');
-      timeSpan.className = 'td-comment-time';
-      timeSpan.textContent = formatRelativeTime(e.created_at);
-      headerDiv.appendChild(timeSpan);
+      timeSpan.className = 'td-email-row-time';
+      timeSpan.textContent = formatRelativeTime(latest.created_at);
 
-      /* Subject line */
-      var subjectDiv = document.createElement('div');
-      subjectDiv.className = 'td-comment-text';
-      var subjectB = document.createElement('strong');
-      subjectB.textContent = e.subject;
-      subjectDiv.appendChild(subjectB);
+      topRow.appendChild(senderSpan);
+      topRow.appendChild(badgeWrap);
+      topRow.appendChild(timeSpan);
+      content.appendChild(topRow);
 
-      /* Body preview */
-      var bodyPreview = document.createElement('div');
-      bodyPreview.className = 'td-comment-text text-muted small mt-1';
-      bodyPreview.style.whiteSpace = 'pre-wrap';
-      bodyPreview.textContent = (e.body_text || '').substring(0, 500);
+      /* Subject (from first email in thread) */
+      var subjectLine = document.createElement('div');
+      subjectLine.className = 'td-email-row-subject';
+      subjectLine.textContent = first.subject || '(no subject)';
+      content.appendChild(subjectLine);
 
-      bodyDiv.appendChild(headerDiv);
-      bodyDiv.appendChild(subjectDiv);
-      bodyDiv.appendChild(bodyPreview);
-      div.appendChild(avatarDiv);
-      div.appendChild(bodyDiv);
-      fragment.appendChild(div);
+      /* Preview from latest email */
+      var bodyText = latest.body_text || '';
+      var preview = document.createElement('div');
+      preview.className = 'td-email-row-preview';
+      var previewName = latest.sender_name || latest.sender_email || '';
+      preview.textContent = previewName + ': ' + bodyText.substring(0, 80) + (bodyText.length > 80 ? '...' : '');
+      content.appendChild(preview);
+
+      row.appendChild(iconWrap);
+      row.appendChild(content);
+
+      /* Chevron */
+      var chevron = document.createElement('div');
+      chevron.className = 'td-email-row-chevron';
+      var chevIcon = document.createElement('i');
+      chevIcon.className = 'ti ti-chevron-right';
+      chevIcon.setAttribute('aria-hidden', 'true');
+      chevron.appendChild(chevIcon);
+      row.appendChild(chevron);
+
+      row.addEventListener('click', function() { openThreadView(thread); });
+      fragment.appendChild(row);
     });
     dom.emailsList.appendChild(fragment);
   }
+
+  /* Open thread conversation in modal */
+  function openThreadView(thread) {
+    currentViewThread = thread;
+    if (!emailViewModal) emailViewModal = new bootstrap.Modal(document.getElementById('emailViewModal'));
+
+    var first = thread[0];
+    var latest = thread[thread.length - 1];
+    var isLatestOut = latest.direction === 'outbound';
+
+    var avatarEl = document.getElementById('emailViewAvatar');
+    avatarEl.className = 'td-email-modal-avatar' + (isLatestOut ? ' td-email-modal-avatar--sent' : ' td-email-modal-avatar--received');
+    avatarEl.querySelector('i').className = isLatestOut ? 'ti ti-mail-forward' : 'ti ti-mail';
+
+    document.getElementById('emailViewModalLabel').textContent = first.subject || '(no subject)';
+    document.getElementById('emailViewMeta').textContent = thread.length + ' message' + (thread.length > 1 ? 's' : '') + ' in this thread';
+
+    /* Hide the single-email fields, show thread body */
+    document.getElementById('emailViewSingleFields').classList.add('d-none');
+
+    /* Build thread conversation */
+    var bodyEl = document.getElementById('emailViewBody');
+    bodyEl.textContent = '';
+
+    thread.forEach(function(e, idx) {
+      var msgDiv = document.createElement('div');
+      msgDiv.className = 'td-thread-msg' + (e.direction === 'outbound' ? ' td-thread-msg--sent' : ' td-thread-msg--received');
+
+      /* Header */
+      var hdr = document.createElement('div');
+      hdr.className = 'td-thread-msg-header';
+
+      var senderEl = document.createElement('span');
+      senderEl.className = 'td-thread-msg-sender';
+      senderEl.textContent = e.sender_name || e.sender_email;
+
+      var dirIcon = document.createElement('i');
+      dirIcon.className = e.direction === 'outbound' ? 'ti ti-arrow-up-right' : 'ti ti-arrow-down-left';
+      dirIcon.setAttribute('aria-hidden', 'true');
+      dirIcon.style.fontSize = '0.75rem';
+      dirIcon.style.opacity = '0.6';
+
+      var timeEl = document.createElement('span');
+      timeEl.className = 'td-thread-msg-time';
+      timeEl.textContent = new Date(e.created_at).toLocaleString();
+
+      hdr.appendChild(senderEl);
+      hdr.appendChild(dirIcon);
+      hdr.appendChild(timeEl);
+      msgDiv.appendChild(hdr);
+
+      /* To line */
+      if (e.direction === 'outbound' && e.recipient_email) {
+        var toEl = document.createElement('div');
+        toEl.className = 'td-thread-msg-to';
+        toEl.textContent = 'To: ' + e.recipient_email;
+        msgDiv.appendChild(toEl);
+      }
+
+      /* Body */
+      var bodyP = document.createElement('div');
+      bodyP.className = 'td-thread-msg-body';
+      bodyP.textContent = e.body_text || '';
+      msgDiv.appendChild(bodyP);
+
+      bodyEl.appendChild(msgDiv);
+    });
+
+    emailViewModal.show();
+  }
+
+  /* Reply from modal — reply to the latest email in thread */
+  document.getElementById('emailViewReplyBtn').addEventListener('click', function() {
+    if (currentViewThread && currentViewThread.length > 0) {
+      var latest = currentViewThread[currentViewThread.length - 1];
+      emailViewModal.hide();
+      openEmailReply(latest);
+    }
+  });
+
+  /* Open email composer for reply */
+  function openEmailReply(email) {
+    var toEl = document.getElementById('emailTo');
+    var subjectEl = document.getElementById('emailSubject');
+    var bodyEl = document.getElementById('emailBody');
+    var replyTo = email.direction === 'outbound' ? email.recipient_email : email.sender_email;
+    toEl.value = replyTo || '';
+    var subj = email.subject || '';
+    if (!subj.toLowerCase().startsWith('re:')) subj = 'Re: ' + subj;
+    subjectEl.value = subj;
+    bodyEl.value = '';
+    dom.emailComposerLabel.textContent = 'Reply to ' + (replyTo || 'email');
+    dom.emailComposerWrap.classList.remove('d-none');
+    dom.emailComposerWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    bodyEl.focus();
+  }
+
+  /* Open email composer for new email */
+  function openNewEmail() {
+    var toEl = document.getElementById('emailTo');
+    var subjectEl = document.getElementById('emailSubject');
+    var bodyEl = document.getElementById('emailBody');
+    toEl.value = '';
+    subjectEl.value = '';
+    bodyEl.value = '';
+    dom.emailComposerLabel.textContent = 'New Email';
+    dom.emailComposerWrap.classList.remove('d-none');
+    prefillEmailTo();
+    dom.emailComposerWrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    toEl.focus();
+  }
+
+  /* New Email button */
+  document.getElementById('newEmailBtn').addEventListener('click', function() { openNewEmail(); });
+
+  /* Close composer */
+  document.getElementById('emailComposerClose').addEventListener('click', function() {
+    dom.emailComposerWrap.classList.add('d-none');
+  });
 
   /* Send email form */
   document.getElementById('sendEmailForm').addEventListener('submit', function(e) {
@@ -1730,6 +2309,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
       subjectEl.value = '';
       bodyEl.value = '';
       btn.disabled = false;
+      dom.emailComposerWrap.classList.add('d-none');
       loadEmails();
       loadActivity();
     }).catch(function(err) {
@@ -1748,6 +2328,125 @@ window.dispatchEvent(new Event('tiptap-ready'));
       toEl.value = currentTicket.contact.email;
     }
   }
+
+  /* ── Email Canned Response Picker ── */
+  (function() {
+    var emailCanned = [];
+    var emailSelectedIdx = -1;
+    var emailCannedVisible = false;
+
+    function showEmailCanned() { dom.emailCannedDropdown.classList.remove('d-none'); dom.emailCannedDropdown.style.display = 'block'; emailCannedVisible = true; }
+    function hideEmailCanned() { dom.emailCannedDropdown.classList.add('d-none'); dom.emailCannedDropdown.style.display = ''; emailCannedVisible = false; emailSelectedIdx = -1; }
+
+    async function fetchEmailCanned(query) {
+      try {
+        var url = '/api/v1/tickets/canned-responses/';
+        if (query) url += '?search=' + encodeURIComponent(query);
+        var data = await Api.get(url);
+        emailCanned = data.results || data;
+      } catch(e) { emailCanned = []; }
+    }
+
+    function renderEmailCannedContent(content) {
+      content = content.replace(/\{\{ticket\.number\}\}/g, ticketNumber || '');
+      content = content.replace(/\{\{ticket\.subject\}\}/g, currentSubject || '');
+      var contactName = dom.contactCard ? (dom.contactCard.querySelector('.fw-medium') || {}).textContent || '' : '';
+      content = content.replace(/\{\{contact\.name\}\}/g, contactName);
+      content = content.replace(/\{\{contact\.first_name\}\}/g, contactName.split(' ')[0] || '');
+      content = content.replace(/\{\{contact\.email\}\}/g, '');
+      content = content.replace(/\{\{agent\.name\}\}/g, '{{ request.user.get_full_name|escapejs }}');
+      content = content.replace(/\{\{agent\.first_name\}\}/g, '{{ request.user.first_name|escapejs }}');
+      content = content.replace(/\{\{agent\.email\}\}/g, '{{ request.user.email|escapejs }}');
+      // Strip HTML tags for plain text email
+      var tmp = document.createElement('div');
+      tmp.textContent = content;
+      return tmp.textContent;
+    }
+
+    function renderEmailCannedDropdown(items) {
+      dom.emailCannedDropdown.textContent = '';
+      if (!items || !items.length) {
+        var emptyEl = document.createElement('div');
+        emptyEl.className = 'canned-picker-item';
+        emptyEl.style.textAlign = 'center';
+        emptyEl.style.color = 'var(--crm-text-muted)';
+        emptyEl.style.cursor = 'default';
+        emptyEl.textContent = 'No canned responses yet. Create one in Settings.';
+        dom.emailCannedDropdown.appendChild(emptyEl);
+        showEmailCanned();
+        return;
+      }
+      items.forEach(function(cr, idx) {
+        var el = document.createElement('div');
+        el.className = 'canned-picker-item' + (idx === emailSelectedIdx ? ' active' : '');
+        var titleDiv = document.createElement('div');
+        titleDiv.className = 'canned-picker-title';
+        titleDiv.textContent = cr.title;
+        if (cr.shortcut) {
+          var codeEl = document.createElement('code');
+          codeEl.textContent = cr.shortcut;
+          titleDiv.appendChild(document.createTextNode(' '));
+          titleDiv.appendChild(codeEl);
+        }
+        var previewDiv = document.createElement('div');
+        previewDiv.className = 'canned-picker-preview';
+        previewDiv.textContent = (cr.content || '').substring(0, 80);
+        el.appendChild(titleDiv);
+        el.appendChild(previewDiv);
+        el.addEventListener('click', function(ev) { ev.stopPropagation(); selectEmailCanned(cr); });
+        el.addEventListener('mouseenter', function() { emailSelectedIdx = idx; highlightEmailItem(); });
+        dom.emailCannedDropdown.appendChild(el);
+      });
+      showEmailCanned();
+    }
+
+    function highlightEmailItem() {
+      dom.emailCannedDropdown.querySelectorAll('.canned-picker-item').forEach(function(el, i) {
+        el.classList.toggle('active', i === emailSelectedIdx);
+      });
+    }
+
+    function selectEmailCanned(cr) {
+      hideEmailCanned();
+      var bodyEl = document.getElementById('emailBody');
+      if (!bodyEl) return;
+      var content = renderEmailCannedContent(cr.content || '');
+      var curVal = bodyEl.value;
+      bodyEl.value = curVal ? curVal + '\n' + content : content;
+      bodyEl.focus();
+      Toast.info('Canned response inserted');
+      Api.post('/api/v1/tickets/canned-responses/' + cr.id + '/render/', { ticket_id: ticketId }).catch(function() {});
+    }
+
+    if (dom.emailCannedToggleBtn) {
+      dom.emailCannedToggleBtn.addEventListener('click', async function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (emailCannedVisible) { hideEmailCanned(); return; }
+        await fetchEmailCanned('');
+        emailSelectedIdx = -1;
+        renderEmailCannedDropdown(emailCanned);
+      });
+    }
+
+    var emailBodyEl = document.getElementById('emailBody');
+    if (emailBodyEl) {
+      emailBodyEl.addEventListener('keydown', function(e) {
+        if (!emailCannedVisible) return;
+        var items = dom.emailCannedDropdown.querySelectorAll('.canned-picker-item');
+        if (e.key === 'ArrowDown') { e.preventDefault(); emailSelectedIdx = Math.min(emailSelectedIdx + 1, items.length - 1); highlightEmailItem(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); emailSelectedIdx = Math.max(emailSelectedIdx - 1, 0); highlightEmailItem(); }
+        else if (e.key === 'Enter' && emailSelectedIdx >= 0) { e.preventDefault(); if (emailCanned[emailSelectedIdx]) selectEmailCanned(emailCanned[emailSelectedIdx]); }
+        else if (e.key === 'Escape') { e.preventDefault(); hideEmailCanned(); }
+      });
+    }
+
+    document.addEventListener('click', function(e) {
+      if (emailCannedVisible && !dom.emailCannedDropdown.contains(e.target) && e.target !== dom.emailCannedToggleBtn && !dom.emailCannedToggleBtn.contains(e.target)) {
+        hideEmailCanned();
+      }
+    });
+  })();
 
   /* Link Email modal */
   var linkEmailModal = null;
@@ -1825,7 +2524,620 @@ window.dispatchEvent(new Event('tiptap-ready'));
   });
 
   /* ── Init ── */
+  // ─── Macros ──────────────────────────────────────────────────
+  var macroDropdown = document.getElementById('macroDropdown');
+  var macroBtn = document.getElementById('macroBtn');
+  var macroSearch = document.getElementById('macroSearch');
+  var macroListEl = document.getElementById('macroList');
+  var macrosCache = [];
+
+  if (macroBtn) {
+    macroBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var visible = macroDropdown.style.display !== 'none';
+      macroDropdown.style.display = visible ? 'none' : 'block';
+      if (!visible) {
+        loadMacros();
+        setTimeout(function() { macroSearch.focus(); }, 50);
+      }
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!macroDropdown.contains(e.target) && e.target !== macroBtn) {
+        macroDropdown.style.display = 'none';
+      }
+    });
+
+    macroSearch.addEventListener('input', function() {
+      renderMacroList(this.value.toLowerCase());
+    });
+  }
+
+  function loadMacros() {
+    Api.get('/api/v1/tickets/macros/').then(function(data) {
+      macrosCache = data.results || data;
+      renderMacroList('');
+    }).catch(function() {
+      macroListEl.textContent = 'Failed to load macros';
+    });
+  }
+
+  function renderMacroList(filter) {
+    macroListEl.textContent = '';
+    var filtered = macrosCache.filter(function(m) {
+      return !filter || m.name.toLowerCase().indexOf(filter) !== -1;
+    });
+    if (!filtered.length) {
+      var empty = document.createElement('span');
+      empty.className = 'text-muted small px-2';
+      empty.textContent = filter ? 'No matching macros' : 'No macros available';
+      macroListEl.appendChild(empty);
+      return;
+    }
+    filtered.forEach(function(macro) {
+      var item = document.createElement('div');
+      item.className = 'p-2 rounded cursor-pointer macro-item';
+      item.style.cssText = 'cursor:pointer;';
+      item.addEventListener('mouseenter', function() { this.style.background = 'var(--bs-tertiary-bg)'; });
+      item.addEventListener('mouseleave', function() { this.style.background = ''; });
+
+      var name = document.createElement('div');
+      name.className = 'fw-medium small';
+      name.textContent = macro.name;
+      item.appendChild(name);
+
+      if (macro.description) {
+        var desc = document.createElement('div');
+        desc.className = 'text-muted' ;
+        desc.style.fontSize = '0.7rem';
+        desc.textContent = macro.description;
+        item.appendChild(desc);
+      }
+
+      if (macro.actions && macro.actions.length) {
+        var acts = document.createElement('div');
+        acts.className = 'mt-1';
+        macro.actions.forEach(function(a) {
+          var badge = document.createElement('span');
+          badge.className = 'badge bg-secondary me-1';
+          badge.style.fontSize = '0.6rem';
+          badge.textContent = a.action + ': ' + a.value;
+          acts.appendChild(badge);
+        });
+        item.appendChild(acts);
+      }
+
+      var btnRow = document.createElement('div');
+      btnRow.className = 'mt-1 d-flex gap-1';
+
+      var insertBtn = document.createElement('button');
+      insertBtn.type = 'button';
+      insertBtn.className = 'btn btn-sm btn-outline-primary py-0 px-2';
+      insertBtn.style.fontSize = '0.7rem';
+      insertBtn.textContent = 'Insert body';
+      insertBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        insertMacroBody(macro);
+      });
+      btnRow.appendChild(insertBtn);
+
+      var applyBtn = document.createElement('button');
+      applyBtn.type = 'button';
+      applyBtn.className = 'btn btn-sm btn-primary py-0 px-2';
+      applyBtn.style.fontSize = '0.7rem';
+      applyBtn.textContent = 'Apply & Send';
+      applyBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        applyMacro(macro);
+      });
+      btnRow.appendChild(applyBtn);
+
+      item.appendChild(btnRow);
+      macroListEl.appendChild(item);
+    });
+  }
+
+  function insertMacroBody(macro) {
+    // Simple variable substitution preview (client-side best-effort)
+    var body = macro.body || '';
+    if (currentTicket) {
+      body = body.replace(/\{\{ticket\.number\}\}/g, currentTicket.number || '');
+      body = body.replace(/\{\{ticket\.subject\}\}/g, currentTicket.subject || '');
+    }
+    // Insert into the comment editor
+    var editor = document.getElementById('commentBodyEditor');
+    if (editor) {
+      var editable = editor.querySelector('[contenteditable]') || editor;
+      editable.focus();
+      document.execCommand('insertText', false, body);
+    }
+    macroDropdown.style.display = 'none';
+  }
+
+  function applyMacro(macro) {
+    if (!ticketId) return;
+    macroDropdown.style.display = 'none';
+    Api.post('/api/v1/tickets/tickets/' + ticketId + '/apply_macro/' + macro.id + '/').then(function(result) {
+      Toast.success("Macro '" + macro.name + "' applied");
+      loadComments();
+      loadActivity();
+      // Refresh ticket to reflect status/priority changes
+      Api.get('/api/v1/tickets/tickets/' + ticketId + '/').then(function(t) {
+        currentTicket = t;
+        renderTicket(t);
+      });
+    }).catch(function(err) {
+      Toast.error((err && err.detail) || 'Failed to apply macro');
+    });
+  }
+
+  // ─── Requester Context ───────────────────────────────────────
+  function loadRequesterContext() {
+    if (!currentTicket || !currentTicket.contact) return;
+    var contactId = typeof currentTicket.contact === 'object' ? currentTicket.contact.id : currentTicket.contact;
+    if (!contactId) return;
+    var section = document.getElementById('requesterSection');
+    section.style.display = '';
+
+    var url = '/api/v1/contacts/contacts/' + contactId + '/context/?exclude_ticket=' + encodeURIComponent(ticketId);
+    Api.get(url).then(function(data) {
+      renderRequesterContext(data);
+    }).catch(function() {
+      document.getElementById('requesterContext').textContent = '';
+      var err = document.createElement('span');
+      err.className = 'text-muted small';
+      err.textContent = 'Could not load requester history';
+      document.getElementById('requesterContext').appendChild(err);
+    });
+  }
+
+  function renderRequesterContext(data) {
+    var container = document.getElementById('requesterContext');
+    container.textContent = '';
+
+    // Contact summary
+    var contact = data.contact;
+    var stats = data.stats;
+
+    // Bouncing warning
+    if (contact.email_bouncing) {
+      var warn = document.createElement('div');
+      warn.className = 'alert alert-danger py-1 px-2 mb-2 small d-flex align-items-center gap-1';
+      var icon = document.createElement('i');
+      icon.className = 'ti ti-alert-triangle';
+      warn.appendChild(icon);
+      var warnText = document.createTextNode(' Email bouncing');
+      warn.appendChild(warnText);
+      container.appendChild(warn);
+    }
+
+    // Stats row
+    var statsRow = document.createElement('div');
+    statsRow.className = 'd-flex gap-3 mb-2 small';
+
+    var items = [
+      { label: 'Total', value: stats.total_tickets },
+      { label: 'Open', value: stats.open_tickets },
+      { label: 'Avg CSAT', value: stats.avg_csat !== null ? stats.avg_csat.toFixed(1) : '—' },
+    ];
+
+    items.forEach(function(item) {
+      var col = document.createElement('div');
+      col.className = 'text-center';
+      var val = document.createElement('div');
+      val.className = 'fw-bold';
+      val.textContent = item.value;
+      var lbl = document.createElement('div');
+      lbl.className = 'text-muted';
+      lbl.style.fontSize = '0.7rem';
+      lbl.textContent = item.label;
+      col.appendChild(val);
+      col.appendChild(lbl);
+      statsRow.appendChild(col);
+    });
+    container.appendChild(statsRow);
+
+    // Recent tickets
+    if (data.recent_tickets.length === 0) {
+      var empty = document.createElement('span');
+      empty.className = 'text-muted small';
+      empty.textContent = 'No other tickets';
+      container.appendChild(empty);
+      return;
+    }
+
+    var listLabel = document.createElement('div');
+    listLabel.className = 'text-muted small mb-1';
+    listLabel.textContent = 'Recent tickets';
+    container.appendChild(listLabel);
+
+    data.recent_tickets.forEach(function(t) {
+      var row = document.createElement('a');
+      row.href = '/tickets/' + encodeURIComponent(t.number) + '/';
+      row.className = 'd-flex align-items-center gap-2 py-1 text-decoration-none small border-bottom';
+
+      var numSpan = document.createElement('span');
+      numSpan.className = 'fw-medium';
+      numSpan.textContent = '#' + t.number;
+      row.appendChild(numSpan);
+
+      var subjSpan = document.createElement('span');
+      subjSpan.className = 'text-truncate text-body';
+      subjSpan.style.maxWidth = '120px';
+      subjSpan.textContent = t.subject;
+      row.appendChild(subjSpan);
+
+      if (t.status) {
+        var badge = document.createElement('span');
+        badge.className = 'badge ms-auto';
+        badge.style.cssText = 'font-size:0.6rem;background:' + (t.status_color || '#6c757d') + '20;color:' + (t.status_color || '#6c757d');
+        badge.textContent = t.status;
+        row.appendChild(badge);
+      }
+
+      container.appendChild(row);
+    });
+  }
+
+  // ─── Ticket Presence ──────────────────────────────────────────
+  var presence = (function() {
+    var ws = null;
+    var agents = {};  // user_id → {display_name, avatar_initials}
+    var myUserId = '{{ request.user.pk }}';
+    var retryDelay = 1000;
+    var maxRetry = 30000;
+    var heartbeatTimer = null;
+    var closed = false;
+
+    function connect() {
+      if (closed || !ticketId) return;
+      var proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      var url = proto + '//' + location.host + '/ws/tickets/' + ticketId + '/presence/';
+      ws = new WebSocket(url);
+
+      ws.onopen = function() {
+        retryDelay = 1000;
+        heartbeatTimer = setInterval(function() {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'heartbeat' }));
+          }
+        }, 30000);
+      };
+
+      ws.onmessage = function(e) {
+        var data;
+        try { data = JSON.parse(e.data); } catch (_) { return; }
+        if (data.type === 'agent_joined') {
+          agents[data.user_id] = { display_name: data.display_name, avatar_initials: data.avatar_initials };
+          render();
+        } else if (data.type === 'agent_left') {
+          delete agents[data.user_id];
+          render();
+        }
+      };
+
+      ws.onclose = function(e) {
+        clearInterval(heartbeatTimer);
+        if (closed) return;
+        // Exponential backoff reconnect
+        setTimeout(function() {
+          retryDelay = Math.min(retryDelay * 2, maxRetry);
+          connect();
+        }, retryDelay);
+      };
+
+      ws.onerror = function() { /* onclose will handle reconnect */ };
+    }
+
+    function render() {
+      var bar = document.getElementById('presenceBar');
+      var avatarsEl = document.getElementById('presenceAvatars');
+      var warning = document.getElementById('presenceWarning');
+      var warningText = document.getElementById('presenceWarningText');
+
+      // Filter out self for display purposes
+      var others = [];
+      var allKeys = Object.keys(agents);
+      for (var i = 0; i < allKeys.length; i++) {
+        if (allKeys[i] !== myUserId) others.push(agents[allKeys[i]]);
+      }
+
+      if (others.length === 0) {
+        bar.classList.add('d-none');
+        return;
+      }
+
+      bar.classList.remove('d-none');
+      avatarsEl.textContent = '';
+
+      var maxShow = 3;
+      var shown = others.slice(0, maxShow);
+      for (var j = 0; j < shown.length; j++) {
+        var a = shown[j];
+        var bubble = document.createElement('span');
+        bubble.className = 'badge rounded-circle bg-primary text-white';
+        bubble.style.cssText = 'width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;font-size:0.7rem;margin-right:2px;';
+        bubble.textContent = a.avatar_initials;
+        bubble.title = a.display_name;
+        avatarsEl.appendChild(bubble);
+      }
+
+      if (others.length > maxShow) {
+        var more = document.createElement('span');
+        more.className = 'badge bg-secondary text-white small';
+        more.style.cssText = 'font-size:0.65rem;margin-left:2px;';
+        more.textContent = '+' + (others.length - maxShow) + ' more';
+        avatarsEl.appendChild(more);
+      }
+
+      // Warning text
+      warning.classList.remove('d-none');
+      if (others.length === 1) {
+        warningText.textContent = others[0].display_name + ' is also viewing this ticket';
+      } else {
+        warningText.textContent = others.length + ' other agents are also viewing this ticket';
+      }
+    }
+
+    function destroy() {
+      closed = true;
+      clearInterval(heartbeatTimer);
+      if (ws) { ws.close(); ws = null; }
+    }
+
+    // Start after ticket loads (ticketId is set in loadTicket)
+    var _origLoadTicket = loadTicket;
+    loadTicket = function() {
+      _origLoadTicket();
+      // Small delay to ensure ticketId is set from the response
+      setTimeout(function() { if (ticketId) connect(); }, 500);
+    };
+
+    window.addEventListener('beforeunload', destroy);
+
+    return { connect: connect, destroy: destroy };
+  })();
+
+  // ─── Split Ticket ─────────────────────────────────────────────
+  var splitBtn = document.getElementById('splitTicketBtn');
+  if (splitBtn) {
+    splitBtn.addEventListener('click', function() {
+      if (!ticketId) return;
+      var modal = new bootstrap.Modal(document.getElementById('splitTicketModal'));
+      // Populate comments
+      var list = document.getElementById('splitCommentList');
+      list.textContent = 'Loading...';
+      Api.get('/api/v1/tickets/tickets/' + ticketId + '/comments/').then(function(data) {
+        var comments = data.results || data;
+        list.textContent = '';
+        if (!comments.length) {
+          list.textContent = 'No comments to split.';
+          return;
+        }
+        comments.forEach(function(c) {
+          var wrap = document.createElement('div');
+          wrap.className = 'form-check py-1 border-bottom';
+          var cb = document.createElement('input');
+          cb.type = 'checkbox';
+          cb.className = 'form-check-input';
+          cb.value = c.id;
+          cb.id = 'split-c-' + c.id;
+          var lbl = document.createElement('label');
+          lbl.className = 'form-check-label small';
+          lbl.htmlFor = cb.id;
+          var author = c.author_name || 'Unknown';
+          var snippet = (c.body || '').substring(0, 80);
+          lbl.textContent = author + ': ' + snippet + (c.body && c.body.length > 80 ? '...' : '');
+          wrap.appendChild(cb);
+          wrap.appendChild(lbl);
+          list.appendChild(wrap);
+        });
+      });
+      // Populate queue select from existing loaded queues
+      var queueSelect = document.getElementById('splitQueue');
+      var sourceQueueOpts = document.getElementById('ticketQueueSelect');
+      if (sourceQueueOpts && queueSelect.options.length <= 1) {
+        for (var i = 0; i < sourceQueueOpts.options.length; i++) {
+          var opt = sourceQueueOpts.options[i].cloneNode(true);
+          queueSelect.appendChild(opt);
+        }
+      }
+      // Default priority from current ticket
+      if (currentTicket && currentTicket.priority) {
+        document.getElementById('splitPriority').value = currentTicket.priority;
+      }
+      modal.show();
+    });
+
+    document.getElementById('confirmSplitBtn').addEventListener('click', function() {
+      var checked = document.querySelectorAll('#splitCommentList input[type=checkbox]:checked');
+      if (!checked.length) { Toast.error('Select at least one comment.'); return; }
+      var commentIds = [];
+      checked.forEach(function(cb) { commentIds.push(cb.value); });
+      var subject = document.getElementById('splitSubject').value.trim();
+      if (!subject) { Toast.error('Subject is required.'); return; }
+      var payload = {
+        comment_ids: commentIds,
+        subject: subject,
+        priority: document.getElementById('splitPriority').value,
+      };
+      var queueVal = document.getElementById('splitQueue').value;
+      if (queueVal) payload.queue = queueVal;
+
+      var spinner = document.getElementById('splitSpinner');
+      spinner.classList.remove('d-none');
+
+      Api.post('/api/v1/tickets/tickets/' + ticketId + '/split/', payload).then(function(child) {
+        spinner.classList.add('d-none');
+        bootstrap.Modal.getInstance(document.getElementById('splitTicketModal')).hide();
+        Toast.success('Ticket split — #' + child.number + ' created');
+        loadComments();
+        loadLinkedTickets();
+        loadActivity();
+      }).catch(function(err) {
+        spinner.classList.add('d-none');
+        Toast.error((err && err.detail) || 'Failed to split ticket');
+      });
+    });
+  }
+
+  // ─── Linked Tickets ────────────────────────────────────────────
+  function loadLinkedTickets() {
+    if (!ticketId) return;
+    Api.get('/api/v1/tickets/tickets/' + ticketId + '/links/').then(function(data) {
+      var links = data.results || data;
+      renderLinkedTickets(links);
+    }).catch(function() { /* silently fail */ });
+  }
+
+  function renderLinkedTickets(links) {
+    var container = document.getElementById('linkedTicketsList');
+    if (!links || links.length === 0) {
+      container.textContent = '';
+      var hint = document.createElement('span');
+      hint.className = 'text-muted small';
+      hint.textContent = 'No linked tickets';
+      container.appendChild(hint);
+      return;
+    }
+    container.textContent = '';
+    var badgeColors = { duplicate_of: 'secondary', related_to: 'info', blocks: 'warning', blocked_by: 'danger' };
+    links.forEach(function(link) {
+      var isSource = link.source_ticket === ticketId;
+      var otherNumber = isSource ? link.target_ticket_number : link.source_ticket_number;
+      var otherSubject = isSource ? link.target_ticket_subject : link.source_ticket_subject;
+      var otherPk = isSource ? link.target_ticket : link.source_ticket;
+
+      var row = document.createElement('div');
+      row.className = 'd-flex align-items-center gap-2 py-1 small';
+
+      var badge = document.createElement('span');
+      badge.className = 'badge bg-' + (badgeColors[link.link_type] || 'secondary');
+      badge.textContent = link.link_type_display;
+      row.appendChild(badge);
+
+      var a = document.createElement('a');
+      a.href = '/tickets/' + encodeURIComponent(otherNumber) + '/';
+      a.textContent = '#' + otherNumber;
+      a.className = 'fw-medium';
+      row.appendChild(a);
+
+      var subj = document.createElement('span');
+      subj.className = 'text-muted text-truncate';
+      subj.style.maxWidth = '120px';
+      subj.textContent = otherSubject || '';
+      row.appendChild(subj);
+
+      container.appendChild(row);
+    });
+  }
+
+  document.getElementById('addLinkBtn').addEventListener('click', function() {
+    var targetNum = prompt('Enter the ticket number to link:');
+    if (!targetNum) return;
+    var linkType = prompt('Link type (related_to, duplicate_of, blocks, blocked_by):', 'related_to');
+    if (!linkType) return;
+    // Look up the target ticket by number
+    Api.get('/api/v1/tickets/tickets/?number=' + encodeURIComponent(targetNum)).then(function(data) {
+      var match = (data.results && data.results[0]) || (Array.isArray(data) && data[0]);
+      if (!match) { Toast.error('Ticket #' + targetNum + ' not found.'); return; }
+      return Api.post('/api/v1/tickets/tickets/' + ticketId + '/links/', {
+        target: match.id,
+        link_type: linkType,
+      });
+    }).then(function(result) {
+      if (result) { Toast.success('Ticket linked'); loadLinkedTickets(); }
+    }).catch(function(err) {
+      Toast.error((err && err.detail) || 'Failed to link ticket');
+    });
+  });
+
   loadStatuses();
+  /* ============================================================
+     Contact Detail Slide Panel
+     ============================================================ */
+  var CPANEL_AVATAR_COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  function cpAvatarColor(name) { if (!name) return CPANEL_AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return CPANEL_AVATAR_COLORS[Math.abs(h) % CPANEL_AVATAR_COLORS.length]; }
+
+  window.TicketContactPanel = {
+    panel: document.getElementById('contactDetailPanel'),
+    overlay: document.getElementById('contactDetailOverlay'),
+
+    open: function(contactId) {
+      document.getElementById('contactPanelLoading').classList.remove('d-none');
+      document.getElementById('contactPanelContent').classList.add('d-none');
+      this.panel.classList.add('open');
+      this.overlay.classList.add('active');
+
+      var self = this;
+      Api.get('/api/v1/contacts/contacts/' + contactId + '/').then(function(c) {
+        self.render(c);
+      }).catch(function() {
+        var el = document.getElementById('contactPanelLoading');
+        el.textContent = '';
+        var err = document.createElement('div');
+        err.className = 'text-danger text-center';
+        err.textContent = 'Failed to load contact';
+        el.appendChild(err);
+      });
+    },
+
+    render: function(c) {
+      var fn = ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || 'Unnamed';
+      var ini = fn.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
+      var bgColor = cpAvatarColor(fn);
+
+      document.getElementById('panelContactName').textContent = fn;
+      document.getElementById('cpFullName').textContent = fn;
+      document.getElementById('cpAvatar').textContent = ini;
+      document.getElementById('cpAvatar').style.background = 'linear-gradient(135deg, ' + bgColor + ', ' + bgColor + 'cc)';
+
+      var compName = c.company ? (typeof c.company === 'object' ? c.company.name : '') : '';
+      document.getElementById('cpJobTitle').textContent = c.job_title || compName || 'No title';
+
+      var emailEl = document.getElementById('cpEmail');
+      if (c.email) { emailEl.href = 'mailto:' + c.email; emailEl.textContent = c.email; }
+      else { emailEl.removeAttribute('href'); emailEl.textContent = '--'; }
+
+      document.getElementById('cpPhone').textContent = c.phone || '--';
+      document.getElementById('cpCompany').textContent = compName || '--';
+      document.getElementById('cpSource').textContent = c.source ? c.source.charAt(0).toUpperCase() + c.source.slice(1) : '--';
+
+      var badge = document.getElementById('cpStatusBadge');
+      if (c.is_active !== false) { badge.textContent = 'Active'; badge.classList.remove('inactive'); }
+      else { badge.textContent = 'Inactive'; badge.classList.add('inactive'); }
+
+      var notesSection = document.getElementById('cpNotesSection');
+      if (c.notes && c.notes.trim()) { notesSection.style.display = ''; document.getElementById('cpNotes').textContent = c.notes; }
+      else { notesSection.style.display = 'none'; }
+
+      var groupsSection = document.getElementById('cpGroupsSection');
+      var groups = c.groups || [];
+      if (groups.length > 0) {
+        groupsSection.style.display = '';
+        var gc = document.getElementById('cpGroups');
+        gc.textContent = '';
+        groups.forEach(function(g) { var t = document.createElement('span'); t.className = 'cpanel-group-tag'; t.textContent = g.name; gc.appendChild(t); });
+      } else { groupsSection.style.display = 'none'; }
+
+      document.getElementById('cpCreated').textContent = c.created_at ? Kanzan.formatDateTime(c.created_at) : '--';
+      document.getElementById('cpUpdated').textContent = c.updated_at ? Kanzan.formatDateTime(c.updated_at) : '--';
+      document.getElementById('cpViewBtn').href = '/contacts/' + c.id + '/';
+
+      document.getElementById('contactPanelLoading').classList.add('d-none');
+      document.getElementById('contactPanelContent').classList.remove('d-none');
+    },
+
+    close: function() {
+      this.panel.classList.remove('open');
+      this.overlay.classList.remove('active');
+    }
+  };
+
+  document.getElementById('closeContactPanel').addEventListener('click', function() { TicketContactPanel.close(); });
+  document.getElementById('contactDetailOverlay').addEventListener('click', function() { TicketContactPanel.close(); });
+  document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && TicketContactPanel.panel.classList.contains('open')) TicketContactPanel.close(); });
+
   loadUsers();
   loadQueues();
   loadCategories();

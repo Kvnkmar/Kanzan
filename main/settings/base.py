@@ -1,6 +1,8 @@
 from pathlib import Path
 from datetime import timedelta
 
+from celery.schedules import crontab
+
 import environ
 
 env = environ.Env()
@@ -44,6 +46,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.postgres",
     # Third-party
     "rest_framework",
     "rest_framework_simplejwt",
@@ -78,6 +81,7 @@ INSTALLED_APPS = [
     "apps.knowledge",
     "apps.notes",
     "apps.inbound_email",
+    "apps.crm",
 ]
 
 MIDDLEWARE = [
@@ -114,7 +118,6 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "main.wsgi.application"
 ASGI_APPLICATION = "main.asgi.application"
 
 # Database
@@ -284,6 +287,22 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.tickets.tasks.check_overdue_tickets",
         "schedule": 900.0,  # Every 15 minutes
     },
+    "calculate-lead-scores": {
+        "task": "apps.crm.tasks.calculate_lead_scores",
+        "schedule": 86400.0,  # Daily (nightly)
+    },
+    "calculate-account-health-scores": {
+        "task": "apps.crm.tasks.calculate_account_health_scores",
+        "schedule": 86400.0,  # Daily (nightly)
+    },
+    "kb-stale-alert": {
+        "task": "knowledge_base.alert_stale_articles",
+        "schedule": crontab(hour=8, minute=0),
+    },
+    "kb-gap-digest": {
+        "task": "knowledge_base.send_gap_digest",
+        "schedule": crontab(day_of_week="monday", hour=9, minute=0),
+    },
 }
 
 # Stripe
@@ -393,6 +412,9 @@ JAZZMIN_SETTINGS = {
         "tickets.TicketStatus": "fas fa-traffic-light",
         "tickets.Queue": "fas fa-layer-group",
         "tickets.SLAPolicy": "fas fa-clock",
+        "tickets.BusinessHours": "fas fa-business-time",
+        "tickets.PublicHoliday": "fas fa-calendar-day",
+        "tickets.SLAPause": "fas fa-pause-circle",
         "contacts.Contact": "fas fa-address-book",
         "contacts.Company": "fas fa-briefcase",
         "contacts.ContactGroup": "fas fa-tags",

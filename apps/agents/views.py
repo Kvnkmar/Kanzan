@@ -21,6 +21,8 @@ from apps.agents.serializers import (
     AgentWorkloadSerializer,
 )
 from apps.agents.services import update_ticket_count
+from apps.notifications.models import NotificationType
+from apps.notifications.services import send_notification
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +53,39 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
         serializer.save(user=self.request.user)
 
     # ------------------------------------------------------------------
+    # Helpers
+    # ------------------------------------------------------------------
+
+    def _notify_status_change(self, user, tenant, old_status, new_status):
+        """Notify all other tenant members when an agent changes status."""
+        if old_status == new_status:
+            return
+
+        from apps.accounts.models import TenantMembership
+
+        display_name = user.get_full_name() or user.email
+        old_display = dict(AgentStatus.choices).get(old_status, old_status)
+        new_display = dict(AgentStatus.choices).get(new_status, new_status)
+
+        members = TenantMembership.objects.filter(
+            tenant=tenant, is_active=True,
+        ).exclude(user=user).select_related("user")
+
+        for membership in members:
+            send_notification(
+                tenant=tenant,
+                recipient=membership.user,
+                notification_type=NotificationType.AGENT_STATUS_CHANGE,
+                title=f"{display_name} is now {new_display}",
+                body=f"Status changed from {old_display} to {new_display}",
+                data={
+                    "user_id": str(user.id),
+                    "old_status": old_status,
+                    "new_status": new_status,
+                },
+            )
+
+    # ------------------------------------------------------------------
     # Custom actions
     # ------------------------------------------------------------------
 
@@ -78,6 +113,10 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
             agent.user.email,
             old_status,
             new_status,
+        )
+
+        self._notify_status_change(
+            agent.user, request.tenant, old_status, new_status,
         )
 
         return Response(
@@ -122,8 +161,13 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
                 new_status,
             )
 
+            self._notify_status_change(
+                request.user, request.tenant, old_status, new_status,
+            )
+
         elif request.method == "PATCH":
             update_fields = ["updated_at"]
+            old_status = agent.status
             if "max_concurrent_tickets" in request.data:
                 val = int(request.data["max_concurrent_tickets"])
                 agent.max_concurrent_tickets = max(1, min(val, 50))
@@ -142,6 +186,11 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
                 agent.auto_away_outside_hours = bool(request.data["auto_away_outside_hours"])
                 update_fields.append("auto_away_outside_hours")
             agent.save(update_fields=update_fields)
+
+            if "status" in request.data:
+                self._notify_status_change(
+                    request.user, request.tenant, old_status, agent.status,
+                )
 
         return Response(
             AgentAvailabilitySerializer(agent, context={"request": request}).data,

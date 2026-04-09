@@ -2,142 +2,316 @@
 {% block title %}Settings - Kanzen Suite{% endblock %}
 
 {% block content %}
-<div class="st-layout">
-  <!-- Settings Navigation (left) -->
+<div class="st-layout st-layout--hub">
+  <!-- Settings Sidebar (category-level) -->
   <div class="st-sidebar">
     <nav class="st-nav">
+      <a href="javascript:void(0)" class="st-nav-item st-nav-cat active" data-category="all" onclick="settingsHub.scrollToCategory('all')">
+        <div class="st-nav-icon"><i class="ti ti-home"></i></div>
+        <div class="st-nav-text"><span class="st-nav-name">All Settings</span></div>
+      </a>
       {% if is_admin %}
-      <div class="st-nav-group">
-        <div class="st-nav-label">Workspace <span class="st-admin-badge"><i class="ti ti-shield-lock"></i> Admin</span></div>
-        <a href="javascript:void(0)" class="st-nav-item active" id="nav_generalPane" onclick="switchSettingsTab('generalPane')">
-          <div class="st-nav-icon"><i class="ti ti-settings"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">General</span>
-            <span class="st-nav-hint">Name, timezone, date format</span>
-          </div>
-        </a>
-        <a href="javascript:void(0)" class="st-nav-item" id="nav_businessHoursPane" onclick="switchSettingsTab('businessHoursPane')">
-          <div class="st-nav-icon"><i class="ti ti-clock"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Business Hours</span>
-            <span class="st-nav-hint">Schedule &amp; availability</span>
-          </div>
-        </a>
-        <a href="javascript:void(0)" class="st-nav-item" id="nav_authPane" onclick="switchSettingsTab('authPane')">
-          <div class="st-nav-icon"><i class="ti ti-shield-lock"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Authentication</span>
-            <span class="st-nav-hint">SSO &amp; login methods</span>
-          </div>
-        </a>
-        <a href="javascript:void(0)" class="st-nav-item" id="nav_brandingPane" onclick="switchSettingsTab('brandingPane')">
-          <div class="st-nav-icon"><i class="ti ti-palette"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Branding</span>
-            <span class="st-nav-hint">Logo, colors &amp; theme</span>
-          </div>
-        </a>
-      </div>
+      <a href="javascript:void(0)" class="st-nav-item st-nav-cat" data-category="workspace" onclick="settingsHub.scrollToCategory('workspace')">
+        <div class="st-nav-icon"><i class="ti ti-building"></i></div>
+        <div class="st-nav-text"><span class="st-nav-name">Workspace</span></div>
+      </a>
       {% endif %}
-
-      <div class="st-nav-group">
-        <div class="st-nav-label">Preferences</div>
-        <a href="javascript:void(0)" class="st-nav-item {% if not is_admin %}active{% endif %}" id="nav_notificationsPane" onclick="switchSettingsTab('notificationsPane')">
-          <div class="st-nav-icon"><i class="ti ti-bell"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Notifications</span>
-            <span class="st-nav-hint">Alerts &amp; email prefs</span>
-          </div>
-        </a>
-        <a href="javascript:void(0)" class="st-nav-item" id="nav_cannedResponsesPane" onclick="switchSettingsTab('cannedResponsesPane')">
-          <div class="st-nav-icon"><i class="ti ti-message-chatbot"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Canned Responses</span>
-            <span class="st-nav-hint">Quick reply templates</span>
-          </div>
-        </a>
-        <a href="javascript:void(0)" class="st-nav-item" id="nav_availabilityPane" onclick="switchSettingsTab('availabilityPane')">
-          <div class="st-nav-icon"><i class="ti ti-clock-check"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Availability & Status</span>
-            <span class="st-nav-hint">Online status &amp; hours</span>
-          </div>
-        </a>
-        <a href="javascript:void(0)" class="st-nav-item" id="nav_themePane" onclick="switchSettingsTab('themePane')">
-          <div class="st-nav-icon"><i class="ti ti-sun-moon"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Theme & Appearance</span>
-            <span class="st-nav-hint">Display preferences</span>
-          </div>
-        </a>
-        <a href="javascript:void(0)" class="st-nav-item" id="nav_languagePane" onclick="switchSettingsTab('languagePane')">
-          <div class="st-nav-icon"><i class="ti ti-language"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Language & Timezone</span>
-            <span class="st-nav-hint">Regional settings</span>
-          </div>
-        </a>
-      </div>
-
-      <div class="st-nav-group">
-        <div class="st-nav-label">Content</div>
-        {% if is_admin_or_manager %}
-        <a href="javascript:void(0)" class="st-nav-item" id="nav_categoriesPane" onclick="switchSettingsTab('categoriesPane')">
-          <div class="st-nav-icon"><i class="ti ti-tag"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Ticket Categories</span>
-            <span class="st-nav-hint">Organize ticket types</span>
-          </div>
-        </a>
-        {% endif %}
-        <a href="javascript:void(0)" class="st-nav-item" id="nav_knowledgeBasePane" onclick="switchSettingsTab('knowledgeBasePane')">
-          <div class="st-nav-icon"><i class="ti ti-book"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Knowledge Base</span>
-            <span class="st-nav-hint">Articles &amp; resources</span>
-          </div>
-        </a>
-        <a href="javascript:void(0)" class="st-nav-item" id="nav_signaturePane" onclick="switchSettingsTab('signaturePane')">
-          <div class="st-nav-icon"><i class="ti ti-signature"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Email Signature</span>
-            <span class="st-nav-hint">Reply signature</span>
-          </div>
-        </a>
-      </div>
-
-      <div class="st-nav-group">
-        <div class="st-nav-label">Security</div>
-        <a href="javascript:void(0)" class="st-nav-item" id="nav_passwordPane" onclick="switchSettingsTab('passwordPane')">
-          <div class="st-nav-icon"><i class="ti ti-lock"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Password & Login</span>
-            <span class="st-nav-hint">Change password</span>
-          </div>
-        </a>
-      </div>
-
-      {% if is_admin %}
-      <div class="st-nav-group">
-        <div class="st-nav-label">Advanced <span class="st-admin-badge"><i class="ti ti-shield-lock"></i> Admin</span></div>
-        <a href="javascript:void(0)" class="st-nav-item" id="nav_dataPane" onclick="switchSettingsTab('dataPane')">
-          <div class="st-nav-icon"><i class="ti ti-database"></i></div>
-          <div class="st-nav-text">
-            <span class="st-nav-name">Data Management</span>
-            <span class="st-nav-hint">Export &amp; cleanup</span>
-          </div>
-        </a>
-      </div>
+      <a href="javascript:void(0)" class="st-nav-item st-nav-cat" data-category="team" onclick="settingsHub.scrollToCategory('team')">
+        <div class="st-nav-icon"><i class="ti ti-users-group"></i></div>
+        <div class="st-nav-text"><span class="st-nav-name">Team</span></div>
+      </a>
+      <a href="javascript:void(0)" class="st-nav-item st-nav-cat" data-category="channels" onclick="settingsHub.scrollToCategory('channels')">
+        <div class="st-nav-icon"><i class="ti ti-send"></i></div>
+        <div class="st-nav-text"><span class="st-nav-name">Channels</span></div>
+      </a>
+      {% if is_admin_or_manager %}
+      <a href="javascript:void(0)" class="st-nav-item st-nav-cat" data-category="support" onclick="settingsHub.scrollToCategory('support')">
+        <div class="st-nav-icon"><i class="ti ti-headset"></i></div>
+        <div class="st-nav-text"><span class="st-nav-name">Support Operations</span></div>
+      </a>
       {% endif %}
+      <a href="javascript:void(0)" class="st-nav-item st-nav-cat" data-category="productivity" onclick="settingsHub.scrollToCategory('productivity')">
+        <div class="st-nav-icon"><i class="ti ti-rocket"></i></div>
+        <div class="st-nav-text"><span class="st-nav-name">Productivity</span></div>
+      </a>
+      <a href="javascript:void(0)" class="st-nav-item st-nav-cat" data-category="preferences" onclick="settingsHub.scrollToCategory('preferences')">
+        <div class="st-nav-icon"><i class="ti ti-adjustments-alt"></i></div>
+        <div class="st-nav-text"><span class="st-nav-name">Preferences</span></div>
+      </a>
+      <a href="javascript:void(0)" class="st-nav-item st-nav-cat" data-category="account" onclick="settingsHub.scrollToCategory('account')">
+        <div class="st-nav-icon"><i class="ti ti-user-cog"></i></div>
+        <div class="st-nav-text"><span class="st-nav-name">Account</span></div>
+      </a>
     </nav>
   </div>
 
-  <!-- Settings Content (right) -->
+  <!-- Settings Content -->
   <div class="st-content">
-    <div class="settings-panes">
+    <!-- Hub View (card grid) -->
+    <div class="st-hub" id="settingsHub">
+      <!-- Search Bar -->
+      <div class="st-hub-search">
+        <i class="ti ti-search st-hub-search-icon"></i>
+        <input type="text" class="st-hub-search-input" id="settingsSearchInput" placeholder="Search settings" autocomplete="off">
+      </div>
+
+      <!-- Recently Accessed -->
+      <div class="st-hub-category" id="hubRecent" data-cat="recent">
+        <div class="st-hub-category-header">
+          <h3 class="st-hub-category-title">Recent</h3>
+        </div>
+        <div class="st-hub-cards" id="hubRecentCards"></div>
+      </div>
+
+      {% if is_admin %}
+      <!-- Workspace -->
+      <div class="st-hub-category" data-cat="workspace">
+        <div class="st-hub-category-header">
+          <h3 class="st-hub-category-title">Workspace</h3>
+          <span class="st-hub-badge"><i class="ti ti-shield-lock"></i> Admin</span>
+        </div>
+        <div class="st-hub-cards">
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="generalPane" data-search="general workspace name timezone date format">
+            <div class="st-hub-card-icon"><i class="ti ti-settings"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">General</div>
+              <div class="st-hub-card-desc">Workspace name, timezone, and regional preferences</div>
+            </div>
+          </a>
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="businessHoursPane" data-search="business hours schedule availability holidays sla pause">
+            <div class="st-hub-card-icon"><i class="ti ti-clock"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Business Hours</div>
+              <div class="st-hub-card-desc">Working hours, holidays, and SLA pause statuses</div>
+            </div>
+          </a>
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="authPane" data-search="authentication sso login sign in oauth saml openid">
+            <div class="st-hub-card-icon"><i class="ti ti-shield-lock"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Authentication</div>
+              <div class="st-hub-card-desc">SSO, OAuth, and login method configuration</div>
+            </div>
+          </a>
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="brandingPane" data-search="branding logo colors theme accent primary palette">
+            <div class="st-hub-card-icon"><i class="ti ti-palette"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Branding</div>
+              <div class="st-hub-card-desc">Logo, color scheme, and visual identity</div>
+            </div>
+          </a>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Team -->
+      <div class="st-hub-category" data-cat="team">
+        <div class="st-hub-category-header">
+          <h3 class="st-hub-category-title">Team</h3>
+        </div>
+        <div class="st-hub-cards">
+          {% if is_admin_or_manager %}
+          <a href="/users/" class="st-hub-card" data-search="users members team roles invite">
+            <div class="st-hub-card-icon"><i class="ti ti-users"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Users</div>
+              <div class="st-hub-card-desc">Manage team members, roles, and invitations</div>
+            </div>
+            <i class="ti ti-external-link st-hub-card-ext"></i>
+          </a>
+          {% endif %}
+          <a href="/agents/" class="st-hub-card" data-search="agents availability status online offline">
+            <div class="st-hub-card-icon"><i class="ti ti-headset"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Agents</div>
+              <div class="st-hub-card-desc">Agent availability, workload, and status management</div>
+            </div>
+            <i class="ti ti-external-link st-hub-card-ext"></i>
+          </a>
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="availabilityPane" data-search="availability status online away busy offline working hours">
+            <div class="st-hub-card-icon"><i class="ti ti-clock-check"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">My Availability</div>
+              <div class="st-hub-card-desc">Set your online status and working hours schedule</div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Channels -->
+      <div class="st-hub-category" data-cat="channels">
+        <div class="st-hub-category-header">
+          <h3 class="st-hub-category-title">Channels</h3>
+        </div>
+        <div class="st-hub-cards">
+          <a href="/inbound-email/" class="st-hub-card" data-search="inbound email channel webhook sendgrid mailgun">
+            <div class="st-hub-card-icon"><i class="ti ti-mail-forward"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Email</div>
+              <div class="st-hub-card-desc">Inbound email processing and ticket creation</div>
+            </div>
+            <i class="ti ti-external-link st-hub-card-ext"></i>
+          </a>
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="signaturePane" data-search="email signature reply template agent">
+            <div class="st-hub-card-icon"><i class="ti ti-signature"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Email Signature</div>
+              <div class="st-hub-card-desc">Customize the signature appended to ticket replies</div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      {% if is_admin_or_manager %}
+      <!-- Support Operations -->
+      <div class="st-hub-category" data-cat="support">
+        <div class="st-hub-category-header">
+          <h3 class="st-hub-category-title">Support Operations</h3>
+          {% if is_admin %}<span class="st-hub-badge"><i class="ti ti-shield-lock"></i> Admin</span>{% endif %}
+        </div>
+        <div class="st-hub-cards">
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="categoriesPane" data-search="ticket categories organize types bug feature request">
+            <div class="st-hub-card-icon"><i class="ti ti-tag"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Ticket Categories</div>
+              <div class="st-hub-card-desc">Define and organize ticket classification types</div>
+            </div>
+          </a>
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="knowledgeBasePane" data-search="knowledge base articles categories documentation help">
+            <div class="st-hub-card-icon"><i class="ti ti-book"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Knowledge Base</div>
+              <div class="st-hub-card-desc">Manage help articles, categories, and documentation</div>
+            </div>
+          </a>
+          {% if is_admin %}
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="workflowPane" data-search="workflow automation assign transition status open in progress">
+            <div class="st-hub-card-icon"><i class="ti ti-arrows-transfer-down"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Workflow</div>
+              <div class="st-hub-card-desc">Assignment behaviour and status transition rules</div>
+            </div>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Productivity -->
+      <div class="st-hub-category" data-cat="productivity">
+        <div class="st-hub-category-header">
+          <h3 class="st-hub-category-title">Productivity</h3>
+        </div>
+        <div class="st-hub-cards">
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="cannedResponsesPane" data-search="canned responses quick reply templates shortcuts macros">
+            <div class="st-hub-card-icon"><i class="ti ti-message-chatbot"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Canned Responses</div>
+              <div class="st-hub-card-desc">Pre-written reply templates with shortcut triggers</div>
+            </div>
+          </a>
+          {% if not is_admin_or_manager %}
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="knowledgeBasePane" data-search="knowledge base articles documentation help">
+            <div class="st-hub-card-icon"><i class="ti ti-book"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Knowledge Base</div>
+              <div class="st-hub-card-desc">Browse published articles and resources</div>
+            </div>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Preferences -->
+      <div class="st-hub-category" data-cat="preferences">
+        <div class="st-hub-category-header">
+          <h3 class="st-hub-category-title">Preferences</h3>
+        </div>
+        <div class="st-hub-cards">
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="notificationsPane" data-search="notifications alerts email in-app quiet hours dnd">
+            <div class="st-hub-card-icon"><i class="ti ti-bell"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Notifications</div>
+              <div class="st-hub-card-desc">Alert preferences, email notifications, and quiet hours</div>
+            </div>
+          </a>
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="themePane" data-search="theme appearance dark light mode sidebar density display">
+            <div class="st-hub-card-icon"><i class="ti ti-sun-moon"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Theme & Appearance</div>
+              <div class="st-hub-card-desc">Color mode, sidebar layout, and display density</div>
+            </div>
+          </a>
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="languagePane" data-search="language timezone date time format regional locale">
+            <div class="st-hub-card-icon"><i class="ti ti-language"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Language & Timezone</div>
+              <div class="st-hub-card-desc">Language, timezone, and date/time formatting</div>
+            </div>
+          </a>
+        </div>
+      </div>
+
+      <!-- Account -->
+      <div class="st-hub-category" data-cat="account">
+        <div class="st-hub-category-header">
+          <h3 class="st-hub-category-title">Account</h3>
+        </div>
+        <div class="st-hub-cards">
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="passwordPane" data-search="password change login security credentials">
+            <div class="st-hub-card-icon"><i class="ti ti-lock"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Password & Security</div>
+              <div class="st-hub-card-desc">Change password and view login information</div>
+            </div>
+          </a>
+          <a href="/profile/" class="st-hub-card" data-search="profile avatar name bio job title department">
+            <div class="st-hub-card-icon"><i class="ti ti-user"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Profile</div>
+              <div class="st-hub-card-desc">Your name, avatar, bio, and contact details</div>
+            </div>
+            <i class="ti ti-external-link st-hub-card-ext"></i>
+          </a>
+          {% if is_admin %}
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="dataPane" data-search="data management export import cleanup">
+            <div class="st-hub-card-icon"><i class="ti ti-database"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Data Management</div>
+              <div class="st-hub-card-desc">Export data and manage workspace storage</div>
+            </div>
+          </a>
+          <a href="/billing/" class="st-hub-card" data-search="billing plans subscription payment invoice">
+            <div class="st-hub-card-icon"><i class="ti ti-credit-card"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Plans & Billing</div>
+              <div class="st-hub-card-desc">Manage subscription, plans, and payment methods</div>
+            </div>
+            <i class="ti ti-external-link st-hub-card-ext"></i>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- No results message -->
+      <div class="st-hub-no-results" id="hubNoResults" style="display:none;">
+        <i class="ti ti-search-off"></i>
+        <p>No settings found matching your search.</p>
+      </div>
+    </div>
+
+    <!-- Detail View (pane content, hidden by default) -->
+    <div class="st-detail" id="settingsDetail" style="display:none;">
+      <div class="st-detail-header">
+        <button type="button" class="st-detail-back" onclick="settingsHub.backToHub()">
+          <i class="ti ti-arrow-left"></i>
+          <span>All Settings</span>
+        </button>
+        <div class="st-detail-breadcrumb" id="detailBreadcrumb"></div>
+      </div>
+      <div class="settings-panes">
       {% if is_admin %}
       <!-- General Settings -->
-      <div class="settings-pane active" id="generalPane">
+      <div class="settings-pane" id="generalPane">
         <div class="st-section">
           <div class="st-section-header">
             <div class="st-section-icon"><i class="ti ti-settings"></i></div>
@@ -201,27 +375,59 @@
             </div>
           </div>
           <form id="businessHoursForm">
-            <div class="st-form-row">
-              <div class="st-form-group">
-                <label for="businessStart" class="st-label">Start Time</label>
-                <input type="time" class="form-control" id="businessStart" value="09:00">
-              </div>
-              <div class="st-form-group">
-                <label for="businessEnd" class="st-label">End Time</label>
-                <input type="time" class="form-control" id="businessEnd" value="17:00">
-              </div>
+            <div class="st-form-group mb-3">
+              <label for="bhTimezone" class="st-label">Timezone</label>
+              <select class="form-select" id="bhTimezone">
+                <option value="UTC">UTC</option>
+              </select>
             </div>
-            <div class="st-form-group">
-              <label class="st-label">Business Days</label>
-              <div class="d-flex flex-wrap gap-2" id="businessDaysGroup">
-                <label class="bh-day-check"><input type="checkbox" value="0" checked><span>Mon</span></label>
-                <label class="bh-day-check"><input type="checkbox" value="1" checked><span>Tue</span></label>
-                <label class="bh-day-check"><input type="checkbox" value="2" checked><span>Wed</span></label>
-                <label class="bh-day-check"><input type="checkbox" value="3" checked><span>Thu</span></label>
-                <label class="bh-day-check"><input type="checkbox" value="4" checked><span>Fri</span></label>
-                <label class="bh-day-check"><input type="checkbox" value="5"><span>Sat</span></label>
-                <label class="bh-day-check"><input type="checkbox" value="6"><span>Sun</span></label>
+            <div class="st-form-group mb-3">
+              <label class="st-label">Weekly Schedule</label>
+              <div class="bh-schedule-grid">
+                <div class="bh-day-row" data-day="0">
+                  <label class="bh-day-toggle"><input type="checkbox" checked><span>Monday</span></label>
+                  <input type="time" class="form-control form-control-sm bh-open" value="09:00">
+                  <span class="bh-to">to</span>
+                  <input type="time" class="form-control form-control-sm bh-close" value="17:00">
+                </div>
+                <div class="bh-day-row" data-day="1">
+                  <label class="bh-day-toggle"><input type="checkbox" checked><span>Tuesday</span></label>
+                  <input type="time" class="form-control form-control-sm bh-open" value="09:00">
+                  <span class="bh-to">to</span>
+                  <input type="time" class="form-control form-control-sm bh-close" value="17:00">
+                </div>
+                <div class="bh-day-row" data-day="2">
+                  <label class="bh-day-toggle"><input type="checkbox" checked><span>Wednesday</span></label>
+                  <input type="time" class="form-control form-control-sm bh-open" value="09:00">
+                  <span class="bh-to">to</span>
+                  <input type="time" class="form-control form-control-sm bh-close" value="17:00">
+                </div>
+                <div class="bh-day-row" data-day="3">
+                  <label class="bh-day-toggle"><input type="checkbox" checked><span>Thursday</span></label>
+                  <input type="time" class="form-control form-control-sm bh-open" value="09:00">
+                  <span class="bh-to">to</span>
+                  <input type="time" class="form-control form-control-sm bh-close" value="17:00">
+                </div>
+                <div class="bh-day-row" data-day="4">
+                  <label class="bh-day-toggle"><input type="checkbox" checked><span>Friday</span></label>
+                  <input type="time" class="form-control form-control-sm bh-open" value="09:00">
+                  <span class="bh-to">to</span>
+                  <input type="time" class="form-control form-control-sm bh-close" value="17:00">
+                </div>
+                <div class="bh-day-row" data-day="5">
+                  <label class="bh-day-toggle"><input type="checkbox"><span>Saturday</span></label>
+                  <input type="time" class="form-control form-control-sm bh-open" value="09:00" disabled>
+                  <span class="bh-to">to</span>
+                  <input type="time" class="form-control form-control-sm bh-close" value="17:00" disabled>
+                </div>
+                <div class="bh-day-row" data-day="6">
+                  <label class="bh-day-toggle"><input type="checkbox"><span>Sunday</span></label>
+                  <input type="time" class="form-control form-control-sm bh-open" value="09:00" disabled>
+                  <span class="bh-to">to</span>
+                  <input type="time" class="form-control form-control-sm bh-close" value="17:00" disabled>
+                </div>
               </div>
+              <div id="bhWeeklyPreview" class="mt-2 text-muted small">Your business hours are 40 hours/week</div>
             </div>
             <div class="st-form-actions">
               <button type="submit" class="btn btn-primary">
@@ -230,6 +436,37 @@
               </button>
             </div>
           </form>
+        </div>
+
+        <!-- Public Holidays -->
+        <div class="st-section mt-4">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-calendar-event"></i></div>
+            <div>
+              <h3 class="st-section-title">Public Holidays</h3>
+              <p class="st-section-desc">SLA clocks pause on these dates. Add holidays specific to your region.</p>
+            </div>
+          </div>
+          <div class="d-flex gap-2 mb-3">
+            <input type="date" class="form-control form-control-sm" id="holidayDate" style="max-width:180px">
+            <input type="text" class="form-control form-control-sm" id="holidayName" placeholder="Holiday name" style="max-width:220px">
+            <button type="button" class="btn btn-sm btn-outline-primary" onclick="addHoliday()">
+              <i class="ti ti-plus me-1"></i>Add
+            </button>
+          </div>
+          <div id="holidayList" class="list-group list-group-flush"></div>
+        </div>
+
+        <!-- SLA Pause Statuses -->
+        <div class="st-section mt-4">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-player-pause"></i></div>
+            <div>
+              <h3 class="st-section-title">SLA Pause Statuses</h3>
+              <p class="st-section-desc">Ticket statuses that pause the SLA clock (e.g. "Waiting on Customer").</p>
+            </div>
+          </div>
+          <div id="slaPauseStatusList"></div>
         </div>
       </div>
 
@@ -799,6 +1036,33 @@
         </div>
       </div>
 
+      {% if is_admin %}
+      <!-- Workflow -->
+      <div class="settings-pane" id="workflowPane" style="display:none">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-arrows-transfer-down"></i></div>
+            <div class="flex-grow-1">
+              <h3 class="st-section-title">Workflow</h3>
+              <p class="st-section-desc">Control how ticket assignments and status transitions behave</p>
+            </div>
+          </div>
+
+          <div class="st-card">
+            <div class="d-flex align-items-center justify-content-between py-2">
+              <div>
+                <span class="st-toggle-label">Auto-transition on assignment</span>
+                <span class="st-toggle-desc d-block text-muted small">When enabled, assigning a ticket in the default "Open" status automatically moves it to "In Progress".</span>
+              </div>
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="autoTransitionToggle" checked>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
       {% if is_admin_or_manager %}
       <!-- Ticket Categories -->
       <div class="settings-pane" id="categoriesPane" style="display:none">
@@ -1199,6 +1463,7 @@
       </div>
       {% endif %}
 
+      </div>
     </div>
   </div>
 </div>
@@ -1207,7 +1472,7 @@
 {% block extra_js %}
 <script>
 var _settingsPaneIds = [
-  {% if is_admin %}'generalPane', 'businessHoursPane', 'authPane', 'brandingPane',{% endif %}
+  {% if is_admin %}'generalPane', 'businessHoursPane', 'authPane', 'brandingPane', 'workflowPane',{% endif %}
   'notificationsPane',
   'availabilityPane', 'themePane', 'languagePane',
   {% if is_admin_or_manager %}'categoriesPane',{% endif %}
@@ -1216,17 +1481,221 @@ var _settingsPaneIds = [
   'signaturePane', 'passwordPane'
   {% if is_admin %},'dataPane'{% endif %}
 ];
+
+/* ── Settings Hub Navigation ── */
+var settingsHub = (function() {
+  var RECENT_KEY = 'kanzan_recent_settings';
+  var MAX_RECENT = 5;
+
+  var paneLabels = {
+    generalPane: { title: 'General', icon: 'ti-settings', category: 'Workspace' },
+    businessHoursPane: { title: 'Business Hours', icon: 'ti-clock', category: 'Workspace' },
+    authPane: { title: 'Authentication', icon: 'ti-shield-lock', category: 'Workspace' },
+    brandingPane: { title: 'Branding', icon: 'ti-palette', category: 'Workspace' },
+    notificationsPane: { title: 'Notifications', icon: 'ti-bell', category: 'Preferences' },
+    availabilityPane: { title: 'My Availability', icon: 'ti-clock-check', category: 'Team' },
+    themePane: { title: 'Theme & Appearance', icon: 'ti-sun-moon', category: 'Preferences' },
+    languagePane: { title: 'Language & Timezone', icon: 'ti-language', category: 'Preferences' },
+    workflowPane: { title: 'Workflow', icon: 'ti-arrows-transfer-down', category: 'Support Operations' },
+    categoriesPane: { title: 'Ticket Categories', icon: 'ti-tag', category: 'Support Operations' },
+    cannedResponsesPane: { title: 'Canned Responses', icon: 'ti-message-chatbot', category: 'Productivity' },
+    knowledgeBasePane: { title: 'Knowledge Base', icon: 'ti-book', category: 'Support Operations' },
+    signaturePane: { title: 'Email Signature', icon: 'ti-signature', category: 'Channels' },
+    passwordPane: { title: 'Password & Security', icon: 'ti-lock', category: 'Account' },
+    dataPane: { title: 'Data Management', icon: 'ti-database', category: 'Account' }
+  };
+
+  function getRecent() {
+    try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch(e) { return []; }
+  }
+
+  function addRecent(paneId) {
+    var recent = getRecent().filter(function(r) { return r !== paneId; });
+    recent.unshift(paneId);
+    if (recent.length > MAX_RECENT) recent = recent.slice(0, MAX_RECENT);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(recent));
+    renderRecent();
+  }
+
+  function buildRecentCard(paneId, info) {
+    var card = document.createElement('a');
+    card.href = 'javascript:void(0)';
+    card.className = 'st-hub-card';
+    card.dataset.pane = paneId;
+    // Icon
+    var iconDiv = document.createElement('div');
+    iconDiv.className = 'st-hub-card-icon';
+    var iconEl = document.createElement('i');
+    iconEl.className = 'ti ' + info.icon;
+    iconDiv.appendChild(iconEl);
+    card.appendChild(iconDiv);
+    // Body
+    var bodyDiv = document.createElement('div');
+    bodyDiv.className = 'st-hub-card-body';
+    var titleDiv = document.createElement('div');
+    titleDiv.className = 'st-hub-card-title';
+    titleDiv.textContent = info.title;
+    bodyDiv.appendChild(titleDiv);
+    card.appendChild(bodyDiv);
+    card.addEventListener('click', function() { openPane(paneId); });
+    return card;
+  }
+
+  function renderRecent() {
+    var container = document.getElementById('hubRecentCards');
+    var section = document.getElementById('hubRecent');
+    if (!container || !section) return;
+    var recent = getRecent();
+    recent = recent.filter(function(id) { return document.getElementById(id); });
+    if (recent.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = '';
+    container.textContent = '';
+    recent.forEach(function(paneId) {
+      var info = paneLabels[paneId];
+      if (!info) return;
+      container.appendChild(buildRecentCard(paneId, info));
+    });
+  }
+
+  function openPane(paneId) {
+    var hub = document.getElementById('settingsHub');
+    var detail = document.getElementById('settingsDetail');
+    _settingsPaneIds.forEach(function(id) {
+      var pane = document.getElementById(id);
+      if (pane) pane.style.display = 'none';
+    });
+    var target = document.getElementById(paneId);
+    if (target) {
+      target.style.display = 'block';
+      target.classList.add('active');
+    }
+    // Update breadcrumb
+    var info = paneLabels[paneId];
+    var breadcrumb = document.getElementById('detailBreadcrumb');
+    if (breadcrumb && info) {
+      breadcrumb.textContent = '';
+      var catSpan = document.createElement('span');
+      catSpan.className = 'st-detail-crumb-cat';
+      catSpan.textContent = info.category;
+      var sep = document.createElement('i');
+      sep.className = 'ti ti-chevron-right st-detail-crumb-sep';
+      var pageSpan = document.createElement('span');
+      pageSpan.className = 'st-detail-crumb-page';
+      pageSpan.textContent = info.title;
+      breadcrumb.appendChild(catSpan);
+      breadcrumb.appendChild(sep);
+      breadcrumb.appendChild(pageSpan);
+    }
+    hub.style.display = 'none';
+    detail.style.display = 'block';
+    document.querySelector('.st-layout').classList.remove('st-layout--hub');
+    addRecent(paneId);
+    switchSettingsTab(paneId);
+  }
+
+  function backToHub() {
+    var hub = document.getElementById('settingsHub');
+    var detail = document.getElementById('settingsDetail');
+    _settingsPaneIds.forEach(function(id) {
+      var pane = document.getElementById(id);
+      if (pane) { pane.style.display = 'none'; pane.classList.remove('active'); }
+    });
+    detail.style.display = 'none';
+    hub.style.display = '';
+    document.querySelector('.st-layout').classList.add('st-layout--hub');
+  }
+
+  function scrollToCategory(cat) {
+    document.querySelectorAll('.st-nav-cat').forEach(function(el) { el.classList.remove('active'); });
+    var navItem = document.querySelector('.st-nav-cat[data-category="' + cat + '"]');
+    if (navItem) navItem.classList.add('active');
+    if (cat === 'all') {
+      document.querySelectorAll('.st-hub-category').forEach(function(el) { el.style.display = ''; });
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+    document.querySelectorAll('.st-hub-category').forEach(function(el) { el.style.display = ''; });
+    var target = document.querySelector('.st-hub-category[data-cat="' + cat + '"]');
+    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function initSearch() {
+    var input = document.getElementById('settingsSearchInput');
+    if (!input) return;
+    var debounce;
+    input.addEventListener('input', function() {
+      clearTimeout(debounce);
+      debounce = setTimeout(function() { filterCards(input.value.trim().toLowerCase()); }, 200);
+    });
+  }
+
+  function filterCards(query) {
+    var categories = document.querySelectorAll('.st-hub-category:not([data-cat="recent"])');
+    var recentSection = document.getElementById('hubRecent');
+    var noResults = document.getElementById('hubNoResults');
+    var anyVisible = false;
+
+    if (!query) {
+      categories.forEach(function(cat) {
+        cat.style.display = '';
+        cat.querySelectorAll('.st-hub-card').forEach(function(card) { card.style.display = ''; });
+      });
+      if (recentSection) recentSection.style.display = '';
+      if (noResults) noResults.style.display = 'none';
+      renderRecent();
+      return;
+    }
+
+    if (recentSection) recentSection.style.display = 'none';
+
+    categories.forEach(function(cat) {
+      var cards = cat.querySelectorAll('.st-hub-card');
+      var catVisible = false;
+      cards.forEach(function(card) {
+        var searchData = (card.dataset.search || '') + ' ' + card.textContent.toLowerCase();
+        if (searchData.indexOf(query) !== -1) {
+          card.style.display = '';
+          catVisible = true;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+      cat.style.display = catVisible ? '' : 'none';
+      if (catVisible) anyVisible = true;
+    });
+
+    if (noResults) noResults.style.display = anyVisible ? 'none' : '';
+  }
+
+  function init() {
+    document.querySelectorAll('.st-hub-card[data-pane]').forEach(function(card) {
+      card.addEventListener('click', function(e) {
+        e.preventDefault();
+        openPane(card.dataset.pane);
+      });
+    });
+    renderRecent();
+    initSearch();
+  }
+
+  document.addEventListener('DOMContentLoaded', init);
+
+  return { openPane: openPane, backToHub: backToHub, scrollToCategory: scrollToCategory };
+})();
+
 function switchSettingsTab(targetId) {
   for (var i = 0; i < _settingsPaneIds.length; i++) {
     var pane = document.getElementById(_settingsPaneIds[i]);
-    var nav = document.getElementById('nav_' + _settingsPaneIds[i]);
-    if (pane) pane.style.display = 'none';
-    if (nav) nav.classList.remove('active');
+    if (pane && _settingsPaneIds[i] !== targetId) {
+      pane.style.display = 'none';
+      pane.classList.remove('active');
+    }
   }
   var target = document.getElementById(targetId);
-  var targetNav = document.getElementById('nav_' + targetId);
-  if (target) target.style.display = 'block';
-  if (targetNav) targetNav.classList.add('active');
+  if (target) {
+    target.style.display = 'block';
+    target.classList.add('active');
+  }
 }
 </script>
 {% if is_admin %}
@@ -1261,23 +1730,211 @@ function switchSettingsTab(targetId) {
       document.getElementById('logoPlaceholder').classList.add('d-none');
       document.getElementById('logoRemoveBtn').classList.remove('d-none');
     }
-    if (s.business_hours_start) document.getElementById('businessStart').value = s.business_hours_start.substring(0, 5);
-    if (s.business_hours_end) document.getElementById('businessEnd').value = s.business_hours_end.substring(0, 5);
-    if (s.business_days && Array.isArray(s.business_days)) {
-      document.querySelectorAll('#businessDaysGroup input').forEach(function(cb) { cb.checked = s.business_days.includes(parseInt(cb.value)); });
-    }
+    // Business hours, holidays, and SLA pause statuses are loaded separately
+    loadBusinessHoursData();
+    loadHolidays();
+    loadSLAPauseStatuses();
+    // Workflow toggle
+    var atToggle = document.getElementById('autoTransitionToggle');
+    if (atToggle) atToggle.checked = s.auto_transition_on_assign !== false;
   }
   async function saveGeneral(e) {
     e.preventDefault(); var sp = document.getElementById('generalSpinner'); sp.classList.remove('d-none');
     try { await Api.patch('/api/v1/tenants/settings/', { name: document.getElementById('tenantName').value.trim(), timezone: document.getElementById('timezone').value, date_format: document.getElementById('dateFormat').value }); Toast.success('General settings saved'); }
     catch (e) { Toast.error(e.detail || 'Failed to save settings'); } finally { sp.classList.add('d-none'); }
   }
+  // ─── Business Hours (per-day schedule) ──────────────────────────
+  var _commonTimezones = [
+    'UTC', 'US/Eastern', 'US/Central', 'US/Mountain', 'US/Pacific',
+    'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+    'America/Toronto', 'America/Vancouver', 'America/Sao_Paulo', 'America/Mexico_City',
+    'Europe/London', 'Europe/Paris', 'Europe/Berlin', 'Europe/Amsterdam', 'Europe/Rome',
+    'Europe/Madrid', 'Europe/Moscow', 'Europe/Istanbul',
+    'Asia/Dubai', 'Asia/Kolkata', 'Asia/Shanghai', 'Asia/Tokyo', 'Asia/Seoul',
+    'Asia/Singapore', 'Asia/Hong_Kong', 'Asia/Bangkok',
+    'Australia/Sydney', 'Australia/Melbourne', 'Pacific/Auckland',
+    'Africa/Cairo', 'Africa/Johannesburg', 'Africa/Lagos'
+  ];
+
+  function initTimezoneSelect() {
+    var sel = document.getElementById('bhTimezone');
+    sel.innerHTML = '';
+    _commonTimezones.forEach(function(tz) {
+      var opt = document.createElement('option');
+      opt.value = tz; opt.textContent = tz;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function loadBusinessHoursData() {
+    try {
+      var bh = await Api.get('/api/v1/tickets/business-hours/');
+      initTimezoneSelect();
+      document.getElementById('bhTimezone').value = bh.timezone || 'UTC';
+      if (bh.schedule) {
+        document.querySelectorAll('.bh-day-row').forEach(function(row) {
+          var day = row.getAttribute('data-day');
+          var cfg = bh.schedule[day];
+          var cb = row.querySelector('input[type=checkbox]');
+          var openInput = row.querySelector('.bh-open');
+          var closeInput = row.querySelector('.bh-close');
+          if (cfg) {
+            cb.checked = !!cfg.is_active;
+            openInput.value = cfg.open_time || '09:00';
+            closeInput.value = cfg.close_time || '17:00';
+            openInput.disabled = !cfg.is_active;
+            closeInput.disabled = !cfg.is_active;
+          }
+        });
+      }
+      updateWeeklyPreview();
+    } catch(e) { /* first load — BusinessHours may not exist yet, use defaults */ }
+  }
+
+  function buildSchedulePayload() {
+    var schedule = {};
+    document.querySelectorAll('.bh-day-row').forEach(function(row) {
+      var day = row.getAttribute('data-day');
+      var active = row.querySelector('input[type=checkbox]').checked;
+      schedule[day] = {
+        is_active: active,
+        open_time: row.querySelector('.bh-open').value || '09:00',
+        close_time: row.querySelector('.bh-close').value || '17:00'
+      };
+    });
+    return schedule;
+  }
+
+  function updateWeeklyPreview() {
+    var totalMin = 0;
+    document.querySelectorAll('.bh-day-row').forEach(function(row) {
+      var cb = row.querySelector('input[type=checkbox]');
+      if (!cb.checked) return;
+      var open = row.querySelector('.bh-open').value;
+      var close = row.querySelector('.bh-close').value;
+      if (open && close && close > open) {
+        var parts = function(t) { var p = t.split(':'); return parseInt(p[0]) * 60 + parseInt(p[1]); };
+        totalMin += parts(close) - parts(open);
+      }
+    });
+    var hours = Math.floor(totalMin / 60);
+    var mins = totalMin % 60;
+    var label = hours + ' hours' + (mins ? ' ' + mins + ' min' : '') + '/week';
+    document.getElementById('bhWeeklyPreview').textContent = 'Your business hours are ' + label;
+  }
+
   async function saveBusinessHours(e) {
-    e.preventDefault(); var sp = document.getElementById('bhSpinner'); sp.classList.remove('d-none');
-    var days = [];
-    document.querySelectorAll('#businessDaysGroup input:checked').forEach(function(cb) { days.push(parseInt(cb.value)); });
-    try { await Api.patch('/api/v1/tenants/settings/', { business_hours_start: document.getElementById('businessStart').value + ':00', business_hours_end: document.getElementById('businessEnd').value + ':00', business_days: days }); Toast.success('Business hours saved'); }
-    catch (e) { Toast.error(e.detail || 'Failed to save business hours'); } finally { sp.classList.add('d-none'); }
+    e.preventDefault();
+    var sp = document.getElementById('bhSpinner');
+    sp.classList.remove('d-none');
+    try {
+      await Api.patch('/api/v1/tickets/business-hours/', {
+        timezone: document.getElementById('bhTimezone').value,
+        schedule: buildSchedulePayload()
+      });
+      updateWeeklyPreview();
+      Toast.success('Business hours saved');
+    }
+    catch (err) { Toast.error(err.detail || 'Failed to save business hours'); }
+    finally { sp.classList.add('d-none'); }
+  }
+
+  // ─── Public Holidays ──────────────────────────────────────────
+  async function loadHolidays() {
+    try {
+      var resp = await Api.get('/api/v1/tickets/public-holidays/');
+      var list = document.getElementById('holidayList');
+      list.textContent = '';
+      var items = resp.results || resp;
+      if (!items.length) {
+        var empty = document.createElement('div');
+        empty.className = 'text-muted small py-2';
+        empty.textContent = 'No holidays configured.';
+        list.appendChild(empty);
+        return;
+      }
+      items.forEach(function(h) {
+        var el = document.createElement('div');
+        el.className = 'list-group-item d-flex justify-content-between align-items-center py-2';
+        var info = document.createElement('div');
+        var nameEl = document.createElement('strong');
+        nameEl.textContent = h.name;
+        var dateEl = document.createElement('span');
+        dateEl.className = 'text-muted ms-2';
+        dateEl.textContent = h.date;
+        info.appendChild(nameEl);
+        info.appendChild(dateEl);
+        var btn = document.createElement('button');
+        btn.className = 'btn btn-sm btn-outline-danger';
+        btn.setAttribute('data-holiday-id', h.id);
+        var icon = document.createElement('i');
+        icon.className = 'ti ti-trash';
+        btn.appendChild(icon);
+        btn.addEventListener('click', function() { deleteHoliday(h.id); });
+        el.appendChild(info);
+        el.appendChild(btn);
+        list.appendChild(el);
+      });
+    } catch(e) { /* ignore */ }
+  }
+
+  async function addHoliday() {
+    var date = document.getElementById('holidayDate').value;
+    var name = document.getElementById('holidayName').value.trim();
+    if (!date || !name) { Toast.error('Please enter both date and name.'); return; }
+    try {
+      await Api.post('/api/v1/tickets/public-holidays/', { date: date, name: name });
+      document.getElementById('holidayDate').value = '';
+      document.getElementById('holidayName').value = '';
+      Toast.success('Holiday added');
+      loadHolidays();
+    } catch(err) { Toast.error(err.detail || 'Failed to add holiday'); }
+  }
+
+  async function deleteHoliday(id) {
+    if (!confirm('Remove this holiday?')) return;
+    try {
+      await Api.delete('/api/v1/tickets/public-holidays/' + id + '/');
+      Toast.success('Holiday removed');
+      loadHolidays();
+    } catch(err) { Toast.error(err.detail || 'Failed to remove holiday'); }
+  }
+
+  // ─── SLA Pause Statuses ───────────────────────────────────────
+  async function loadSLAPauseStatuses() {
+    try {
+      var resp = await Api.get('/api/v1/tickets/ticket-statuses/');
+      var statuses = resp.results || resp;
+      var container = document.getElementById('slaPauseStatusList');
+      container.textContent = '';
+      statuses.forEach(function(st) {
+        var row = document.createElement('div');
+        row.className = 'd-flex align-items-center gap-2 mb-2';
+        var label = document.createElement('label');
+        label.className = 'd-flex align-items-center gap-2 mb-0';
+        label.style.cursor = 'pointer';
+        var cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.className = 'form-check-input';
+        cb.checked = !!st.pauses_sla;
+        cb.addEventListener('change', function() { togglePausesSla(st.id, this.checked); });
+        var badge = document.createElement('span');
+        badge.className = 'badge';
+        badge.style.background = st.color;
+        badge.textContent = st.name;
+        label.appendChild(cb);
+        label.appendChild(badge);
+        row.appendChild(label);
+        container.appendChild(row);
+      });
+    } catch(e) { /* ignore */ }
+  }
+
+  async function togglePausesSla(statusId, pauses) {
+    try {
+      await Api.patch('/api/v1/tickets/ticket-statuses/' + statusId + '/', { pauses_sla: pauses });
+      Toast.success('SLA pause setting updated');
+    } catch(err) { Toast.error(err.detail || 'Failed to update status'); }
   }
   async function saveAuth(e) {
     e.preventDefault(); var sp = document.getElementById('authSpinner'); sp.classList.remove('d-none');
@@ -1304,6 +1961,31 @@ function switchSettingsTab(targetId) {
     document.getElementById('authForm').addEventListener('submit', saveAuth);
     document.getElementById('brandingForm').addEventListener('submit', saveBranding);
     document.getElementById('authMethod').addEventListener('change', function() { toggleSsoFields(this.value); });
+    // Workflow: auto-transition toggle
+    var atToggle = document.getElementById('autoTransitionToggle');
+    if (atToggle) {
+      atToggle.addEventListener('change', async function() {
+        try {
+          await Api.patch('/api/v1/tenants/settings/', { auto_transition_on_assign: this.checked });
+          Toast.success('Workflow setting updated');
+        } catch (e) {
+          Toast.error('Failed to save workflow setting');
+          this.checked = !this.checked;
+        }
+      });
+    }
+    // Business hours: toggle time inputs when day checkbox changes
+    document.querySelectorAll('.bh-day-row input[type=checkbox]').forEach(function(cb) {
+      cb.addEventListener('change', function() {
+        var row = this.closest('.bh-day-row');
+        row.querySelector('.bh-open').disabled = !this.checked;
+        row.querySelector('.bh-close').disabled = !this.checked;
+        updateWeeklyPreview();
+      });
+    });
+    document.querySelectorAll('.bh-open, .bh-close').forEach(function(input) {
+      input.addEventListener('change', updateWeeklyPreview);
+    });
     function syncColorPair(pickerId, hexId) {
       document.getElementById(pickerId).addEventListener('input', function() {
         document.getElementById(hexId).value = this.value;

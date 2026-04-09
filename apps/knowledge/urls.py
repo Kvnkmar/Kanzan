@@ -3,7 +3,7 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from apps.knowledge.views import ArticleViewSet, CategoryViewSet
+from apps.knowledge.views import ArticleViewSet, CategoryViewSet, KBSearchView
 
 app_name = "knowledge"
 
@@ -12,5 +12,6 @@ router.register(r"categories", CategoryViewSet, basename="kb-category")
 router.register(r"articles", ArticleViewSet, basename="kb-article")
 
 urlpatterns = [
+    path("search/", KBSearchView.as_view(), name="kb-search"),
     path("", include(router.urls)),
 ]

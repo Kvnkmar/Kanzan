@@ -5,20 +5,29 @@ import os
 
 from django.db.models import F, Q
 from django.http import HttpResponse
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
-from apps.accounts.permissions import HasTenantPermission
-from apps.knowledge.models import Article, Category
+from apps.accounts.models import TenantMembership
+from apps.accounts.permissions import HasTenantPermission, _get_membership
+from drf_spectacular.utils import extend_schema
+
+from apps.knowledge.models import Article, Category, KBVote
 from apps.knowledge.serializers import (
     ArticleCreateSerializer,
     ArticleDetailSerializer,
     ArticleListSerializer,
+    ArticleRejectSerializer,
     CategorySerializer,
+    KBArticleSearchSerializer,
 )
+from apps.notifications.models import NotificationType
+from apps.notifications.services import send_notification
 
 
 class CategoryViewSet(viewsets.ModelViewSet):
@@ -47,7 +56,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
     search_fields = ["title", "content", "excerpt"]
     ordering_fields = ["title", "view_count", "published_at", "created_at"]
     ordering = ["-is_pinned", "-published_at"]
-    filterset_fields = ["status", "category", "is_pinned"]
+    filterset_fields = ["status", "category", "is_pinned", "author"]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
@@ -82,19 +91,167 @@ class ArticleViewSet(viewsets.ModelViewSet):
             return ArticleCreateSerializer
         return ArticleDetailSerializer
 
+    def _is_admin_or_manager(self):
+        tenant = getattr(self.request, "tenant", None)
+        if self.request.user.is_superuser:
+            return True
+        membership = _get_membership(self.request, tenant) if tenant else None
+        return membership is not None and membership.role.hierarchy_level <= 20
+
     def perform_create(self, serializer):
         extra = {"author": self.request.user}
         file = self.request.FILES.get("file")
         if file and not serializer.validated_data.get("file_name"):
             extra["file_name"] = file.name
+        # Agents cannot set status to anything other than draft
+        if not self._is_admin_or_manager():
+            extra["status"] = Article.Status.DRAFT
         serializer.save(**extra)
 
     def perform_update(self, serializer):
+        article = serializer.instance
         file = self.request.FILES.get("file")
         extra = {}
         if file and not serializer.validated_data.get("file_name"):
             extra["file_name"] = file.name
+        # Agent restrictions
+        if not self._is_admin_or_manager():
+            # Agents can only edit their own articles
+            if article.author != self.request.user:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("You can only edit your own articles.")
+            # Agents cannot edit articles that are pending review
+            if article.status == Article.Status.PENDING_REVIEW:
+                from rest_framework.exceptions import PermissionDenied
+                raise PermissionDenied("This article is locked while under review.")
+            # Agents cannot set status to published or pending_review directly
+            requested_status = serializer.validated_data.get("status")
+            if requested_status in (Article.Status.PUBLISHED, Article.Status.PENDING_REVIEW):
+                extra["status"] = Article.Status.DRAFT
         serializer.save(**extra)
+
+    @action(detail=True, methods=["post"], url_path="submit-for-review")
+    def submit_for_review(self, request, pk=None):
+        article = self.get_object()
+        # Only author or admin/manager can submit
+        if article.author != request.user and not self._is_admin_or_manager():
+            return Response(
+                {"detail": "Only the author can submit for review."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if article.status not in (Article.Status.DRAFT, Article.Status.REJECTED):
+            return Response(
+                {"detail": "Only draft or rejected articles can be submitted for review."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        article.status = Article.Status.PENDING_REVIEW
+        article.submitted_at = timezone.now()
+        article.rejection_reason = ""
+        article.reviewer = None
+        article.reviewed_at = None
+        article.save(update_fields=[
+            "status", "submitted_at", "rejection_reason",
+            "reviewer", "reviewed_at", "updated_at",
+        ])
+        # Notify all admins/managers in tenant
+        tenant = request.tenant
+        admin_memberships = TenantMembership.objects.select_related("user").filter(
+            tenant=tenant, is_active=True, role__hierarchy_level__lte=20,
+        )
+        author_name = (
+            f"{article.author.first_name} {article.author.last_name}".strip()
+            if article.author else "Someone"
+        ) or (article.author.email if article.author else "Someone")
+        for m in admin_memberships:
+            if m.user != request.user:
+                send_notification(
+                    tenant=tenant,
+                    recipient=m.user,
+                    notification_type=NotificationType.KB_REVIEW_REQUESTED,
+                    title=f"KB article submitted for review",
+                    body=f'"{article.title}" was submitted by {author_name}.',
+                    data={"article_id": str(article.id), "article_title": article.title},
+                )
+        serializer = ArticleDetailSerializer(article)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="approve")
+    def approve(self, request, pk=None):
+        if not self._is_admin_or_manager():
+            return Response(
+                {"detail": "Only admins and managers can approve articles."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        article = self.get_object()
+        if article.status != Article.Status.PENDING_REVIEW:
+            return Response(
+                {"detail": "Only articles pending review can be approved."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        article.status = Article.Status.PUBLISHED
+        article.reviewer = request.user
+        article.reviewed_at = timezone.now()
+        article.published_at = timezone.now()
+        article.save(update_fields=[
+            "status", "reviewer", "reviewed_at", "published_at", "updated_at",
+        ])
+        # Notify the author
+        if article.author and article.author != request.user:
+            send_notification(
+                tenant=request.tenant,
+                recipient=article.author,
+                notification_type=NotificationType.KB_ARTICLE_REVIEWED,
+                title="Your KB article was approved",
+                body=f'"{article.title}" has been approved and published.',
+                data={
+                    "article_id": str(article.id),
+                    "article_title": article.title,
+                    "action": "approved",
+                },
+            )
+        serializer = ArticleDetailSerializer(article)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="reject")
+    def reject(self, request, pk=None):
+        if not self._is_admin_or_manager():
+            return Response(
+                {"detail": "Only admins and managers can reject articles."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        reject_serializer = ArticleRejectSerializer(data=request.data)
+        reject_serializer.is_valid(raise_exception=True)
+        article = self.get_object()
+        if article.status != Article.Status.PENDING_REVIEW:
+            return Response(
+                {"detail": "Only articles pending review can be rejected."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        rejection_reason = reject_serializer.validated_data["rejection_reason"]
+        article.status = Article.Status.REJECTED
+        article.rejection_reason = rejection_reason
+        article.reviewer = request.user
+        article.reviewed_at = timezone.now()
+        article.save(update_fields=[
+            "status", "rejection_reason", "reviewer", "reviewed_at", "updated_at",
+        ])
+        # Notify the author
+        if article.author and article.author != request.user:
+            send_notification(
+                tenant=request.tenant,
+                recipient=article.author,
+                notification_type=NotificationType.KB_ARTICLE_REVIEWED,
+                title="Your KB article needs changes",
+                body=f'"{article.title}" was returned with feedback: {rejection_reason}',
+                data={
+                    "article_id": str(article.id),
+                    "article_title": article.title,
+                    "action": "rejected",
+                    "reason": rejection_reason,
+                },
+            )
+        serializer = ArticleDetailSerializer(article)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"], url_path="record-view")
     def record_view(self, request, pk=None):
@@ -238,3 +395,41 @@ body{{font-family:Inter,system-ui,-apple-system,sans-serif;background:#09090b;co
 </body>
 </html>"""
         return HttpResponse(html, content_type="text/html; charset=utf-8")
+
+    @extend_schema(tags=["Knowledge Base"])
+    @action(detail=True, methods=["post"], url_path="vote")
+    def vote(self, request, pk=None):
+        """Record a helpfulness vote on an article."""
+        article = self.get_object()
+        helpful = bool(request.data.get("helpful", True))
+        session_key = request.session.session_key or request.META.get(
+            "REMOTE_ADDR", "anon"
+        )
+        KBVote.objects.update_or_create(
+            article=article,
+            session_key=session_key,
+            defaults={"helpful": helpful},
+        )
+        return Response({"status": "recorded"})
+
+
+@extend_schema(tags=["Knowledge Base"])
+class KBSearchView(APIView):
+    """Full-text search across published knowledge base articles."""
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        from apps.knowledge.search import AGENT_VISIBILITY, kb_search
+
+        q = request.query_params.get("q", "").strip()
+        if len(q) < 2:
+            return Response([])
+        source = request.query_params.get("src", "agent")
+        results = kb_search(
+            tenant=request.tenant,
+            query_str=q,
+            visibility_filter=AGENT_VISIBILITY,
+            source=source,
+        )
+        return Response(KBArticleSearchSerializer(results, many=True).data)

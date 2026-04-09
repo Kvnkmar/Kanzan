@@ -9,8 +9,10 @@ from rest_framework import serializers
 
 from apps.contacts.models import Contact
 from apps.tickets.models import (
+    BusinessHours,
     CannedResponse,
     EscalationRule,
+    PublicHoliday,
     Queue,
     SavedView,
     SLAPolicy,
@@ -38,6 +40,7 @@ class TicketStatusSerializer(serializers.ModelSerializer):
             "order",
             "is_closed",
             "is_default",
+            "pauses_sla",
             "created_at",
             "updated_at",
         ]
@@ -165,6 +168,9 @@ class TicketListSerializer(serializers.ModelSerializer):
     assigned_by_name = serializers.SerializerMethodField()
     queue_name = serializers.CharField(source="queue.name", read_only=True, default=None)
     contact_name = serializers.SerializerMethodField()
+    pipeline_stage_name = serializers.CharField(
+        source="pipeline_stage.name", read_only=True, default=None,
+    )
 
     class Meta:
         model = Ticket
@@ -178,6 +184,8 @@ class TicketListSerializer(serializers.ModelSerializer):
             "status_color",
             "is_closed",
             "priority",
+            "channel",
+            "ticket_type",
             "assignee",
             "assignee_name",
             "assigned_by",
@@ -189,8 +197,24 @@ class TicketListSerializer(serializers.ModelSerializer):
             "contact_name",
             "category",
             "due_date",
+            "pipeline_stage",
+            "pipeline_stage_name",
+            "deal_value",
+            "expected_close_date",
+            "probability",
+            "won_at",
+            "lost_at",
+            "won_reason",
+            "lost_reason",
+            "sla_first_response_due",
+            "sla_resolution_due",
             "sla_response_breached",
             "sla_resolution_breached",
+            "escalation_count",
+            "solved_at",
+            "csat_rating",
+            "needs_kb_article",
+            "merged_into",
             "created_at",
             "updated_at",
         ]
@@ -240,6 +264,7 @@ class TicketContactInfoSerializer(serializers.ModelSerializer):
             "job_title",
             "company",
             "company_name",
+            "email_bouncing",
         ]
         read_only_fields = fields
 
@@ -256,14 +281,22 @@ class TicketDetailSerializer(serializers.ModelSerializer):
     """Full ticket representation with nested related objects."""
 
     status = TicketStatusSerializer(read_only=True)
+    sla_policy_detail = SLAPolicySerializer(source="sla_policy", read_only=True)
     assignee_name = serializers.SerializerMethodField()
     assigned_by_name = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
     contact_name = serializers.SerializerMethodField()
     contact_detail = TicketContactInfoSerializer(source="contact", read_only=True)
     queue_name = serializers.CharField(source="queue.name", default=None, read_only=True)
+    status_changed_by_name = serializers.SerializerMethodField()
     assignments = TicketAssignmentSerializer(many=True, read_only=True)
     sla_status = serializers.SerializerMethodField()
+    pipeline_stage_name = serializers.CharField(
+        source="pipeline_stage.name", read_only=True, default=None,
+    )
+    pipeline_name = serializers.CharField(
+        source="pipeline_stage.pipeline.name", read_only=True, default=None,
+    )
 
     class Meta:
         model = Ticket
@@ -274,6 +307,8 @@ class TicketDetailSerializer(serializers.ModelSerializer):
             "description",
             "status",
             "priority",
+            "channel",
+            "ticket_type",
             "category",
             "queue",
             "queue_name",
@@ -292,9 +327,35 @@ class TicketDetailSerializer(serializers.ModelSerializer):
             "resolved_at",
             "closed_at",
             "first_responded_at",
+            "pipeline_stage",
+            "pipeline_stage_name",
+            "pipeline_name",
+            "deal_value",
+            "expected_close_date",
+            "probability",
+            "won_at",
+            "lost_at",
+            "won_reason",
+            "lost_reason",
+            "sla_policy",
+            "sla_policy_detail",
+            "sla_first_response_due",
+            "sla_resolution_due",
+            "sla_paused_at",
             "sla_response_breached",
             "sla_resolution_breached",
             "sla_status",
+            "status_changed_at",
+            "status_changed_by",
+            "status_changed_by_name",
+            "escalation_count",
+            "escalated_at",
+            "solved_at",
+            "csat_rating",
+            "csat_comment",
+            "csat_submitted_at",
+            "needs_kb_article",
+            "merged_into",
             "tags",
             "custom_data",
             "assignments",
@@ -325,6 +386,12 @@ class TicketDetailSerializer(serializers.ModelSerializer):
         if obj.created_by:
             full = f"{obj.created_by.first_name} {obj.created_by.last_name}".strip()
             return full or str(obj.created_by)
+        return None
+
+    def get_status_changed_by_name(self, obj):
+        if obj.status_changed_by:
+            full = f"{obj.status_changed_by.first_name} {obj.status_changed_by.last_name}".strip()
+            return full or str(obj.status_changed_by)
         return None
 
     def get_sla_status(self, obj):
@@ -392,7 +459,7 @@ class TicketCreateSerializer(serializers.ModelSerializer):
     """
 
     status = serializers.PrimaryKeyRelatedField(
-        queryset=TicketStatus.objects.all(), required=False, allow_null=True
+        queryset=TicketStatus.unscoped.all(), required=False, allow_null=True
     )
 
     class Meta:
@@ -404,12 +471,20 @@ class TicketCreateSerializer(serializers.ModelSerializer):
             "description",
             "status",
             "priority",
+            "channel",
+            "ticket_type",
             "category",
             "queue",
             "contact",
             "company",
             "assignee",
             "due_date",
+            "pipeline_stage",
+            "deal_value",
+            "expected_close_date",
+            "probability",
+            "won_reason",
+            "lost_reason",
             "tags",
             "custom_data",
             "created_at",
@@ -453,9 +528,13 @@ class TicketCreateSerializer(serializers.ModelSerializer):
         # Set created_by from authenticated user.
         validated_data["created_by"] = request.user
 
-        # Auto-assign to creator if no assignee specified.
+        # Auto-assign: queue default_assignee > creator fallback
         if "assignee" not in validated_data or validated_data.get("assignee") is None:
-            validated_data["assignee"] = request.user
+            queue = validated_data.get("queue")
+            if queue and queue.auto_assign and queue.default_assignee:
+                validated_data["assignee"] = queue.default_assignee
+            else:
+                validated_data["assignee"] = request.user
 
         # Fall back to tenant default status when none provided.
         if "status" not in validated_data or validated_data["status"] is None:
@@ -466,7 +545,13 @@ class TicketCreateSerializer(serializers.ModelSerializer):
                 )
             validated_data["status"] = default_status
 
-        return super().create(validated_data)
+        ticket = super().create(validated_data)
+
+        # Initialize SLA deadlines based on priority
+        from apps.tickets.services import initialize_sla
+        initialize_sla(ticket)
+
+        return ticket
 
 
 # ---------------------------------------------------------------------------
@@ -621,6 +706,7 @@ class TicketEmailListSerializer(serializers.Serializer):
 
     id = serializers.UUIDField()
     message_id = serializers.CharField()
+    in_reply_to = serializers.CharField(allow_blank=True, default="")
     sender_email = serializers.EmailField()
     sender_name = serializers.CharField()
     recipient_email = serializers.EmailField()
@@ -630,3 +716,269 @@ class TicketEmailListSerializer(serializers.Serializer):
     sender_type = serializers.CharField()
     status = serializers.CharField()
     created_at = serializers.DateTimeField()
+
+
+# ---------------------------------------------------------------------------
+# BusinessHours
+# ---------------------------------------------------------------------------
+
+
+class BusinessHoursSerializer(serializers.ModelSerializer):
+    weekly_business_minutes = serializers.SerializerMethodField()
+
+    class Meta:
+        model = BusinessHours
+        fields = [
+            "id",
+            "timezone",
+            "schedule",
+            "weekly_business_minutes",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at", "weekly_business_minutes"]
+
+    def get_weekly_business_minutes(self, obj):
+        return obj.weekly_business_minutes()
+
+    def validate_schedule(self, value):
+        """Validate schedule structure."""
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Must be a JSON object.")
+        import datetime
+
+        for key, day in value.items():
+            if key not in {str(i) for i in range(7)}:
+                raise serializers.ValidationError(
+                    f"Invalid day key: {key}. Must be '0'..'6'."
+                )
+            if not isinstance(day, dict):
+                raise serializers.ValidationError(f"Day {key} must be an object.")
+            if day.get("is_active"):
+                for field in ("open_time", "close_time"):
+                    val = day.get(field)
+                    if not val:
+                        raise serializers.ValidationError(
+                            f"Day {key}: {field} is required when active."
+                        )
+                    try:
+                        datetime.time.fromisoformat(val)
+                    except (ValueError, TypeError):
+                        raise serializers.ValidationError(
+                            f"Day {key}: {field} must be HH:MM format."
+                        )
+        return value
+
+    def validate_timezone(self, value):
+        from zoneinfo import ZoneInfo
+        try:
+            ZoneInfo(value)
+        except (KeyError, Exception):
+            raise serializers.ValidationError(f"Invalid timezone: {value}")
+        return value
+
+
+# ---------------------------------------------------------------------------
+# PublicHoliday
+# ---------------------------------------------------------------------------
+
+
+class PublicHolidaySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PublicHoliday
+        fields = [
+            "id",
+            "date",
+            "name",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+# ---------------------------------------------------------------------------
+# Ticket actions (escalate, change-status)
+# ---------------------------------------------------------------------------
+
+
+class TicketEscalateSerializer(serializers.Serializer):
+    """Validates an escalation request."""
+
+    assignee = serializers.UUIDField(required=False, allow_null=True)
+    queue = serializers.UUIDField(required=False, allow_null=True)
+    reason = serializers.CharField(max_length=2000)
+
+    def validate(self, attrs):
+        if not attrs.get("assignee") and not attrs.get("queue"):
+            raise serializers.ValidationError(
+                "At least one of 'assignee' or 'queue' must be provided."
+            )
+        return attrs
+
+
+class TicketChangeStatusSerializer(serializers.Serializer):
+    """Validates a status change request with transition enforcement."""
+
+    status = serializers.UUIDField(help_text="UUID of the target TicketStatus.")
+
+
+class TicketChangeStageSerializer(serializers.Serializer):
+    """Validates a pipeline stage change request."""
+
+    stage = serializers.UUIDField(help_text="UUID of the target PipelineStage.")
+    reason = serializers.CharField(
+        max_length=500,
+        required=False,
+        default="",
+        allow_blank=True,
+        help_text="Optional reason (used for won/lost stages).",
+    )
+
+
+class CSATSubmitSerializer(serializers.Serializer):
+    """Validates a public CSAT submission (no auth required)."""
+
+    token = serializers.CharField()
+    rating = serializers.IntegerField(min_value=1, max_value=5)
+    comment = serializers.CharField(required=False, default="", allow_blank=True)
+
+
+# ---------------------------------------------------------------------------
+# TicketLink
+# ---------------------------------------------------------------------------
+
+
+class TicketLinkSerializer(serializers.ModelSerializer):
+    """Read serializer for ticket links."""
+
+    source_ticket_number = serializers.IntegerField(
+        source="source_ticket.number", read_only=True,
+    )
+    source_ticket_subject = serializers.CharField(
+        source="source_ticket.subject", read_only=True,
+    )
+    target_ticket_number = serializers.IntegerField(
+        source="target_ticket.number", read_only=True,
+    )
+    target_ticket_subject = serializers.CharField(
+        source="target_ticket.subject", read_only=True,
+    )
+    link_type_display = serializers.CharField(
+        source="get_link_type_display", read_only=True,
+    )
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        from apps.tickets.models import TicketLink
+
+        model = TicketLink
+        fields = [
+            "id",
+            "source_ticket",
+            "source_ticket_number",
+            "source_ticket_subject",
+            "target_ticket",
+            "target_ticket_number",
+            "target_ticket_subject",
+            "link_type",
+            "link_type_display",
+            "created_by",
+            "created_by_name",
+            "created_at",
+        ]
+        read_only_fields = fields
+
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            full = f"{obj.created_by.first_name} {obj.created_by.last_name}".strip()
+            return full or obj.created_by.email
+        return None
+
+
+class TicketLinkCreateSerializer(serializers.Serializer):
+    """Validates a link creation request."""
+
+    target = serializers.UUIDField()
+    link_type = serializers.ChoiceField(
+        choices=[
+            ("duplicate_of", "Duplicate of"),
+            ("related_to", "Related to"),
+            ("blocks", "Blocks"),
+            ("blocked_by", "Blocked by"),
+        ],
+    )
+
+
+class TicketMergeSerializer(serializers.Serializer):
+    """Validates a merge request."""
+
+    merge_into = serializers.UUIDField(
+        help_text="UUID of the primary ticket to merge into.",
+    )
+
+
+class TicketSplitSerializer(serializers.Serializer):
+    """Validates a split request."""
+
+    comment_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        help_text="UUIDs of comments to move to the new ticket.",
+    )
+    subject = serializers.CharField(max_length=255)
+    queue = serializers.UUIDField(required=False, allow_null=True)
+    priority = serializers.ChoiceField(
+        choices=[("low", "Low"), ("medium", "Medium"), ("high", "High"), ("urgent", "Urgent")],
+        required=False,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Macro
+# ---------------------------------------------------------------------------
+
+
+class MacroSerializer(serializers.ModelSerializer):
+    """Full serializer for Macro CRUD."""
+
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        from apps.tickets.models import Macro
+
+        model = Macro
+        fields = [
+            "id",
+            "name",
+            "description",
+            "body",
+            "actions",
+            "is_shared",
+            "created_by",
+            "created_by_name",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            full = f"{obj.created_by.first_name} {obj.created_by.last_name}".strip()
+            return full or obj.created_by.email
+        return None
+
+    def validate_actions(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError("Must be a list.")
+        valid_actions = {"set_status", "set_priority", "add_tag"}
+        for item in value:
+            if not isinstance(item, dict):
+                raise serializers.ValidationError("Each action must be an object.")
+            if item.get("action") not in valid_actions:
+                raise serializers.ValidationError(
+                    f"Unknown action '{item.get('action')}'. "
+                    f"Valid: {', '.join(sorted(valid_actions))}"
+                )
+            if not item.get("value"):
+                raise serializers.ValidationError("Each action must have a 'value'.")
+        return value

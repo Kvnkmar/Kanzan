@@ -1,7 +1,7 @@
 """
 Shared test infrastructure for Kanzan Suite.
 
-Provides TenantTestCase which sets up two isolated tenants with users,
+Provides KanzenBaseTestCase which sets up two isolated tenants with users,
 roles, and memberships — the minimum scaffolding needed to test
 multi-tenancy, RBAC, and plan limits.
 """
@@ -10,17 +10,19 @@ from datetime import date
 
 from django.test import TestCase, RequestFactory
 from django.utils import timezone as tz
+from rest_framework.test import APIClient
 
 from apps.accounts.models import Role, TenantMembership, User
 from apps.billing.models import Plan, Subscription, UsageTracker
+from apps.contacts.models import Contact
 from apps.tenants.models import Tenant
-from apps.tickets.models import Ticket, TicketStatus
+from apps.tickets.models import Queue, SLAPolicy, Ticket, TicketStatus
 from main.context import clear_current_tenant, set_current_tenant
 
 
 class TenantTestCase(TestCase):
     """
-    Base test case that creates two tenants with full role/user setup.
+    Legacy base test case — kept for backward compatibility.
 
     Provides:
         self.tenant_a, self.tenant_b  — two isolated tenants
@@ -174,3 +176,123 @@ class TenantTestCase(TestCase):
             period_start=date(2026, 1, 1),
         )
         return sub, usage
+
+
+class KanzenBaseTestCase(TenantTestCase):
+    """
+    Extended base test case for the comprehensive QA suite.
+
+    Adds on top of TenantTestCase:
+        - manager_a user (tenant A)
+        - admin_b, agent_b users (tenant B)
+        - Full ticket status set for tenant A (open, in-progress, waiting, resolved, closed)
+        - SLAPolicy for tenant A (priority=high)
+        - Queue for tenant A
+        - Contact for tenant A
+        - Helper: self.auth(user) → sets JWT-like Authorization via force_authenticate
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+
+        # --- Additional users ---
+        cls.manager_a = User.objects.create_user(
+            email="manager@tenant-a.test",
+            password="testpass123",
+            first_name="Manager",
+            last_name="A",
+        )
+        TenantMembership.objects.create(
+            user=cls.manager_a, tenant=cls.tenant_a, role=cls.role_manager_a,
+        )
+
+        cls.agent_b = User.objects.create_user(
+            email="agent@tenant-b.test",
+            password="testpass123",
+            first_name="Agent",
+            last_name="B",
+        )
+        cls.role_agent_b = Role.unscoped.get(tenant=cls.tenant_b, slug="agent")
+        TenantMembership.objects.create(
+            user=cls.agent_b, tenant=cls.tenant_b, role=cls.role_agent_b,
+        )
+
+        # --- Full status set for tenant A ---
+        cls.status_in_progress_a = TicketStatus(
+            name="In Progress", slug="in-progress", order=1,
+            tenant=cls.tenant_a,
+        )
+        cls.status_in_progress_a.save()
+
+        cls.status_waiting_a = TicketStatus(
+            name="Waiting", slug="waiting", order=2,
+            pauses_sla=True,
+            tenant=cls.tenant_a,
+        )
+        cls.status_waiting_a.save()
+
+        cls.status_resolved_a = TicketStatus(
+            name="Resolved", slug="resolved", order=3,
+            tenant=cls.tenant_a,
+        )
+        cls.status_resolved_a.save()
+
+        # Update closed status order for consistency
+        cls.status_closed_a.order = 4
+        cls.status_closed_a.save()
+
+        # --- SLA Policy ---
+        cls.sla_policy_a = SLAPolicy(
+            name="High Priority SLA",
+            priority="high",
+            first_response_minutes=5,
+            resolution_minutes=30,
+            business_hours_only=False,
+            is_active=True,
+            tenant=cls.tenant_a,
+        )
+        cls.sla_policy_a.save()
+
+        # --- Queue ---
+        cls.queue_a = Queue(
+            name="Support Queue",
+            auto_assign=False,
+            tenant=cls.tenant_a,
+        )
+        cls.queue_a.save()
+
+        # --- Contact ---
+        cls.contact_a = Contact(
+            first_name="John",
+            last_name="Doe",
+            email="john@customer.com",
+            tenant=cls.tenant_a,
+        )
+        cls.contact_a.save()
+
+    def setUp(self):
+        super().setUp()
+        self.client = APIClient()
+
+    def auth(self, user):
+        """Authenticate the API client as the given user."""
+        self.client.force_authenticate(user=user)
+
+    def auth_tenant(self, user, tenant=None):
+        """Authenticate and set tenant subdomain header."""
+        self.client.force_authenticate(user=user)
+        t = tenant or self.tenant_a
+        self.client.defaults["HTTP_HOST"] = f"{t.slug}.localhost:8001"
+
+    def api_url(self, path):
+        """Build a full API URL."""
+        if not path.startswith("/"):
+            path = f"/{path}"
+        return f"/api/v1{path}"
+
+    def create_ticket(self, tenant=None, user=None, **kwargs):
+        """Create a ticket via the model layer (not API)."""
+        t = tenant or self.tenant_a
+        u = user or self.admin_a
+        return self.make_ticket(t, u, **kwargs)

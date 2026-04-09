@@ -106,6 +106,38 @@ class Mention(models.Model):
         return f"@{self.mentioned_user} in comment {self.comment_id}"
 
 
+class CommentRead(models.Model):
+    """
+    Tracks per-user read state for comments.
+
+    A row means the given user has read the given comment. Absence of a row
+    means unread. This avoids adding per-user columns to Comment itself.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    comment = models.ForeignKey(
+        Comment,
+        on_delete=models.CASCADE,
+        related_name="reads",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="comment_reads",
+    )
+    read_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = [("comment", "user")]
+        # Recommended index for badge count query (comment_id, user_id):
+        # CREATE INDEX commentread_comment_user ON comments_commentread(comment_id, user_id);
+        verbose_name = "comment read"
+        verbose_name_plural = "comment reads"
+
+    def __str__(self):
+        return f"{self.user} read comment {self.comment_id}"
+
+
 class ActivityLog(TenantScopedModel):
     """
     Immutable audit trail for all entity changes within a tenant.
@@ -128,6 +160,10 @@ class ActivityLog(TenantScopedModel):
         REOPENED = "reopened", "Reopened"
         ATTACHMENT_ADDED = "attachment_added", "Attachment Added"
         ATTACHMENT_REMOVED = "attachment_removed", "Attachment Removed"
+        SLA_UPDATED = "sla_updated", "SLA Updated"
+        PIPELINE_STAGE_CHANGED = "pipeline_stage_changed", "Pipeline Stage Changed"
+        EMAIL_LINKED = "email_linked", "Email Linked"
+        EMAIL_ACTIONED = "email_actioned", "Email Actioned"
 
     content_type = models.ForeignKey(
         ContentType,

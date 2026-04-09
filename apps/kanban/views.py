@@ -46,6 +46,7 @@ class BoardViewSet(viewsets.ModelViewSet):
 
     serializer_class = BoardSerializer
     permission_classes = [permissions.IsAuthenticated, IsTenantMember]
+    permission_resource = "kanban"
     lookup_field = "pk"
 
     def get_queryset(self):

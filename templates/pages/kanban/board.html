@@ -205,44 +205,85 @@
 
 <!-- Add Column Modal -->
 <div class="modal fade" id="addColumnModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-sm">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title fw-semibold">Add Column</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content" style="border:none;">
+      <div class="modal-body p-0">
         <div id="addColumnAlert"></div>
-        <div class="mb-3">
-          <label for="columnName" class="form-label">Column Name</label>
-          <input type="text" class="form-control" id="columnName" placeholder="e.g. In Progress" required>
+
+        <!-- Header area -->
+        <div style="padding:1.5rem 1.5rem 0;">
+          <div class="d-flex align-items-center justify-content-between mb-1">
+            <div class="d-flex align-items-center gap-2">
+              <div style="width:32px;height:32px;border-radius:var(--crm-radius-sm);background:var(--crm-primary-light);display:flex;align-items:center;justify-content:center;">
+                <i class="ti ti-columns-3 fs-5" style="color:var(--crm-primary);"></i>
+              </div>
+              <h6 class="mb-0 fw-semibold" style="font-size:1rem;color:var(--crm-text);">New Column</h6>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" style="font-size:0.65rem;"></button>
+          </div>
+          <p class="mb-0 mt-1" style="font-size:0.8rem;color:var(--crm-text-muted);line-height:1.4;">Add a new column to organize your board workflow.</p>
         </div>
-        <div class="mb-3">
-          <label for="columnStatus" class="form-label">
-            Ticket Status <span class="text-muted">(maps column to a status)</span>
-          </label>
-          <select class="form-select" id="columnStatus">
-            <option value="">No mapping</option>
-          </select>
+
+        <hr style="margin:1rem 0 0;border-color:var(--crm-border-light);">
+
+        <!-- Form fields -->
+        <div style="padding:1.25rem 1.5rem;">
+          <div class="mb-3">
+            <label for="columnName" class="form-label fw-medium" style="font-size:0.8125rem;color:var(--crm-text);margin-bottom:0.375rem;">
+              Column Name <span style="color:var(--crm-accent);">*</span>
+            </label>
+            <input type="text" class="form-control" id="columnName" placeholder="e.g. In Progress" required
+                   style="font-size:0.8125rem;padding:0.5rem 0.75rem;">
+          </div>
+
+          <div class="mb-3">
+            <label for="columnStatus" class="form-label fw-medium" style="font-size:0.8125rem;color:var(--crm-text);margin-bottom:0.375rem;">
+              Ticket Status
+            </label>
+            <select class="form-select" id="columnStatus" style="font-size:0.8125rem;padding:0.5rem 0.75rem;">
+              <option value="">No mapping</option>
+            </select>
+            <div style="font-size:0.7rem;color:var(--crm-text-muted);margin-top:0.3rem;">Maps this column to a ticket status for auto-sorting.</div>
+          </div>
+
+          <div class="row g-3">
+            <div class="col-7">
+              <label for="columnWipLimit" class="form-label fw-medium" style="font-size:0.8125rem;color:var(--crm-text);margin-bottom:0.375rem;">
+                WIP Limit
+              </label>
+              <div class="input-group" style="font-size:0.8125rem;">
+                <span class="input-group-text" style="font-size:0.8125rem;padding:0.5rem 0.625rem;background:var(--crm-bg);border-color:var(--crm-border);color:var(--crm-text-muted);">
+                  <i class="ti ti-arrows-maximize" style="font-size:0.875rem;"></i>
+                </span>
+                <input type="number" class="form-control" id="columnWipLimit" min="0" placeholder="No limit"
+                       style="font-size:0.8125rem;padding:0.5rem 0.75rem;">
+              </div>
+            </div>
+
+            <div class="col-5">
+              <label for="columnColor" class="form-label fw-medium" style="font-size:0.8125rem;color:var(--crm-text);margin-bottom:0.375rem;">
+                Color
+              </label>
+              <div class="d-flex align-items-center gap-2 add-col-color-picker">
+                <input type="color" id="columnColor" value="#6c757d"
+                       style="width:34px;height:34px;border:2px solid var(--crm-border);border-radius:var(--crm-radius-sm);padding:2px;cursor:pointer;background:var(--crm-surface);">
+                <span class="add-col-color-hex" style="font-size:0.75rem;color:var(--crm-text-muted);font-family:monospace;">#6c757d</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="mb-3">
-          <label for="columnWipLimit" class="form-label">
-            WIP Limit <span class="text-muted">(optional)</span>
-          </label>
-          <input type="number" class="form-control" id="columnWipLimit" min="0" placeholder="0 = no limit">
+
+        <!-- Footer -->
+        <div style="padding:0 1.5rem 1.25rem;display:flex;gap:0.5rem;justify-content:flex-end;">
+          <button type="button" class="btn btn-sm" data-bs-dismiss="modal"
+                  style="font-size:0.8125rem;padding:0.4375rem 1rem;border:1px solid var(--crm-border);color:var(--crm-text-secondary);border-radius:var(--crm-radius-sm);background:var(--crm-surface);">
+            Cancel
+          </button>
+          <button type="button" class="btn btn-primary btn-sm" id="addColumnSubmitBtn"
+                  style="font-size:0.8125rem;padding:0.4375rem 1.125rem;border-radius:var(--crm-radius-sm);">
+            <i class="ti ti-plus me-1" style="font-size:0.875rem;"></i>Add Column
+          </button>
         </div>
-        <div class="mb-3">
-          <label for="columnColor" class="form-label">
-            Color <span class="text-muted">(optional)</span>
-          </label>
-          <input type="color" class="form-control form-control-color" id="columnColor" value="#6c757d">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary btn-sm" id="addColumnSubmitBtn">
-          <i class="ti ti-plus me-1"></i>Add Column
-        </button>
       </div>
     </div>
   </div>
@@ -891,9 +932,17 @@
     document.getElementById('columnName').value = '';
     document.getElementById('columnWipLimit').value = '';
     document.getElementById('columnColor').value = '#6c757d';
+    var hexLabel = document.querySelector('.add-col-color-hex');
+    if (hexLabel) hexLabel.textContent = '#6c757d';
     populateStatusDropdown(document.getElementById('columnStatus'));
     var modal = new bootstrap.Modal(document.getElementById('addColumnModal'));
     modal.show();
+  });
+
+  // Sync color hex label
+  document.getElementById('columnColor').addEventListener('input', function() {
+    var hexLabel = document.querySelector('.add-col-color-hex');
+    if (hexLabel) hexLabel.textContent = this.value;
   });
 
   document.getElementById('addColumnSubmitBtn').addEventListener('click', function() {

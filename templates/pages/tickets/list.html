@@ -57,6 +57,23 @@
             <option value="">All Categories</option>
           </select>
         </div>
+        <div class="tl-filter-group">
+          <label for="filterDate" class="visually-hidden">Date</label>
+          <select id="filterDate" class="form-select form-select-sm tl-filter-select" name="date">
+            <option value="">All Dates</option>
+            <option value="today">Today</option>
+            <option value="yesterday">Yesterday</option>
+            <option value="7days">Last 7 Days</option>
+            <option value="30days">Last 30 Days</option>
+            <option value="90days">Last 90 Days</option>
+            <option value="custom">Custom Range...</option>
+          </select>
+        </div>
+        <div class="tl-filter-group d-none" id="customDateRange" style="display:flex;gap:6px;align-items:center;">
+          <input type="date" id="filterDateFrom" class="form-control form-control-sm tl-filter-select" style="width:auto;" aria-label="From date">
+          <span class="text-muted" style="font-size:0.75rem;">to</span>
+          <input type="date" id="filterDateTo" class="form-control form-control-sm tl-filter-select" style="width:auto;" aria-label="To date">
+        </div>
         <button type="button" id="clearFiltersBtn" class="btn btn-sm btn-ghost tl-clear-btn d-none">
           <i class="ti ti-x me-1" aria-hidden="true"></i>Clear
         </button>
@@ -68,6 +85,15 @@
       <i class="ti ti-search" aria-hidden="true"></i>
       <label for="filterSearch" class="visually-hidden">Search tickets</label>
       <input type="text" id="filterSearch" name="search" class="form-control form-control-sm" placeholder="Search tickets...">
+    </div>
+    <div class="dropdown me-2">
+      <button class="btn btn-sm btn-outline-secondary dropdown-toggle tl-layout-btn" type="button" id="layoutSelector" data-bs-toggle="dropdown" aria-expanded="false">
+        <i class="ti ti-table me-1" id="layoutIcon" aria-hidden="true"></i>Layout: <span id="currentLayoutName">Table</span>
+      </button>
+      <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="layoutSelector">
+        <li><a class="dropdown-item layout-option active" href="#" data-layout="table"><i class="ti ti-table me-2" aria-hidden="true"></i>Table</a></li>
+        <li><a class="dropdown-item layout-option" href="#" data-layout="card"><i class="ti ti-layout-grid me-2" aria-hidden="true"></i>Card</a></li>
+      </ul>
     </div>
     <div class="dropdown">
       <button class="btn btn-sm btn-outline-secondary dropdown-toggle tl-view-btn" type="button" id="viewSelector" data-bs-toggle="dropdown" aria-expanded="false">
@@ -167,7 +193,7 @@
 </div>
 
 <!-- Bulk Actions Modal -->
-<div class="modal fade" id="bulkActionsModal" tabindex="-1" aria-labelledby="bulkModalTitle" aria-hidden="true">
+<div class="modal fade" id="bulkActionsModal" tabindex="-1" aria-labelledby="bulkModalTitle" aria-hidden="true" data-bs-focus="false">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content bulk-modal">
       <div class="bulk-modal-header">
@@ -196,7 +222,7 @@
             </div>
             <div class="bulk-card-content">
               <label for="bulkAssignUser" class="visually-hidden">Choose an agent</label>
-              <select id="bulkAssignUser" class="form-select form-select-sm bulk-select"><option value="">Choose an agent...</option></select>
+              <select id="bulkAssignUser" class="form-select form-select-sm bulk-select" data-native><option value="">Choose an agent...</option></select>
               <button type="button" class="btn btn-sm bulk-card-btn bulk-card-btn--assign" id="bulkAssignBtn">
                 <i class="ti ti-check me-1" aria-hidden="true"></i>Assign
               </button>
@@ -214,7 +240,7 @@
             </div>
             <div class="bulk-card-content">
               <label for="bulkStatusSelect" class="visually-hidden">Choose a status</label>
-              <select id="bulkStatusSelect" class="form-select form-select-sm bulk-select"><option value="">Choose a status...</option></select>
+              <select id="bulkStatusSelect" class="form-select form-select-sm bulk-select" data-native><option value="">Choose a status...</option></select>
               <button type="button" class="btn btn-sm bulk-card-btn bulk-card-btn--status" id="bulkStatusBtn">
                 <i class="ti ti-check me-1" aria-hidden="true"></i>Apply
               </button>
@@ -232,7 +258,7 @@
             </div>
             <div class="bulk-card-content">
               <label for="bulkPrioritySelect" class="visually-hidden">Choose a priority</label>
-              <select id="bulkPrioritySelect" class="form-select form-select-sm bulk-select">
+              <select id="bulkPrioritySelect" class="form-select form-select-sm bulk-select" data-native>
                 <option value="">Choose a priority...</option>
                 <option value="low">Low</option>
                 <option value="medium">Medium</option>
@@ -294,6 +320,7 @@
   var totalCount = 0;
   var statusesData = [];
   var usersData = [];
+  var currentLayout = localStorage.getItem('ticketLayout') || 'table';
 
   /* ── Cached DOM References ── */
   var dom = {
@@ -306,6 +333,10 @@
     filterQueue: document.getElementById('filterQueue'),
     filterAssignee: document.getElementById('filterAssignee'),
     filterCategory: document.getElementById('filterCategory'),
+    filterDate: document.getElementById('filterDate'),
+    filterDateFrom: document.getElementById('filterDateFrom'),
+    filterDateTo: document.getElementById('filterDateTo'),
+    customDateRange: document.getElementById('customDateRange'),
     filterSearch: document.getElementById('filterSearch'),
     clearFiltersBtn: document.getElementById('clearFiltersBtn'),
     ticketsList: document.getElementById('ticketsList'),
@@ -323,7 +354,11 @@
     bulkActionsModal: document.getElementById('bulkActionsModal'),
     bulkToolbar: document.getElementById('bulkToolbar'),
     bulkToolbarCount: document.getElementById('bulkToolbarCount'),
-    statTabs: document.querySelectorAll('.tl-stat-tab')
+    statTabs: document.querySelectorAll('.tl-stat-tab'),
+    tableHeader: document.querySelector('.tl-table-header'),
+    layoutIcon: document.getElementById('layoutIcon'),
+    currentLayoutName: document.getElementById('currentLayoutName'),
+    layoutOptions: document.querySelectorAll('.layout-option')
   };
 
   /* ── Utility Functions ── */
@@ -373,6 +408,29 @@
       o2.value = s.id; o2.textContent = s.name;
       dom.bulkStatusSelect.appendChild(o2);
     });
+    // Apply deferred status filter from dashboard link
+    if (window._pendingStatusFilter) {
+      var target = window._pendingStatusFilter;
+      var opts = dom.filterStatus.options;
+      for (var i = 0; i < opts.length; i++) {
+        if (opts[i].value.toLowerCase() === target || opts[i].text.toLowerCase().includes(target.replace('_', ' '))) {
+          dom.filterStatus.value = opts[i].value; break;
+        }
+      }
+      window._pendingStatusFilter = null;
+      updateClearBtn();
+      loadTickets();
+    }
+    if (window._pendingStatusLabel) {
+      var lbl = window._pendingStatusLabel.toLowerCase();
+      var opts2 = dom.filterStatus.options;
+      for (var j = 0; j < opts2.length; j++) {
+        if (opts2[j].text.toLowerCase() === lbl) { dom.filterStatus.value = opts2[j].value; break; }
+      }
+      window._pendingStatusLabel = null;
+      updateClearBtn();
+      loadTickets();
+    }
   }).catch(function() {});
 
   /* ── Load Users for Bulk Assign + Assignee Filter ── */
@@ -396,6 +454,17 @@
       o.value = q.id; o.textContent = q.name;
       dom.filterQueue.appendChild(o);
     });
+    // Apply deferred queue filter from dashboard link
+    if (window._pendingQueueFilter) {
+      var qName = window._pendingQueueFilter;
+      var opts = dom.filterQueue.options;
+      for (var i = 0; i < opts.length; i++) {
+        if (opts[i].text === qName) { dom.filterQueue.value = opts[i].value; break; }
+      }
+      window._pendingQueueFilter = null;
+      updateClearBtn();
+      loadTickets();
+    }
   }).catch(function() {});
 
   /* ── Load Categories ── */
@@ -407,6 +476,30 @@
       dom.filterCategory.appendChild(o);
     });
   }).catch(function() {});
+
+  /* ── Date Range Helper ── */
+  function getDateRange() {
+    var val = dom.filterDate.value;
+    if (!val) return {};
+    var now = new Date();
+    var startOfDay = function(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0).toISOString(); };
+    var endOfDay = function(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59).toISOString(); };
+    if (val === 'today') return { after: startOfDay(now), before: endOfDay(now) };
+    if (val === 'yesterday') {
+      var y = new Date(now); y.setDate(y.getDate() - 1);
+      return { after: startOfDay(y), before: endOfDay(y) };
+    }
+    if (val === '7days') { var d7 = new Date(now); d7.setDate(d7.getDate() - 7); return { after: startOfDay(d7) }; }
+    if (val === '30days') { var d30 = new Date(now); d30.setDate(d30.getDate() - 30); return { after: startOfDay(d30) }; }
+    if (val === '90days') { var d90 = new Date(now); d90.setDate(d90.getDate() - 90); return { after: startOfDay(d90) }; }
+    if (val === 'custom') {
+      var result = {};
+      if (dom.filterDateFrom.value) result.after = new Date(dom.filterDateFrom.value + 'T00:00:00').toISOString();
+      if (dom.filterDateTo.value) result.before = new Date(dom.filterDateTo.value + 'T23:59:59').toISOString();
+      return result;
+    }
+    return {};
+  }
 
   /* ── Query Building & Filter State ── */
   function buildQueryParams() {
@@ -423,17 +516,39 @@
     if (a) params.set('assignee', a);
     var c = dom.filterCategory.value;
     if (c) params.set('category', c);
+    var dateRange = getDateRange();
+    if (dateRange.after) params.set('created_after', dateRange.after);
+    if (dateRange.before) params.set('created_before', dateRange.before);
     var q = dom.filterSearch.value.trim();
     if (q) params.set('search', q);
+
+    // Dashboard special filters
+    var df = window._dashboardFilter;
+    if (df === 'overdue') {
+      params.set('due_before', new Date().toISOString());
+      params.set('is_closed', 'false');
+    } else if (df === 'due_today') {
+      var now = new Date();
+      var start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      var end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      params.set('due_after', start.toISOString());
+      params.set('due_before', end.toISOString());
+      params.set('is_closed', 'false');
+    } else if (df === 'unassigned') {
+      params.set('unassigned', 'true');
+    } else if (df === 'unresolved') {
+      params.set('is_closed', 'false');
+    }
+
     return params.toString();
   }
 
   function updateClearBtn() {
-    var hasFilters = dom.filterStatus.value || dom.filterPriority.value || dom.filterQueue.value || dom.filterAssignee.value || dom.filterCategory.value || dom.filterSearch.value.trim();
+    var hasFilters = dom.filterStatus.value || dom.filterPriority.value || dom.filterQueue.value || dom.filterAssignee.value || dom.filterCategory.value || dom.filterDate.value || dom.filterSearch.value.trim();
     dom.clearFiltersBtn.classList.toggle('d-none', !hasFilters);
   }
 
-  /* ── Render Ticket Table Rows ── */
+  /* ── Render Tickets (dispatches to table or card) ── */
   function renderTickets(tickets) {
     dom.ticketsList.textContent = '';
 
@@ -447,6 +562,26 @@
     dom.ticketsList.classList.remove('d-none');
     dom.emptyState.classList.add('d-none');
 
+    if (currentLayout === 'card') {
+      dom.ticketsList.classList.add('tl-card-grid');
+      dom.tableHeader.classList.add('d-none');
+      renderTicketCards(tickets);
+    } else {
+      dom.ticketsList.classList.remove('tl-card-grid');
+      dom.tableHeader.classList.remove('d-none');
+      renderTicketRows(tickets);
+    }
+
+    /* Bind checkbox events via delegation */
+    dom.ticketsList.addEventListener('change', handleTicketCheckboxChange);
+    dom.ticketsList.addEventListener('click', handleTicketCheckboxClick);
+
+    updateClearBtn();
+    syncSelectAllCheckbox();
+  }
+
+  /* ── Render Table Rows ── */
+  function renderTicketRows(tickets) {
     var fragment = document.createDocumentFragment();
 
     tickets.forEach(function(t) {
@@ -566,13 +701,122 @@
     });
 
     dom.ticketsList.appendChild(fragment);
+  }
 
-    /* Bind checkbox events via delegation */
-    dom.ticketsList.addEventListener('change', handleTicketCheckboxChange);
-    dom.ticketsList.addEventListener('click', handleTicketCheckboxClick);
+  /* ── Render Card View ── */
+  function renderTicketCards(tickets) {
+    var fragment = document.createDocumentFragment();
 
-    updateClearBtn();
-    syncSelectAllCheckbox();
+    tickets.forEach(function(t) {
+      var pColor = PRIORITY_COLORS[t.priority] || PRIORITY_COLORS.low;
+      var statusName = escapeHtml(t.status_name || 'Unknown');
+      var statusColor = t.status_color || '';
+      var dateFormatted = t.created_at ? Kanzan.formatDateTime(t.created_at) : '';
+
+      var card = document.createElement('a');
+      card.className = 'tl-card';
+      card.href = '/tickets/' + encodeURIComponent(t.number) + '/';
+      card.setAttribute('data-ticket-id', t.id);
+      card.setAttribute('role', 'listitem');
+
+      /* Priority accent */
+      card.style.borderLeftColor = pColor;
+
+      /* Card header: checkbox + number + priority */
+      var header = document.createElement('div');
+      header.className = 'tl-card-header';
+
+      var headerLeft = document.createElement('div');
+      headerLeft.className = 'tl-card-header-left';
+
+      var checkWrap = document.createElement('div');
+      checkWrap.className = 'tl-card-checkbox';
+      checkWrap.addEventListener('click', function(e) { e.stopPropagation(); e.preventDefault(); checkbox.checked = !checkbox.checked; checkbox.dispatchEvent(new Event('change', { bubbles: true })); });
+      var checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'tl-row-checkbox ticket-checkbox';
+      checkbox.dataset.ticketId = t.id;
+      checkbox.setAttribute('aria-label', 'Select ticket #' + t.number);
+      if (BulkActions.selectedTickets.has(t.id)) checkbox.checked = true;
+      checkWrap.appendChild(checkbox);
+
+      var numBadge = document.createElement('span');
+      numBadge.className = 'tl-card-number';
+      numBadge.textContent = '#' + t.number;
+
+      headerLeft.appendChild(checkWrap);
+      headerLeft.appendChild(numBadge);
+
+      var priBadge = document.createElement('span');
+      priBadge.className = 'tl-cell-priority';
+      priBadge.style.color = pColor;
+      priBadge.style.background = pColor + '1A';
+      priBadge.style.border = '1px solid ' + pColor + '33';
+      priBadge.textContent = capitalize(t.priority);
+
+      header.appendChild(headerLeft);
+      header.appendChild(priBadge);
+
+      /* Card body: subject */
+      var body = document.createElement('div');
+      body.className = 'tl-card-body';
+      var subj = document.createElement('div');
+      subj.className = 'tl-card-subject';
+      subj.textContent = t.subject || '';
+      body.appendChild(subj);
+
+      /* Card meta: status + assignee */
+      var meta = document.createElement('div');
+      meta.className = 'tl-card-meta';
+
+      var statusBadge = document.createElement('span');
+      statusBadge.className = 'tl-cell-status';
+      statusBadge.textContent = statusName;
+      if (statusColor) {
+        statusBadge.style.background = statusColor + '1A';
+        statusBadge.style.color = statusColor;
+        statusBadge.style.border = '1px solid ' + statusColor + '33';
+      }
+      meta.appendChild(statusBadge);
+
+      if (t.assignee_name) {
+        var assigneeWrap = document.createElement('span');
+        assigneeWrap.className = 'tl-card-assignee';
+        var avatar = document.createElement('span');
+        avatar.className = 'tl-cell-avatar';
+        avatar.textContent = getInitials(t.assignee_name);
+        var aName = document.createElement('span');
+        aName.className = 'tl-card-assignee-name';
+        aName.textContent = t.assignee_name;
+        assigneeWrap.appendChild(avatar);
+        assigneeWrap.appendChild(aName);
+        meta.appendChild(assigneeWrap);
+      }
+
+      /* Card footer: requester + date */
+      var footer = document.createElement('div');
+      footer.className = 'tl-card-footer';
+
+      var reqInfo = document.createElement('span');
+      reqInfo.className = 'tl-card-requester';
+      reqInfo.textContent = t.contact_name || '--';
+      footer.appendChild(reqInfo);
+
+      var dateInfo = document.createElement('span');
+      dateInfo.className = 'tl-card-date';
+      dateInfo.textContent = dateFormatted;
+      footer.appendChild(dateInfo);
+
+      /* Assemble card */
+      card.appendChild(header);
+      card.appendChild(body);
+      card.appendChild(meta);
+      card.appendChild(footer);
+
+      fragment.appendChild(card);
+    });
+
+    dom.ticketsList.appendChild(fragment);
   }
 
   function handleTicketCheckboxChange(e) {
@@ -701,6 +945,14 @@
   dom.filterQueue.addEventListener('change', function() { currentPage = 1; loadTickets(); updateClearBtn(); });
   dom.filterAssignee.addEventListener('change', function() { currentPage = 1; loadTickets(); updateClearBtn(); });
   dom.filterCategory.addEventListener('change', function() { currentPage = 1; loadTickets(); updateClearBtn(); });
+  dom.filterDate.addEventListener('change', function() {
+    var isCustom = this.value === 'custom';
+    dom.customDateRange.classList.toggle('d-none', !isCustom);
+    if (!isCustom) { dom.filterDateFrom.value = ''; dom.filterDateTo.value = ''; currentPage = 1; loadTickets(); }
+    updateClearBtn();
+  });
+  dom.filterDateFrom.addEventListener('change', function() { if (dom.filterDate.value === 'custom') { currentPage = 1; loadTickets(); updateClearBtn(); } });
+  dom.filterDateTo.addEventListener('change', function() { if (dom.filterDate.value === 'custom') { currentPage = 1; loadTickets(); updateClearBtn(); } });
 
   dom.clearFiltersBtn.addEventListener('click', function() {
     dom.filterStatus.value = '';
@@ -708,6 +960,10 @@
     dom.filterQueue.value = '';
     dom.filterAssignee.value = '';
     dom.filterCategory.value = '';
+    dom.filterDate.value = '';
+    dom.filterDateFrom.value = '';
+    dom.filterDateTo.value = '';
+    dom.customDateRange.classList.add('d-none');
     dom.filterSearch.value = '';
     this.classList.add('d-none');
     currentPage = 1;
@@ -902,6 +1158,14 @@
       if (filters.queue) dom.filterQueue.value = filters.queue;
       if (filters.assignee) dom.filterAssignee.value = filters.assignee;
       if (filters.category) dom.filterCategory.value = filters.category;
+      if (filters.date) {
+        dom.filterDate.value = filters.date;
+        if (filters.date === 'custom') {
+          dom.customDateRange.classList.remove('d-none');
+          if (filters.date_from) dom.filterDateFrom.value = filters.date_from;
+          if (filters.date_to) dom.filterDateTo.value = filters.date_to;
+        }
+      }
       if (filters.search) dom.filterSearch.value = filters.search;
       currentPage = 1;
       loadTickets();
@@ -915,6 +1179,10 @@
       dom.filterQueue.value = '';
       dom.filterAssignee.value = '';
       dom.filterCategory.value = '';
+      dom.filterDate.value = '';
+      dom.filterDateFrom.value = '';
+      dom.filterDateTo.value = '';
+      dom.customDateRange.classList.add('d-none');
       dom.filterSearch.value = '';
       dom.clearFiltersBtn.classList.add('d-none');
       currentPage = 1;
@@ -928,12 +1196,20 @@
       var qu = dom.filterQueue.value;
       var a = dom.filterAssignee.value;
       var c = dom.filterCategory.value;
+      var d = dom.filterDate.value;
       var q = dom.filterSearch.value.trim();
       if (s) filters.status = s;
       if (p) filters.priority = p;
       if (qu) filters.queue = qu;
       if (a) filters.assignee = a;
       if (c) filters.category = c;
+      if (d) {
+        filters.date = d;
+        if (d === 'custom') {
+          if (dom.filterDateFrom.value) filters.date_from = dom.filterDateFrom.value;
+          if (dom.filterDateTo.value) filters.date_to = dom.filterDateTo.value;
+        }
+      }
       if (q) filters.search = q;
       return filters;
     },
@@ -997,6 +1273,81 @@
       updateClearBtn();
     });
   });
+
+  /* ── Layout Toggle ── */
+  function setLayout(layout) {
+    currentLayout = layout;
+    localStorage.setItem('ticketLayout', layout);
+    dom.currentLayoutName.textContent = layout === 'card' ? 'Card' : 'Table';
+    dom.layoutIcon.className = layout === 'card' ? 'ti ti-layout-grid me-1' : 'ti ti-table me-1';
+    dom.layoutOptions.forEach(function(opt) {
+      opt.classList.toggle('active', opt.dataset.layout === layout);
+    });
+    loadTickets();
+  }
+
+  dom.layoutOptions.forEach(function(opt) {
+    opt.addEventListener('click', function(e) {
+      e.preventDefault();
+      setLayout(this.dataset.layout);
+    });
+  });
+
+  /* Restore saved layout on load */
+  if (currentLayout === 'card') {
+    dom.currentLayoutName.textContent = 'Card';
+    dom.layoutIcon.className = 'ti ti-layout-grid me-1';
+    dom.layoutOptions.forEach(function(opt) {
+      opt.classList.toggle('active', opt.dataset.layout === 'card');
+    });
+  }
+
+  /* ── Apply dashboard filter from URL query params ── */
+  (function applyUrlFilters() {
+    var urlParams = new URLSearchParams(window.location.search);
+    var dashFilter = urlParams.get('filter');
+    var queueName = urlParams.get('queue');
+    var filterLabel = urlParams.get('filter_label');
+
+    // Filters that work via API params directly (no dropdown needed)
+    if (dashFilter === 'overdue') window._dashboardFilter = 'overdue';
+    if (dashFilter === 'due_today') window._dashboardFilter = 'due_today';
+    if (dashFilter === 'unassigned') window._dashboardFilter = 'unassigned';
+    if (dashFilter === 'unresolved') window._dashboardFilter = 'unresolved';
+
+    // Priority filter (dropdown is static, can set immediately)
+    var priorityParam = urlParams.get('priority');
+    if (priorityParam) {
+      var priOpts = dom.filterPriority.options;
+      for (var n = 0; n < priOpts.length; n++) {
+        if (priOpts[n].value.toLowerCase() === priorityParam.toLowerCase()) {
+          dom.filterPriority.value = priOpts[n].value; break;
+        }
+      }
+    }
+    if (filterLabel && !priorityParam) {
+      var priOpts2 = dom.filterPriority.options;
+      for (var p = 0; p < priOpts2.length; p++) {
+        if (priOpts2[p].text.toLowerCase() === filterLabel.toLowerCase() || priOpts2[p].value.toLowerCase() === filterLabel.toLowerCase()) {
+          dom.filterPriority.value = priOpts2[p].value; break;
+        }
+      }
+    }
+
+    // Store for deferred application after async dropdown loads
+    window._pendingStatusFilter = null;
+    window._pendingQueueFilter = null;
+    window._pendingStatusLabel = null;
+
+    var statusParam = urlParams.get('status');
+    if (dashFilter === 'open') window._pendingStatusFilter = 'open';
+    if (dashFilter === 'on_hold') window._pendingStatusFilter = 'on_hold';
+    if (statusParam) window._pendingStatusLabel = statusParam;
+    if (queueName) window._pendingQueueFilter = queueName;
+    if (filterLabel && !dom.filterPriority.value && !statusParam) window._pendingStatusLabel = filterLabel;
+
+    updateClearBtn();
+  })();
 
   /* ── Init ── */
   loadTickets();

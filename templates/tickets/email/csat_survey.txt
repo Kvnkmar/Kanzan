@@ -1,0 +1,13 @@
+Your ticket has been resolved.
+
+Ticket #{{ ticket.number }}: {{ ticket.subject }}
+
+Hi {{ contact_name }},
+
+We'd love to hear how we did. Please take a moment to rate your experience:
+
+{{ survey_url }}
+
+If you still need help, simply reply to this email and your ticket will be reopened.
+
+{{ tenant_name }}

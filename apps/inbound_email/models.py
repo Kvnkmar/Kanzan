@@ -12,6 +12,8 @@ it created, updated, or was sent from.
 
 import uuid
 
+from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from main.models import TimestampedModel
@@ -40,7 +42,19 @@ class InboundEmail(TimestampedModel):
         REPLY_ADDED = "reply_added", "Reply Added"
         SENT = "sent", "Sent"
         REJECTED = "rejected", "Rejected"
+        BOUNCED = "bounced", "Bounced"
         FAILED = "failed", "Failed"
+
+    class InboxStatus(models.TextChoices):
+        PENDING = "pending", "Pending"
+        LINKED = "linked", "Linked"
+        ACTIONED = "actioned", "Actioned"
+        IGNORED = "ignored", "Ignored"
+
+    class InboxAction(models.TextChoices):
+        OPEN = "open", "Open"
+        ASSIGN = "assign", "Assign"
+        CLOSE = "close", "Close"
 
     class Direction(models.TextChoices):
         INBOUND = "inbound", "Inbound"
@@ -149,6 +163,45 @@ class InboundEmail(TimestampedModel):
         ),
     )
 
+    # --- Agent inbox workflow fields ---
+    inbox_status = models.CharField(
+        max_length=20,
+        choices=InboxStatus.choices,
+        default=InboxStatus.PENDING,
+        db_index=True,
+        help_text="Agent inbox workflow state.",
+    )
+    linked_ticket = models.ForeignKey(
+        "tickets.Ticket",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="linked_inbound_emails",
+        help_text="Ticket manually linked by an agent via the inbox workflow.",
+    )
+    linked_at = models.DateTimeField(null=True, blank=True)
+    linked_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="linked_emails",
+    )
+    actioned_at = models.DateTimeField(null=True, blank=True)
+    actioned_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="actioned_emails",
+    )
+    action_taken = models.CharField(
+        max_length=10,
+        choices=InboxAction.choices,
+        null=True,
+        blank=True,
+    )
+
     class Meta:
         ordering = ["-created_at"]
         indexes = [
@@ -162,7 +215,28 @@ class InboundEmail(TimestampedModel):
                 fields=["ticket", "direction"],
                 name="email_ticket_direction_idx",
             ),
+            models.Index(
+                fields=["tenant", "inbox_status"],
+                name="email_tenant_inbox_status_idx",
+            ),
         ]
+
+    def save(self, *args, **kwargs):
+        if self.pk:
+            try:
+                old = InboundEmail.objects.get(pk=self.pk)
+            except InboundEmail.DoesNotExist:
+                old = None
+            if old:
+                if old.actioned_at and self.actioned_at != old.actioned_at:
+                    raise ValidationError("actioned_at is immutable once set.")
+                if old.actioned_by_id and self.actioned_by_id != old.actioned_by_id:
+                    raise ValidationError("actioned_by is immutable once set.")
+                if old.linked_at and self.linked_at != old.linked_at:
+                    raise ValidationError("linked_at is immutable once set.")
+                if old.linked_by_id and self.linked_by_id != old.linked_by_id:
+                    raise ValidationError("linked_by is immutable once set.")
+        super().save(*args, **kwargs)
 
     def __str__(self):
         arrow = "\u2192" if self.direction == self.Direction.OUTBOUND else "\u2190"
@@ -175,3 +249,57 @@ class InboundEmail(TimestampedModel):
     @property
     def is_outbound(self):
         return self.direction == self.Direction.OUTBOUND
+
+
+class BounceLog(TimestampedModel):
+    """
+    Records hard-bounce email deliveries.
+
+    Created when the inbound pipeline detects a bounce notification
+    (DSN/NDR). Optionally linked to the ticket the bounce relates to
+    (if the bounce is a reply to a ticket notification).
+    """
+
+    tenant = models.ForeignKey(
+        "tenants.Tenant",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="bounce_logs",
+    )
+    inbound_email = models.ForeignKey(
+        InboundEmail,
+        on_delete=models.CASCADE,
+        related_name="bounce_logs",
+        help_text="The InboundEmail record that contained the bounce.",
+    )
+    from_address = models.EmailField(
+        help_text="Original sender of the bounced message (the mailer-daemon).",
+    )
+    to_address = models.EmailField(
+        blank=True,
+        default="",
+        help_text="The intended recipient whose delivery failed.",
+    )
+    subject = models.CharField(max_length=998, blank=True, default="")
+    bounce_reason = models.TextField(
+        blank=True,
+        default="",
+        help_text="Header-derived reason for the bounce (e.g. filter name, header value).",
+    )
+    ticket = models.ForeignKey(
+        "tickets.Ticket",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bounce_logs",
+        help_text="The ticket this bounce relates to, if threading matched.",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        verbose_name = "bounce log"
+        verbose_name_plural = "bounce logs"
+
+    def __str__(self):
+        return f"Bounce from {self.from_address}: {self.subject[:50]}"

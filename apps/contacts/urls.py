@@ -10,11 +10,17 @@ Include this module in the project's root URL configuration:
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from apps.contacts.views import CompanyViewSet, ContactGroupViewSet, ContactViewSet
+from apps.contacts.views import (
+    AccountViewSet,
+    CompanyViewSet,
+    ContactGroupViewSet,
+    ContactViewSet,
+)
 
 app_name = "contacts"
 
 router = DefaultRouter()
+router.register("accounts", AccountViewSet, basename="account")
 router.register("companies", CompanyViewSet, basename="company")
 router.register("contacts", ContactViewSet, basename="contact")
 router.register("contact-groups", ContactGroupViewSet, basename="contactgroup")
