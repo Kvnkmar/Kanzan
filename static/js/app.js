@@ -224,6 +224,8 @@ function escapeHtmlGlobal(s) { if (!s) return ''; var d = document.createElement
 function renderNotifItem(n) {
   var cfg = getNotifConfig(n.type);
   var nUrl = (n.data && n.data.url) ? n.data.url
+           : (n.data && n.data.ticket_number) ? '/tickets/' + n.data.ticket_number
+           : (n.data && n.data.article_id) ? '/knowledge/'
            : (n.data && n.data.conversation_id) ? '/messaging/'
            : null;
   var unreadClass = n.is_read ? '' : ' notif-item--unread';
@@ -270,7 +272,16 @@ function initNotifications() {
       e.preventDefault();
       Api.post('/api/v1/notifications/notifications/mark_all_read/').then(() => {
         updateBadge(0);
-        list.querySelectorAll('.notif-item--unread').forEach(el => el.classList.remove('notif-item--unread'));
+        list.textContent = '';
+        var empty = document.createElement('div');
+        empty.className = 'notif-empty';
+        empty.appendChild(Object.assign(document.createElement('div'), {className: 'notif-empty-icon'}));
+        empty.firstChild.appendChild(Object.assign(document.createElement('i'), {className: 'ti ti-bell-off'}));
+        empty.appendChild(Object.assign(document.createElement('p'), {className: 'notif-empty-title', textContent: 'All caught up!'}));
+        empty.appendChild(Object.assign(document.createElement('p'), {className: 'notif-empty-text', textContent: 'No new notifications right now.'}));
+        list.appendChild(empty);
+        showViewOlderBtn(true);
+        olderPage = 0;
         Toast.success('All notifications marked as read');
       }).catch(() => {
         Toast.error('Failed to mark notifications as read');
@@ -283,15 +294,62 @@ function initNotifications() {
     if (data && data.unread_count > 0) updateBadge(data.unread_count);
   }).catch(() => {});
 
-  // Load recent notifications
-  Api.get('/api/v1/notifications/notifications/?page_size=10').then(data => {
+  var notifFooter = document.getElementById('notifFooter');
+  var olderPage = 0;
+
+  function showViewOlderBtn(visible) {
+    if (!notifFooter) return;
+    notifFooter.textContent = '';
+    if (!visible) return;
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'notif-view-older';
+    btn.textContent = 'View older notifications';
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      e.preventDefault();
+      loadOlderNotifications();
+    });
+    notifFooter.appendChild(btn);
+  }
+
+  function appendNotifications(items) {
+    items.forEach(function(n) {
+      var tempDiv = document.createElement('div');
+      tempDiv.insertAdjacentHTML('beforeend', renderNotifItem(n));
+      list.appendChild(tempDiv.firstElementChild);
+    });
+    bindNotifClicks(list);
+  }
+
+  function loadOlderNotifications() {
+    olderPage++;
+    var btn = notifFooter ? notifFooter.querySelector('.notif-view-older') : null;
+    if (btn) btn.textContent = 'Loading...';
+    Api.get('/api/v1/notifications/notifications/?page=' + olderPage).then(function(data) {
+      if (data && data.results && data.results.length > 0) {
+        var emptyEl = list.querySelector('.notif-empty');
+        if (emptyEl) emptyEl.remove();
+        appendNotifications(data.results);
+        showViewOlderBtn(!!data.next);
+      } else {
+        showViewOlderBtn(false);
+      }
+    }).catch(function() {
+      if (btn) btn.textContent = 'View older notifications';
+      olderPage--;
+    });
+  }
+
+  // Load unread notifications initially
+  Api.get('/api/v1/notifications/notifications/?is_read=false').then(function(data) {
     if (data && data.results && data.results.length > 0) {
-      var html = '';
-      data.results.forEach(n => { html += renderNotifItem(n); });
-      list.innerHTML = html;
-      bindNotifClicks(list);
+      list.textContent = '';
+      appendNotifications(data.results);
     }
-  }).catch(() => {});
+    // Always show "View older" to access read notifications
+    showViewOlderBtn(true);
+  }).catch(function() {});
 
   function bindNotifClicks(container) {
     container.querySelectorAll('.notif-item').forEach(item => {
@@ -330,6 +388,11 @@ function initNotifications() {
         if (emptyState) emptyState.remove();
         list.prepend(newItem);
         bindNotifClicks(list);
+
+        // Broadcast notification type as a custom event so other pages can react
+        if (data.type) {
+          document.dispatchEvent(new CustomEvent('kanzan:notification', { detail: data }));
+        }
       }
     };
   } catch (e) {}
@@ -356,6 +419,7 @@ function initSidebarBadges() {
     messages: 'sidebarBadgeMessages',
     calendar: 'sidebarBadgeCalendar',
     reminders: 'sidebarBadgeReminders',
+    knowledge: 'sidebarBadgeKnowledge',
   };
 
   Api.get('/api/v1/nav/badge-counts/').then(function(data) {

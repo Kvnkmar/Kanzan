@@ -21,6 +21,10 @@ from apps.tickets.models import (
     TicketAssignment,
     TicketCategory,
     TicketStatus,
+    TicketTemplate,
+    TicketWatcher,
+    TimeEntry,
+    Webhook,
 )
 
 
@@ -164,13 +168,19 @@ class TicketListSerializer(serializers.ModelSerializer):
     status_name = serializers.CharField(source="status.name", read_only=True)
     status_color = serializers.CharField(source="status.color", read_only=True)
     is_closed = serializers.BooleanField(source="status.is_closed", read_only=True)
+    sla_paused = serializers.BooleanField(source="status.pauses_sla", read_only=True, default=False)
     assignee_name = serializers.SerializerMethodField()
     assigned_by_name = serializers.SerializerMethodField()
     queue_name = serializers.CharField(source="queue.name", read_only=True, default=None)
     contact_name = serializers.SerializerMethodField()
+    contact_email = serializers.EmailField(source="contact.email", read_only=True, default=None)
     pipeline_stage_name = serializers.CharField(
         source="pipeline_stage.name", read_only=True, default=None,
     )
+    sla_response_remaining_minutes = serializers.SerializerMethodField()
+    sla_resolution_remaining_minutes = serializers.SerializerMethodField()
+    watcher_count = serializers.SerializerMethodField()
+    total_time_minutes = serializers.SerializerMethodField()
 
     class Meta:
         model = Ticket
@@ -195,6 +205,7 @@ class TicketListSerializer(serializers.ModelSerializer):
             "queue_name",
             "contact",
             "contact_name",
+            "contact_email",
             "category",
             "due_date",
             "pipeline_stage",
@@ -210,11 +221,17 @@ class TicketListSerializer(serializers.ModelSerializer):
             "sla_resolution_due",
             "sla_response_breached",
             "sla_resolution_breached",
+            "sla_paused",
+            "sla_response_remaining_minutes",
+            "sla_resolution_remaining_minutes",
             "escalation_count",
             "solved_at",
             "csat_rating",
             "needs_kb_article",
             "merged_into",
+            "watcher_count",
+            "total_time_minutes",
+            "is_deleted",
             "created_at",
             "updated_at",
         ]
@@ -237,6 +254,34 @@ class TicketListSerializer(serializers.ModelSerializer):
             full = f"{obj.contact.first_name} {obj.contact.last_name}".strip()
             return full or str(obj.contact)
         return None
+
+    def get_sla_response_remaining_minutes(self, obj):
+        if not obj.sla_first_response_due or obj.first_responded_at or obj.sla_response_breached:
+            return None
+        from django.utils import timezone as tz
+        remaining = (obj.sla_first_response_due - tz.now()).total_seconds() / 60
+        return round(remaining, 1)
+
+    def get_sla_resolution_remaining_minutes(self, obj):
+        if not obj.sla_resolution_due or obj.resolved_at or obj.sla_resolution_breached:
+            return None
+        from django.utils import timezone as tz
+        remaining = (obj.sla_resolution_due - tz.now()).total_seconds() / 60
+        return round(remaining, 1)
+
+    def get_watcher_count(self, obj):
+        if hasattr(obj, '_watcher_count'):
+            return obj._watcher_count
+        return TicketWatcher.objects.filter(ticket=obj).count()
+
+    def get_total_time_minutes(self, obj):
+        if hasattr(obj, '_total_time_minutes'):
+            return obj._total_time_minutes
+        from django.db.models import Sum
+        result = TimeEntry.objects.filter(ticket=obj).aggregate(
+            total=Sum("duration_minutes"),
+        )
+        return result["total"] or 0
 
 
 # ---------------------------------------------------------------------------
@@ -982,3 +1027,167 @@ class MacroSerializer(serializers.ModelSerializer):
             if not item.get("value"):
                 raise serializers.ValidationError("Each action must have a 'value'.")
         return value
+
+
+# ---------------------------------------------------------------------------
+# Ticket Watcher
+# ---------------------------------------------------------------------------
+
+
+class TicketWatcherSerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+    user_email = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TicketWatcher
+        fields = [
+            "id",
+            "ticket",
+            "user",
+            "user_name",
+            "user_email",
+            "reason",
+            "is_muted",
+            "created_at",
+        ]
+        read_only_fields = ["id", "ticket", "reason", "created_at"]
+
+    def get_user_name(self, obj):
+        return obj.user.get_full_name() or obj.user.email
+
+    def get_user_email(self, obj):
+        return obj.user.email
+
+
+class TicketWatcherAddSerializer(serializers.Serializer):
+    user = serializers.UUIDField()
+
+
+# ---------------------------------------------------------------------------
+# Time Entry
+# ---------------------------------------------------------------------------
+
+
+class TimeEntrySerializer(serializers.ModelSerializer):
+    user_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TimeEntry
+        fields = [
+            "id",
+            "ticket",
+            "user",
+            "user_name",
+            "duration_minutes",
+            "started_at",
+            "ended_at",
+            "description",
+            "is_billable",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "ticket", "user", "created_at", "updated_at"]
+
+    def get_user_name(self, obj):
+        return obj.user.get_full_name() or obj.user.email
+
+    def validate_duration_minutes(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Duration must be positive.")
+        if value > 1440:
+            raise serializers.ValidationError("Duration cannot exceed 24 hours (1440 minutes).")
+        return value
+
+
+class TimeEntrySummarySerializer(serializers.Serializer):
+    """Read-only summary of time tracked on a ticket."""
+
+    total_minutes = serializers.IntegerField()
+    billable_minutes = serializers.IntegerField()
+    entry_count = serializers.IntegerField()
+    by_user = serializers.ListField()
+
+
+# ---------------------------------------------------------------------------
+# Ticket Template
+# ---------------------------------------------------------------------------
+
+
+class TicketTemplateSerializer(serializers.ModelSerializer):
+    created_by_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TicketTemplate
+        fields = [
+            "id",
+            "name",
+            "description",
+            "subject_template",
+            "body_template",
+            "default_priority",
+            "default_queue",
+            "default_category",
+            "default_tags",
+            "default_ticket_type",
+            "is_active",
+            "usage_count",
+            "created_by",
+            "created_by_name",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "usage_count", "created_by", "created_at", "updated_at"]
+
+    def get_created_by_name(self, obj):
+        if obj.created_by:
+            full = f"{obj.created_by.first_name} {obj.created_by.last_name}".strip()
+            return full or obj.created_by.email
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Webhook
+# ---------------------------------------------------------------------------
+
+
+class WebhookSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Webhook
+        fields = [
+            "id",
+            "name",
+            "url",
+            "secret",
+            "events",
+            "is_active",
+            "headers",
+            "failure_count",
+            "last_triggered_at",
+            "last_status_code",
+            "created_by",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id", "failure_count", "last_triggered_at",
+            "last_status_code", "created_by", "created_at", "updated_at",
+        ]
+        extra_kwargs = {
+            "secret": {"write_only": True},
+        }
+
+    def validate_events(self, value):
+        if not isinstance(value, list) or not value:
+            raise serializers.ValidationError("Must be a non-empty list of event types.")
+        valid = {c[0] for c in Webhook.EventType.choices}
+        for evt in value:
+            if evt not in valid:
+                raise serializers.ValidationError(
+                    f"Invalid event type: {evt}. Valid: {', '.join(sorted(valid))}"
+                )
+        return value
+
+
+class WebhookTestSerializer(serializers.Serializer):
+    """Validates a webhook test request."""
+    event = serializers.ChoiceField(choices=Webhook.EventType.choices)

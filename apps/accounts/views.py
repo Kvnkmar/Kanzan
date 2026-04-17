@@ -54,6 +54,11 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_resource = "user"
     search_fields = ["email", "first_name", "last_name"]
 
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [IsAuthenticated()]
+        return super().get_permissions()
+
     def get_queryset(self):
         tenant = getattr(self.request, "tenant", None)
         if tenant is None:

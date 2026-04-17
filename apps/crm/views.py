@@ -3,6 +3,7 @@ CRM API views for activity management, agent task queues, reminder management,
 and pipeline forecast.
 """
 
+import logging
 from decimal import Decimal
 
 from django.contrib.auth import get_user_model
@@ -15,6 +16,8 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsTenantAdminOrManager, IsTenantMember
+from apps.comments.models import ActivityLog
+from apps.comments.services import log_activity
 from apps.crm.models import Activity, Reminder
 from apps.crm.serializers import (
     ActivitySerializer,
@@ -23,6 +26,8 @@ from apps.crm.serializers import (
     ReminderRescheduleSerializer,
     ReminderSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 User = get_user_model()
 
@@ -71,10 +76,15 @@ class ActivityViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         activity = serializer.save(created_by=self.request.user)
         self._update_ticket_last_activity(activity)
+        self._log_activity_audit(activity, is_new=True)
 
     def perform_update(self, serializer):
+        old_completed = serializer.instance.completed_at
         activity = serializer.save()
         self._update_ticket_last_activity(activity)
+        # Log completion if it just changed
+        if activity.completed_at and not old_completed:
+            self._log_activity_audit(activity, is_new=False, just_completed=True)
 
     def _update_ticket_last_activity(self, activity):
         """Atomically update ticket.last_activity_at if ticket is linked."""
@@ -84,6 +94,86 @@ class ActivityViewSet(viewsets.ModelViewSet):
             Ticket.unscoped.filter(pk=activity.ticket_id).update(
                 last_activity_at=timezone.now()
             )
+
+    def _log_activity_audit(self, activity, is_new=True, just_completed=False):
+        """Write audit log and ticket timeline entries for CRM activities."""
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return
+
+        try:
+            if activity.activity_type == Activity.ActivityType.CALL:
+                if just_completed:
+                    action_type = ActivityLog.Action.OUTBOUND_CALL_COMPLETED
+                    desc = f"Outbound call completed: {activity.subject}"
+                    if activity.outcome:
+                        desc += f" — outcome: {activity.outcome}"
+                else:
+                    action_type = ActivityLog.Action.OUTBOUND_CALL_LOGGED
+                    desc = f"Outbound call scheduled: {activity.subject}"
+
+                if activity.contact:
+                    desc += f" (contact: {activity.contact})"
+
+                log_activity(
+                    tenant=tenant,
+                    actor=self.request.user,
+                    content_object=activity,
+                    action=action_type,
+                    description=desc,
+                    request=self.request,
+                )
+
+                # Also log to ticket timeline if linked
+                if activity.ticket_id:
+                    self._log_to_ticket_timeline(activity, just_completed)
+            else:
+                # Generic activity audit for non-call types
+                if is_new:
+                    log_activity(
+                        tenant=tenant,
+                        actor=self.request.user,
+                        content_object=activity,
+                        action=ActivityLog.Action.CREATED,
+                        description=f"Activity created: {activity.get_activity_type_display()} — {activity.subject}",
+                        request=self.request,
+                    )
+        except Exception:
+            logger.exception("Failed to log CRM activity audit for %s", activity.pk)
+
+    def _log_to_ticket_timeline(self, activity, just_completed=False):
+        """Write a TicketActivity entry when a call is linked to a ticket."""
+        from apps.tickets.models import Ticket, TicketActivity
+
+        try:
+            ticket = Ticket.unscoped.select_related("tenant", "contact").get(
+                pk=activity.ticket_id
+            )
+            if just_completed:
+                event = TicketActivity.Event.OUTBOUND_CALL_COMPLETED
+                message = f"Outbound call completed: {activity.subject}"
+                if activity.outcome:
+                    message += f" — {activity.outcome}"
+            else:
+                event = TicketActivity.Event.OUTBOUND_CALL
+                message = f"Outbound call scheduled: {activity.subject}"
+
+            TicketActivity.objects.create(
+                tenant=ticket.tenant,
+                ticket=ticket,
+                contact=ticket.contact if ticket.contact_id else None,
+                actor=self.request.user,
+                event=event,
+                message=message,
+                metadata={
+                    "activity_id": str(activity.pk),
+                    "contact_name": str(activity.contact) if activity.contact else None,
+                },
+            )
+        except Ticket.DoesNotExist:
+            pass
+        except Exception:
+            logger.exception("Failed to log call to ticket timeline for activity %s", activity.pk)
 
     @action(detail=False, methods=["get"], url_path="my-tasks")
     def my_tasks(self, request):
@@ -233,7 +323,12 @@ class ReminderViewSet(viewsets.ModelViewSet):
         return ReminderSerializer
 
     def perform_create(self, serializer):
-        serializer.save(created_by=self.request.user)
+        reminder = serializer.save(created_by=self.request.user)
+        self._log_reminder_audit(
+            reminder,
+            action_type=ActivityLog.Action.REMINDER_CREATED,
+            description=f"Reminder created: {reminder.subject}",
+        )
 
     @action(detail=False, methods=["get"], url_path="overdue")
     def overdue(self, request):
@@ -288,6 +383,25 @@ class ReminderViewSet(viewsets.ModelViewSet):
             completed_at__gte=today_start,
         ).count()
 
+        # My overdue (current user's overdue reminders)
+        my_overdue = overdue_qs.filter(assigned_to=request.user).count()
+
+        # Pending count (not overdue, not completed, not cancelled)
+        pending_count = base_qs.filter(
+            completed_at__isnull=True,
+            cancelled_at__isnull=True,
+            scheduled_at__gte=now,
+        ).count()
+
+        # Due today (pending reminders scheduled for today)
+        today_end = today_start + timezone.timedelta(days=1)
+        due_today = base_qs.filter(
+            completed_at__isnull=True,
+            cancelled_at__isnull=True,
+            scheduled_at__gte=today_start,
+            scheduled_at__lt=today_end,
+        ).count()
+
         # Average overdue duration (computed in Python for SQLite compat)
         avg_overdue_seconds = None
         if total_overdue > 0:
@@ -301,6 +415,9 @@ class ReminderViewSet(viewsets.ModelViewSet):
 
         return Response({
             "total_overdue": total_overdue,
+            "my_overdue": my_overdue,
+            "pending": pending_count,
+            "due_today": due_today,
             "completed_today": completed_today,
             "by_assignee": [
                 {
@@ -337,6 +454,11 @@ class ReminderViewSet(viewsets.ModelViewSet):
             )
 
         reminder.mark_completed()
+        self._log_reminder_audit(
+            reminder,
+            action_type=ActivityLog.Action.REMINDER_COMPLETED,
+            description=f"Reminder completed: {reminder.subject}",
+        )
         return Response(ReminderSerializer(reminder).data)
 
     @action(detail=True, methods=["post"], url_path="cancel")
@@ -359,6 +481,11 @@ class ReminderViewSet(viewsets.ModelViewSet):
             )
 
         reminder.mark_cancelled()
+        self._log_reminder_audit(
+            reminder,
+            action_type=ActivityLog.Action.REMINDER_CANCELLED,
+            description=f"Reminder cancelled: {reminder.subject}",
+        )
         return Response(ReminderSerializer(reminder).data)
 
     @action(detail=True, methods=["post"], url_path="reschedule")
@@ -379,9 +506,21 @@ class ReminderViewSet(viewsets.ModelViewSet):
         serializer = ReminderRescheduleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        old_scheduled = reminder.scheduled_at
         reminder.reschedule(
             new_scheduled_at=serializer.validated_data["scheduled_at"],
             note=serializer.validated_data.get("note", ""),
+        )
+        self._log_reminder_audit(
+            reminder,
+            action_type=ActivityLog.Action.REMINDER_RESCHEDULED,
+            description=f"Reminder rescheduled: {reminder.subject}",
+            changes={
+                "scheduled_at": [
+                    old_scheduled.isoformat() if old_scheduled else None,
+                    reminder.scheduled_at.isoformat(),
+                ],
+            },
         )
         return Response(ReminderSerializer(reminder).data)
 
@@ -449,6 +588,69 @@ class ReminderViewSet(viewsets.ModelViewSet):
             "action": action_name,
             "updated": updated,
         })
+
+    def _log_reminder_audit(self, reminder, action_type, description, changes=None):
+        """Write audit log and ticket timeline entries for reminder actions."""
+        tenant = getattr(self.request, "tenant", None)
+        if not tenant:
+            return
+
+        try:
+            log_activity(
+                tenant=tenant,
+                actor=self.request.user,
+                content_object=reminder,
+                action=action_type,
+                description=description,
+                changes=changes or {},
+                request=self.request,
+            )
+
+            # Also log to ticket timeline if reminder is linked to a ticket
+            if reminder.ticket_id:
+                self._log_reminder_to_ticket_timeline(
+                    reminder, action_type, description
+                )
+        except Exception:
+            logger.exception(
+                "Failed to log reminder audit for %s", reminder.pk
+            )
+
+    def _log_reminder_to_ticket_timeline(self, reminder, action_type, description):
+        """Write a TicketActivity when a reminder is linked to a ticket."""
+        from apps.tickets.models import Ticket, TicketActivity
+
+        try:
+            ticket = Ticket.unscoped.select_related("tenant", "contact").get(
+                pk=reminder.ticket_id
+            )
+
+            if action_type == ActivityLog.Action.REMINDER_COMPLETED:
+                event = TicketActivity.Event.REMINDER_COMPLETED
+            else:
+                event = TicketActivity.Event.REMINDER_SET
+
+            contact_name = str(reminder.contact) if reminder.contact else None
+            TicketActivity.objects.create(
+                tenant=ticket.tenant,
+                ticket=ticket,
+                contact=ticket.contact if ticket.contact_id else None,
+                actor=self.request.user,
+                event=event,
+                message=description,
+                metadata={
+                    "reminder_id": str(reminder.pk),
+                    "scheduled_at": reminder.scheduled_at.isoformat(),
+                    "priority": reminder.priority,
+                    "contact_name": contact_name,
+                },
+            )
+        except Ticket.DoesNotExist:
+            pass
+        except Exception:
+            logger.exception(
+                "Failed to log reminder to ticket timeline for %s", reminder.pk
+            )
 
 
 class PipelineForecastView(RetrieveAPIView):

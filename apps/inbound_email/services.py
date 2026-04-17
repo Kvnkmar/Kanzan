@@ -352,6 +352,29 @@ def _add_reply_to_ticket(inbound, ticket, contact, system_user):
     )
     comment.save()
 
+    # Notify the assigned agent about the customer reply.
+    # We deliberately avoid firing ticket_comment_created signal here
+    # because its handler would queue an outbound email back to the
+    # customer who just emailed in, creating an infinite loop.
+    if ticket.assignee_id:
+        from apps.notifications.models import NotificationType
+        from apps.notifications.services import send_notification
+
+        send_notification(
+            tenant=ticket.tenant,
+            recipient=ticket.assignee,
+            notification_type=NotificationType.TICKET_COMMENT,
+            title=f"Customer reply on #{ticket.number}",
+            body=body[:200],
+            data={
+                "ticket_id": str(ticket.id),
+                "ticket_number": ticket.number,
+                "comment_id": str(comment.id),
+                "source": "inbound_email",
+                "url": f"/tickets/{ticket.number}",
+            },
+        )
+
     # Process attachments
     _attach_inbound_files(inbound, ticket, system_user)
 

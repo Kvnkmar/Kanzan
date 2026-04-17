@@ -71,7 +71,7 @@ def _check_tenant_sla(tenant, now):
 
     for policy in policies:
         tickets = (
-            Ticket.unscoped.filter(tenant=tenant, priority=policy.priority)
+            Ticket.unscoped.filter(tenant=tenant, priority=policy.priority, is_deleted=False)
             .exclude(status_id__in=closed_status_ids)
             .select_related("status", "assignee", "created_by")
             .iterator(chunk_size=200)
@@ -155,6 +155,7 @@ def _fire_breach(ticket, tenant, breach_type, policy):
                 "ticket_number": ticket.number,
                 "breach_type": breach_type,
                 "policy_name": policy.name,
+                "url": f"/tickets/{ticket.number}",
             },
         )
 
@@ -179,6 +180,7 @@ def _fire_breach(ticket, tenant, breach_type, policy):
                 "ticket_id": str(ticket.id),
                 "ticket_number": ticket.number,
                 "breach_type": breach_type,
+                "url": f"/tickets/{ticket.number}",
             },
         )
 
@@ -324,6 +326,7 @@ def _check_tenant_overdue(tenant, now):
             tenant=tenant,
             due_date__lt=now,
             due_date__isnull=False,
+            is_deleted=False,
         )
         .exclude(status_id__in=closed_status_ids)
         .select_related("status", "assignee")
@@ -357,6 +360,7 @@ def _check_tenant_overdue(tenant, now):
                 "ticket_id": ticket_id_str,
                 "ticket_number": ticket.number,
                 "overdue_by": overdue_label,
+                "url": f"/tickets/{ticket.number}",
             }
 
             if ticket.assignee:
@@ -401,6 +405,7 @@ def _check_tenant_overdue(tenant, now):
             tenant=tenant,
             follow_up_due_at__lt=now,
             follow_up_due_at__isnull=False,
+            is_deleted=False,
         )
         .exclude(status_id__in=closed_status_ids)
         .select_related("status", "assignee")
@@ -448,6 +453,7 @@ def _check_tenant_overdue(tenant, now):
                 "ticket_id": ticket_id_str,
                 "ticket_number": ticket.number,
                 "overdue_by": overdue_label,
+                "url": f"/tickets/{ticket.number}",
             },
         )
 
@@ -520,6 +526,7 @@ def _execute_rule(rule, ticket, tenant, now):
                     "ticket_id": str(ticket.id),
                     "ticket_number": ticket.number,
                     "escalation_rule_id": str(rule.id),
+                    "url": f"/tickets/{ticket.number}",
                 },
             )
         message_parts.append(
@@ -919,6 +926,159 @@ def send_csat_survey_email(self, ticket_id, tenant_id):
                 self.max_retries + 1,
             )
             raise self.retry(exc=exc)
+
+
+# ---------------------------------------------------------------------------
+# Webhook delivery task
+# ---------------------------------------------------------------------------
+
+
+@shared_task(
+    bind=True,
+    max_retries=3,
+    default_retry_delay=30,
+    acks_late=True,
+)
+def deliver_webhook_task(self, webhook_id, payload):
+    """
+    Deliver a webhook payload asynchronously.
+
+    Retries up to 3 times with exponential backoff on failure.
+    """
+    from apps.tickets.models import Webhook
+
+    try:
+        webhook = Webhook.unscoped.get(pk=webhook_id, is_active=True)
+    except Webhook.DoesNotExist:
+        logger.info("deliver_webhook_task: webhook %s not found or disabled.", webhook_id)
+        return
+
+    from apps.tickets.webhook_service import deliver_webhook
+
+    success, status_code = deliver_webhook(webhook, payload)
+
+    if not success and self.request.retries < self.max_retries:
+        raise self.retry(countdown=30 * (2 ** self.request.retries))
+
+
+# ---------------------------------------------------------------------------
+# SLA breach prediction task
+# ---------------------------------------------------------------------------
+
+
+@shared_task(bind=True, max_retries=1, acks_late=True)
+def check_sla_breach_warnings(self):
+    """
+    Send early warning notifications for tickets approaching SLA breach.
+
+    Runs every 5 minutes. Warns when a ticket is within 15 minutes of
+    its first-response or resolution deadline.
+    """
+    from apps.tenants.models import Tenant
+
+    now = timezone.now()
+    active_tenants = Tenant.objects.filter(is_active=True)
+
+    for tenant in active_tenants:
+        try:
+            _check_tenant_sla_warnings(tenant, now)
+        except Exception:
+            logger.exception("SLA warning check failed for tenant %s", tenant.slug)
+
+
+def _check_tenant_sla_warnings(tenant, now):
+    """Send approaching-breach warnings for a single tenant."""
+    import datetime
+
+    from apps.accounts.models import TenantMembership
+    from apps.notifications.models import Notification, NotificationType
+    from apps.notifications.services import send_notification
+    from apps.tickets.models import Ticket, TicketStatus
+
+    closed_status_ids = list(
+        TicketStatus.unscoped.filter(tenant=tenant, is_closed=True)
+        .values_list("id", flat=True)
+    )
+
+    warning_window = datetime.timedelta(minutes=15)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    # Find tickets with deadlines approaching within the warning window
+    approaching_response = (
+        Ticket.unscoped.filter(
+            tenant=tenant,
+            sla_first_response_due__gt=now,
+            sla_first_response_due__lte=now + warning_window,
+            sla_response_breached=False,
+            first_responded_at__isnull=True,
+            is_deleted=False,
+        )
+        .exclude(status_id__in=closed_status_ids)
+        .select_related("assignee")
+    )
+
+    approaching_resolution = (
+        Ticket.unscoped.filter(
+            tenant=tenant,
+            sla_resolution_due__gt=now,
+            sla_resolution_due__lte=now + warning_window,
+            sla_resolution_breached=False,
+            resolved_at__isnull=True,
+            is_deleted=False,
+        )
+        .exclude(status_id__in=closed_status_ids)
+        .select_related("assignee")
+    )
+
+    # Dedup: check if warning already sent today
+    already_warned_ids = set(
+        Notification.unscoped.filter(
+            tenant=tenant,
+            type=NotificationType.SLA_BREACH,
+            created_at__gte=today_start,
+            data__warning=True,
+        ).values_list("data__ticket_id", flat=True)
+    )
+
+    for ticket in approaching_response:
+        if str(ticket.pk) in already_warned_ids or not ticket.assignee:
+            continue
+        minutes_left = int((ticket.sla_first_response_due - now).total_seconds() / 60)
+        send_notification(
+            tenant=tenant,
+            recipient=ticket.assignee,
+            notification_type=NotificationType.SLA_BREACH,
+            title=f"SLA Warning: Ticket #{ticket.number}",
+            body=f"First response SLA breach in ~{minutes_left} minutes for \"{ticket.subject}\".",
+            data={
+                "ticket_id": str(ticket.pk),
+                "ticket_number": ticket.number,
+                "warning": True,
+                "breach_type": "response_approaching",
+                "minutes_remaining": minutes_left,
+                "url": f"/tickets/{ticket.number}",
+            },
+        )
+
+    for ticket in approaching_resolution:
+        if str(ticket.pk) in already_warned_ids or not ticket.assignee:
+            continue
+        minutes_left = int((ticket.sla_resolution_due - now).total_seconds() / 60)
+        send_notification(
+            tenant=tenant,
+            recipient=ticket.assignee,
+            notification_type=NotificationType.SLA_BREACH,
+            title=f"SLA Warning: Ticket #{ticket.number}",
+            body=f"Resolution SLA breach in ~{minutes_left} minutes for \"{ticket.subject}\".",
+            data={
+                "ticket_id": str(ticket.pk),
+                "ticket_number": ticket.number,
+                "warning": True,
+                "breach_type": "resolution_approaching",
+                "minutes_remaining": minutes_left,
+                "url": f"/tickets/{ticket.number}",
+            },
+        )
 
 
 @shared_task(bind=True, max_retries=1, acks_late=True)

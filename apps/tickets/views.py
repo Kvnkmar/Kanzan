@@ -38,6 +38,10 @@ from apps.tickets.models import (
     TicketAssignment,
     TicketCategory,
     TicketStatus,
+    TicketTemplate,
+    TicketWatcher,
+    TimeEntry,
+    Webhook,
 )
 from apps.tickets.services import (
     assign_ticket,
@@ -70,6 +74,13 @@ from apps.tickets.serializers import (
     TicketListSerializer,
     TicketSendEmailSerializer,
     TicketStatusSerializer,
+    TicketTemplateSerializer,
+    TicketWatcherAddSerializer,
+    TicketWatcherSerializer,
+    TimeEntrySerializer,
+    TimeEntrySummarySerializer,
+    WebhookSerializer,
+    WebhookTestSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -115,6 +126,11 @@ class QueueViewSet(ModelViewSet):
     search_fields = ["name"]
     ordering_fields = ["name", "created_at"]
     ordering = ["name"]
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [IsAuthenticated()]
+        return super().get_permissions()
 
     def get_queryset(self):
         return Queue.objects.all()
@@ -209,20 +225,31 @@ class TicketViewSet(ModelViewSet):
     ordering = ["-created_at"]
 
     def get_queryset(self):
-        qs = (
-            Ticket.objects.select_related(
-                "status",
-                "assignee",
-                "assigned_by",
-                "created_by",
-                "queue",
-                "contact",
-                "contact__company",
-                "company",
-                "sla_policy",
-                "status_changed_by",
-            )
-            .all()
+        # Use unscoped manager for restore/include_deleted (re-apply tenant filter),
+        # otherwise default manager already excludes soft-deleted tickets.
+        include_deleted = (
+            self.action == "restore"
+            or self.request.query_params.get("include_deleted") == "true"
+        )
+        if include_deleted:
+            from main.context import get_current_tenant
+
+            tenant = get_current_tenant()
+            base_qs = Ticket.unscoped.filter(tenant=tenant) if tenant else Ticket.unscoped.none()
+        else:
+            base_qs = Ticket.objects.all()
+
+        qs = base_qs.select_related(
+            "status",
+            "assignee",
+            "assigned_by",
+            "created_by",
+            "queue",
+            "contact",
+            "contact__company",
+            "company",
+            "sla_policy",
+            "status_changed_by",
         )
 
         # Row-level filtering: viewers only see tickets they created or
@@ -579,10 +606,13 @@ class TicketViewSet(ModelViewSet):
         number = request.query_params.get("number")
         q = request.query_params.get("q", "").strip()
 
+        # Strip leading '#' so searching "#5" matches ticket number 5
+        q_clean = q.lstrip("#")
+
         # Use the base queryset (tenant-scoped) but do NOT exclude closed
         qs = (
             Ticket.objects.select_related(
-                "status", "assignee", "created_by", "queue",
+                "status", "assignee", "created_by", "queue", "contact",
             ).all()
         )
 
@@ -592,8 +622,8 @@ class TicketViewSet(ModelViewSet):
             from django.db.models import Q
 
             filters = Q(subject__icontains=q)
-            if q.isdigit():
-                filters |= Q(number=int(q))
+            if q_clean.isdigit():
+                filters |= Q(number=int(q_clean))
             qs = qs.filter(filters)
         else:
             return Response(
@@ -1533,6 +1563,254 @@ class TicketViewSet(ModelViewSet):
 
         return Response({"marked": len(reads)}, status=status.HTTP_200_OK)
 
+    # ------------------------------------------------------------------
+    # Watchers (followers / CC list)
+    # ------------------------------------------------------------------
+
+    @action(detail=True, methods=["get", "post"], url_path="watchers")
+    def watchers(self, request, pk=None):
+        """
+        GET: List watchers for this ticket.
+        POST: Add a watcher to this ticket.
+
+        POST /api/v1/tickets/tickets/{id}/watchers/
+        {"user": "<user-uuid>"}
+        """
+        ticket = self.get_object()
+
+        if request.method == "GET":
+            watchers_qs = (
+                TicketWatcher.objects.filter(ticket=ticket)
+                .select_related("user")
+                .order_by("-created_at")
+            )
+            serializer = TicketWatcherSerializer(watchers_qs, many=True)
+            return Response(serializer.data)
+
+        # POST — add a watcher
+        serializer = TicketWatcherAddSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+
+        try:
+            user = User.objects.get(pk=serializer.validated_data["user"])
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "User not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        watcher, created = TicketWatcher.objects.get_or_create(
+            ticket=ticket,
+            user=user,
+            defaults={
+                "tenant": ticket.tenant,
+                "reason": TicketWatcher.WatchReason.MANUAL,
+            },
+        )
+
+        if not created:
+            return Response(
+                {"detail": "User is already watching this ticket."},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        out = TicketWatcherSerializer(watcher)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path=r"watchers/(?P<watcher_user_id>[0-9a-f-]+)",
+    )
+    def remove_watcher(self, request, pk=None, watcher_user_id=None):
+        """Remove a watcher from this ticket."""
+        ticket = self.get_object()
+        deleted_count, _ = TicketWatcher.objects.filter(
+            ticket=ticket, user_id=watcher_user_id,
+        ).delete()
+
+        if deleted_count == 0:
+            return Response(
+                {"detail": "Watcher not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["post"], url_path="watch")
+    def watch(self, request, pk=None):
+        """Toggle watch status for the current user on this ticket."""
+        ticket = self.get_object()
+        watcher, created = TicketWatcher.objects.get_or_create(
+            ticket=ticket,
+            user=request.user,
+            defaults={
+                "tenant": ticket.tenant,
+                "reason": TicketWatcher.WatchReason.MANUAL,
+            },
+        )
+        if not created:
+            watcher.delete()
+            return Response({"watching": False}, status=status.HTTP_200_OK)
+        return Response({"watching": True}, status=status.HTTP_200_OK)
+
+    # ------------------------------------------------------------------
+    # Time tracking
+    # ------------------------------------------------------------------
+
+    @action(detail=True, methods=["get", "post"], url_path="time-entries")
+    def time_entries(self, request, pk=None):
+        """
+        GET: List time entries for this ticket.
+        POST: Log time against this ticket.
+
+        POST /api/v1/tickets/tickets/{id}/time-entries/
+        {"duration_minutes": 30, "description": "Investigated the issue", "is_billable": false}
+        """
+        ticket = self.get_object()
+
+        if request.method == "GET":
+            entries_qs = (
+                TimeEntry.objects.filter(ticket=ticket)
+                .select_related("user")
+                .order_by("-created_at")
+            )
+            page = self.paginate_queryset(entries_qs)
+            if page is not None:
+                serializer = TimeEntrySerializer(page, many=True)
+                return self.get_paginated_response(serializer.data)
+            serializer = TimeEntrySerializer(entries_qs, many=True)
+            return Response(serializer.data)
+
+        # POST — log time
+        serializer = TimeEntrySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        entry = serializer.save(
+            ticket=ticket,
+            user=request.user,
+            tenant=ticket.tenant,
+        )
+        return Response(
+            TimeEntrySerializer(entry).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+    @action(detail=True, methods=["get"], url_path="time-summary")
+    def time_summary(self, request, pk=None):
+        """
+        GET /api/v1/tickets/tickets/{id}/time-summary/
+
+        Returns aggregated time tracking data for this ticket.
+        """
+        from django.db.models import Sum, Count, Q
+
+        ticket = self.get_object()
+        entries = TimeEntry.objects.filter(ticket=ticket)
+
+        total = entries.aggregate(
+            total_minutes=Sum("duration_minutes"),
+            billable_minutes=Sum(
+                "duration_minutes",
+                filter=Q(is_billable=True),
+            ),
+            entry_count=Count("id"),
+        )
+
+        # Per-user breakdown
+        by_user_qs = (
+            entries.values("user__id", "user__first_name", "user__last_name", "user__email")
+            .annotate(
+                minutes=Sum("duration_minutes"),
+                entries=Count("id"),
+            )
+            .order_by("-minutes")
+        )
+        by_user = [
+            {
+                "user_id": str(row["user__id"]),
+                "user_name": f"{row['user__first_name']} {row['user__last_name']}".strip()
+                             or row["user__email"],
+                "minutes": row["minutes"] or 0,
+                "entries": row["entries"],
+            }
+            for row in by_user_qs
+        ]
+
+        return Response({
+            "total_minutes": total["total_minutes"] or 0,
+            "billable_minutes": total["billable_minutes"] or 0,
+            "entry_count": total["entry_count"] or 0,
+            "by_user": by_user,
+        })
+
+    @action(
+        detail=True,
+        methods=["patch", "delete"],
+        url_path=r"time-entries/(?P<entry_id>[0-9a-f-]+)",
+    )
+    def time_entry_detail(self, request, pk=None, entry_id=None):
+        """Update or delete a time entry. Only the creator can modify."""
+        ticket = self.get_object()
+        try:
+            entry = TimeEntry.objects.get(pk=entry_id, ticket=ticket)
+        except TimeEntry.DoesNotExist:
+            return Response(
+                {"detail": "Time entry not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Only creator or Manager+ can modify
+        if entry.user_id != request.user.pk:
+            from apps.accounts.permissions import _get_membership
+            tenant = getattr(request, "tenant", None)
+            membership = _get_membership(request, tenant) if tenant else None
+            if not membership or membership.role.hierarchy_level > 20:
+                return Response(
+                    {"detail": "You can only modify your own time entries."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
+        if request.method == "DELETE":
+            entry.delete()
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        # PATCH
+        serializer = TimeEntrySerializer(entry, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    # ------------------------------------------------------------------
+    # Soft delete
+    # ------------------------------------------------------------------
+
+    def perform_destroy(self, instance):
+        """Soft-delete instead of hard-delete."""
+        from django.utils import timezone as tz
+        instance.is_deleted = True
+        instance.deleted_at = tz.now()
+        instance.deleted_by = self.request.user
+        instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by", "updated_at"])
+
+    @action(detail=True, methods=["post"], url_path="restore")
+    def restore(self, request, pk=None):
+        """Restore a soft-deleted ticket."""
+        ticket = self.get_object()
+        if not ticket.is_deleted:
+            return Response(
+                {"detail": "Ticket is not deleted."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        ticket.is_deleted = False
+        ticket.deleted_at = None
+        ticket.deleted_by = None
+        ticket.save(update_fields=["is_deleted", "deleted_at", "deleted_by", "updated_at"])
+
+        serializer = TicketDetailSerializer(ticket, context={"request": request})
+        return Response(serializer.data)
+
 
 # ---------------------------------------------------------------------------
 # CannedResponse
@@ -1898,3 +2176,121 @@ class CSATSubmitView(viewsets.ViewSet):
             {"detail": "Thank you for your feedback.", "rating": rating},
             status=status.HTTP_200_OK,
         )
+
+
+# ---------------------------------------------------------------------------
+# Ticket Template
+# ---------------------------------------------------------------------------
+
+
+class TicketTemplateViewSet(ModelViewSet):
+    """
+    CRUD for ticket templates (pre-filled ticket forms).
+
+    All authenticated tenant members can list/retrieve templates.
+    Only Manager+ can create, edit, or delete templates.
+    """
+
+    serializer_class = TicketTemplateSerializer
+    permission_classes = [IsAuthenticated, HasTenantPermission]
+    permission_resource = "ticket"
+    search_fields = ["name", "description"]
+    ordering_fields = ["name", "usage_count", "created_at"]
+    ordering = ["name"]
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [IsAuthenticated()]
+        return super().get_permissions()
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return TicketTemplate.objects.none()
+        qs = TicketTemplate.objects.select_related("default_queue", "created_by").all()
+        if self.request.query_params.get("active_only") != "false":
+            qs = qs.filter(is_active=True)
+        return qs
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=["post"], url_path="use")
+    def use(self, request, pk=None):
+        """
+        Increment usage count and return template data for ticket creation.
+
+        POST /api/v1/tickets/ticket-templates/{id}/use/
+        """
+        from django.db.models import F
+
+        template = self.get_object()
+        TicketTemplate.objects.filter(pk=template.pk).update(
+            usage_count=F("usage_count") + 1,
+        )
+        template.refresh_from_db()
+        return Response(TicketTemplateSerializer(template).data)
+
+
+# ---------------------------------------------------------------------------
+# Webhook
+# ---------------------------------------------------------------------------
+
+
+class WebhookViewSet(ModelViewSet):
+    """
+    CRUD for webhook configurations.
+
+    Only Admin/Manager can manage webhooks.
+    """
+
+    serializer_class = WebhookSerializer
+    permission_classes = [IsAuthenticated, HasTenantPermission]
+    permission_resource = "settings"
+    search_fields = ["name", "url"]
+    ordering_fields = ["name", "created_at", "last_triggered_at"]
+    ordering = ["name"]
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Webhook.objects.none()
+        return Webhook.objects.all()
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+    @action(detail=True, methods=["post"], url_path="test")
+    def test(self, request, pk=None):
+        """
+        Send a test webhook delivery.
+
+        POST /api/v1/tickets/webhooks/{id}/test/
+        {"event": "ticket.created"}
+        """
+        webhook = self.get_object()
+        serializer = WebhookTestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        from apps.tickets.webhook_service import deliver_webhook
+
+        event = serializer.validated_data["event"]
+        test_payload = {
+            "event": event,
+            "test": True,
+            "tenant_id": str(request.tenant.pk),
+            "data": {"message": "This is a test webhook delivery."},
+        }
+
+        success, status_code = deliver_webhook(webhook, test_payload)
+        return Response({
+            "success": success,
+            "status_code": status_code,
+        })
+
+    @action(detail=True, methods=["post"], url_path="reset-failures")
+    def reset_failures(self, request, pk=None):
+        """Reset failure count and re-enable a disabled webhook."""
+        webhook = self.get_object()
+        webhook.failure_count = 0
+        webhook.is_active = True
+        webhook.save(update_fields=["failure_count", "is_active", "updated_at"])
+        return Response(WebhookSerializer(webhook).data)

@@ -59,25 +59,37 @@ def send_notification_email(self, notification_id):
 
     subject = f"[{notification.tenant.name}] {notification.title}"
 
-    # Attempt to render an HTML template; fall back to plain text.
     context = {
         "notification": notification,
         "recipient": recipient,
         "tenant": notification.tenant,
     }
+
+    # Use dedicated templates for specific notification types.
+    html_template = "notifications/email/notification.html"
+    txt_template = "notifications/email/notification.txt"
+
+    if (
+        notification.type == "kb_article_reviewed"
+        and notification.data.get("action") == "rejected"
+    ):
+        html_template = "knowledge/email/article_rejected.html"
+        txt_template = "knowledge/email/article_rejected.txt"
+        context.update({
+            "article_title": notification.data.get("article_title", ""),
+            "rejection_reason": notification.data.get("reason", ""),
+            "reviewer_name": notification.data.get("reviewer_name", ""),
+            "reviewed_at": notification.data.get("reviewed_at", ""),
+            "article_url": notification.data.get("url", ""),
+        })
+
     try:
-        html_body = render_to_string(
-            "notifications/email/notification.html",
-            context,
-        )
+        html_body = render_to_string(html_template, context)
     except Exception:
         html_body = None
 
     try:
-        plain_body = render_to_string(
-            "notifications/email/notification.txt",
-            context,
-        )
+        plain_body = render_to_string(txt_template, context)
     except Exception:
         plain_body = notification.body or notification.title
 

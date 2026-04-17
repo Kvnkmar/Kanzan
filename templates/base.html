@@ -91,6 +91,13 @@
   {% if tenant and user.is_authenticated %}
   <script src="{% static 'js/agent-availability.js' %}"></script>
   <script src="{% static 'js/notes-panel.js' %}"></script>
+  <script src="{% static 'js/keyboard-shortcuts.js' %}"></script>
+  <script src="{% static 'js/ticket-feed.js' %}"></script>
+  {% if voip_enabled %}
+  {% include 'includes/softphone.html' %}
+  <script src="https://cdn.jsdelivr.net/npm/sip.js@0.21.2/lib/platform/web/sip.js"></script>
+  <script src="{% static 'js/voip-softphone.js' %}"></script>
+  {% endif %}
   {% endif %}
   {% block extra_js %}{% endblock %}
   <script>

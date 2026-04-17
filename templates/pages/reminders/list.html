@@ -21,8 +21,8 @@
       <i class="ti ti-users"></i> All
     </button>
     <select class="form-select form-select-sm" id="statusFilter" style="width:auto;">
-      <option value="">All Statuses</option>
-      <option value="overdue" selected>Overdue</option>
+      <option value="" selected>All Statuses</option>
+      <option value="overdue">Overdue</option>
       <option value="pending">Pending</option>
       <option value="completed">Completed</option>
       <option value="cancelled">Cancelled</option>
@@ -50,7 +50,15 @@
     <span class="fd-summary-label">My Overdue</span>
     <span class="fd-summary-value" id="statMyOverdue">-</span>
   </div>
-  <div class="fd-summary-card fd-summary-card--primary">
+  <div class="fd-summary-card fd-summary-card--info">
+    <span class="fd-summary-label">Pending</span>
+    <span class="fd-summary-value" id="statPending">-</span>
+  </div>
+  <div class="fd-summary-card fd-summary-card--purple">
+    <span class="fd-summary-label">Due Today</span>
+    <span class="fd-summary-value" id="statDueToday">-</span>
+  </div>
+  <div class="fd-summary-card fd-summary-card--success">
     <span class="fd-summary-label">Completed Today</span>
     <span class="fd-summary-value" id="statCompletedToday">-</span>
   </div>
@@ -150,11 +158,19 @@
             </select>
           </div>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Contact</label>
-          <select class="form-select" id="reminderContact">
-            <option value="">None</option>
-          </select>
+        <div class="row mb-3">
+          <div class="col-6">
+            <label class="form-label">Contact</label>
+            <select class="form-select" id="reminderContact">
+              <option value="">None</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label class="form-label">Ticket</label>
+            <select class="form-select" id="reminderTicket">
+              <option value="">None</option>
+            </select>
+          </div>
         </div>
         <div class="mb-3">
           <label class="form-label">Notes</label>
@@ -192,6 +208,24 @@
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-primary" id="confirmRescheduleBtn">Reschedule</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Detail Modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Reminder Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="detailModalBody">
+        <div class="text-center py-4">
+          <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+        </div>
+      </div>
+      <div class="modal-footer" id="detailModalFooter"></div>
     </div>
   </div>
 </div>
@@ -284,8 +318,18 @@
     tdSubject.appendChild(strong);
     tr.appendChild(tdSubject);
 
-    // Ticket
-    tr.appendChild(createTextCell(r.ticket_number ? '#' + r.ticket_number : '-'));
+    // Ticket (clickable link)
+    var tdTicket = document.createElement('td');
+    if (r.ticket_number) {
+      var ticketLink = document.createElement('a');
+      ticketLink.href = '/tickets/' + r.ticket_number + '/';
+      ticketLink.textContent = '#' + r.ticket_number;
+      ticketLink.title = r.ticket_subject || '';
+      tdTicket.appendChild(ticketLink);
+    } else {
+      tdTicket.textContent = '-';
+    }
+    tr.appendChild(tdTicket);
 
     // Assigned to
     tr.appendChild(createTextCell(r.assigned_to_name || 'Unassigned'));
@@ -356,7 +400,139 @@
     }
     tr.appendChild(tdActions);
 
+    // Click row to view details (skip clicks on checkboxes, buttons, links)
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', function(e) {
+      if (e.target.closest('input, button, a')) return;
+      showDetail(r);
+    });
+
     return tr;
+  }
+
+  function buildDetailRow(label, value) {
+    var row = document.createElement('div');
+    row.className = 'd-flex justify-content-between py-2';
+    row.style.borderBottom = '1px solid var(--bs-border-color-translucent)';
+    var lbl = document.createElement('span');
+    lbl.className = 'text-muted';
+    lbl.textContent = label;
+    var val = document.createElement('span');
+    val.className = 'fw-semibold text-end';
+    val.style.maxWidth = '60%';
+    if (typeof value === 'string' || typeof value === 'number') {
+      val.textContent = value;
+    } else if (value instanceof HTMLElement) {
+      val.appendChild(value);
+    }
+    row.appendChild(lbl);
+    row.appendChild(val);
+    return row;
+  }
+
+  function showDetail(r) {
+    var body = document.getElementById('detailModalBody');
+    var footer = document.getElementById('detailModalFooter');
+    body.textContent = '';
+    footer.textContent = '';
+
+    // Subject header
+    var subjectEl = document.createElement('h5');
+    subjectEl.className = 'mb-3';
+    subjectEl.textContent = r.subject || 'Untitled';
+    body.appendChild(subjectEl);
+
+    var details = document.createElement('div');
+
+    details.appendChild(buildDetailRow('Status', statusBadge(r.status)));
+    details.appendChild(buildDetailRow('Priority', priorityBadge(r.priority)));
+    details.appendChild(buildDetailRow('Scheduled', r.scheduled_at ? new Date(r.scheduled_at).toLocaleString() : '-'));
+
+    if (r.overdue_display) {
+      var overdueSpan = document.createElement('span');
+      overdueSpan.className = 'text-danger fw-semibold';
+      overdueSpan.textContent = r.overdue_display;
+      details.appendChild(buildDetailRow('Overdue', overdueSpan));
+    }
+
+    details.appendChild(buildDetailRow('Assigned To', r.assigned_to_name || 'Unassigned'));
+    details.appendChild(buildDetailRow('Contact', r.contact_name || r.contact_email || '-'));
+
+    if (r.ticket_number) {
+      var ticketLink = document.createElement('a');
+      ticketLink.href = '/tickets/' + r.ticket_number + '/';
+      ticketLink.textContent = '#' + r.ticket_number + (r.ticket_subject ? ' — ' + r.ticket_subject : '');
+      details.appendChild(buildDetailRow('Ticket', ticketLink));
+    } else {
+      details.appendChild(buildDetailRow('Ticket', '-'));
+    }
+
+    details.appendChild(buildDetailRow('Created By', r.created_by_name || '-'));
+    details.appendChild(buildDetailRow('Created', r.created_at ? new Date(r.created_at).toLocaleString() : '-'));
+
+    if (r.completed_at) {
+      details.appendChild(buildDetailRow('Completed', new Date(r.completed_at).toLocaleString()));
+    }
+    if (r.cancelled_at) {
+      details.appendChild(buildDetailRow('Cancelled', new Date(r.cancelled_at).toLocaleString()));
+    }
+
+    body.appendChild(details);
+
+    // Notes section
+    if (r.notes) {
+      var notesHeader = document.createElement('h6');
+      notesHeader.className = 'mt-3 mb-2 text-muted';
+      notesHeader.textContent = 'Notes';
+      body.appendChild(notesHeader);
+      var notesBody = document.createElement('div');
+      notesBody.className = 'p-2 rounded';
+      notesBody.style.background = 'var(--bs-tertiary-bg)';
+      notesBody.style.fontSize = '0.8125rem';
+      notesBody.style.whiteSpace = 'pre-wrap';
+      notesBody.textContent = r.notes;
+      body.appendChild(notesBody);
+    }
+
+    // Footer actions
+    var isActionable = r.status === 'overdue' || r.status === 'pending';
+    if (isActionable) {
+      var btnComplete = document.createElement('button');
+      btnComplete.className = 'btn btn-success btn-sm';
+      btnComplete.textContent = 'Complete';
+      btnComplete.addEventListener('click', function() {
+        bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();
+        completeReminder(r.id);
+      });
+
+      var btnReschedule = document.createElement('button');
+      btnReschedule.className = 'btn btn-warning btn-sm';
+      btnReschedule.textContent = 'Reschedule';
+      btnReschedule.addEventListener('click', function() {
+        bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();
+        openReschedule(r.id);
+      });
+
+      var btnCancel = document.createElement('button');
+      btnCancel.className = 'btn btn-outline-secondary btn-sm';
+      btnCancel.textContent = 'Cancel Reminder';
+      btnCancel.addEventListener('click', function() {
+        bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();
+        cancelReminder(r.id);
+      });
+
+      footer.appendChild(btnComplete);
+      footer.appendChild(btnReschedule);
+      footer.appendChild(btnCancel);
+    }
+
+    var btnClose = document.createElement('button');
+    btnClose.className = 'btn btn-secondary btn-sm';
+    btnClose.textContent = 'Close';
+    btnClose.setAttribute('data-bs-dismiss', 'modal');
+    footer.appendChild(btnClose);
+
+    new bootstrap.Modal(document.getElementById('detailModal')).show();
   }
 
   function loadReminders() {
@@ -411,7 +587,9 @@
   function loadStats() {
     Api.get(API_BASE + 'stats/').then(function(data) {
       document.getElementById('statOverdue').textContent = data.total_overdue || 0;
-      document.getElementById('statMyOverdue').textContent = '-';
+      document.getElementById('statMyOverdue').textContent = data.my_overdue != null ? data.my_overdue : 0;
+      document.getElementById('statPending').textContent = data.pending != null ? data.pending : 0;
+      document.getElementById('statDueToday').textContent = data.due_today != null ? data.due_today : 0;
       document.getElementById('statCompletedToday').textContent = data.completed_today || 0;
 
       var badge = document.getElementById('sidebarBadgeReminders');
@@ -565,6 +743,21 @@
     }
   });
 
+  // Helper to populate a select dropdown
+  function populateSelect(sel, items, valueKey, labelFn, defaultLabel) {
+    sel.textContent = '';
+    var defaultOpt = document.createElement('option');
+    defaultOpt.value = '';
+    defaultOpt.textContent = defaultLabel || 'None';
+    sel.appendChild(defaultOpt);
+    (items || []).forEach(function(item) {
+      var opt = document.createElement('option');
+      opt.value = item[valueKey];
+      opt.textContent = labelFn(item);
+      sel.appendChild(opt);
+    });
+  }
+
   // New reminder modal
   document.getElementById('newReminderBtn').addEventListener('click', function() {
     document.getElementById('reminderId').value = '';
@@ -574,37 +767,37 @@
     document.getElementById('reminderNotes').value = '';
     document.getElementById('reminderModalTitle').textContent = 'New Reminder';
 
-    // Load users for assignment dropdown using safe DOM methods
+    // Load users for assignment dropdown
     Api.get('/api/v1/agents/agents/all-members/').then(function(data) {
-      var sel = document.getElementById('reminderAssignedTo');
-      sel.textContent = '';
-      var defaultOpt = document.createElement('option');
-      defaultOpt.value = '';
-      defaultOpt.textContent = 'Unassigned';
-      sel.appendChild(defaultOpt);
-      (data.results || data || []).forEach(function(u) {
-        var opt = document.createElement('option');
-        opt.value = u.user_id;
-        opt.textContent = u.full_name || u.email;
-        sel.appendChild(opt);
-      });
+      populateSelect(
+        document.getElementById('reminderAssignedTo'),
+        data.results || data || [],
+        'user_id',
+        function(u) { return u.user_name || u.user_email || u.email; },
+        'Unassigned'
+      );
     }).catch(function() {});
 
-    // Load contacts for dropdown using safe DOM methods
+    // Load contacts for dropdown
     Api.get('/api/v1/contacts/contacts/?page_size=100').then(function(data) {
-      var sel = document.getElementById('reminderContact');
-      sel.textContent = '';
-      var defaultOpt = document.createElement('option');
-      defaultOpt.value = '';
-      defaultOpt.textContent = 'None';
-      sel.appendChild(defaultOpt);
-      (data.results || []).forEach(function(c) {
-        var name = ((c.first_name || '') + ' ' + (c.last_name || '')).trim();
-        var opt = document.createElement('option');
-        opt.value = c.id;
-        opt.textContent = name || c.email;
-        sel.appendChild(opt);
-      });
+      populateSelect(
+        document.getElementById('reminderContact'),
+        data.results || [],
+        'id',
+        function(c) { return ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email; },
+        'None'
+      );
+    }).catch(function() {});
+
+    // Load tickets for dropdown
+    Api.get('/api/v1/tickets/tickets/?page_size=50&ordering=-created_at').then(function(data) {
+      populateSelect(
+        document.getElementById('reminderTicket'),
+        data.results || [],
+        'id',
+        function(t) { return '#' + t.number + ' — ' + (t.subject || '').substring(0, 50); },
+        'None'
+      );
     }).catch(function() {});
 
     new bootstrap.Modal(document.getElementById('reminderModal')).show();
@@ -612,9 +805,27 @@
 
   document.getElementById('saveReminderBtn').addEventListener('click', function() {
     var id = document.getElementById('reminderId').value;
+    var subject = document.getElementById('reminderSubject').value.trim();
+    var scheduledAtRaw = document.getElementById('reminderScheduledAt').value;
+
+    // Validation
+    if (!subject) {
+      Toast.error('Subject is required.');
+      return;
+    }
+    if (!scheduledAtRaw) {
+      Toast.error('Scheduled date/time is required.');
+      return;
+    }
+    var scheduledDate = new Date(scheduledAtRaw);
+    if (isNaN(scheduledDate.getTime())) {
+      Toast.error('Invalid date/time.');
+      return;
+    }
+
     var payload = {
-      subject: document.getElementById('reminderSubject').value,
-      scheduled_at: new Date(document.getElementById('reminderScheduledAt').value).toISOString(),
+      subject: subject,
+      scheduled_at: scheduledDate.toISOString(),
       priority: document.getElementById('reminderPriority').value,
       notes: document.getElementById('reminderNotes').value,
     };
@@ -622,6 +833,8 @@
     if (assignedTo) payload.assigned_to = assignedTo;
     var contact = document.getElementById('reminderContact').value;
     if (contact) payload.contact = contact;
+    var ticket = document.getElementById('reminderTicket').value;
+    if (ticket) payload.ticket = ticket;
 
     var promise = id ? Api.patch(API_BASE + id + '/', payload) : Api.post(API_BASE, payload);
     promise.then(function() {
@@ -630,7 +843,13 @@
       loadReminders();
       loadStats();
     }).catch(function(err) {
-      Toast.error(err.detail || err.scheduled_at || 'Failed to save reminder.');
+      var msg = 'Failed to save reminder.';
+      if (err && typeof err === 'object') {
+        if (err.detail) msg = err.detail;
+        else if (err.scheduled_at) msg = Array.isArray(err.scheduled_at) ? err.scheduled_at[0] : err.scheduled_at;
+        else if (err.subject) msg = Array.isArray(err.subject) ? err.subject[0] : err.subject;
+      }
+      Toast.error(msg);
     });
   });
 

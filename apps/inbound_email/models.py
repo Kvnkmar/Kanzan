@@ -187,6 +187,7 @@ class InboundEmail(TimestampedModel):
         blank=True,
         related_name="linked_emails",
     )
+    is_read = models.BooleanField(default=False, db_index=True)
     actioned_at = models.DateTimeField(null=True, blank=True)
     actioned_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

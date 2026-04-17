@@ -95,6 +95,129 @@
   </a>
 </div>
 
+<!-- News Feed -->
+<div class="card mb-3" id="newsFeedCard">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <div class="d-flex align-items-center gap-2">
+      <h5 class="card-title mb-0">News Feed</h5>
+      <span class="nf-unread-badge" id="nfUnreadBadge" style="display:none;">0</span>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      <div class="nf-category-pills" id="nfCategoryFilter">
+        <button type="button" class="nf-pill active" data-cat="all">All</button>
+        <button type="button" class="nf-pill" data-cat="announcement">Announcements</button>
+        <button type="button" class="nf-pill" data-cat="celebration">Celebrations</button>
+        <button type="button" class="nf-pill" data-cat="incident">Incidents</button>
+        <button type="button" class="nf-pill" data-cat="update">Updates</button>
+      </div>
+      {% if is_admin_or_manager %}
+      <button type="button" class="btn btn-sm btn-primary" id="nfCreateBtn" title="New post">
+        <i class="ti ti-plus"></i> New Post
+      </button>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card-body p-0" id="newsFeedBody">
+    <div class="nf-skeleton">
+      <div class="nf-skeleton__row">
+        <div class="skeleton" style="width:40px;height:40px;border-radius:12px;flex-shrink:0;">&nbsp;</div>
+        <div style="flex:1;">
+          <div class="skeleton skeleton-text mb-2" style="width:55%;">&nbsp;</div>
+          <div class="skeleton skeleton-text mb-2" style="width:100%;">&nbsp;</div>
+          <div class="skeleton skeleton-text mb-2" style="width:85%;">&nbsp;</div>
+          <div class="skeleton skeleton-text" style="width:35%;">&nbsp;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- News Feed Create/Edit Modal -->
+{% if is_admin_or_manager %}
+<div class="modal fade" id="nfModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="nfModalTitle">New Post</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="nfEditId" value="">
+        <div class="mb-3">
+          <label class="form-label">Title</label>
+          <input type="text" class="form-control" id="nfTitle" maxlength="200" placeholder="Post title...">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Content</label>
+          <textarea class="form-control" id="nfContent" rows="5" placeholder="What's the news?"></textarea>
+        </div>
+        <div class="row g-3">
+          <div class="col-4">
+            <label class="form-label">Category</label>
+            <select class="form-select" id="nfCategory">
+              <option value="general">General</option>
+              <option value="announcement">Announcement</option>
+              <option value="update">Update</option>
+              <option value="celebration">Celebration</option>
+              <option value="incident">Incident</option>
+            </select>
+          </div>
+          <div class="col-2">
+            <label class="form-label">Pinned</label>
+            <div class="form-check form-switch mt-1">
+              <input class="form-check-input" type="checkbox" id="nfPinned">
+            </div>
+          </div>
+          <div class="col-2">
+            <label class="form-label">Published</label>
+            <div class="form-check form-switch mt-1">
+              <input class="form-check-input" type="checkbox" id="nfPublished" checked>
+            </div>
+          </div>
+          <div class="col-2">
+            <label class="form-label">Urgent</label>
+            <div class="form-check form-switch mt-1">
+              <input class="form-check-input" type="checkbox" id="nfUrgent">
+            </div>
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="form-label">Expires at <small class="text-muted">(optional)</small></label>
+          <input type="datetime-local" class="form-control form-control-sm" id="nfExpiresAt">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="nfSaveBtn">Publish</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- News Feed Detail Modal (read full post) -->
+<div class="modal fade" id="nfDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" id="nfDetailHeader">
+        <div class="d-flex align-items-center gap-3" style="min-width:0;flex:1;">
+          <div id="nfDetailIcon" class="nf-post__icon"></div>
+          <div style="min-width:0;flex:1;">
+            <h5 class="modal-title mb-0" id="nfDetailTitle" style="font-weight:700;"></h5>
+            <div class="d-flex align-items-center gap-2 mt-1" id="nfDetailMeta"></div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="nfDetailBody">
+        <div id="nfDetailContent" style="font-size:0.875rem;line-height:1.7;color:var(--crm-text);white-space:pre-wrap;margin-bottom:16px;"></div>
+        <div id="nfDetailReactions" class="nf-reactions"></div>
+        <div id="nfDetailComments" class="nf-comments"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Today's Trends -->
 <div class="card mb-3">
   <div class="card-body p-0">
@@ -1343,7 +1466,8 @@
     });
 
   /* ---- Fetch Agent Availability Stats (admin/manager only) ---- */
-  if (document.getElementById('agentStatsGrid')) {
+  function loadAgentStats() {
+    if (!document.getElementById('agentStatsGrid')) return;
     Api.get('/api/v1/agents/agents/all-members/')
       .then(function(data) {
         var agents = data.results || data;
@@ -1363,7 +1487,698 @@
         console.error('Agent stats error:', err);
       });
   }
+  loadAgentStats();
 
+  // Real-time: refresh agent stats when any agent changes status
+  document.addEventListener('kanzan:notification', function(e) {
+    if (e.detail && e.detail.type === 'agent_status_change') {
+      loadAgentStats();
+    }
+  });
+
+})();
+</script>
+
+<!-- News Feed Carousel -->
+<script>
+(function() {
+  "use strict";
+
+  var CATEGORY_ICONS = {
+    announcement: 'speakerphone', update: 'refresh',
+    celebration: 'confetti', incident: 'alert-triangle', general: 'news'
+  };
+  var CATEGORY_COLORS = {
+    announcement: '#3B82F6', update: '#8B5CF6',
+    celebration: '#F59E0B', incident: '#EF4444', general: '#6B7280'
+  };
+  var CATEGORY_LABELS = {
+    announcement: 'Announcement', update: 'Update',
+    celebration: 'Celebration', incident: 'Incident', general: 'General'
+  };
+  var REACTION_EMOJIS = {
+    thumbs_up: '\uD83D\uDC4D', celebration: '\uD83C\uDF89',
+    heart: '\u2764\uFE0F', rocket: '\uD83D\uDE80',
+    eyes: '\uD83D\uDC40', hundred: '\uD83D\uDCAF'
+  };
+  var REACTION_ORDER = ['thumbs_up', 'celebration', 'heart', 'rocket', 'eyes', 'hundred'];
+
+  var currentFilter = 'all';
+  var allPosts = [];
+  var filteredPosts = [];
+  var currentSlide = 0;
+  var openPickerEl = null;
+  var isAdmin = {{ is_admin_or_manager|yesno:"true,false" }};
+
+  function timeAgo(dateStr) {
+    if (!dateStr) return '';
+    var now = new Date(), d = new Date(dateStr);
+    var diff = Math.floor((now - d) / 1000);
+    if (diff < 60) return 'just now';
+    if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+    if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+    if (diff < 604800) return Math.floor(diff / 86400) + 'd ago';
+    return d.toLocaleDateString();
+  }
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text) e.textContent = text;
+    return e;
+  }
+
+  function icon(name) {
+    var i = document.createElement('i');
+    i.className = 'ti ti-' + name;
+    return i;
+  }
+
+  function clearEl(c) { while (c.firstChild) c.removeChild(c.firstChild); }
+
+  /* ---- Carousel navigation ---- */
+  function goToSlide(index) {
+    if (index < 0 || index >= filteredPosts.length) return;
+    currentSlide = index;
+    var track = document.querySelector('.nf-carousel__track');
+    if (track) track.style.transform = 'translateX(-' + (currentSlide * 100) + '%)';
+    updateDots();
+    updateArrows();
+    updateCounter();
+    // Mark visible post as read
+    if (filteredPosts[currentSlide]) markPostRead(filteredPosts[currentSlide].id);
+  }
+
+  function updateDots() {
+    var dots = document.querySelectorAll('.nf-carousel__dot');
+    dots.forEach(function(d, i) {
+      d.classList.toggle('nf-carousel__dot--active', i === currentSlide);
+    });
+  }
+
+  function updateArrows() {
+    var prev = document.querySelector('.nf-carousel__arrow--prev');
+    var next = document.querySelector('.nf-carousel__arrow--next');
+    if (prev) prev.disabled = currentSlide === 0;
+    if (next) next.disabled = currentSlide >= filteredPosts.length - 1;
+  }
+
+  function updateCounter() {
+    var counter = document.querySelector('.nf-carousel__counter');
+    if (counter) counter.textContent = (currentSlide + 1) + ' / ' + filteredPosts.length;
+  }
+
+  /* ---- Unread badge ---- */
+  function fetchUnreadCount() {
+    Api.get('/api/v1/newsfeed/posts/unread-count/').then(function(data) {
+      var badge = document.getElementById('nfUnreadBadge');
+      if (!badge) return;
+      if (data.count > 0) { badge.textContent = data.count; badge.style.display = ''; }
+      else { badge.style.display = 'none'; }
+    }).catch(function() {});
+  }
+
+  /* ---- Mark post as read ---- */
+  function markPostRead(postId) {
+    var post = allPosts.find(function(p) { return p.id === postId; });
+    if (post && !post.is_read) {
+      post.is_read = true;
+      Api.post('/api/v1/newsfeed/posts/' + postId + '/mark-read/').then(function() {
+        fetchUnreadCount();
+        var row = document.querySelector('.nf-post[data-id="' + postId + '"]');
+        if (row) row.classList.remove('nf-post--unread');
+      }).catch(function() {});
+    }
+  }
+
+  /* ---- Reaction helpers ---- */
+  function toggleReaction(postId, reactionType) {
+    var post = allPosts.find(function(p) { return p.id === postId; });
+    if (!post) return;
+    Api.post('/api/v1/newsfeed/posts/' + postId + '/react/', { reaction: reactionType })
+      .then(function(data) {
+        if (data.removed) {
+          post.user_reaction = null;
+          if (post.reactions[reactionType]) {
+            post.reactions[reactionType].count--;
+            if (post.reactions[reactionType].count <= 0) delete post.reactions[reactionType];
+          }
+        } else {
+          if (post.user_reaction && post.user_reaction !== reactionType && post.reactions[post.user_reaction]) {
+            post.reactions[post.user_reaction].count--;
+            if (post.reactions[post.user_reaction].count <= 0) delete post.reactions[post.user_reaction];
+          }
+          post.user_reaction = reactionType;
+          if (!post.reactions[reactionType]) post.reactions[reactionType] = { count: 0, emoji: REACTION_EMOJIS[reactionType] };
+          post.reactions[reactionType].count++;
+        }
+        renderPostReactions(postId);
+        renderPostSummary(postId);
+      })
+      .catch(function() { Toast.error('Failed to react.'); });
+  }
+
+  function renderPostReactions(postId) {
+    var container = document.getElementById('nf-reactions-' + postId);
+    if (!container) return;
+    var post = allPosts.find(function(p) { return p.id === postId; });
+    if (!post) return;
+    clearEl(container);
+    buildReactionsBar(container, post);
+  }
+
+  function buildReactionsBar(container, post) {
+    var reactions = post.reactions || {};
+    REACTION_ORDER.forEach(function(key) {
+      if (!reactions[key] || reactions[key].count <= 0) return;
+      var btn = el('button', 'nf-reaction' + (post.user_reaction === key ? ' nf-reaction--active' : ''));
+      btn.appendChild(el('span', 'nf-reaction__emoji', REACTION_EMOJIS[key]));
+      btn.appendChild(el('span', 'nf-reaction__count', String(reactions[key].count)));
+      btn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        toggleReaction(post.id, key);
+        btn.classList.add('nf-reaction--animating');
+        btn.addEventListener('animationend', function() { btn.classList.remove('nf-reaction--animating'); }, { once: true });
+      });
+      container.appendChild(btn);
+    });
+    var addWrap = el('div', 'nf-reaction-picker-wrap');
+    var addBtn = el('button', 'nf-reaction nf-reaction--add');
+    addBtn.appendChild(icon('mood-plus'));
+    addBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (openPickerEl && openPickerEl !== addWrap) { var old = openPickerEl.querySelector('.nf-reaction-picker'); if (old) old.remove(); }
+      var existing = addWrap.querySelector('.nf-reaction-picker');
+      if (existing) { existing.remove(); openPickerEl = null; return; }
+      var picker = el('div', 'nf-reaction-picker');
+      REACTION_ORDER.forEach(function(key) {
+        var pBtn = el('button', 'nf-reaction-picker__btn', REACTION_EMOJIS[key]);
+        pBtn.title = key.replace('_', ' ');
+        pBtn.addEventListener('click', function(ev) { ev.stopPropagation(); picker.remove(); openPickerEl = null; toggleReaction(post.id, key); });
+        picker.appendChild(pBtn);
+      });
+      addWrap.appendChild(picker);
+      openPickerEl = addWrap;
+    });
+    addWrap.appendChild(addBtn);
+    container.appendChild(addWrap);
+  }
+
+  /* ---- Comment helpers ---- */
+  function loadComments(postId) {
+    var container = document.getElementById('nf-comments-' + postId);
+    if (!container) return;
+    clearEl(container);
+    container.appendChild(el('div', 'nf-comments__header', 'Loading comments...'));
+    Api.get('/api/v1/comments/comments/?content_type=newsfeed.newspost&object_id=' + postId)
+      .then(function(data) {
+        var comments = data.results || data;
+        clearEl(container);
+        var topLevel = [], repliesByParent = {};
+        comments.forEach(function(c) {
+          if (!c.parent) topLevel.push(c);
+          else { if (!repliesByParent[c.parent]) repliesByParent[c.parent] = []; repliesByParent[c.parent].push(c); }
+        });
+        container.appendChild(el('div', 'nf-comments__header', comments.length + ' comment' + (comments.length !== 1 ? 's' : '')));
+        var list = el('div', 'nf-comments__list');
+        topLevel.forEach(function(c) { list.appendChild(buildCommentEl(c, postId, repliesByParent[c.id] || [])); });
+        container.appendChild(list);
+        container.appendChild(buildCommentInput(postId, null));
+        var post = allPosts.find(function(p) { return p.id === postId; });
+        if (post) post.comment_count = comments.length;
+        renderPostSummary(postId);
+      })
+      .catch(function() { clearEl(container); container.appendChild(el('div', 'nf-comments__header text-danger', 'Failed to load comments.')); });
+  }
+
+  function getCommentAuthor(c) {
+    if (c.author && typeof c.author === 'object') return c.author.full_name || c.author.email || 'User';
+    return c.author_name || c.author_email || 'User';
+  }
+  function getInitials(name) {
+    if (name.includes('@')) return name[0].toUpperCase();
+    return name.split(' ').map(function(p) { return p[0]; }).join('').substring(0, 2).toUpperCase();
+  }
+
+  function buildCommentEl(comment, postId, replies) {
+    var wrap = el('div', 'nf-comment');
+    var authorName = getCommentAuthor(comment);
+    wrap.appendChild(el('span', 'nf-comment__avatar', getInitials(authorName)));
+    var body = el('div', 'nf-comment__body');
+    var meta = el('div', 'nf-comment__meta');
+    meta.appendChild(el('span', 'nf-comment__author', authorName));
+    meta.appendChild(el('span', 'nf-comment__time', timeAgo(comment.created_at)));
+    body.appendChild(meta);
+    body.appendChild(el('div', 'nf-comment__text', comment.body));
+    var replyBtn = el('button', 'nf-comment__reply-btn', 'Reply');
+    replyBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var existingInput = body.querySelector('.nf-comment-input');
+      if (existingInput) { existingInput.remove(); return; }
+      body.appendChild(buildCommentInput(postId, comment.id));
+    });
+    body.appendChild(replyBtn);
+    if (replies.length > 0) {
+      var rw = el('div', 'nf-comment__replies');
+      replies.forEach(function(r) {
+        var re = el('div', 'nf-comment nf-comment--reply');
+        var rn = getCommentAuthor(r);
+        re.appendChild(el('span', 'nf-comment__avatar', getInitials(rn)));
+        var rb = el('div', 'nf-comment__body');
+        var rm = el('div', 'nf-comment__meta');
+        rm.appendChild(el('span', 'nf-comment__author', rn));
+        rm.appendChild(el('span', 'nf-comment__time', timeAgo(r.created_at)));
+        rb.appendChild(rm);
+        rb.appendChild(el('div', 'nf-comment__text', r.body));
+        re.appendChild(rb);
+        rw.appendChild(re);
+      });
+      body.appendChild(rw);
+    }
+    wrap.appendChild(body);
+    return wrap;
+  }
+
+  function buildCommentInput(postId, parentId) {
+    var wrap = el('div', 'nf-comment-input');
+    wrap.appendChild(el('span', 'nf-comment-input__avatar', '..'));
+    var input = document.createElement('input');
+    input.type = 'text'; input.className = 'nf-comment-input__field';
+    input.placeholder = parentId ? 'Write a reply...' : 'Write a comment...';
+    var sendBtn = el('button', 'nf-comment-input__send');
+    sendBtn.disabled = true; sendBtn.appendChild(icon('send'));
+    input.addEventListener('input', function() { sendBtn.disabled = !input.value.trim(); });
+    function submit() {
+      var text = input.value.trim(); if (!text) return;
+      sendBtn.disabled = true;
+      var payload = { content_type: 'newsfeed.newspost', object_id: postId, body: text };
+      if (parentId) payload.parent = parentId;
+      Api.post('/api/v1/comments/comments/', payload)
+        .then(function() { loadComments(postId); })
+        .catch(function() { Toast.error('Failed to post comment.'); sendBtn.disabled = false; });
+    }
+    sendBtn.addEventListener('click', function(e) { e.stopPropagation(); submit(); });
+    input.addEventListener('keydown', function(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } });
+    wrap.appendChild(input); wrap.appendChild(sendBtn);
+    return wrap;
+  }
+
+  /* ---- Summary line ---- */
+  function renderPostSummary(postId) {
+    var summaryEl = document.getElementById('nf-summary-' + postId);
+    if (!summaryEl) return;
+    var post = allPosts.find(function(p) { return p.id === postId; });
+    if (!post) return;
+    clearEl(summaryEl);
+    var reactions = post.reactions || {};
+    var hasReactions = Object.keys(reactions).some(function(k) { return reactions[k].count > 0; });
+    if (hasReactions) {
+      var rWrap = el('span', 'nf-post__summary-reactions');
+      var total = 0;
+      REACTION_ORDER.forEach(function(key) { if (reactions[key] && reactions[key].count > 0) { rWrap.appendChild(el('span', '', REACTION_EMOJIS[key])); total += reactions[key].count; } });
+      rWrap.appendChild(el('span', 'nf-post__summary-count', String(total)));
+      summaryEl.appendChild(rWrap);
+    }
+    if (post.comment_count > 0) {
+      var cWrap = el('span', 'nf-post__summary-comments');
+      cWrap.appendChild(icon('message-circle'));
+      cWrap.appendChild(el('span', '', post.comment_count + ' comment' + (post.comment_count !== 1 ? 's' : '')));
+      summaryEl.appendChild(cWrap);
+    }
+  }
+
+  /* ---- Detail modal (full post popup) ---- */
+  var detailModal = null;
+  var detailModalEl = document.getElementById('nfDetailModal');
+  if (detailModalEl) detailModal = new bootstrap.Modal(detailModalEl);
+
+  function openDetailModal(postId) {
+    var post = allPosts.find(function(p) { return p.id === postId; });
+    if (!post || !detailModal) return;
+
+    var cat = post.category || 'general';
+    var color = CATEGORY_COLORS[cat] || '#6B7280';
+    var label = CATEGORY_LABELS[cat] || 'General';
+    var iconName = post.emoji || CATEGORY_ICONS[cat] || 'news';
+
+    // Icon
+    var iconEl = document.getElementById('nfDetailIcon');
+    clearEl(iconEl);
+    if (post.is_urgent) { iconEl.style.background = 'rgba(239, 68, 68, 0.12)'; iconEl.style.color = '#EF4444'; }
+    else { iconEl.style.background = color + '20'; iconEl.style.color = color; }
+    iconEl.appendChild(icon(iconName));
+
+    // Title
+    document.getElementById('nfDetailTitle').textContent = post.title;
+
+    // Meta line
+    var metaEl = document.getElementById('nfDetailMeta');
+    clearEl(metaEl);
+    var avatar = el('span', 'nf-post__avatar', post.author_initials);
+    avatar.title = post.author_name;
+    metaEl.appendChild(avatar);
+    metaEl.appendChild(el('span', 'nf-post__author', post.author_name));
+    metaEl.appendChild(el('span', 'nf-post__time', timeAgo(post.created_at)));
+    // Category badge
+    var catBadge = el('span', 'nf-post__cat', label);
+    catBadge.style.color = color; catBadge.style.background = color + '14';
+    metaEl.appendChild(catBadge);
+    // Badges
+    if (post.is_pinned) { var pin = el('span', 'nf-pin'); pin.appendChild(icon('pin-filled')); metaEl.appendChild(pin); }
+    if (post.is_urgent) { var ub = el('span', 'nf-draft-badge'); ub.style.background = 'rgba(239, 68, 68, 0.12)'; ub.style.color = '#EF4444'; ub.textContent = 'Urgent'; metaEl.appendChild(ub); }
+
+    // Full content
+    document.getElementById('nfDetailContent').textContent = post.content;
+
+    // Reactions
+    var reactionsEl = document.getElementById('nfDetailReactions');
+    clearEl(reactionsEl);
+    buildReactionsBar(reactionsEl, post);
+
+    // Comments (lazy load)
+    var commentsEl = document.getElementById('nfDetailComments');
+    commentsEl.id = 'nf-comments-' + post.id;
+    clearEl(commentsEl);
+    loadComments(postId);
+
+    // Mark read
+    markPostRead(postId);
+
+    // Pause carousel autoplay while modal is open
+    stopAutoPlay();
+    detailModal.show();
+  }
+
+  // Resume autoplay when detail modal closes
+  if (detailModalEl) {
+    detailModalEl.addEventListener('hidden.bs.modal', function() {
+      startAutoPlay();
+      // Reset comments container id so it doesn't conflict
+      var commentsEl = document.getElementById('nfDetailComments');
+      if (commentsEl) commentsEl.removeAttribute('id');
+    });
+  }
+
+  /* ---- Fetch ---- */
+  function fetchPosts() {
+    Api.get('/api/v1/newsfeed/posts/')
+      .then(function(data) { allPosts = data.results || data; renderPosts(); fetchUnreadCount(); })
+      .catch(function() {
+        var body = document.getElementById('newsFeedBody');
+        if (body) { clearEl(body); var e = el('div', 'empty-state'); var ei = el('div', 'empty-icon text-danger'); ei.appendChild(icon('alert-triangle')); e.appendChild(ei); e.appendChild(el('p', 'empty-text', 'Unable to load news feed.')); body.appendChild(e); }
+      });
+  }
+
+  /* ---- Build a single post card ---- */
+  function buildPostCard(post) {
+    var cat = post.category || 'general';
+    var color = CATEGORY_COLORS[cat] || '#6B7280';
+    var label = CATEGORY_LABELS[cat] || 'General';
+    var iconName = post.emoji || CATEGORY_ICONS[cat] || 'news';
+
+    var row = el('div', 'nf-post');
+    row.setAttribute('data-id', post.id);
+    if (!post.is_read) row.classList.add('nf-post--unread');
+    if (post.is_urgent) row.classList.add('nf-post--urgent');
+
+    // Top row
+    var topRow = el('div', 'nf-post__top');
+    var iconWrap = el('div', 'nf-post__icon');
+    if (post.is_urgent) { iconWrap.style.background = 'rgba(239, 68, 68, 0.12)'; iconWrap.style.color = '#EF4444'; }
+    else { iconWrap.style.background = color + '20'; iconWrap.style.color = color; }
+    iconWrap.appendChild(icon(iconName));
+    topRow.appendChild(iconWrap);
+
+    var bodyDiv = el('div', 'nf-post__body');
+
+    // Header
+    var header = el('div', 'nf-post__header');
+    header.appendChild(el('span', 'nf-post__title', post.title));
+    if (post.is_pinned) { var pin = el('span', 'nf-pin'); pin.title = 'Pinned'; pin.appendChild(icon('pin-filled')); header.appendChild(pin); }
+    if (post.is_urgent) { var ub = el('span', 'nf-draft-badge'); ub.style.background = 'rgba(239, 68, 68, 0.12)'; ub.style.color = '#EF4444'; ub.textContent = 'Urgent'; header.appendChild(ub); }
+    if (!post.is_published && isAdmin) header.appendChild(el('span', 'nf-draft-badge', 'Draft'));
+    var catBadge = el('span', 'nf-post__cat', label);
+    catBadge.style.color = color; catBadge.style.background = color + '14';
+    header.appendChild(catBadge);
+    bodyDiv.appendChild(header);
+
+    // Content (short preview)
+    bodyDiv.appendChild(el('div', 'nf-post__content', post.content));
+    var readMore = el('div', 'nf-post__read-more', 'Read more \u2192');
+    readMore.addEventListener('click', function(e) { e.stopPropagation(); openDetailModal(post.id); });
+    bodyDiv.appendChild(readMore);
+
+    // Summary (reactions + comments)
+    var summary = el('div', 'nf-post__summary');
+    summary.id = 'nf-summary-' + post.id;
+    bodyDiv.appendChild(summary);
+
+    // Meta
+    var meta = el('div', 'nf-post__meta');
+    var avatar = el('span', 'nf-post__avatar', post.author_initials);
+    avatar.title = post.author_name;
+    meta.appendChild(avatar);
+    meta.appendChild(el('span', 'nf-post__author', post.author_name));
+    meta.appendChild(el('span', 'nf-post__time', timeAgo(post.created_at)));
+    bodyDiv.appendChild(meta);
+
+    topRow.appendChild(bodyDiv);
+
+    // Admin actions
+    if (isAdmin) {
+      var actions = el('div', 'nf-actions');
+      actions.style.opacity = '1'; // always visible in carousel
+      var editBtn = el('button', 'nf-action-btn');
+      editBtn.title = 'Edit'; editBtn.appendChild(icon('pencil'));
+      editBtn.addEventListener('click', function(e) { e.stopPropagation(); openEditModal(post.id); });
+      actions.appendChild(editBtn);
+      var delBtn = el('button', 'nf-action-btn nf-action-btn--danger');
+      delBtn.title = 'Delete'; delBtn.appendChild(icon('trash'));
+      delBtn.addEventListener('click', function(e) { e.stopPropagation(); deletePost(post.id); });
+      actions.appendChild(delBtn);
+      topRow.appendChild(actions);
+    }
+
+    row.appendChild(topRow);
+
+    // Click to open detail modal
+    topRow.style.cursor = 'pointer';
+    topRow.addEventListener('click', function(e) {
+      if (e.target.closest('.nf-actions')) return;
+      openDetailModal(post.id);
+    });
+
+    return row;
+  }
+
+  /* ---- Render carousel ---- */
+  function renderPosts() {
+    var body = document.getElementById('newsFeedBody');
+    if (!body) return;
+    clearEl(body);
+
+    filteredPosts = currentFilter === 'all'
+      ? allPosts
+      : allPosts.filter(function(p) { return p.category === currentFilter; });
+
+    if (filteredPosts.length === 0) {
+      var empty = el('div', 'empty-state');
+      var eIcon = el('div', 'empty-icon');
+      eIcon.appendChild(icon('news-off'));
+      empty.appendChild(eIcon);
+      empty.appendChild(el('div', 'empty-title', currentFilter === 'all' ? 'No posts yet' : 'No posts in this category'));
+      empty.appendChild(el('p', 'empty-text', 'Team announcements and updates will appear here.'));
+      if (isAdmin && currentFilter === 'all') {
+        var ctaBtn = el('button', 'btn btn-sm btn-primary mt-2', 'Create First Post');
+        ctaBtn.addEventListener('click', function() { var c = document.getElementById('nfCreateBtn'); if (c) c.click(); });
+        empty.appendChild(ctaBtn);
+      }
+      body.appendChild(empty);
+      return;
+    }
+
+    // Build carousel
+    var carousel = el('div', 'nf-carousel');
+
+    // Track with slides
+    var track = el('div', 'nf-carousel__track');
+    filteredPosts.forEach(function(post) {
+      var slide = el('div', 'nf-carousel__slide');
+      slide.appendChild(buildPostCard(post));
+      track.appendChild(slide);
+    });
+    carousel.appendChild(track);
+
+    // Counter
+    var counter = el('span', 'nf-carousel__counter');
+    carousel.appendChild(counter);
+
+    // Arrows
+    if (filteredPosts.length > 1) {
+      var prevBtn = el('button', 'nf-carousel__arrow nf-carousel__arrow--prev');
+      prevBtn.appendChild(icon('chevron-left'));
+      prevBtn.addEventListener('click', function(e) { e.stopPropagation(); goToSlide(currentSlide - 1); });
+      carousel.appendChild(prevBtn);
+
+      var nextBtn = el('button', 'nf-carousel__arrow nf-carousel__arrow--next');
+      nextBtn.appendChild(icon('chevron-right'));
+      nextBtn.addEventListener('click', function(e) { e.stopPropagation(); goToSlide(currentSlide + 1); });
+      carousel.appendChild(nextBtn);
+    }
+
+    body.appendChild(carousel);
+
+    // Dots
+    if (filteredPosts.length > 1) {
+      var dotsWrap = el('div', 'nf-carousel__dots');
+      filteredPosts.forEach(function(_, i) {
+        var dot = el('button', 'nf-carousel__dot');
+        dot.addEventListener('click', function() { goToSlide(i); });
+        dotsWrap.appendChild(dot);
+      });
+      body.appendChild(dotsWrap);
+    }
+
+    // Reset to first slide (or keep position if valid)
+    if (currentSlide >= filteredPosts.length) currentSlide = 0;
+    goToSlide(currentSlide);
+
+    // Render summaries
+    filteredPosts.forEach(function(p) { renderPostSummary(p.id); });
+  }
+
+  // Keyboard navigation
+  document.addEventListener('keydown', function(e) {
+    var card = document.getElementById('newsFeedCard');
+    if (!card || !filteredPosts.length) return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+    if (e.key === 'ArrowLeft') goToSlide(currentSlide - 1);
+    else if (e.key === 'ArrowRight') goToSlide(currentSlide + 1);
+  });
+
+  // Close reaction picker on outside click
+  document.addEventListener('click', function() {
+    if (openPickerEl) { var p = openPickerEl.querySelector('.nf-reaction-picker'); if (p) p.remove(); openPickerEl = null; }
+  });
+
+  // Category pills
+  var filterEl = document.getElementById('nfCategoryFilter');
+  if (filterEl) {
+    filterEl.querySelectorAll('.nf-pill').forEach(function(pill) {
+      pill.addEventListener('click', function() {
+        filterEl.querySelectorAll('.nf-pill').forEach(function(p) { p.classList.remove('active'); });
+        pill.classList.add('active');
+        currentFilter = pill.getAttribute('data-cat');
+        currentSlide = 0;
+        renderPosts();
+      });
+    });
+  }
+
+  // Admin modal
+  function openEditModal(id) {
+    var post = allPosts.find(function(p) { return p.id === id; });
+    if (!post || !bsModal) return;
+    document.getElementById('nfEditId').value = post.id;
+    document.getElementById('nfModalTitle').textContent = 'Edit Post';
+    document.getElementById('nfTitle').value = post.title;
+    document.getElementById('nfContent').value = post.content;
+    document.getElementById('nfCategory').value = post.category;
+    document.getElementById('nfPinned').checked = post.is_pinned;
+    document.getElementById('nfPublished').checked = post.is_published;
+    document.getElementById('nfUrgent').checked = post.is_urgent || false;
+    var expiresInput = document.getElementById('nfExpiresAt');
+    if (expiresInput) expiresInput.value = post.expires_at ? post.expires_at.substring(0, 16) : '';
+    document.getElementById('nfSaveBtn').textContent = 'Save';
+    bsModal.show();
+  }
+
+  function deletePost(id) {
+    if (!confirm('Delete this post?')) return;
+    Api.delete('/api/v1/newsfeed/posts/' + id + '/')
+      .then(function() { Toast.success('Post deleted.'); fetchPosts(); })
+      .catch(function() { Toast.error('Failed to delete post.'); });
+  }
+
+  var bsModal = null;
+  if (isAdmin) {
+    var modalEl = document.getElementById('nfModal');
+    bsModal = modalEl ? new bootstrap.Modal(modalEl) : null;
+
+    var createBtn = document.getElementById('nfCreateBtn');
+    if (createBtn) {
+      createBtn.addEventListener('click', function() {
+        document.getElementById('nfEditId').value = '';
+        document.getElementById('nfModalTitle').textContent = 'New Post';
+        document.getElementById('nfTitle').value = '';
+        document.getElementById('nfContent').value = '';
+        document.getElementById('nfCategory').value = 'general';
+        document.getElementById('nfPinned').checked = false;
+        document.getElementById('nfPublished').checked = true;
+        document.getElementById('nfUrgent').checked = false;
+        var expiresInput = document.getElementById('nfExpiresAt');
+        if (expiresInput) expiresInput.value = '';
+        document.getElementById('nfSaveBtn').textContent = 'Publish';
+        bsModal.show();
+      });
+    }
+
+    var saveBtn = document.getElementById('nfSaveBtn');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', function() {
+        var editId = document.getElementById('nfEditId').value;
+        var payload = {
+          title: document.getElementById('nfTitle').value.trim(),
+          content: document.getElementById('nfContent').value.trim(),
+          category: document.getElementById('nfCategory').value,
+          is_pinned: document.getElementById('nfPinned').checked,
+          is_published: document.getElementById('nfPublished').checked,
+          is_urgent: document.getElementById('nfUrgent').checked
+        };
+        var expiresVal = document.getElementById('nfExpiresAt').value;
+        if (expiresVal) payload.expires_at = new Date(expiresVal).toISOString();
+        else payload.expires_at = null;
+        if (!payload.title) { Toast.warning('Title is required.'); return; }
+        if (!payload.content) { Toast.warning('Content is required.'); return; }
+        saveBtn.disabled = true;
+        var promise = editId
+          ? Api.patch('/api/v1/newsfeed/posts/' + editId + '/', payload)
+          : Api.post('/api/v1/newsfeed/posts/', payload);
+        promise
+          .then(function() { bsModal.hide(); Toast.success(editId ? 'Post updated.' : 'Post published.'); fetchPosts(); })
+          .catch(function() { Toast.error('Failed to save post.'); })
+          .finally(function() { saveBtn.disabled = false; });
+      });
+    }
+  }
+
+  // Polling
+  setInterval(function() { if (document.visibilityState !== 'hidden') fetchUnreadCount(); }, 60000);
+
+  // Auto-advance carousel every 5 seconds
+  var autoPlayTimer = null;
+  function startAutoPlay() {
+    stopAutoPlay();
+    autoPlayTimer = setInterval(function() {
+      if (document.visibilityState === 'hidden') return;
+      if (!filteredPosts.length) return;
+      var next = (currentSlide + 1) % filteredPosts.length;
+      goToSlide(next);
+    }, 5000);
+  }
+  function stopAutoPlay() {
+    if (autoPlayTimer) { clearInterval(autoPlayTimer); autoPlayTimer = null; }
+  }
+  // Pause on hover, resume on leave
+  var feedCard = document.getElementById('newsFeedCard');
+  if (feedCard) {
+    feedCard.addEventListener('mouseenter', stopAutoPlay);
+    feedCard.addEventListener('mouseleave', startAutoPlay);
+  }
+
+  // Init
+  fetchPosts();
+  startAutoPlay();
 })();
 </script>
 {% endblock %}

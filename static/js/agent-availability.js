@@ -1,76 +1,121 @@
 /**
- * Agent Availability - Online/Offline Toggle
+ * Agent Availability - Status Dropdown (Gmail-style)
  *
- * Provides a toggle switch in the navbar for agents/managers/admins to
- * set their availability status (online/offline).
+ * Provides a dropdown in the navbar for agents/managers/admins to
+ * set their availability status (online/away/busy/offline).
  *
  * On page load, fetches the persisted status from the server so the
- * toggle reflects the real state.  The user must manually toggle online
- * after login.  Logout sets the status to offline server-side.
- *
- * NOTE: We intentionally do NOT send offline on beforeunload / pagehide
- * because those events fire on every same-site navigation, which would
- * reset the status every time the user clicks a link.  Offline is
- * handled server-side on logout instead.
+ * dropdown reflects the real state.
  */
 (function () {
   'use strict';
 
-  const AGENTS_API = '/api/v1/agents/agents';
-  const STATUS_URL = AGENTS_API + '/my-status/';
+  const STATUS_URL = '/api/v1/agents/agents/my-status/';
 
-  const toggle = document.getElementById('availabilityToggle');
-  const dot = document.getElementById('availabilityDot');
-  const container = document.getElementById('availabilityToggleContainer');
+  const STATUS_LABELS = {
+    online: 'Online',
+    away: 'Away',
+    busy: 'Busy',
+    offline: 'Offline'
+  };
 
-  if (!toggle) return;
+  const dropdown = document.getElementById('statusDropdown');
+  const trigger = document.getElementById('statusDropdownTrigger');
+  const menu = document.getElementById('statusDropdownMenu');
+  const dot = document.getElementById('statusDot');
+  const label = document.getElementById('statusLabel');
 
-  // Set a default visual state immediately (avoids invisible dot)
-  applyStatusUI('offline');
+  if (!dropdown || !trigger) return;
 
-  // Then fetch the real persisted status from the server
+  var currentStatus = 'offline';
+
+  // Set default visual state, then load real status
+  applyStatus('offline');
   loadMyStatus();
 
-  toggle.addEventListener('change', function () {
-    var newStatus = toggle.checked ? 'online' : 'offline';
-    setMyStatus(newStatus);
+  // Toggle menu open/close
+  trigger.addEventListener('click', function (e) {
+    e.stopPropagation();
+    dropdown.classList.toggle('open');
+  });
+
+  // Close on outside click
+  document.addEventListener('click', function (e) {
+    if (!dropdown.contains(e.target)) {
+      dropdown.classList.remove('open');
+    }
+  });
+
+  // Close on Escape
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      dropdown.classList.remove('open');
+    }
+  });
+
+  // Status item clicks
+  menu.querySelectorAll('.status-dropdown-item').forEach(function (item) {
+    item.addEventListener('click', function () {
+      var newStatus = item.dataset.status;
+      if (newStatus === currentStatus) {
+        dropdown.classList.remove('open');
+        return;
+      }
+      setMyStatus(newStatus);
+      dropdown.classList.remove('open');
+    });
   });
 
   async function loadMyStatus() {
     try {
       var data = await Api.get(STATUS_URL);
-      applyStatusUI(data.status);
+      applyStatus(data.status || 'offline');
     } catch (_) {
-      applyStatusUI('offline');
+      applyStatus('offline');
     }
   }
 
   async function setMyStatus(newStatus) {
+    var previousStatus = currentStatus;
+    // Optimistic update
+    applyStatus(newStatus);
+    trigger.style.pointerEvents = 'none';
+    trigger.style.opacity = '0.7';
+
     try {
-      toggle.disabled = true;
       var data = await Api.post(STATUS_URL, { status: newStatus });
-      applyStatusUI(data.status);
+      applyStatus(data.status);
     } catch (err) {
-      toggle.checked = !toggle.checked;
-      applyStatusUI(toggle.checked ? 'online' : 'offline');
+      applyStatus(previousStatus);
       if (typeof Toast !== 'undefined') {
-        Toast.error('Failed to update availability status.');
+        Toast.error('Failed to update status.');
       }
     } finally {
-      toggle.disabled = false;
+      trigger.style.pointerEvents = '';
+      trigger.style.opacity = '';
     }
   }
 
-  function applyStatusUI(status) {
-    if (!toggle || !dot) return;
+  function applyStatus(status) {
+    currentStatus = status;
 
-    toggle.checked = status === 'online';
-
-    dot.classList.remove('dot-online', 'dot-offline');
-    dot.classList.add(status === 'online' ? 'dot-online' : 'dot-offline');
-
-    if (container) {
-      container.title = status === 'online' ? 'Online' : 'Offline';
+    // Update trigger dot
+    if (dot) {
+      dot.className = 'status-dropdown-dot dot-' + status;
     }
+
+    // Update trigger label
+    if (label) {
+      label.textContent = STATUS_LABELS[status] || 'Offline';
+    }
+
+    // Update active state on menu items
+    menu.querySelectorAll('.status-dropdown-item').forEach(function (item) {
+      if (item.dataset.status === status) {
+        item.classList.add('active');
+      } else {
+        item.classList.remove('active');
+      }
+    });
   }
 })();

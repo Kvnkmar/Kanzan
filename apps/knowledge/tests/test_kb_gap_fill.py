@@ -23,7 +23,7 @@ class KBSearchTests(TestCase):
         cls.user = User.objects.create_user(
             email="kb@test.com", password="testpass123"
         )
-        role = Role.objects.filter(tenant=cls.tenant, hierarchy_level=30).first()
+        role = Role.unscoped.filter(tenant=cls.tenant, hierarchy_level=30).first()
         TenantMembership.objects.create(
             user=cls.user, tenant=cls.tenant, role=role, is_active=True,
         )
@@ -64,7 +64,7 @@ class KBVoteTests(TestCase):
         cls.user = User.objects.create_user(
             email="voter@test.com", password="testpass123"
         )
-        role = Role.objects.filter(tenant=cls.tenant, hierarchy_level=30).first()
+        role = Role.unscoped.filter(tenant=cls.tenant, hierarchy_level=30).first()
         TenantMembership.objects.create(
             user=cls.user, tenant=cls.tenant, role=role, is_active=True,
         )
@@ -105,7 +105,7 @@ class KBSearchViewTests(TestCase):
         cls.user = User.objects.create_user(
             email="searchapi@test.com", password="testpass123"
         )
-        role = Role.objects.filter(tenant=cls.tenant, hierarchy_level=30).first()
+        role = Role.unscoped.filter(tenant=cls.tenant, hierarchy_level=30).first()
         TenantMembership.objects.create(
             user=cls.user, tenant=cls.tenant, role=role, is_active=True,
         )

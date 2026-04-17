@@ -839,9 +839,9 @@
     if (!emailId || !ticket.id) return;
     Api.post('/api/v1/tickets/tickets/' + ticket.id + '/link-email/', { email_id: emailId }).then(function() {
       Toast.success('Email linked to ticket #' + ticket.number);
-      if (linkModal) linkModal.hide();
+      try { if (linkModal) linkModal.hide(); } catch (_) {}
       loadInboundEmails();
-    }).catch(function() {
+    }, function() {
       Toast.error('Failed to link email');
     });
   }

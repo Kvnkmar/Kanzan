@@ -63,6 +63,32 @@ class TicketFilter(django_filters.FilterSet):
 
     tag = django_filters.CharFilter(method="filter_by_tag")
 
+    # --- SLA filters ---
+    sla_response_breached = django_filters.BooleanFilter(field_name="sla_response_breached")
+    sla_resolution_breached = django_filters.BooleanFilter(field_name="sla_resolution_breached")
+    has_sla = django_filters.BooleanFilter(
+        method="filter_has_sla",
+        help_text="True returns tickets with SLA policy; False returns without.",
+    )
+
+    # --- Ticket type ---
+    ticket_type = django_filters.CharFilter(field_name="ticket_type")
+
+    # --- Channel ---
+    channel = django_filters.CharFilter(field_name="channel")
+
+    # --- Watching ---
+    watching = django_filters.BooleanFilter(
+        method="filter_watching",
+        help_text="True returns tickets the current user is watching.",
+    )
+
+    # --- SLA approaching breach ---
+    sla_approaching = django_filters.BooleanFilter(
+        method="filter_sla_approaching",
+        help_text="True returns tickets approaching SLA breach within 30 minutes.",
+    )
+
     class Meta:
         model = Ticket
         fields = [
@@ -81,6 +107,13 @@ class TicketFilter(django_filters.FilterSet):
             "due_after",
             "due_before",
             "tag",
+            "sla_response_breached",
+            "sla_resolution_breached",
+            "has_sla",
+            "ticket_type",
+            "channel",
+            "watching",
+            "sla_approaching",
         ]
 
     def filter_by_tag(self, queryset, name, value):
@@ -114,4 +147,57 @@ class TicketFilter(django_filters.FilterSet):
             return queryset.none()
         if value == "closed":
             return queryset.filter(status__is_closed=True)
+        if value == "watching":
+            user = getattr(self.request, "user", None)
+            if user and user.is_authenticated:
+                from apps.tickets.models import TicketWatcher
+                watched_ids = TicketWatcher.objects.filter(
+                    user=user, is_muted=False,
+                ).values_list("ticket_id", flat=True)
+                return queryset.filter(pk__in=watched_ids)
+            return queryset.none()
+        if value == "sla_breached":
+            from django.db.models import Q
+            return queryset.filter(
+                Q(sla_response_breached=True) | Q(sla_resolution_breached=True),
+            )
         return queryset
+
+    def filter_has_sla(self, queryset, name, value):
+        if value:
+            return queryset.filter(sla_policy__isnull=False)
+        return queryset.filter(sla_policy__isnull=True)
+
+    def filter_watching(self, queryset, name, value):
+        user = getattr(self.request, "user", None)
+        if not user or not user.is_authenticated:
+            return queryset.none() if value else queryset
+        from apps.tickets.models import TicketWatcher
+        watched_ids = TicketWatcher.objects.filter(
+            user=user, is_muted=False,
+        ).values_list("ticket_id", flat=True)
+        if value:
+            return queryset.filter(pk__in=watched_ids)
+        return queryset.exclude(pk__in=watched_ids)
+
+    def filter_sla_approaching(self, queryset, name, value):
+        if not value:
+            return queryset
+        import datetime
+        from django.db.models import Q
+        from django.utils import timezone as tz
+        now = tz.now()
+        window = datetime.timedelta(minutes=30)
+        return queryset.filter(
+            Q(
+                sla_first_response_due__gt=now,
+                sla_first_response_due__lte=now + window,
+                sla_response_breached=False,
+                first_responded_at__isnull=True,
+            ) | Q(
+                sla_resolution_due__gt=now,
+                sla_resolution_due__lte=now + window,
+                sla_resolution_breached=False,
+                resolved_at__isnull=True,
+            ),
+        )

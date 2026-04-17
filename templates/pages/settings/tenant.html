@@ -119,6 +119,7 @@
             <i class="ti ti-external-link st-hub-card-ext"></i>
           </a>
           {% endif %}
+          {% if is_admin_or_manager %}
           <a href="/agents/" class="st-hub-card" data-search="agents availability status online offline">
             <div class="st-hub-card-icon"><i class="ti ti-headset"></i></div>
             <div class="st-hub-card-body">
@@ -127,13 +128,7 @@
             </div>
             <i class="ti ti-external-link st-hub-card-ext"></i>
           </a>
-          <a href="javascript:void(0)" class="st-hub-card" data-pane="availabilityPane" data-search="availability status online away busy offline working hours">
-            <div class="st-hub-card-icon"><i class="ti ti-clock-check"></i></div>
-            <div class="st-hub-card-body">
-              <div class="st-hub-card-title">My Availability</div>
-              <div class="st-hub-card-desc">Set your online status and working hours schedule</div>
-            </div>
-          </a>
+          {% endif %}
         </div>
       </div>
 
@@ -761,73 +756,6 @@
             <button type="button" class="btn btn-primary" id="saveDndBtn">
               <span class="spinner-border spinner-border-sm d-none me-1" id="dndSpinner"></span>
               Save Quiet Hours
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Availability & Status -->
-      <div class="settings-pane" id="availabilityPane" style="display:none">
-        <div class="st-section">
-          <div class="st-section-header">
-            <div class="st-section-icon"><i class="ti ti-clock-check"></i></div>
-            <div>
-              <h3 class="st-section-title">Availability & Status</h3>
-              <p class="st-section-desc">Set your online status and working hours</p>
-            </div>
-          </div>
-          <!-- Status Selection -->
-          <div class="st-form-group">
-            <label class="st-label">Current Status</label>
-            <div class="st-segmented-control" id="statusSegmented">
-              <button type="button" class="st-seg-btn active" data-value="online">
-                <span class="st-seg-dot st-seg-dot--online"></span> Online
-              </button>
-              <button type="button" class="st-seg-btn" data-value="away">
-                <span class="st-seg-dot st-seg-dot--away"></span> Away
-              </button>
-              <button type="button" class="st-seg-btn" data-value="busy">
-                <span class="st-seg-dot st-seg-dot--busy"></span> Busy
-              </button>
-              <button type="button" class="st-seg-btn" data-value="offline">
-                <span class="st-seg-dot st-seg-dot--offline"></span> Offline
-              </button>
-            </div>
-          </div>
-          <div class="st-form-group">
-            <label for="statusMessage" class="st-label">Status Message</label>
-            <input type="text" class="form-control" id="statusMessage" placeholder="e.g. In a meeting until 3pm" maxlength="60">
-            <div class="form-text">Visible to teammates. Max 60 characters.</div>
-          </div>
-          <div class="st-divider"></div>
-          <!-- Working Hours -->
-          <div class="st-form-group">
-            <label class="st-label">Working Hours</label>
-            <div class="form-text mb-3">Set your availability window for each day of the week.</div>
-            <div id="workingHoursGrid">
-              <div class="st-wh-row" data-day="mon"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whMon" checked><label class="form-check-label" for="whMon">Mon</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00"><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00"></div>
-              <div class="st-wh-row" data-day="tue"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whTue" checked><label class="form-check-label" for="whTue">Tue</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00"><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00"></div>
-              <div class="st-wh-row" data-day="wed"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whWed" checked><label class="form-check-label" for="whWed">Wed</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00"><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00"></div>
-              <div class="st-wh-row" data-day="thu"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whThu" checked><label class="form-check-label" for="whThu">Thu</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00"><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00"></div>
-              <div class="st-wh-row" data-day="fri"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whFri" checked><label class="form-check-label" for="whFri">Fri</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00"><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00"></div>
-              <div class="st-wh-row" data-day="sat"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whSat"><label class="form-check-label" for="whSat">Sat</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00" disabled><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00" disabled></div>
-              <div class="st-wh-row" data-day="sun"><div class="form-check form-switch"><input class="form-check-input st-wh-toggle" type="checkbox" id="whSun"><label class="form-check-label" for="whSun">Sun</label></div><input type="time" class="form-control form-control-sm st-wh-start" value="09:00" disabled><span class="text-muted">to</span><input type="time" class="form-control form-control-sm st-wh-end" value="17:00" disabled></div>
-            </div>
-          </div>
-          <div class="st-toggle-list mt-3">
-            <div class="st-toggle-item">
-              <div class="st-toggle-icon"><i class="ti ti-moon"></i></div>
-              <div class="st-toggle-info">
-                <span class="st-toggle-label">Auto-set away outside working hours</span>
-                <span class="st-toggle-desc">Your status changes to away when outside your configured schedule.</span>
-              </div>
-              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="autoAwayToggle"></div>
-            </div>
-          </div>
-          <div class="st-form-actions">
-            <button type="button" class="btn btn-primary" id="saveAvailabilityBtn">
-              <span class="spinner-border spinner-border-sm d-none me-1" id="availabilitySpinner"></span>
-              Save Changes
             </button>
           </div>
         </div>
@@ -1474,7 +1402,7 @@
 var _settingsPaneIds = [
   {% if is_admin %}'generalPane', 'businessHoursPane', 'authPane', 'brandingPane', 'workflowPane',{% endif %}
   'notificationsPane',
-  'availabilityPane', 'themePane', 'languagePane',
+  'themePane', 'languagePane',
   {% if is_admin_or_manager %}'categoriesPane',{% endif %}
   'cannedResponsesPane',
   'knowledgeBasePane',
@@ -1493,7 +1421,6 @@ var settingsHub = (function() {
     authPane: { title: 'Authentication', icon: 'ti-shield-lock', category: 'Workspace' },
     brandingPane: { title: 'Branding', icon: 'ti-palette', category: 'Workspace' },
     notificationsPane: { title: 'Notifications', icon: 'ti-bell', category: 'Preferences' },
-    availabilityPane: { title: 'My Availability', icon: 'ti-clock-check', category: 'Team' },
     themePane: { title: 'Theme & Appearance', icon: 'ti-sun-moon', category: 'Preferences' },
     languagePane: { title: 'Language & Timezone', icon: 'ti-language', category: 'Preferences' },
     workflowPane: { title: 'Workflow', icon: 'ti-arrows-transfer-down', category: 'Support Operations' },
@@ -2943,80 +2870,7 @@ function switchSettingsTab(targetId) {
   }
 
   // -------------------------------------------------------
-  // 1. Availability & Status
-  // -------------------------------------------------------
-  var availLoaded = false;
-  initSegmented('statusSegmented');
-
-  // Working hours: toggle enable/disable time inputs per day
-  document.querySelectorAll('.st-wh-toggle').forEach(function(toggle) {
-    toggle.addEventListener('change', function() {
-      var row = this.closest('.st-wh-row');
-      var inputs = row.querySelectorAll('input[type=time]');
-      inputs.forEach(function(inp) { inp.disabled = !toggle.checked; });
-    });
-  });
-
-  async function loadAvailability() {
-    try {
-      var data = await Api.get('/api/v1/agents/agents/my-status/');
-      setSegmentedValue('statusSegmented', data.status || 'offline');
-      document.getElementById('statusMessage').value = data.status_message || '';
-      document.getElementById('autoAwayToggle').checked = !!data.auto_away_outside_hours;
-
-      // Populate working hours
-      if (data.working_hours && typeof data.working_hours === 'object') {
-        document.querySelectorAll('.st-wh-row').forEach(function(row) {
-          var day = row.dataset.day;
-          var dayData = data.working_hours[day];
-          var toggle = row.querySelector('.st-wh-toggle');
-          var startInput = row.querySelector('.st-wh-start');
-          var endInput = row.querySelector('.st-wh-end');
-          if (dayData) {
-            toggle.checked = !!dayData.enabled;
-            startInput.value = dayData.start || '09:00';
-            endInput.value = dayData.end || '17:00';
-          } else {
-            toggle.checked = false;
-          }
-          startInput.disabled = !toggle.checked;
-          endInput.disabled = !toggle.checked;
-        });
-      }
-    } catch(e) { console.error('Failed to load availability:', e); }
-  }
-
-  document.getElementById('saveAvailabilityBtn').addEventListener('click', async function() {
-    var sp = document.getElementById('availabilitySpinner');
-    sp.classList.remove('d-none');
-
-    // Collect working hours
-    var workingHours = {};
-    document.querySelectorAll('.st-wh-row').forEach(function(row) {
-      var day = row.dataset.day;
-      var toggle = row.querySelector('.st-wh-toggle');
-      workingHours[day] = {
-        enabled: toggle.checked,
-        start: row.querySelector('.st-wh-start').value,
-        end: row.querySelector('.st-wh-end').value
-      };
-    });
-
-    try {
-      await Api.patch('/api/v1/agents/agents/my-status/', {
-        status: getSegmentedValue('statusSegmented'),
-        status_message: document.getElementById('statusMessage').value.trim(),
-        working_hours: workingHours,
-        auto_away_outside_hours: document.getElementById('autoAwayToggle').checked
-      });
-      Toast.success('Availability settings saved');
-    } catch(e) {
-      Toast.error(e.detail || 'Failed to save availability');
-    } finally { sp.classList.add('d-none'); }
-  });
-
-  // -------------------------------------------------------
-  // 2. Theme & Appearance
+  // 1. Theme & Appearance
   // -------------------------------------------------------
   var themeLoaded = false;
   initSegmented('themeSegmented');
@@ -3442,7 +3296,6 @@ function switchSettingsTab(targetId) {
   var origSwitchPhase1 = window.switchSettingsTab;
   window.switchSettingsTab = function(targetId) {
     origSwitchPhase1(targetId);
-    if (targetId === 'availabilityPane' && !availLoaded) { availLoaded = true; loadAvailability(); }
     if (targetId === 'themePane' && !themeLoaded) { themeLoaded = true; loadThemePrefs(); }
     if (targetId === 'languagePane' && !langLoaded) { langLoaded = true; loadLanguagePrefs(); }
     if (targetId === 'signaturePane' && !sigLoaded) { sigLoaded = true; loadSignature(); }

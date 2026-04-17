@@ -38,4 +38,5 @@ urlpatterns = [
     path("inbound-email/", views.inbound_email_page, name="inbound-email"),
     path("reminders/", views.reminders_page, name="reminders"),
     path("audit-log/", views.audit_log_page, name="audit-log"),
+    path("calls/", views.calls_page, name="calls"),
 ]

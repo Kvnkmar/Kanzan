@@ -82,6 +82,7 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
                     "user_id": str(user.id),
                     "old_status": old_status,
                     "new_status": new_status,
+                    "url": "/agents/",
                 },
             )
 

@@ -167,7 +167,7 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 
       <!-- Subject — full width, large input -->
       <div class="ct-section ct-section--subject">
-        <input type="text" id="ticketSubject" name="subject" class="ct-subject-input" placeholder="What's the issue? Write a brief summary..." required maxlength="255">
+        <input type="text" id="ticketSubject" name="subject" class="ct-subject-input" placeholder="Issue, topic" required maxlength="255">
         <div class="invalid-feedback" id="subjectError"></div>
       </div>
 
@@ -220,9 +220,14 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
           </div>
           <div class="col-md-4">
             <label for="ticketContact" class="ct-label">Contact</label>
-            <select id="ticketContact" name="contact" class="form-select ct-select">
-              <option value="">No contact</option>
-            </select>
+            <div class="d-flex gap-2 align-items-start">
+              <select id="ticketContact" name="contact" class="form-select ct-select" style="flex:1">
+                <option value="">No contact</option>
+              </select>
+              <button type="button" class="btn btn-outline-primary btn-sm" id="addNewContactBtn" title="Add new contact" style="height:38px;white-space:nowrap;flex-shrink:0;">
+                <i class="ti ti-user-plus" aria-hidden="true"></i>
+              </button>
+            </div>
             <div class="invalid-feedback" id="contactError"></div>
           </div>
         </div>
@@ -281,6 +286,46 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
         </button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- Add New Contact Modal -->
+<div class="modal fade" id="newContactModal" tabindex="-1" aria-labelledby="newContactModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="newContactModalLabel">Add New Contact</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="newContactAlert" class="alert d-none"></div>
+        <div class="row g-3">
+          <div class="col-6">
+            <label for="newContactFirstName" class="form-label">First Name <span class="text-danger">*</span></label>
+            <input type="text" id="newContactFirstName" class="form-control" placeholder="First name" required>
+          </div>
+          <div class="col-6">
+            <label for="newContactLastName" class="form-label">Last Name</label>
+            <input type="text" id="newContactLastName" class="form-control" placeholder="Last name">
+          </div>
+          <div class="col-12">
+            <label for="newContactEmail" class="form-label">Email <span class="text-danger">*</span></label>
+            <input type="email" id="newContactEmail" class="form-control" placeholder="email@example.com" required>
+          </div>
+          <div class="col-12">
+            <label for="newContactPhone" class="form-label">Phone</label>
+            <input type="text" id="newContactPhone" class="form-control" placeholder="Phone number">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveNewContactBtn">
+          <span id="saveContactText">Create & Select</span>
+          <span id="saveContactSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        </button>
+      </div>
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -513,6 +558,72 @@ window.dispatchEvent(new Event('tiptap-ready'));
       Toast.error('Failed to create ticket');
       if (err && typeof err === 'object' && !err.message) { var hf = false; for (var f in err) { if (err.hasOwnProperty(f) && f !== 'status') { var m = Array.isArray(err[f]) ? err[f].join(' ') : err[f]; if (f === 'non_field_errors' || f === 'detail') showFormError(m); else { showFieldError(f, m); hf = true; } } } if (!hf && !err.non_field_errors && !err.detail) showFormError('An error occurred.'); }
       else showFormError('A network error occurred.');
+    });
+  });
+  // --- Add New Contact ---
+  var newContactModal = new bootstrap.Modal(document.getElementById('newContactModal'));
+  document.getElementById('addNewContactBtn').addEventListener('click', function() {
+    document.getElementById('newContactFirstName').value = '';
+    document.getElementById('newContactLastName').value = '';
+    document.getElementById('newContactEmail').value = '';
+    document.getElementById('newContactPhone').value = '';
+    document.getElementById('newContactAlert').classList.add('d-none');
+    document.querySelectorAll('#newContactModal .is-invalid').forEach(function(el) { el.classList.remove('is-invalid'); });
+    newContactModal.show();
+  });
+
+  document.getElementById('saveNewContactBtn').addEventListener('click', function() {
+    var firstName = document.getElementById('newContactFirstName').value.trim();
+    var lastName = document.getElementById('newContactLastName').value.trim();
+    var email = document.getElementById('newContactEmail').value.trim();
+    var phone = document.getElementById('newContactPhone').value.trim();
+    var alertEl = document.getElementById('newContactAlert');
+
+    // Validate
+    document.querySelectorAll('#newContactModal .is-invalid').forEach(function(el) { el.classList.remove('is-invalid'); });
+    alertEl.classList.add('d-none');
+    var valid = true;
+    if (!firstName) { document.getElementById('newContactFirstName').classList.add('is-invalid'); valid = false; }
+    if (!email) { document.getElementById('newContactEmail').classList.add('is-invalid'); valid = false; }
+    if (!valid) return;
+
+    var btn = document.getElementById('saveNewContactBtn');
+    btn.disabled = true;
+    document.getElementById('saveContactText').classList.add('d-none');
+    document.getElementById('saveContactSpinner').classList.remove('d-none');
+
+    var payload = { first_name: firstName, email: email };
+    if (lastName) payload.last_name = lastName;
+    if (phone) payload.phone = phone;
+
+    Api.post('/api/v1/contacts/contacts/', payload).then(function(contact) {
+      // Add the new contact to the dropdown and select it
+      var select = document.getElementById('ticketContact');
+      var opt = document.createElement('option');
+      opt.value = contact.id;
+      opt.textContent = ((contact.first_name || '') + ' ' + (contact.last_name || '')).trim() || contact.email;
+      select.appendChild(opt);
+      select.value = contact.id;
+      newContactModal.hide();
+      Toast.success('Contact created and selected');
+    }).catch(function(err) {
+      alertEl.classList.remove('d-none', 'alert-success');
+      alertEl.classList.add('alert-danger');
+      if (err && typeof err === 'object' && !err.message) {
+        var msgs = [];
+        for (var f in err) {
+          if (err.hasOwnProperty(f) && f !== 'status') {
+            msgs.push(Array.isArray(err[f]) ? err[f].join(' ') : err[f]);
+          }
+        }
+        alertEl.textContent = msgs.join(' ') || 'Failed to create contact.';
+      } else {
+        alertEl.textContent = 'Failed to create contact.';
+      }
+    }).finally(function() {
+      btn.disabled = false;
+      document.getElementById('saveContactText').classList.remove('d-none');
+      document.getElementById('saveContactSpinner').classList.add('d-none');
     });
   });
 })();

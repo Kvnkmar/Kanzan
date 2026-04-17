@@ -27,6 +27,8 @@ urlpatterns = [
     path("api/v1/emails/", include("apps.inbound_email.api_urls", namespace="emails_api")),
     path("api/v1/crm/", include("apps.crm.urls")),
     path("api/v1/nav/", include("apps.nav.urls")),
+    path("api/v1/newsfeed/", include("apps.newsfeed.urls")),
+    path("api/v1/voip/", include("apps.voip.urls")),
 
     # Inbound email webhooks (provider callbacks, not tenant-scoped API)
     path("inbound/email/", include("apps.inbound_email.urls")),

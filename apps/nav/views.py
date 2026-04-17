@@ -58,6 +58,7 @@ class BadgeCountView(APIView):
         messages = self._message_count(tenant, user)
         emails = self._email_count(tenant)
         reminders = self._reminder_count(tenant, user, is_agent)
+        knowledge = self._knowledge_count(tenant, user)
 
         return Response(
             {
@@ -66,6 +67,7 @@ class BadgeCountView(APIView):
                 "messages": _cap(messages),
                 "emails": _cap(emails),
                 "reminders": _cap(reminders),
+                "knowledge": _cap(knowledge),
             }
         )
 
@@ -75,15 +77,19 @@ class BadgeCountView(APIView):
 
     @staticmethod
     def _ticket_count(tenant, user, is_agent):
-        """Open tickets (not closed, not resolved), scoped by role."""
+        """Active tickets (open or in-progress/review), scoped by role."""
         from apps.tickets.models import Ticket, TicketStatus
 
-        closed_or_resolved = TicketStatus.unscoped.filter(
+        active_statuses = TicketStatus.unscoped.filter(
             tenant=tenant,
-        ).filter(Q(is_closed=True) | Q(slug="resolved")).values_list("pk", flat=True)
+            is_closed=False,
+        ).exclude(
+            slug__in=["resolved", "waiting", "closed"],
+        ).values_list("pk", flat=True)
 
-        qs = Ticket.unscoped.filter(tenant=tenant).exclude(
-            status_id__in=closed_or_resolved
+        qs = Ticket.unscoped.filter(
+            tenant=tenant,
+            status_id__in=active_statuses,
         )
 
         if is_agent:
@@ -147,16 +153,13 @@ class BadgeCountView(APIView):
 
     @staticmethod
     def _email_count(tenant):
-        """Pending or linked inbound emails for this tenant."""
+        """Unread inbound emails for this tenant."""
         from apps.inbound_email.models import InboundEmail
 
         return (
             InboundEmail.objects.filter(
                 tenant=tenant,
-                inbox_status__in=[
-                    InboundEmail.InboxStatus.PENDING,
-                    InboundEmail.InboxStatus.LINKED,
-                ],
+                is_read=False,
             )
             .count()
         )
@@ -180,3 +183,21 @@ class BadgeCountView(APIView):
             qs = qs.filter(Q(assigned_to=user) | Q(created_by=user))
 
         return qs.count()
+
+    @staticmethod
+    def _knowledge_count(tenant, user):
+        """Unread KB notifications (review requests and article reviews)."""
+        from apps.notifications.models import Notification, NotificationType
+
+        return (
+            Notification.unscoped.filter(
+                tenant=tenant,
+                recipient=user,
+                is_read=False,
+                type__in=[
+                    NotificationType.KB_REVIEW_REQUESTED,
+                    NotificationType.KB_ARTICLE_REVIEWED,
+                ],
+            )
+            .count()
+        )

@@ -69,12 +69,31 @@ ACTION_MAP = {
     "apply_macro": "update",
     # Ticket search
     "search": "view",
+    # Ticket watchers / time tracking / templates / webhooks
+    "watchers": "view",
+    "remove_watcher": "update",
+    "watch": "view",
+    "time_entries": "view",
+    "time_summary": "view",
+    "time_entry_detail": "update",
+    "restore": "update",
+    "use": "view",
+    "test": "update",
+    "reset_failures": "update",
     # Reminder custom actions
     "overdue": "view",
     "complete": "update",
     "cancel": "update",
     "reschedule": "update",
     "stats": "view",
+    # News feed custom actions
+    "react": "view",
+    "mark_read": "view",
+    "mark_all_read": "view",
+    "unread_count": "view",
+    # VoIP custom actions
+    "active_calls": "view",
+    "call_stats": "view",
 }
 
 

@@ -637,6 +637,9 @@ span.flatpickr-weekday {
             <input type="text" id="contactSearchInput" placeholder="Search contacts..." autocomplete="off">
           </div>
           <div id="contactSearchResults" class="td-contact-results d-none"></div>
+          <button type="button" id="addNewContactDetailBtn" class="btn btn-sm btn-outline-primary w-100 mt-2">
+            <i class="ti ti-user-plus me-1" aria-hidden="true"></i> Add New Contact
+          </button>
         </div>
         <div id="contactCard">
           <span class="text-muted small">Loading...</span>
@@ -690,8 +693,10 @@ span.flatpickr-weekday {
           </select>
         </div>
         <div class="td-prop-row">
-          <span class="td-prop-row-label"><i class="ti ti-building td-prop-icon" aria-hidden="true"></i> Company</span>
-          <span id="ticketCompany" class="td-prop-value-text">--</span>
+          <label class="td-prop-row-label" for="ticketCompanySelect"><i class="ti ti-building td-prop-icon" aria-hidden="true"></i> Company</label>
+          <select id="ticketCompanySelect" class="td-prop-select">
+            <option value="">None</option>
+          </select>
         </div>
         <div class="td-prop-row">
           <span class="td-prop-row-label"><i class="ti ti-user td-prop-icon" aria-hidden="true"></i> Created by</span>
@@ -699,7 +704,10 @@ span.flatpickr-weekday {
         </div>
         <div class="td-prop-row">
           <span class="td-prop-row-label"><i class="ti ti-tags td-prop-icon" aria-hidden="true"></i> Tags</span>
-          <div id="ticketTags" class="td-tags"><span class="td-prop-value-text">--</span></div>
+          <div id="ticketTags" class="td-tags-editor">
+            <div id="ticketTagsList" class="td-tags"></div>
+            <input type="text" id="ticketTagInput" class="td-tag-input" placeholder="Add tag…" />
+          </div>
         </div>
       </div>
 
@@ -710,6 +718,23 @@ span.flatpickr-weekday {
           SLA Status
         </div>
         <div id="slaStatusContent"></div>
+      </div>
+
+      <!-- Quick Actions: Reminder & Call -->
+      <div class="td-sb-section">
+        <div class="td-sb-label">
+          <div class="td-sb-icon td-sb-icon--blue"><i class="ti ti-bolt" aria-hidden="true"></i></div>
+          Quick Actions
+        </div>
+        <div class="d-flex gap-2 mb-2">
+          <button class="btn btn-sm btn-outline-primary flex-fill" id="setReminderBtn" title="Set a reminder for this ticket">
+            <i class="ti ti-bell me-1"></i>Reminder
+          </button>
+          <button class="btn btn-sm btn-outline-success flex-fill" id="logCallBtn" title="Log an outbound call for this ticket">
+            <i class="ti ti-phone-outgoing me-1"></i>Log Call
+          </button>
+        </div>
+        <div id="ticketReminders" class="small"></div>
       </div>
 
       <!-- Timeline -->
@@ -727,8 +752,6 @@ span.flatpickr-weekday {
           <span id="ticketUpdated" class="td-prop-value-text td-prop-value-text--accent">--</span>
         </div>
       </div>
-
-      {% include 'includes/kb_sidebar_widget.html' %}
 
     </aside>
   </div>
@@ -857,6 +880,142 @@ span.flatpickr-weekday {
 </div>
 <div class="contact-detail-overlay" id="contactDetailOverlay"></div>
 
+<!-- Add New Contact Modal (Detail Page) -->
+<div class="modal fade" id="newContactDetailModal" tabindex="-1" aria-labelledby="newContactDetailModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="newContactDetailModalLabel">Add New Contact</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="newContactDetailAlert" class="alert d-none"></div>
+        <div class="row g-3">
+          <div class="col-6">
+            <label for="newContactDetailFirstName" class="form-label">First Name <span class="text-danger">*</span></label>
+            <input type="text" id="newContactDetailFirstName" class="form-control" placeholder="First name" required>
+          </div>
+          <div class="col-6">
+            <label for="newContactDetailLastName" class="form-label">Last Name</label>
+            <input type="text" id="newContactDetailLastName" class="form-control" placeholder="Last name">
+          </div>
+          <div class="col-12">
+            <label for="newContactDetailEmail" class="form-label">Email <span class="text-danger">*</span></label>
+            <input type="email" id="newContactDetailEmail" class="form-control" placeholder="email@example.com" required>
+          </div>
+          <div class="col-12">
+            <label for="newContactDetailPhone" class="form-label">Phone</label>
+            <input type="text" id="newContactDetailPhone" class="form-control" placeholder="Phone number">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveNewContactDetailBtn">
+          <span id="saveContactDetailText">Create & Link</span>
+          <span id="saveContactDetailSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Set Reminder Modal -->
+<div class="modal fade" id="setReminderModal" tabindex="-1" aria-labelledby="setReminderModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="setReminderModalLabel"><i class="ti ti-bell me-2"></i>Set Reminder</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="reminderSubjectInput" class="form-label">Subject <span class="text-danger">*</span></label>
+          <input type="text" id="reminderSubjectInput" class="form-control" placeholder="e.g. Follow up with client">
+        </div>
+        <div class="mb-3">
+          <label for="reminderScheduledInput" class="form-label">Scheduled At <span class="text-danger">*</span></label>
+          <input type="datetime-local" id="reminderScheduledInput" class="form-control">
+        </div>
+        <div class="row mb-3">
+          <div class="col-6">
+            <label for="reminderPriorityInput" class="form-label">Priority</label>
+            <select id="reminderPriorityInput" class="form-select">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="col-6">
+            <label for="reminderAssigneeInput" class="form-label">Assigned To</label>
+            <select id="reminderAssigneeInput" class="form-select">
+              <option value="">Me</option>
+            </select>
+          </div>
+        </div>
+        <div class="mb-3">
+          <label for="reminderNotesInput" class="form-label">Notes</label>
+          <textarea id="reminderNotesInput" class="form-control" rows="2" placeholder="Optional notes..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveReminderBtn">
+          <i class="ti ti-bell me-1"></i>Set Reminder
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Log Outbound Call Modal -->
+<div class="modal fade" id="logCallModal" tabindex="-1" aria-labelledby="logCallModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="logCallModalLabel"><i class="ti ti-phone-outgoing me-2"></i>Log Outbound Call</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label for="callSubjectInput" class="form-label">Subject <span class="text-danger">*</span></label>
+          <input type="text" id="callSubjectInput" class="form-control" placeholder="e.g. Follow-up call with contact">
+        </div>
+        <div class="mb-3">
+          <label for="callDueInput" class="form-label">Scheduled At</label>
+          <input type="datetime-local" id="callDueInput" class="form-control">
+        </div>
+        <div class="mb-3">
+          <label for="callOutcomeInput" class="form-label">Outcome</label>
+          <input type="text" id="callOutcomeInput" class="form-control" placeholder="e.g. Left voicemail, Discussed issue">
+        </div>
+        <div class="mb-3">
+          <label for="callNotesInput" class="form-label">Notes</label>
+          <textarea id="callNotesInput" class="form-control" rows="2" placeholder="Call details..."></textarea>
+        </div>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="callCompletedCheck">
+          <label class="form-check-label" for="callCompletedCheck">Mark as completed (call already made)</label>
+        </div>
+        <div class="mb-3 d-none" id="callReminderWrap">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="callSetReminderCheck">
+            <label class="form-check-label" for="callSetReminderCheck">Set a reminder for this call</label>
+          </div>
+          <input type="datetime-local" id="callReminderAt" class="form-control mt-2 d-none" placeholder="Reminder time">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-success" id="saveCallBtn">
+          <i class="ti ti-phone-outgoing me-1"></i>Log Call
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -923,9 +1082,10 @@ window.dispatchEvent(new Event('tiptap-ready'));
     clearDueDateBtn: document.getElementById('clearDueDateBtn'),
     descView: document.getElementById('ticketDescriptionView'),
     descEdit: document.getElementById('ticketDescriptionEdit'),
-    company: document.getElementById('ticketCompany'),
+    companySelect: document.getElementById('ticketCompanySelect'),
     createdBy: document.getElementById('ticketCreatedBy'),
-    tags: document.getElementById('ticketTags'),
+    tagsList: document.getElementById('ticketTagsList'),
+    tagInput: document.getElementById('ticketTagInput'),
     created: document.getElementById('ticketCreated'),
     created2: document.getElementById('ticketCreated2'),
     updated: document.getElementById('ticketUpdated'),
@@ -1220,6 +1380,74 @@ window.dispatchEvent(new Event('tiptap-ready'));
     }, CONTACT_SEARCH_DEBOUNCE_MS);
   });
 
+  /* ── Add New Contact (Detail) ── */
+  var newContactDetailModal = new bootstrap.Modal(document.getElementById('newContactDetailModal'));
+  document.getElementById('addNewContactDetailBtn').addEventListener('click', function() {
+    document.getElementById('newContactDetailFirstName').value = '';
+    document.getElementById('newContactDetailLastName').value = '';
+    document.getElementById('newContactDetailEmail').value = '';
+    document.getElementById('newContactDetailPhone').value = '';
+    document.getElementById('newContactDetailAlert').classList.add('d-none');
+    document.querySelectorAll('#newContactDetailModal .is-invalid').forEach(function(el) { el.classList.remove('is-invalid'); });
+    newContactDetailModal.show();
+  });
+
+  document.getElementById('saveNewContactDetailBtn').addEventListener('click', function() {
+    var firstName = document.getElementById('newContactDetailFirstName').value.trim();
+    var lastName = document.getElementById('newContactDetailLastName').value.trim();
+    var email = document.getElementById('newContactDetailEmail').value.trim();
+    var phone = document.getElementById('newContactDetailPhone').value.trim();
+    var alertEl = document.getElementById('newContactDetailAlert');
+
+    document.querySelectorAll('#newContactDetailModal .is-invalid').forEach(function(el) { el.classList.remove('is-invalid'); });
+    alertEl.classList.add('d-none');
+    var valid = true;
+    if (!firstName) { document.getElementById('newContactDetailFirstName').classList.add('is-invalid'); valid = false; }
+    if (!email) { document.getElementById('newContactDetailEmail').classList.add('is-invalid'); valid = false; }
+    if (!valid) return;
+
+    var btn = document.getElementById('saveNewContactDetailBtn');
+    btn.disabled = true;
+    document.getElementById('saveContactDetailText').classList.add('d-none');
+    document.getElementById('saveContactDetailSpinner').classList.remove('d-none');
+
+    var payload = { first_name: firstName, email: email };
+    if (lastName) payload.last_name = lastName;
+    if (phone) payload.phone = phone;
+
+    Api.post('/api/v1/contacts/contacts/', payload).then(function(contact) {
+      // Link the new contact to the ticket
+      return Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', { contact: contact.id }).then(function() {
+        dom.contactSearch.classList.add('d-none');
+        newContactDetailModal.hide();
+        Toast.success('Contact created and linked');
+        Api.get('/api/v1/tickets/tickets/' + ticketId + '/').then(function(ticket) {
+          currentContact = ticket.contact_detail || null;
+          renderContactCard(currentContact);
+          loadActivity();
+        });
+      });
+    }).catch(function(err) {
+      alertEl.classList.remove('d-none', 'alert-success');
+      alertEl.classList.add('alert-danger');
+      if (err && typeof err === 'object' && !err.message) {
+        var msgs = [];
+        for (var f in err) {
+          if (err.hasOwnProperty(f) && f !== 'status') {
+            msgs.push((f !== 'non_field_errors' && f !== 'detail' ? f + ': ' : '') + (Array.isArray(err[f]) ? err[f].join(' ') : err[f]));
+          }
+        }
+        alertEl.textContent = msgs.join(' ') || 'Failed to create contact.';
+      } else {
+        alertEl.textContent = 'Failed to create contact.';
+      }
+    }).finally(function() {
+      btn.disabled = false;
+      document.getElementById('saveContactDetailText').classList.remove('d-none');
+      document.getElementById('saveContactDetailSpinner').classList.add('d-none');
+    });
+  });
+
   /* ── Render Ticket ── */
   function setSelectValue(selectEl, value, fallbackText) {
     if (!value) { selectEl.value = ''; return; }
@@ -1309,17 +1537,11 @@ window.dispatchEvent(new Event('tiptap-ready'));
     else dom.dueDateInput.value = dueDate;
     dom.clearDueDateBtn.classList.toggle('d-none', !dueDate);
 
-    var companyName = '--';
-    if (ticket.contact_detail && ticket.contact_detail.company_name) companyName = ticket.contact_detail.company_name;
-    else if (ticket.company_name) companyName = ticket.company_name;
-    dom.company.textContent = companyName;
+    setSelectValue(dom.companySelect, ticket.company, ticket.company_name || ticket.company);
     dom.createdBy.textContent = ticket.created_by_name || '--';
 
-    if (ticket.tags && ticket.tags.length > 0) {
-      dom.tags.innerHTML = ticket.tags.map(function(t) { return '<span class="td-tag">' + escapeHtml(t) + '</span>'; }).join('');
-    } else {
-      dom.tags.innerHTML = '<span class="td-prop-value-text">--</span>';
-    }
+    currentTags = (ticket.tags && Array.isArray(ticket.tags)) ? ticket.tags.slice() : [];
+    renderTags();
 
     currentContact = ticket.contact_detail || null;
     renderContactCard(currentContact);
@@ -1444,7 +1666,13 @@ window.dispatchEvent(new Event('tiptap-ready'));
     field_changed: 'td-activity-dot--warning',
     updated: 'td-activity-dot--warning',
     attachment_added: 'td-activity-dot--info',
-    attachment_removed: 'td-activity-dot--danger'
+    attachment_removed: 'td-activity-dot--danger',
+    reminder_created: 'td-activity-dot--warning',
+    reminder_completed: 'td-activity-dot--success',
+    reminder_cancelled: 'td-activity-dot--muted',
+    reminder_rescheduled: 'td-activity-dot--warning',
+    outbound_call_logged: 'td-activity-dot--info',
+    outbound_call_completed: 'td-activity-dot--success'
   };
 
   function renderActivity(activities) {
@@ -1518,6 +1746,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
   dom.assigneeSelect.addEventListener('change', function() { autoSaveField('assignee', this.value || null); });
   dom.queueSelect.addEventListener('change', function() { autoSaveField('queue', this.value || null); });
   dom.categorySelect.addEventListener('change', function() { autoSaveField('category', this.value || null); });
+  dom.companySelect.addEventListener('change', function() { autoSaveField('company', this.value || null); });
   dom.clearDueDateBtn.addEventListener('click', function() {
     if (window._dueDatePicker) window._dueDatePicker.clear();
     autoSaveField('due_date', null);
@@ -1579,6 +1808,60 @@ window.dispatchEvent(new Event('tiptap-ready'));
     }).catch(function(err) { console.error('Error loading categories:', err); });
   }
 
+  function loadCompanies() {
+    Api.get('/api/v1/contacts/companies/').then(function(data) {
+      var companies = data.results || data;
+      while (dom.companySelect.options.length > 1) dom.companySelect.remove(1);
+      companies.forEach(function(c) {
+        var o = document.createElement('option');
+        o.value = c.id; o.textContent = c.name;
+        dom.companySelect.appendChild(o);
+      });
+    }).catch(function(err) { console.error('Error loading companies:', err); });
+  }
+
+  /* ── Tags ── */
+  var currentTags = [];
+
+  function renderTags() {
+    dom.tagsList.textContent = '';
+    currentTags.forEach(function(t) {
+      var span = document.createElement('span');
+      span.className = 'td-tag td-tag--removable';
+      span.textContent = t;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'td-tag-remove';
+      btn.textContent = '\u00d7';
+      btn.setAttribute('aria-label', 'Remove tag ' + t);
+      btn.addEventListener('click', function() { removeTag(t); });
+      span.appendChild(btn);
+      dom.tagsList.appendChild(span);
+    });
+  }
+
+  function addTag(tag) {
+    tag = tag.trim();
+    if (!tag || currentTags.indexOf(tag) !== -1) return;
+    currentTags.push(tag);
+    renderTags();
+    autoSaveField('tags', currentTags);
+  }
+
+  function removeTag(tag) {
+    currentTags = currentTags.filter(function(t) { return t !== tag; });
+    renderTags();
+    autoSaveField('tags', currentTags);
+  }
+
+  dom.tagInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addTag(this.value);
+      this.value = '';
+    }
+  });
+
   function loadQueues() {
     Api.get('/api/v1/tickets/queues/').then(function(data) {
       var queues = data.results || data;
@@ -1607,6 +1890,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
       loadComments();
       loadTicketAttachments();
       loadActivity();
+      loadEmails();
       loadLinkedTickets();
       loadRequesterContext();
       prefillEmailTo();
@@ -2508,10 +2792,10 @@ window.dispatchEvent(new Event('tiptap-ready'));
         btn.disabled = true;
         Api.post('/api/v1/tickets/tickets/' + ticketId + '/link-email/', { email_id: emailId }).then(function() {
           Toast.success('Email linked to ticket');
-          linkEmailModal.hide();
+          try { linkEmailModal.hide(); } catch (_) {}
           loadEmails();
           loadActivity();
-        }).catch(function() {
+        }, function() {
           btn.disabled = false;
           Toast.error('Failed to link email');
         });
@@ -3138,10 +3422,211 @@ window.dispatchEvent(new Event('tiptap-ready'));
   document.getElementById('contactDetailOverlay').addEventListener('click', function() { TicketContactPanel.close(); });
   document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && TicketContactPanel.panel.classList.contains('open')) TicketContactPanel.close(); });
 
+  /* ── Reminder & Outbound Call ── */
+  function loadTicketReminders() {
+    if (!ticketId) return;
+    Api.get('/api/v1/crm/reminders/?ticket=' + ticketId + '&status=pending').then(function(data) {
+      var results = data.results || data;
+      var container = document.getElementById('ticketReminders');
+      container.textContent = '';
+      if (!results || results.length === 0) return;
+
+      results.forEach(function(r) {
+        var div = document.createElement('div');
+        div.className = 'd-flex align-items-center gap-2 mb-1 px-1 py-1 rounded';
+        div.style.background = 'var(--bs-body-bg)';
+
+        var icon = document.createElement('i');
+        icon.className = 'ti ti-bell text-warning';
+        div.appendChild(icon);
+
+        var text = document.createElement('span');
+        text.className = 'flex-fill text-truncate';
+        text.textContent = r.subject;
+        text.title = r.subject + ' — ' + new Date(r.scheduled_at).toLocaleString();
+        div.appendChild(text);
+
+        if (r.overdue_display) {
+          var badge = document.createElement('span');
+          badge.className = 'badge bg-danger';
+          badge.textContent = r.overdue_display;
+          div.appendChild(badge);
+        } else {
+          var time = document.createElement('span');
+          time.className = 'text-muted';
+          time.style.fontSize = '0.75rem';
+          time.textContent = new Date(r.scheduled_at).toLocaleDateString();
+          div.appendChild(time);
+        }
+
+        var completeBtn = document.createElement('button');
+        completeBtn.className = 'btn btn-sm btn-outline-success p-0';
+        completeBtn.style.cssText = 'width:20px;height:20px;line-height:1;';
+        completeBtn.title = 'Complete';
+        var checkIcon = document.createElement('i');
+        checkIcon.className = 'ti ti-check';
+        checkIcon.style.fontSize = '0.7rem';
+        completeBtn.appendChild(checkIcon);
+        completeBtn.addEventListener('click', function() {
+          Api.post('/api/v1/crm/reminders/' + r.id + '/complete/').then(function() {
+            Toast.success('Reminder completed');
+            loadTicketReminders();
+            loadActivity();
+          }).catch(function() { Toast.error('Failed to complete reminder'); });
+        });
+        div.appendChild(completeBtn);
+
+        container.appendChild(div);
+      });
+    }).catch(function() {});
+  }
+
+  // Set Reminder button
+  document.getElementById('setReminderBtn').addEventListener('click', function() {
+    document.getElementById('reminderSubjectInput').value = '';
+    document.getElementById('reminderScheduledInput').value = '';
+    document.getElementById('reminderPriorityInput').value = 'medium';
+    document.getElementById('reminderNotesInput').value = '';
+
+    // Populate assignee dropdown
+    var sel = document.getElementById('reminderAssigneeInput');
+    sel.textContent = '';
+    var meOpt = document.createElement('option');
+    meOpt.value = '';
+    meOpt.textContent = 'Me';
+    sel.appendChild(meOpt);
+
+    Api.get('/api/v1/agents/agents/all-members/').then(function(data) {
+      (data.results || data || []).forEach(function(u) {
+        var opt = document.createElement('option');
+        opt.value = u.user_id;
+        opt.textContent = u.full_name || u.email;
+        sel.appendChild(opt);
+      });
+    }).catch(function() {});
+
+    new bootstrap.Modal(document.getElementById('setReminderModal')).show();
+  });
+
+  document.getElementById('saveReminderBtn').addEventListener('click', function() {
+    var subject = document.getElementById('reminderSubjectInput').value.trim();
+    var scheduledAt = document.getElementById('reminderScheduledInput').value;
+    if (!subject || !scheduledAt) {
+      Toast.error('Subject and scheduled date are required.');
+      return;
+    }
+
+    var payload = {
+      subject: subject,
+      scheduled_at: new Date(scheduledAt).toISOString(),
+      priority: document.getElementById('reminderPriorityInput').value,
+      notes: document.getElementById('reminderNotesInput').value,
+      ticket: ticketId,
+    };
+    var assignee = document.getElementById('reminderAssigneeInput').value;
+    if (assignee) payload.assigned_to = assignee;
+
+    Api.post('/api/v1/crm/reminders/', payload).then(function() {
+      Toast.success('Reminder set for this ticket.');
+      bootstrap.Modal.getInstance(document.getElementById('setReminderModal')).hide();
+      loadTicketReminders();
+      loadActivity();
+    }).catch(function(err) {
+      Toast.error(err.detail || err.scheduled_at || 'Failed to create reminder.');
+    });
+  });
+
+  // Log Call button
+  document.getElementById('logCallBtn').addEventListener('click', function() {
+    document.getElementById('callSubjectInput').value = '';
+    document.getElementById('callDueInput').value = '';
+    document.getElementById('callOutcomeInput').value = '';
+    document.getElementById('callNotesInput').value = '';
+    document.getElementById('callCompletedCheck').checked = false;
+    document.getElementById('callSetReminderCheck').checked = false;
+    document.getElementById('callReminderAt').value = '';
+    document.getElementById('callReminderWrap').classList.add('d-none');
+    document.getElementById('callReminderAt').classList.add('d-none');
+
+    new bootstrap.Modal(document.getElementById('logCallModal')).show();
+  });
+
+  // Toggle reminder wrap based on completed checkbox
+  document.getElementById('callCompletedCheck').addEventListener('change', function() {
+    var wrap = document.getElementById('callReminderWrap');
+    if (!this.checked) {
+      wrap.classList.remove('d-none');
+    } else {
+      wrap.classList.add('d-none');
+      document.getElementById('callSetReminderCheck').checked = false;
+      document.getElementById('callReminderAt').classList.add('d-none');
+    }
+  });
+
+  document.getElementById('callSetReminderCheck').addEventListener('change', function() {
+    document.getElementById('callReminderAt').classList.toggle('d-none', !this.checked);
+  });
+
+  document.getElementById('saveCallBtn').addEventListener('click', function() {
+    var subject = document.getElementById('callSubjectInput').value.trim();
+    if (!subject) {
+      Toast.error('Subject is required.');
+      return;
+    }
+
+    var now = new Date().toISOString();
+    var payload = {
+      activity_type: 'call',
+      subject: subject,
+      notes: document.getElementById('callNotesInput').value,
+      outcome: document.getElementById('callOutcomeInput').value,
+      ticket: ticketId,
+    };
+
+    var dueAt = document.getElementById('callDueInput').value;
+    if (dueAt) payload.due_at = new Date(dueAt).toISOString();
+
+    if (document.getElementById('callCompletedCheck').checked) {
+      payload.completed_at = now;
+    }
+
+    // Link to ticket's contact if available
+    var contactId = document.getElementById('ticketContact') ? document.getElementById('ticketContact').value : null;
+    if (contactId) payload.contact = contactId;
+
+    Api.post('/api/v1/crm/activities/', payload).then(function(callData) {
+      Toast.success('Outbound call logged.');
+      bootstrap.Modal.getInstance(document.getElementById('logCallModal')).hide();
+      loadActivity();
+
+      // Optionally create a reminder for this call
+      if (document.getElementById('callSetReminderCheck').checked) {
+        var reminderAt = document.getElementById('callReminderAt').value;
+        if (reminderAt) {
+          Api.post('/api/v1/crm/reminders/', {
+            subject: 'Follow up: ' + subject,
+            scheduled_at: new Date(reminderAt).toISOString(),
+            priority: 'medium',
+            ticket: ticketId,
+            notes: 'Auto-created reminder for outbound call.',
+          }).then(function() {
+            Toast.success('Reminder also set.');
+            loadTicketReminders();
+            loadActivity();
+          }).catch(function() {});
+        }
+      }
+    }).catch(function(err) {
+      Toast.error(err.detail || 'Failed to log call.');
+    });
+  });
+
   loadUsers();
   loadQueues();
   loadCategories();
+  loadCompanies();
   loadTicket();
+  loadTicketReminders();
   setTimeout(upgradeAllSelects, 800);
   setTimeout(upgradeAllSelects, 2000);
 })();

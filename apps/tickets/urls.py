@@ -20,7 +20,9 @@ from apps.tickets.views import (
     SLAPolicyViewSet,
     TicketCategoryViewSet,
     TicketStatusViewSet,
+    TicketTemplateViewSet,
     TicketViewSet,
+    WebhookViewSet,
 )
 
 app_name = "tickets"
@@ -36,6 +38,8 @@ router.register(r"canned-responses", CannedResponseViewSet, basename="canned-res
 router.register(r"saved-views", SavedViewViewSet, basename="saved-view")
 router.register(r"macros", MacroViewSet, basename="macro")
 router.register(r"public-holidays", PublicHolidayViewSet, basename="publicholiday")
+router.register(r"ticket-templates", TicketTemplateViewSet, basename="ticket-template")
+router.register(r"webhooks", WebhookViewSet, basename="webhook")
 
 urlpatterns = [
     path("", include(router.urls)),

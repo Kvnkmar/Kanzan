@@ -1,0 +1,353 @@
+{% extends "base.html" %}
+{% block title %}Calls - Kanzen Suite{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="ae-page-header">
+  <div class="ae-page-header__left">
+    <div class="ae-page-icon">
+      <i class="ti ti-phone"></i>
+    </div>
+    <div>
+      <h1 class="ae-page-title">Call History</h1>
+      <p class="ae-page-subtitle">View and manage VoIP call logs</p>
+    </div>
+  </div>
+  <button class="ae-refresh-btn" id="refreshBtn" title="Refresh">
+    <i class="ti ti-refresh"></i>
+    <span>Refresh</span>
+  </button>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4" id="callStatsRow">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-card-icon bg-primary-subtle text-primary">
+        <i class="ti ti-phone"></i>
+      </div>
+      <div class="stat-card-body">
+        <div class="stat-card-value" id="statTotal">0</div>
+        <div class="stat-card-label">Total Today</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-card-icon bg-success-subtle text-success">
+        <i class="ti ti-phone-check"></i>
+      </div>
+      <div class="stat-card-body">
+        <div class="stat-card-value" id="statAnswered">0</div>
+        <div class="stat-card-label">Answered</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-card-icon bg-danger-subtle text-danger">
+        <i class="ti ti-phone-x"></i>
+      </div>
+      <div class="stat-card-body">
+        <div class="stat-card-value" id="statMissed">0</div>
+        <div class="stat-card-label">Missed</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-card-icon bg-info-subtle text-info">
+        <i class="ti ti-clock"></i>
+      </div>
+      <div class="stat-card-body">
+        <div class="stat-card-value" id="statDuration">0m</div>
+        <div class="stat-card-label">Total Duration</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filters -->
+<div class="tl-toolbar">
+  <div class="tl-toolbar-left">
+    <div class="tl-toolbar-filter-form">
+      <div class="tl-filter-group">
+        <select class="form-select form-select-sm tl-filter-select" id="directionFilter">
+          <option value="">All Directions</option>
+          <option value="inbound">Inbound</option>
+          <option value="outbound">Outbound</option>
+          <option value="internal">Internal</option>
+        </select>
+        <select class="form-select form-select-sm tl-filter-select" id="statusFilter">
+          <option value="">All Statuses</option>
+          <option value="completed">Completed</option>
+          <option value="missed">Missed</option>
+          <option value="failed">Failed</option>
+          <option value="busy">Busy</option>
+          <option value="no_answer">No Answer</option>
+          <option value="voicemail">Voicemail</option>
+        </select>
+      </div>
+    </div>
+  </div>
+  <div class="tl-toolbar-right">
+    <div class="tl-search-wrap">
+      <i class="ti ti-search tl-search-icon"></i>
+      <input type="text" class="form-control form-control-sm tl-search-input"
+             id="callSearch" placeholder="Search calls...">
+    </div>
+  </div>
+</div>
+
+<!-- Call Log Table -->
+<div class="tl-table-wrapper">
+  <table class="table tl-table">
+    <thead>
+      <tr>
+        <th>Direction</th>
+        <th>Status</th>
+        <th>From</th>
+        <th>To</th>
+        <th>Contact</th>
+        <th>Duration</th>
+        <th>Date</th>
+        <th>Recording</th>
+      </tr>
+    </thead>
+    <tbody id="callLogBody">
+      <tr class="tl-empty-row">
+        <td colspan="8">
+          <div class="tl-empty-state">
+            <i class="ti ti-phone-off"></i>
+            <p>No calls found</p>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- Pagination -->
+<div class="tl-pagination" id="callPagination" style="display:none;">
+  <button class="btn btn-sm btn-outline-secondary" id="prevPageBtn" disabled>
+    <i class="ti ti-chevron-left"></i> Previous
+  </button>
+  <span class="tl-pagination-info" id="paginationInfo"></span>
+  <button class="btn btn-sm btn-outline-secondary" id="nextPageBtn" disabled>
+    Next <i class="ti ti-chevron-right"></i>
+  </button>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+
+  let currentPage = 1;
+  let totalPages = 1;
+  let searchTimeout = null;
+
+  function init() {
+    loadStats();
+    loadCalls();
+    bindEvents();
+  }
+
+  function bindEvents() {
+    document.getElementById('refreshBtn').addEventListener('click', function() {
+      loadStats();
+      loadCalls();
+    });
+    document.getElementById('directionFilter').addEventListener('change', function() {
+      currentPage = 1; loadCalls();
+    });
+    document.getElementById('statusFilter').addEventListener('change', function() {
+      currentPage = 1; loadCalls();
+    });
+    document.getElementById('callSearch').addEventListener('input', function() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(function() { currentPage = 1; loadCalls(); }, 400);
+    });
+    document.getElementById('prevPageBtn').addEventListener('click', function() {
+      if (currentPage > 1) { currentPage--; loadCalls(); }
+    });
+    document.getElementById('nextPageBtn').addEventListener('click', function() {
+      if (currentPage < totalPages) { currentPage++; loadCalls(); }
+    });
+  }
+
+  async function loadStats() {
+    try {
+      var stats = await Api.get('/api/v1/voip/calls/stats/');
+      document.getElementById('statTotal').textContent = stats.total_calls || 0;
+      document.getElementById('statAnswered').textContent = stats.answered_calls || 0;
+      document.getElementById('statMissed').textContent = stats.missed_calls || 0;
+      var totalMin = Math.round((stats.total_duration || 0) / 60);
+      document.getElementById('statDuration').textContent = totalMin < 60
+        ? totalMin + 'm' : Math.floor(totalMin / 60) + 'h ' + (totalMin % 60) + 'm';
+    } catch (err) {
+      console.error('Failed to load call stats:', err);
+    }
+  }
+
+  async function loadCalls() {
+    var params = new URLSearchParams();
+    params.set('page', currentPage);
+    var direction = document.getElementById('directionFilter').value;
+    if (direction) params.set('direction', direction);
+    var status = document.getElementById('statusFilter').value;
+    if (status) params.set('status', status);
+    var search = document.getElementById('callSearch').value.trim();
+    if (search) params.set('search', search);
+
+    try {
+      var resp = await Api.get('/api/v1/voip/calls/?' + params.toString());
+      renderCalls(resp.results || []);
+      totalPages = Math.ceil((resp.count || 0) / 50);
+      updatePagination(resp.count || 0);
+    } catch (err) {
+      console.error('Failed to load calls:', err);
+    }
+  }
+
+  function renderCalls(calls) {
+    var tbody = document.getElementById('callLogBody');
+    tbody.textContent = ''; // Clear safely
+
+    if (!calls.length) {
+      var emptyRow = document.createElement('tr');
+      emptyRow.className = 'tl-empty-row';
+      var emptyCell = document.createElement('td');
+      emptyCell.colSpan = 8;
+      var emptyDiv = document.createElement('div');
+      emptyDiv.className = 'tl-empty-state';
+      var icon = document.createElement('i');
+      icon.className = 'ti ti-phone-off';
+      var p = document.createElement('p');
+      p.textContent = 'No calls found';
+      emptyDiv.appendChild(icon);
+      emptyDiv.appendChild(p);
+      emptyCell.appendChild(emptyDiv);
+      emptyRow.appendChild(emptyCell);
+      tbody.appendChild(emptyRow);
+      return;
+    }
+
+    calls.forEach(function(call) {
+      var row = document.createElement('tr');
+
+      // Direction
+      var dirCell = document.createElement('td');
+      var dirIcon = document.createElement('i');
+      if (call.direction === 'inbound') {
+        dirIcon.className = 'ti ti-phone-incoming text-success';
+      } else if (call.direction === 'outbound') {
+        dirIcon.className = 'ti ti-phone-outgoing text-primary';
+      } else {
+        dirIcon.className = 'ti ti-arrows-exchange text-muted';
+      }
+      dirCell.appendChild(dirIcon);
+      dirCell.appendChild(document.createTextNode(' ' + capitalize(call.direction)));
+      row.appendChild(dirCell);
+
+      // Status
+      var statusCell = document.createElement('td');
+      var badge = document.createElement('span');
+      var colors = {
+        completed: 'success', answered: 'success',
+        missed: 'danger', failed: 'danger',
+        busy: 'warning', no_answer: 'warning',
+        ringing: 'info', on_hold: 'info',
+        voicemail: 'secondary',
+      };
+      var color = colors[call.status] || 'secondary';
+      badge.className = 'badge bg-' + color + '-subtle text-' + color;
+      badge.textContent = capitalize((call.status || '').replace('_', ' '));
+      statusCell.appendChild(badge);
+      row.appendChild(statusCell);
+
+      // From
+      var fromCell = document.createElement('td');
+      fromCell.textContent = call.caller_number || '';
+      row.appendChild(fromCell);
+
+      // To
+      var toCell = document.createElement('td');
+      toCell.textContent = call.callee_number || '';
+      row.appendChild(toCell);
+
+      // Contact
+      var contactCell = document.createElement('td');
+      if (call.contact_name) {
+        var contactLink = document.createElement('a');
+        contactLink.href = '/contacts/' + call.contact + '/';
+        contactLink.textContent = call.contact_name;
+        contactCell.appendChild(contactLink);
+      } else {
+        contactCell.textContent = '\u2014';
+        contactCell.className = 'text-muted';
+      }
+      row.appendChild(contactCell);
+
+      // Duration
+      var durCell = document.createElement('td');
+      durCell.textContent = formatDuration(call.duration_seconds);
+      row.appendChild(durCell);
+
+      // Date
+      var dateCell = document.createElement('td');
+      dateCell.textContent = Kanzan.formatDateTime(call.started_at);
+      row.appendChild(dateCell);
+
+      // Recording
+      var recCell = document.createElement('td');
+      if (call.has_recording) {
+        var recLink = document.createElement('a');
+        recLink.href = '/api/v1/voip/recordings/' + call.id + '/';
+        recLink.title = 'Download recording';
+        var playIcon = document.createElement('i');
+        playIcon.className = 'ti ti-player-play text-primary';
+        recLink.appendChild(playIcon);
+        recCell.appendChild(recLink);
+      } else {
+        recCell.textContent = '\u2014';
+        recCell.className = 'text-muted';
+      }
+      row.appendChild(recCell);
+
+      tbody.appendChild(row);
+    });
+  }
+
+  function formatDuration(seconds) {
+    if (!seconds) return '\u2014';
+    if (seconds < 60) return seconds + 's';
+    var m = Math.floor(seconds / 60);
+    var s = seconds % 60;
+    return m + 'm ' + s + 's';
+  }
+
+  function updatePagination(count) {
+    var el = document.getElementById('callPagination');
+    if (count <= 50) { el.style.display = 'none'; return; }
+    el.style.display = '';
+    document.getElementById('prevPageBtn').disabled = currentPage <= 1;
+    document.getElementById('nextPageBtn').disabled = currentPage >= totalPages;
+    document.getElementById('paginationInfo').textContent =
+      'Page ' + currentPage + ' of ' + totalPages + ' (' + count + ' calls)';
+  }
+
+  function capitalize(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
+</script>
+{% endblock %}

@@ -44,3 +44,16 @@ class TenantAwareManager(models.Manager):
             )
             qs = qs.none()
         return qs
+
+
+class SoftDeleteTenantManager(TenantAwareManager):
+    """
+    Tenant-aware manager that also excludes soft-deleted records.
+
+    Models with an ``is_deleted`` boolean field should use this as their
+    default ``objects`` manager so that soft-deleted rows are hidden from
+    all ORM queries — not just API views.
+    """
+
+    def get_queryset(self):
+        return super().get_queryset().filter(is_deleted=False)

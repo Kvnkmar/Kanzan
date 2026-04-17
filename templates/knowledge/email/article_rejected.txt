@@ -1,0 +1,19 @@
+Hi {{ recipient.first_name|default:recipient.email }},
+
+ARTICLE REJECTED
+
+"{{ article_title }}" has been rejected by {{ reviewer_name }}.
+
+--- Reviewer Feedback ---
+
+{{ rejection_reason }}
+
+--- What to do next ---
+
+Review the feedback above, make the necessary changes to your article, and resubmit it for review when ready.
+
+{% if article_url %}Edit your article: {{ article_url }}{% endif %}
+
+---
+You received this because your article was reviewed at {{ tenant.name }}.
+To manage your notification preferences, visit your account settings.

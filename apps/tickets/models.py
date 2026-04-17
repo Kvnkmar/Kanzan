@@ -13,6 +13,7 @@ from django.db import models
 from django.db.models import F
 from django.utils import timezone
 
+from main.managers import SoftDeleteTenantManager
 from main.models import TenantScopedModel, TimestampedModel
 
 
@@ -529,6 +530,28 @@ class Ticket(TenantScopedModel):
         help_text="Reason the deal was lost.",
     )
 
+    # --- Soft delete ---
+    is_deleted = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text="Soft-deleted tickets are hidden from lists but retained for audit.",
+    )
+    deleted_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When this ticket was soft-deleted.",
+    )
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deleted_tickets",
+        help_text="User who soft-deleted this ticket.",
+    )
+
+    objects = SoftDeleteTenantManager()
+
     class Meta:
         unique_together = [("tenant", "number")]
         indexes = [
@@ -543,6 +566,18 @@ class Ticket(TenantScopedModel):
 
     def __str__(self):
         return f"#{self.number} {self.subject}"
+
+    def clean(self):
+        super().clean()
+        if self.assignee_id and self.tenant_id:
+            from apps.accounts.models import TenantMembership
+
+            if not TenantMembership.objects.filter(
+                user_id=self.assignee_id, tenant_id=self.tenant_id
+            ).exists():
+                raise ValidationError(
+                    {"assignee": "Assignee must be a member of this tenant."}
+                )
 
     def save(self, *args, **kwargs):
         # Ensure tenant is set before number auto-increment so the
@@ -627,6 +662,45 @@ class TicketLink(TenantScopedModel):
             and self.source_ticket.tenant_id != self.target_ticket.tenant_id
         ):
             raise ValidationError("Both tickets must belong to the same tenant.")
+
+        # Prevent circular blocking chains (A blocks B blocks C blocks A)
+        if self.link_type in (self.LinkType.BLOCKS, self.LinkType.BLOCKED_BY):
+            if self._creates_circular_dependency():
+                raise ValidationError(
+                    "This link would create a circular blocking dependency."
+                )
+
+    def _creates_circular_dependency(self):
+        """Check if adding this link creates a cycle in blocks/blocked_by."""
+        if not self.source_ticket_id or not self.target_ticket_id:
+            return False
+
+        # For "blocks" links, check if target can reach source via existing blocks
+        # For "blocked_by" links, reverse the direction
+        if self.link_type == self.LinkType.BLOCKS:
+            start, end = self.target_ticket_id, self.source_ticket_id
+        else:
+            start, end = self.source_ticket_id, self.target_ticket_id
+
+        visited = set()
+        queue = [start]
+        while queue:
+            current = queue.pop(0)
+            if current == end:
+                return True
+            if current in visited:
+                continue
+            visited.add(current)
+            # Follow outgoing "blocks" links from current (use unscoped
+            # to ensure we check all links regardless of tenant context)
+            next_ids = list(
+                TicketLink.unscoped.filter(
+                    source_ticket_id=current,
+                    link_type=self.LinkType.BLOCKS,
+                ).values_list("target_ticket_id", flat=True)
+            )
+            queue.extend(next_ids)
+        return False
 
 
 class SLAPolicy(TenantScopedModel):
@@ -924,6 +998,12 @@ class TicketActivity(TenantScopedModel):
         PIPELINE_STAGE_CHANGED = "pipeline_stage_changed", "Pipeline Stage Changed"
         EMAIL_LINKED = "email_linked", "Email Linked"
         EMAIL_ACTIONED = "email_actioned", "Email Actioned"
+        REMINDER_SET = "reminder_set", "Reminder Set"
+        REMINDER_COMPLETED = "reminder_completed", "Reminder Completed"
+        OUTBOUND_CALL = "outbound_call", "Outbound Call Logged"
+        OUTBOUND_CALL_COMPLETED = "outbound_call_completed", "Outbound Call Completed"
+        INBOUND_CALL = "inbound_call", "Inbound Call Received"
+        INBOUND_CALL_COMPLETED = "inbound_call_completed", "Inbound Call Completed"
 
     ticket = models.ForeignKey(
         Ticket,
@@ -1148,4 +1228,263 @@ class TicketAssignment(TenantScopedModel):
 
     def __str__(self):
         return f"Ticket #{self.ticket.number} -> {self.assigned_to}"
+
+
+# ---------------------------------------------------------------------------
+# Ticket Watcher (followers / CC list)
+# ---------------------------------------------------------------------------
+
+
+class TicketWatcher(TenantScopedModel):
+    """
+    Users who are watching a ticket for updates.
+
+    Watchers receive notifications on comments, status changes, and
+    assignments — even if they are not the assignee or creator.
+    """
+
+    class WatchReason(models.TextChoices):
+        MANUAL = "manual", "Manually added"
+        MENTIONED = "mentioned", "Mentioned in comment"
+        COMMENTED = "commented", "Posted a comment"
+        CC = "cc", "CC'd on email"
+
+    ticket = models.ForeignKey(
+        Ticket,
+        on_delete=models.CASCADE,
+        related_name="watchers",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="watched_tickets",
+    )
+    reason = models.CharField(
+        max_length=20,
+        choices=WatchReason.choices,
+        default=WatchReason.MANUAL,
+    )
+    is_muted = models.BooleanField(
+        default=False,
+        help_text="If True, the user won't receive notifications for this ticket.",
+    )
+
+    class Meta:
+        unique_together = [("ticket", "user")]
+        ordering = ["-created_at"]
+        verbose_name = "ticket watcher"
+        verbose_name_plural = "ticket watchers"
+
+    def __str__(self):
+        return f"{self.user} watching #{self.ticket.number}"
+
+
+# ---------------------------------------------------------------------------
+# Time Tracking
+# ---------------------------------------------------------------------------
+
+
+class TimeEntry(TenantScopedModel):
+    """
+    Time logged by an agent against a ticket.
+
+    Supports both manual entries (duration_minutes) and timer-based entries
+    (started_at + ended_at). Billable flag enables invoice integration.
+    """
+
+    ticket = models.ForeignKey(
+        Ticket,
+        on_delete=models.CASCADE,
+        related_name="time_entries",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="time_entries",
+    )
+    duration_minutes = models.PositiveIntegerField(
+        help_text="Time spent in minutes.",
+    )
+    started_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the work started (for timer-based entries).",
+    )
+    ended_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the work ended (for timer-based entries).",
+    )
+    description = models.TextField(
+        blank=True,
+        default="",
+        help_text="What was done during this time.",
+    )
+    is_billable = models.BooleanField(
+        default=False,
+        help_text="Whether this time entry is billable to the customer.",
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["ticket", "created_at"]),
+            models.Index(fields=["user", "created_at"]),
+        ]
+        verbose_name = "time entry"
+        verbose_name_plural = "time entries"
+
+    def __str__(self):
+        return f"{self.user} — {self.duration_minutes}m on #{self.ticket.number}"
+
+
+# ---------------------------------------------------------------------------
+# Ticket Templates
+# ---------------------------------------------------------------------------
+
+
+class TicketTemplate(TenantScopedModel):
+    """
+    Pre-filled ticket forms for common request types.
+
+    Agents can create templates that pre-populate subject, description,
+    priority, queue, category, and tags when creating a new ticket.
+    """
+
+    name = models.CharField(max_length=200)
+    description = models.CharField(
+        max_length=500,
+        blank=True,
+        default="",
+        help_text="Brief description shown in the template picker.",
+    )
+    subject_template = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="Pre-filled subject line.",
+    )
+    body_template = models.TextField(
+        blank=True,
+        default="",
+        help_text="Pre-filled description/body content.",
+    )
+    default_priority = models.CharField(
+        max_length=10,
+        choices=Ticket.Priority.choices,
+        default=Ticket.Priority.MEDIUM,
+    )
+    default_queue = models.ForeignKey(
+        Queue,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="templates",
+    )
+    default_category = models.CharField(max_length=100, blank=True, default="")
+    default_tags = models.JSONField(default=list, blank=True)
+    default_ticket_type = models.CharField(
+        max_length=20,
+        choices=Ticket.TicketType.choices,
+        default=Ticket.TicketType.SUPPORT,
+    )
+    is_active = models.BooleanField(default=True)
+    usage_count = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="ticket_templates",
+    )
+
+    class Meta:
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["tenant", "is_active"]),
+        ]
+        verbose_name = "ticket template"
+        verbose_name_plural = "ticket templates"
+
+    def __str__(self):
+        return self.name
+
+
+# ---------------------------------------------------------------------------
+# Webhook
+# ---------------------------------------------------------------------------
+
+
+class Webhook(TenantScopedModel):
+    """
+    HTTP callback configuration for ticket events.
+
+    Sends POST requests with JSON payloads to the configured URL when
+    specified events occur. Includes HMAC signature for verification.
+    """
+
+    class EventType(models.TextChoices):
+        TICKET_CREATED = "ticket.created", "Ticket Created"
+        TICKET_UPDATED = "ticket.updated", "Ticket Updated"
+        TICKET_ASSIGNED = "ticket.assigned", "Ticket Assigned"
+        TICKET_CLOSED = "ticket.closed", "Ticket Closed"
+        TICKET_REOPENED = "ticket.reopened", "Ticket Reopened"
+        TICKET_COMMENT = "ticket.comment", "Comment Added"
+        SLA_BREACHED = "sla.breached", "SLA Breached"
+        TICKET_ESCALATED = "ticket.escalated", "Ticket Escalated"
+
+    name = models.CharField(max_length=200)
+    url = models.URLField(
+        max_length=2000,
+        help_text="The URL to receive POST webhook payloads.",
+    )
+    secret = models.CharField(
+        max_length=255,
+        blank=True,
+        default="",
+        help_text="HMAC secret for payload signature verification.",
+    )
+    events = models.JSONField(
+        default=list,
+        help_text="List of event types to subscribe to.",
+    )
+    is_active = models.BooleanField(default=True)
+    headers = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Additional HTTP headers to include in requests.",
+    )
+    failure_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Consecutive delivery failure count. Auto-disabled at 10.",
+    )
+    last_triggered_at = models.DateTimeField(null=True, blank=True)
+    last_status_code = models.PositiveSmallIntegerField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="webhooks",
+    )
+
+    class Meta:
+        ordering = ["name"]
+        indexes = [
+            models.Index(fields=["tenant", "is_active"]),
+        ]
+        verbose_name = "webhook"
+        verbose_name_plural = "webhooks"
+
+    def __str__(self):
+        return f"{self.name} ({self.url})"
+
+    def clean(self):
+        super().clean()
+        if not isinstance(self.events, list):
+            raise ValidationError({"events": "Must be a list of event types."})
+        valid = {c[0] for c in self.EventType.choices}
+        for evt in self.events:
+            if evt not in valid:
+                raise ValidationError(
+                    {"events": f"Invalid event type: {evt}. Valid: {', '.join(sorted(valid))}"}
+                )
 

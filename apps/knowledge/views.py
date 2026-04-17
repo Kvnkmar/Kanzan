@@ -170,7 +170,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
                     notification_type=NotificationType.KB_REVIEW_REQUESTED,
                     title=f"KB article submitted for review",
                     body=f'"{article.title}" was submitted by {author_name}.',
-                    data={"article_id": str(article.id), "article_title": article.title},
+                    data={
+                        "article_id": str(article.id),
+                        "article_title": article.title,
+                        "url": f"/knowledge/{article.slug}/",
+                    },
                 )
         serializer = ArticleDetailSerializer(article)
         return Response(serializer.data, status=status.HTTP_200_OK)
@@ -235,10 +239,20 @@ class ArticleViewSet(viewsets.ModelViewSet):
         article.save(update_fields=[
             "status", "rejection_reason", "reviewer", "reviewed_at", "updated_at",
         ])
-        # Notify the author
+        # Notify the author via dedicated rejection email
         if article.author and article.author != request.user:
+            reviewer = request.user
+            reviewer_name = (
+                f"{reviewer.first_name} {reviewer.last_name}".strip()
+                or reviewer.email
+            )
+            # Build article URL for the email
+            tenant = request.tenant
+            scheme = "https" if request.is_secure() else "http"
+            article_url = f"{scheme}://{request.get_host()}/knowledge/{article.slug}/"
+
             send_notification(
-                tenant=request.tenant,
+                tenant=tenant,
                 recipient=article.author,
                 notification_type=NotificationType.KB_ARTICLE_REVIEWED,
                 title="Your KB article needs changes",
@@ -248,6 +262,9 @@ class ArticleViewSet(viewsets.ModelViewSet):
                     "article_title": article.title,
                     "action": "rejected",
                     "reason": rejection_reason,
+                    "reviewer_name": reviewer_name,
+                    "reviewed_at": article.reviewed_at.strftime("%B %d, %Y at %I:%M %p"),
+                    "url": article_url,
                 },
             )
         serializer = ArticleDetailSerializer(article)

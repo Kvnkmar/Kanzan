@@ -288,7 +288,7 @@ def knowledge_article_page(request, article_slug):
 # Admin-only pages (hierarchy_level <= 10)
 # ---------------------------------------------------------------------------
 
-@_role_required(20)
+@_membership_required
 def settings_page(request):
     return render(request, "pages/settings/tenant.html")
 
@@ -330,3 +330,8 @@ def reminders_page(request):
 @_role_required(20)
 def audit_log_page(request):
     return render(request, "pages/audit_log/list.html")
+
+
+@_membership_required
+def calls_page(request):
+    return render(request, "pages/voip/call_history.html")

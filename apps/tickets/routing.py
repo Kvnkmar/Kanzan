@@ -8,11 +8,15 @@ Include these patterns in the project-level ASGI routing configuration::
 
 from django.urls import re_path
 
-from apps.tickets.consumers import TicketPresenceConsumer
+from apps.tickets.consumers import TicketListConsumer, TicketPresenceConsumer
 
 websocket_urlpatterns = [
     re_path(
         r"ws/tickets/(?P<ticket_id>[a-f0-9-]+)/presence/$",
         TicketPresenceConsumer.as_asgi(),
+    ),
+    re_path(
+        r"ws/tickets/feed/$",
+        TicketListConsumer.as_asgi(),
     ),
 ]

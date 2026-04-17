@@ -56,6 +56,19 @@ class Plan(TimestampedModel):
     has_custom_roles = models.BooleanField(default=False)
     has_sso = models.BooleanField(default=False)
     has_sla_management = models.BooleanField(default=False)
+    has_voip = models.BooleanField(
+        default=False,
+        help_text="Whether VoIP telephony is available on this plan.",
+    )
+    has_call_recording = models.BooleanField(
+        default=False,
+        help_text="Whether call recording is available on this plan.",
+    )
+    max_calls_per_month = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Monthly call limit.  NULL = unlimited.",
+    )
     audit_retention_days = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -204,6 +217,10 @@ class UsageTracker(models.Model):
     tickets_created = models.PositiveIntegerField(default=0)
     storage_used_mb = models.PositiveIntegerField(default=0)
     api_calls = models.PositiveIntegerField(default=0)
+    calls_made = models.PositiveIntegerField(
+        default=0,
+        help_text="VoIP calls made in the current billing period.",
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

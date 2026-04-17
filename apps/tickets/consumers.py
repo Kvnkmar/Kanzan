@@ -165,3 +165,68 @@ class TicketPresenceConsumer(AsyncJsonWebsocketConsumer):
         first = (self.user.first_name or "")[:1].upper()
         last = (self.user.last_name or "")[:1].upper()
         return (first + last) or self.user.email[0].upper()
+
+
+class TicketListConsumer(AsyncJsonWebsocketConsumer):
+    """
+    WebSocket consumer for real-time ticket list updates.
+
+    URL: ``ws/tickets/feed/``
+
+    Broadcasts ticket events (created, updated, assigned, closed, deleted)
+    to all connected tenant members so ticket lists update in real-time.
+
+    **Server → client:**
+    - ``{"type": "ticket_created", "ticket": {...}}``
+    - ``{"type": "ticket_updated", "ticket": {...}}``
+    - ``{"type": "ticket_assigned", "ticket": {...}}``
+    - ``{"type": "ticket_closed", "ticket": {...}}``
+    - ``{"type": "ticket_deleted", "ticket_id": "..."}``
+    """
+
+    async def connect(self):
+        self.user = self.scope.get("user")
+
+        if not self.user or self.user.is_anonymous:
+            await self.close(code=4001)
+            return
+
+        self.tenant = self.scope.get("tenant")
+        if not self.tenant:
+            await self.close(code=4001)
+            return
+
+        is_member = await self._is_tenant_member()
+        if not is_member:
+            await self.close(code=4003)
+            return
+
+        self.group_name = f"ticket_feed_{self.tenant.pk}"
+
+        await self.accept()
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+
+        logger.info(
+            "User %s joined ticket feed (tenant %s).",
+            self.user.pk, self.tenant.slug,
+        )
+
+    async def disconnect(self, close_code):
+        if hasattr(self, "group_name"):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def receive_json(self, content, **kwargs):
+        # No client-to-server messages needed for the feed
+        pass
+
+    # Group event handlers
+    async def ticket_event(self, event):
+        """Relay any ticket event to the WebSocket client."""
+        await self.send_json(event["payload"])
+
+    @database_sync_to_async
+    def _is_tenant_member(self):
+        from apps.accounts.models import TenantMembership
+        return TenantMembership.objects.filter(
+            user=self.user, tenant=self.tenant, is_active=True,
+        ).exists()

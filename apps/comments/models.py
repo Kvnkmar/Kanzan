@@ -164,6 +164,12 @@ class ActivityLog(TenantScopedModel):
         PIPELINE_STAGE_CHANGED = "pipeline_stage_changed", "Pipeline Stage Changed"
         EMAIL_LINKED = "email_linked", "Email Linked"
         EMAIL_ACTIONED = "email_actioned", "Email Actioned"
+        REMINDER_CREATED = "reminder_created", "Reminder Created"
+        REMINDER_COMPLETED = "reminder_completed", "Reminder Completed"
+        REMINDER_CANCELLED = "reminder_cancelled", "Reminder Cancelled"
+        REMINDER_RESCHEDULED = "reminder_rescheduled", "Reminder Rescheduled"
+        OUTBOUND_CALL_LOGGED = "outbound_call_logged", "Outbound Call Logged"
+        OUTBOUND_CALL_COMPLETED = "outbound_call_completed", "Outbound Call Completed"
 
     content_type = models.ForeignKey(
         ContentType,

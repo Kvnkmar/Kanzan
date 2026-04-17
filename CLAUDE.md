@@ -90,7 +90,7 @@ get_current_tenant()         # Used by manager/model
 clear_current_tenant()       # Cleanup in middleware finally block
 ```
 
-## Models (55+ total)
+## Models (59+ total)
 
 ### Base Models (Abstract)
 - **TimestampedModel**: UUID PK + `created_at` + `updated_at`
@@ -102,7 +102,7 @@ clear_current_tenant()       # Cleanup in middleware finally block
 
 **accounts**: `User` (email-based, no username, UUID PK), `Permission` (29 total, codename pattern: `resource.action`), `Role` (tenant-scoped, hierarchy_level: Admin=10, Manager=20, Agent=30), `Profile` (tenant-specific: job_title, department, bio, notification_email, signature, timezone, language, DND settings, theme, sidebar_collapsed, density, date_format, time_format), `TenantMembership` (User+Tenant+Role bridge), `Invitation` (token-based, expiring)
 
-**tickets**: `Ticket` (auto-number per tenant, status, priority, assignee, contact, queue, tags JSON, custom_data JSON), `TicketStatus` (customizable per tenant, is_closed, is_default), `TicketCategory` (admin-configurable categories per tenant), `Queue` (default_assignee, auto_assign), `SLAPolicy` (response/resolution minutes per priority), `EscalationRule` (trigger+action+target), `TicketActivity` (timeline events), `TicketAssignment` (immutable audit trail), `CannedResponse` (pre-written templates with shortcuts e.g. `/thanks`, usage counting, shared/personal), `SavedView` (saved filter configs, sort ordering, default/pinned, personal/shared scope)
+**tickets**: `Ticket` (auto-number per tenant, status, priority, assignee, contact, queue, tags JSON, custom_data JSON, **soft-delete**: is_deleted/deleted_at/deleted_by), `TicketStatus` (customizable per tenant, is_closed, is_default), `TicketCategory` (admin-configurable categories per tenant), `Queue` (default_assignee, auto_assign), `SLAPolicy` (response/resolution minutes per priority), `EscalationRule` (trigger+action+target), `TicketActivity` (timeline events), `TicketAssignment` (immutable audit trail), `CannedResponse` (pre-written templates with shortcuts e.g. `/thanks`, usage counting, shared/personal), `SavedView` (saved filter configs, sort ordering, default/pinned, personal/shared scope), `TicketTemplate` (pre-filled ticket creation: subject_template, body_template, default_priority/category/tags/queue/ticket_type, is_active, usage_count, created_by), `TicketWatcher` (user+ticket unique together, reason: manual/mentioned/commented/cc'd, is_muted for notification suppression), `TimeEntry` (ticket+user, duration_minutes, started_at/ended_at, description, is_billable, indexed on ticket+created_at and user+created_at), `Webhook` (name, url, secret for HMAC signing, events JSONField, is_active, headers JSONField, failure_count auto-disables at 10, last_triggered_at/last_status_code, created_by, indexed on tenant+is_active)
 
 **contacts**: `Contact` (email unique per tenant, company FK, groups M2M), `Company` (name unique per tenant), `ContactGroup` (M2M contacts)
 
@@ -144,7 +144,7 @@ clear_current_tenant()       # Cleanup in middleware finally block
 - `IsTicketAccessible` permission in `accounts/permissions.py` blocks direct URL access
 - `_role_required(20)` decorator on admin-only frontend views (settings, users, billing)
 - Row-level filtering in: TicketViewSet, ContactViewSet, kanban BoardDetailSerializer, analytics services
-- Expanded ACTION_MAP: contact group `add_contacts`/`remove_contacts` → "update"; kanban `detail_with_cards`/`populate` → "view", `move`/`reorder` → "update"
+- Expanded ACTION_MAP: contact group `add_contacts`/`remove_contacts` → "update"; kanban `detail_with_cards`/`populate` → "view", `move`/`reorder` → "update"; ticket watchers `watch`/`remove_watcher` → "view"/"update"; time tracking `time_entries`/`time_summary`/`time_entry_detail` → "view"/"update"; templates `use` → "view", `test`/`reset_failures` → "update"
 
 ## Signals
 
@@ -174,7 +174,9 @@ clear_current_tenant()       # Cleanup in middleware finally block
 
 **Dedup mechanism:** `_skip_signal_logging` flag on instance prevents signal from duplicating ViewSet logging. In `perform_update`, use `serializer.instance` (not `self.get_object()`) so flag reaches the signal. 2-second dedup window in signal handler.
 
-**Service layer** (`apps/tickets/services.py`): `create_ticket_activity()`, `assign_ticket()`, `change_ticket_status()`, `change_ticket_priority()`, `log_ticket_comment()` — all write to BOTH logs atomically.
+**Service layer** (`apps/tickets/services.py`): `create_ticket_activity()`, `assign_ticket()`, `change_ticket_status()`, `change_ticket_priority()`, `log_ticket_comment()`, `broadcast_ticket_event()` — all write to BOTH logs atomically. `broadcast_ticket_event()` pushes real-time updates to WebSocket ticket feed via `transaction.on_commit()`.
+
+**Webhook service** (`apps/tickets/webhook_service.py`): `deliver_webhook()` sends HTTP POST with HMAC SHA-256 signature (`X-Webhook-Signature` header), auto-disables after 10 consecutive failures. `fire_webhooks()` dispatches async via Celery task for subscribed event types.
 
 **Transaction safety:** Notification service defers WebSocket pushes and email task queuing to `transaction.on_commit()` to prevent orphaned tasks if the transaction rolls back.
 
@@ -208,7 +210,7 @@ clear_current_tenant()       # Cleanup in middleware finally block
 ```
 /api/v1/tenants/          → TenantViewSet, TenantSettingsViewSet (singleton)
 /api/v1/accounts/         → AuthViewSet, UserViewSet, RoleViewSet, ProfileViewSet, InvitationViewSet, MembershipViewSet
-/api/v1/tickets/          → TicketViewSet (+assign, change-status, change-priority, timeline, activity), TicketStatusViewSet, QueueViewSet, SLAPolicyViewSet, EscalationRuleViewSet
+/api/v1/tickets/          → TicketViewSet (+assign, change-status, change-priority, timeline, activity, restore, watch, watchers, remove_watcher, time-entries, time-summary), TicketStatusViewSet, QueueViewSet, SLAPolicyViewSet, EscalationRuleViewSet, TicketTemplateViewSet (+use), WebhookViewSet (+test, reset-failures)
 /api/v1/contacts/         → ContactViewSet, CompanyViewSet, ContactGroupViewSet
 /api/v1/billing/          → PlanViewSet, SubscriptionViewSet (singleton +cancel/reactivate), InvoiceViewSet, UsageViewSet (singleton), checkout, webhook (CSRF-exempt)
 /api/v1/kanban/           → BoardViewSet (+detail), ColumnViewSet, CardPositionViewSet (+move/reorder) [nested routing]
@@ -278,6 +280,19 @@ clear_current_tenant()       # Cleanup in middleware finally block
    - Group: `notifications_{user_id}`
    - Service layer pushes via `notification_send` group event
 
+3. **Ticket Presence:** `ws://host/ws/tickets/{ticket_id}/presence/` → `TicketPresenceConsumer` (AsyncJsonWebsocketConsumer)
+   - Tracks which agents are currently viewing a ticket
+   - Events: `agent_joined`, `agent_left`, `presence_list` (full viewer list on connect)
+   - Group: `ticket_{ticket_id}_presence`
+   - Validates tenant membership and ticket access, builds display_name/avatar_initials from profile
+   - Client sends heartbeat to keep connection alive
+
+4. **Ticket Feed:** `ws://host/ws/tickets/feed/` → `TicketListConsumer` (AsyncJsonWebsocketConsumer)
+   - Real-time ticket list updates across the tenant
+   - Events: `ticket_created`, `ticket_updated`, `ticket_assigned`, `ticket_closed`, `ticket_deleted`
+   - Group: `ticket_feed_{tenant_id}`
+   - Authenticates and verifies tenant membership
+
 ## Celery Tasks
 
 ### Queue Routing (`main/celery.py`)
@@ -294,6 +309,9 @@ apps.notifications.tasks.send_notification_email → kanzan_email
 3. **`process_export_job`** (analytics): Generates CSV/XLSX export files. Supports tickets and contacts. max_retries=3. XLSX via openpyxl (optional, falls back to CSV).
 4. **`process_inbound_email`** (inbound_email): Async processing of received inbound emails.
 5. **Ticket email tasks** (tickets): Outbound email notifications for ticket replies and creation.
+6. **`check_sla_breaches`** (tickets): Periodic task (2-min interval). Scans all active tenants for SLA violations, marks breach flags, sends SLA_BREACH notifications, executes escalation rules with deduplication.
+7. **`check_overdue_tickets`** (tickets): Periodic task (15-min interval). Scans for tickets past `due_date`, sends TICKET_OVERDUE notifications, deduplicates per ticket per day.
+8. **`deliver_webhook_task`** (tickets): Async webhook delivery with HMAC signing, failure tracking, auto-disable after 10 failures.
 
 ### PM2 Processes (`ecosystem.config.js`)
 1. `kanzan-django`: Gunicorn + Uvicorn workers (2), port 8001, 2GB limit
@@ -312,6 +330,8 @@ apps.notifications.tasks.send_notification_email → kanzan_email
 - **command-palette.js**: Command palette / quick search.
 - **custom-select.js**: Custom select dropdown component.
 - **rich-editor.js**: Rich text editor for comments/articles.
+- **keyboard-shortcuts.js**: Global keyboard shortcut system. Navigation: j/k (list), Enter (open), Esc (deselect). Quick actions on selected row: `a` (assign), `s` (status), `x` (toggle select). Global: Ctrl/Cmd+k (search/command palette), `c` (create ticket), `?` (help modal). Go-to prefix `g`: `g d` (dashboard), `g t` (tickets), `g c` (contacts), `g b` (kanban). Adds `.keyboard-selected` CSS class.
+- **ticket-feed.js**: Real-time ticket list updates via WebSocket (`ws/tickets/feed/`). Auto-connects on ticket/dashboard pages (via `data-ticket-feed` attribute). Shows toast notifications and "New tickets available" banner on events. Updates visible row UI with real-time pulse effect. Reconnection with exponential backoff (max 10 attempts, up to 30s). Exports: `connect()`, `disconnect()`, `isConnected()`, `onEvent(callback)`.
 
 ### CSS (`static/css/custom.css` — 14K+ lines)
 - Design system with CSS custom properties (blue primary `#2563EB`, dark theme)
@@ -387,7 +407,7 @@ python manage.py setup_ticket_statuses --tenant-slug demo      # Create 5 defaul
 - **Fixtures:** `conftest.py` with factories for Tenant, User, Role, Membership, TicketStatus, Queue, Ticket
 - **Celery:** Eager mode in tests (tasks execute synchronously)
 
-### Test Files (18 modules in `tests/`)
+### Test Files (19 modules in `tests/`, plus app-level tests)
 ```
 test_auth_rbac.py          — Authorization and RBAC
 test_billing.py            — Billing system
@@ -405,8 +425,11 @@ test_tenant_isolation.py   — Tenant data isolation
 test_comment_visibility.py — Comment visibility rules
 test_api_plan_enforcement.py — Plan limit enforcement
 test_plan_limits.py        — Plan limit details
+test_ticket_improvements.py — Soft delete, watchers, time tracking, templates, webhooks, circular links, SLA filters
 base.py                    — Shared test base classes
 ```
+
+App-level: `apps/knowledge/tests/test_kb_gap_fill.py` — KB search, voting, search view tests
 
 ## Important Implementation Details
 
@@ -458,6 +481,27 @@ Breach flags (`response_breached`, `resolution_breached`) are saved to DB before
 ### Bulk Operations
 `bulk_update_tickets()` handles failures independently (per-operation atomicity) so one failure doesn't rollback others.
 
+### Ticket Soft Delete
+DELETE on a ticket sets `is_deleted=True`, `deleted_at`, `deleted_by` instead of hard-deleting. Default queryset excludes soft-deleted tickets. `?include_deleted=true` query param shows them. POST `restore/` action reverses soft-delete. Returns 400 if ticket is not deleted.
+
+### Ticket Watchers
+Users can watch tickets for update notifications. Toggle via POST `watch/`, manage via `watchers/` endpoint. Duplicate watcher returns 409 Conflict. Watcher reason tracks how they started watching (manual/mentioned/commented/cc'd). `is_muted` suppresses notifications while staying subscribed. Ticket list includes `watcher_count` annotation.
+
+### Time Tracking
+TimeEntry records per-ticket time with duration (1-1440 minutes), description, and billable flag. Optional `started_at`/`ended_at` for timer-based entries. Users can only delete their own entries. `time-summary/` endpoint returns aggregated data: total_minutes, billable_minutes, entry_count, by_user breakdown. Ticket list includes `total_time_minutes` annotation.
+
+### Ticket Templates
+Pre-filled ticket creation templates with subject, body, default priority/category/tags/queue/type. `usage_count` tracks popularity, incremented via POST `use/` action. Only active templates shown in list.
+
+### Webhook Delivery
+HMAC SHA-256 signed payloads (`X-Webhook-Signature` header). Auto-disabled after 10 consecutive failures (`MAX_FAILURE_COUNT`). 10s delivery timeout. `fire_webhooks()` dispatches async via Celery. `test/` action sends test payload. `reset-failures/` resets failure_count to 0.
+
+### Circular Ticket Link Prevention
+Self-linking prevented (returns 400). Transitive circular dependencies detected via `_creates_circular_dependency()` check (e.g., A→B→A blocked).
+
+### SLA Filters
+`?sla_approaching=true` filters tickets within 30 minutes of SLA breach. `?has_sla=true/false` filters by SLA policy assignment. Ticket list includes `sla_response_remaining_minutes` field.
+
 ## Performance Optimizations
 
 ### Analytics Closed Status Caching
@@ -484,7 +528,8 @@ Set-based logic for batch adding contacts: fetches existing IDs, filters new con
 ## Security Hardening
 
 - **IsTenantMember permission**: Applied to AttachmentViewSet, BoardViewSet, ColumnViewSet, CardPositionViewSet, ContactGroupViewSet, ConversationViewSet, MessageViewSet, NotificationViewSet, NotificationPreferenceViewSet, QuickNoteViewSet. Prevents cross-tenant JWT access.
-- **WebSocket rate limiting**: ChatConsumer enforces message length (10KB), send rate (5/sec), typing cooldown (2s), and tenant verification from scope.
+- **WebSocket rate limiting**: ChatConsumer enforces message length (10KB), send rate (5/sec), typing cooldown (2s), and tenant verification from scope. TicketPresenceConsumer and TicketListConsumer also verify tenant membership.
+- **Webhook secret write-only**: Webhook `secret` field is write-only in serializer responses to prevent leaking HMAC keys.
 - **XSS prevention**: Ticket detail uses `textContent` instead of `innerHTML` for description. Knowledge base sanitizes mammoth DOCX output (strips `<script>` tags and `on*` event handlers). PDF/image preview URLs are HTML-escaped.
 - **Auth throttling**: `AuthViewSet` uses `throttle_scope = "auth"` for rate limiting.
 - **Tenant queryset scoping**: `TenantViewSet` filters by user's actual memberships (superusers see all). Inbound email access simplified to all authenticated tenant members.

@@ -85,13 +85,14 @@
     return 'ae-badge-role--viewer';
   }
 
+  var STATUS_LABELS = { online: 'Online', away: 'Away', busy: 'Busy', offline: 'Offline' };
   function makeStatusBadge(st) {
     var span = document.createElement('span');
     span.className = 'ae-status-badge ae-status-badge--' + st;
     var dot = document.createElement('span');
     dot.className = 'ae-status-dot';
     span.appendChild(dot);
-    span.appendChild(document.createTextNode(st === 'online' ? 'Online' : 'Offline'));
+    span.appendChild(document.createTextNode(STATUS_LABELS[st] || 'Offline'));
     return span;
   }
 
@@ -214,6 +215,13 @@
 
   loadAgents();
   setInterval(loadAgents, REFRESH_INTERVAL);
+
+  // Real-time: reload immediately when any agent changes status
+  document.addEventListener('kanzan:notification', function(e) {
+    if (e.detail && e.detail.type === 'agent_status_change') {
+      loadAgents();
+    }
+  });
 })();
 </script>
 {% endblock %}

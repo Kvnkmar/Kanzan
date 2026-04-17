@@ -54,6 +54,7 @@ class NotificationViewSet(
         """
         Return notifications for the current user within the active tenant.
 
+        Supports ``?is_read=true/false`` query param filtering.
         Orders unread notifications first, then by newest ``created_at``.
         """
         if getattr(self, "swagger_fake_view", False):
@@ -62,6 +63,9 @@ class NotificationViewSet(
         tenant = getattr(self.request, "tenant", None)
         if tenant is not None:
             qs = qs.filter(tenant=tenant)
+        is_read_param = self.request.query_params.get("is_read")
+        if is_read_param is not None:
+            qs = qs.filter(is_read=is_read_param.lower() in ("true", "1"))
         return qs.order_by("is_read", "-created_at")
 
     # ----- Custom actions ------------------------------------------------

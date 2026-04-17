@@ -1,0 +1,169 @@
+{% comment %}
+VoIP Softphone Widget
+Floating phone widget with dial pad, call controls, and incoming call notifications.
+Loaded in base.html when VoIP is enabled for the tenant.
+{% endcomment %}
+
+<!-- Softphone Toggle Button -->
+<button id="softphoneToggle" class="softphone-toggle" title="Open Softphone" style="display:none;">
+  <i class="ti ti-phone"></i>
+  <span class="softphone-status-dot" id="sipStatusDot"></span>
+</button>
+
+<!-- Incoming Call Modal -->
+<div id="incomingCallModal" class="softphone-incoming" style="display:none;">
+  <div class="softphone-incoming-content">
+    <div class="softphone-incoming-icon">
+      <i class="ti ti-phone-incoming"></i>
+    </div>
+    <div class="softphone-incoming-info">
+      <div class="softphone-incoming-label">Incoming Call</div>
+      <div class="softphone-incoming-caller" id="incomingCallerName">Unknown</div>
+      <div class="softphone-incoming-number" id="incomingCallerNumber"></div>
+    </div>
+    <div class="softphone-incoming-actions">
+      <button class="btn btn-success btn-sm rounded-circle" id="incomingAccept" title="Accept">
+        <i class="ti ti-phone"></i>
+      </button>
+      <button class="btn btn-danger btn-sm rounded-circle" id="incomingReject" title="Reject">
+        <i class="ti ti-phone-off"></i>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Softphone Widget Panel -->
+<div id="softphonePanel" class="softphone-panel" style="display:none;">
+  <!-- Header -->
+  <div class="softphone-header">
+    <div class="softphone-header-left">
+      <i class="ti ti-phone me-2"></i>
+      <span>Softphone</span>
+      <span class="softphone-sip-status ms-2" id="sipStatusLabel">Connecting...</span>
+    </div>
+    <div class="softphone-header-right">
+      <button class="btn btn-sm btn-link text-muted p-0" id="softphoneMinimize" title="Minimize">
+        <i class="ti ti-minus"></i>
+      </button>
+      <button class="btn btn-sm btn-link text-muted p-0 ms-2" id="softphoneClose" title="Close">
+        <i class="ti ti-x"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Dial Pad View (default) -->
+  <div id="dialPadView" class="softphone-view">
+    <div class="softphone-input-group">
+      <input type="text"
+             id="dialInput"
+             class="softphone-dial-input"
+             placeholder="Enter number..."
+             autocomplete="off">
+      <button class="softphone-backspace" id="dialBackspace" title="Backspace">
+        <i class="ti ti-backspace"></i>
+      </button>
+    </div>
+
+    <div class="softphone-dialpad">
+      <button class="softphone-key" data-digit="1">1<span></span></button>
+      <button class="softphone-key" data-digit="2">2<span>ABC</span></button>
+      <button class="softphone-key" data-digit="3">3<span>DEF</span></button>
+      <button class="softphone-key" data-digit="4">4<span>GHI</span></button>
+      <button class="softphone-key" data-digit="5">5<span>JKL</span></button>
+      <button class="softphone-key" data-digit="6">6<span>MNO</span></button>
+      <button class="softphone-key" data-digit="7">7<span>PQRS</span></button>
+      <button class="softphone-key" data-digit="8">8<span>TUV</span></button>
+      <button class="softphone-key" data-digit="9">9<span>WXYZ</span></button>
+      <button class="softphone-key" data-digit="*">*<span></span></button>
+      <button class="softphone-key" data-digit="0">0<span>+</span></button>
+      <button class="softphone-key" data-digit="#">#<span></span></button>
+    </div>
+
+    <div class="softphone-dial-actions">
+      <button class="btn btn-success rounded-circle softphone-call-btn" id="dialCallBtn" title="Call">
+        <i class="ti ti-phone"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Active Call View -->
+  <div id="activeCallView" class="softphone-view" style="display:none;">
+    <div class="softphone-call-info">
+      <div class="softphone-call-status" id="callStatusLabel">Calling...</div>
+      <div class="softphone-call-name" id="callContactName"></div>
+      <div class="softphone-call-number" id="callNumber"></div>
+      <div class="softphone-call-timer" id="callTimer">00:00</div>
+    </div>
+
+    <div class="softphone-call-controls">
+      <button class="softphone-control-btn" id="muteBtn" title="Mute">
+        <i class="ti ti-microphone"></i>
+        <span>Mute</span>
+      </button>
+      <button class="softphone-control-btn" id="holdBtn" title="Hold">
+        <i class="ti ti-player-pause"></i>
+        <span>Hold</span>
+      </button>
+      <button class="softphone-control-btn" id="dtmfBtn" title="Keypad">
+        <i class="ti ti-grid-dots"></i>
+        <span>Keypad</span>
+      </button>
+      <button class="softphone-control-btn" id="transferBtn" title="Transfer">
+        <i class="ti ti-transfer"></i>
+        <span>Transfer</span>
+      </button>
+    </div>
+
+    <div class="softphone-hangup">
+      <button class="btn btn-danger rounded-circle softphone-call-btn" id="hangupBtn" title="Hang Up">
+        <i class="ti ti-phone-off"></i>
+      </button>
+    </div>
+
+    <!-- In-call DTMF Keypad (hidden by default) -->
+    <div id="dtmfPad" class="softphone-dtmf" style="display:none;">
+      <div class="softphone-dialpad softphone-dialpad-sm">
+        <button class="softphone-key softphone-key-sm" data-dtmf="1">1</button>
+        <button class="softphone-key softphone-key-sm" data-dtmf="2">2</button>
+        <button class="softphone-key softphone-key-sm" data-dtmf="3">3</button>
+        <button class="softphone-key softphone-key-sm" data-dtmf="4">4</button>
+        <button class="softphone-key softphone-key-sm" data-dtmf="5">5</button>
+        <button class="softphone-key softphone-key-sm" data-dtmf="6">6</button>
+        <button class="softphone-key softphone-key-sm" data-dtmf="7">7</button>
+        <button class="softphone-key softphone-key-sm" data-dtmf="8">8</button>
+        <button class="softphone-key softphone-key-sm" data-dtmf="9">9</button>
+        <button class="softphone-key softphone-key-sm" data-dtmf="*">*</button>
+        <button class="softphone-key softphone-key-sm" data-dtmf="0">0</button>
+        <button class="softphone-key softphone-key-sm" data-dtmf="#">#</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Transfer View -->
+  <div id="transferView" class="softphone-view" style="display:none;">
+    <div class="softphone-transfer-header">
+      <button class="btn btn-sm btn-link text-muted p-0" id="transferBack">
+        <i class="ti ti-arrow-left"></i> Back
+      </button>
+      <span>Transfer Call</span>
+    </div>
+    <div class="softphone-input-group mt-2">
+      <input type="text"
+             id="transferInput"
+             class="softphone-dial-input"
+             placeholder="Extension or number..."
+             autocomplete="off">
+    </div>
+    <div class="softphone-dial-actions mt-3">
+      <button class="btn btn-primary btn-sm" id="transferConfirmBtn">
+        <i class="ti ti-transfer me-1"></i> Transfer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Audio elements for ringtones and media -->
+<audio id="softphoneRemoteAudio" autoplay></audio>
+<audio id="softphoneRingtone" loop preload="auto">
+  <!-- Default browser ringtone via Web Audio API if no file -->
+</audio>

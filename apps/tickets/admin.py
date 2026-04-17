@@ -24,6 +24,10 @@ from apps.tickets.models import (
     TicketAssignment,
     TicketCategory,
     TicketStatus,
+    TicketTemplate,
+    TicketWatcher,
+    TimeEntry,
+    Webhook,
 )
 
 
@@ -169,3 +173,38 @@ class PipelineStageAdmin(admin.ModelAdmin):
     list_filter = ["is_won", "is_lost", "pipeline"]
     search_fields = ["name", "pipeline__name"]
     ordering = ["pipeline", "order"]
+
+
+@admin.register(TicketWatcher)
+class TicketWatcherAdmin(TenantFilteredAdmin, admin.ModelAdmin):
+    list_display = ["ticket", "user", "reason", "is_muted", "created_at", "tenant"]
+    list_filter = ["reason", "is_muted", "tenant"]
+    ordering = ["-created_at"]
+    raw_id_fields = ["ticket", "user"]
+
+
+@admin.register(TimeEntry)
+class TimeEntryAdmin(TenantFilteredAdmin, admin.ModelAdmin):
+    list_display = ["ticket", "user", "duration_minutes", "is_billable", "created_at", "tenant"]
+    list_filter = ["is_billable", "tenant"]
+    search_fields = ["ticket__subject", "ticket__number", "description"]
+    ordering = ["-created_at"]
+    raw_id_fields = ["ticket", "user"]
+
+
+@admin.register(TicketTemplate)
+class TicketTemplateAdmin(TenantFilteredAdmin, admin.ModelAdmin):
+    list_display = ["name", "default_priority", "default_queue", "is_active", "usage_count", "tenant"]
+    list_filter = ["is_active", "default_priority", "tenant"]
+    search_fields = ["name", "description"]
+    ordering = ["tenant", "name"]
+    raw_id_fields = ["default_queue", "created_by"]
+
+
+@admin.register(Webhook)
+class WebhookAdmin(TenantFilteredAdmin, admin.ModelAdmin):
+    list_display = ["name", "url", "is_active", "failure_count", "last_triggered_at", "tenant"]
+    list_filter = ["is_active", "tenant"]
+    search_fields = ["name", "url"]
+    ordering = ["tenant", "name"]
+    raw_id_fields = ["created_by"]

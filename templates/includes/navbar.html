@@ -22,14 +22,50 @@
       <i class="ti ti-sun"></i>
     </button>
 
-    <!-- Availability Toggle -->
+    <!-- Availability Status Dropdown -->
     {% if user_role and user_role.hierarchy_level <= 30 %}
-    <div class="header-availability" id="availabilityToggleContainer" title="Toggle availability">
-      <span class="availability-dot" id="availabilityDot"></span>
-      <label class="availability-switch">
-        <input type="checkbox" id="availabilityToggle">
-        <span class="availability-slider"></span>
-      </label>
+    <div class="status-dropdown" id="statusDropdown">
+      <button class="status-dropdown-trigger" id="statusDropdownTrigger" type="button" title="Set your status">
+        <span class="status-dropdown-dot" id="statusDot"></span>
+        <span class="status-dropdown-label" id="statusLabel">Offline</span>
+        <i class="ti ti-chevron-down status-dropdown-chevron"></i>
+      </button>
+      <div class="status-dropdown-menu" id="statusDropdownMenu">
+        <div class="status-dropdown-header">Set your status</div>
+        <button class="status-dropdown-item" data-status="online">
+          <span class="status-dropdown-item-dot status-dropdown-item-dot--online"></span>
+          <div class="status-dropdown-item-text">
+            <span class="status-dropdown-item-label">Online</span>
+            <span class="status-dropdown-item-desc">Available to take tickets</span>
+          </div>
+          <i class="ti ti-check status-dropdown-check"></i>
+        </button>
+        <button class="status-dropdown-item" data-status="away">
+          <span class="status-dropdown-item-dot status-dropdown-item-dot--away"></span>
+          <div class="status-dropdown-item-text">
+            <span class="status-dropdown-item-label">Away</span>
+            <span class="status-dropdown-item-desc">Temporarily unavailable</span>
+          </div>
+          <i class="ti ti-check status-dropdown-check"></i>
+        </button>
+        <button class="status-dropdown-item" data-status="busy">
+          <span class="status-dropdown-item-dot status-dropdown-item-dot--busy"></span>
+          <div class="status-dropdown-item-text">
+            <span class="status-dropdown-item-label">Busy</span>
+            <span class="status-dropdown-item-desc">Do not disturb</span>
+          </div>
+          <i class="ti ti-check status-dropdown-check"></i>
+        </button>
+        <div class="status-dropdown-divider"></div>
+        <button class="status-dropdown-item" data-status="offline">
+          <span class="status-dropdown-item-dot status-dropdown-item-dot--offline"></span>
+          <div class="status-dropdown-item-text">
+            <span class="status-dropdown-item-label">Offline</span>
+            <span class="status-dropdown-item-desc">Appear offline</span>
+          </div>
+          <i class="ti ti-check status-dropdown-check"></i>
+        </button>
+      </div>
     </div>
     {% endif %}
 
@@ -78,7 +114,7 @@
 
     <!-- Notifications -->
     <div class="dropdown">
-      <button class="header-icon-btn" type="button" data-bs-toggle="dropdown" id="notifDropdown" title="Notifications" aria-expanded="false">
+      <button class="header-icon-btn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" id="notifDropdown" title="Notifications" aria-expanded="false">
         <i class="ti ti-bell"></i>
         <span class="notification-badge d-none" id="notifBadge"></span>
       </button>
@@ -99,6 +135,7 @@
             <p class="notif-empty-text">No new notifications right now.</p>
           </div>
         </div>
+        <div id="notifFooter"></div>
       </div>
     </div>
 

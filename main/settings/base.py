@@ -63,6 +63,7 @@ INSTALLED_APPS = [
     "allauth.socialaccount.providers.microsoft",
     "allauth.socialaccount.providers.openid_connect",
     "whitenoise.runserver_nostatic",
+    "anymail",
     # Project apps
     "main",
     "apps.tenants",
@@ -82,6 +83,8 @@ INSTALLED_APPS = [
     "apps.notes",
     "apps.inbound_email",
     "apps.crm",
+    "apps.newsfeed",
+    "apps.voip",
 ]
 
 MIDDLEWARE = [
@@ -303,6 +306,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "knowledge_base.send_gap_digest",
         "schedule": crontab(day_of_week="monday", hour=9, minute=0),
     },
+    "cleanup-stale-calls": {
+        "task": "apps.voip.tasks.cleanup_stale_calls",
+        "schedule": 3600.0,  # Every hour
+    },
 }
 
 # Stripe
@@ -312,24 +319,21 @@ STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
 
 # Inbound Email
 INBOUND_EMAIL_WEBHOOK_SECRET = env("INBOUND_EMAIL_WEBHOOK_SECRET", default="")
-MAILGUN_API_KEY = env("MAILGUN_API_KEY", default="")
+MAILGUN_API_KEY = env("MAILGUN_API_KEY", default="")  # For inbound webhook signature verification
 
-# Email
-# Dev: "django.core.mail.backends.filebased.EmailBackend" (saves to tmp/emails/)
-# Dev: "django.core.mail.backends.console.EmailBackend" (prints to stdout)
-# Prod: "django.core.mail.backends.smtp.EmailBackend"
+# Email (Resend via django-anymail)
+# Dev uses filebased backend; prod uses Resend (set in prod.py)
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND", default="django.core.mail.backends.filebased.EmailBackend"
 )
-# Ensure the directory exists so the filebased backend doesn't crash on first send
 EMAIL_FILE_PATH = BASE_DIR / "tmp" / "emails"
 EMAIL_FILE_PATH.mkdir(parents=True, exist_ok=True)
-EMAIL_HOST = env("EMAIL_HOST", default="localhost")
-EMAIL_PORT = env.int("EMAIL_PORT", default=587)
-EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
-EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=False)
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="support@kanzan.local")
+
+RESEND_API_KEY = env("RESEND_API_KEY", default="")
+ANYMAIL = {
+    "RESEND_API_KEY": RESEND_API_KEY,
+}
 
 # Allauth
 ACCOUNT_LOGIN_METHODS = {"email"}

@@ -90,6 +90,63 @@ def _create_ticket_activity(ticket, *, event, actor=None, message="", metadata=N
 
 
 # ---------------------------------------------------------------------------
+# Real-time ticket feed broadcast
+# ---------------------------------------------------------------------------
+
+
+def broadcast_ticket_event(ticket, event_type, extra_data=None):
+    """
+    Push a ticket event to the WebSocket feed for real-time list updates.
+
+    Called after ticket mutations (create, update, assign, close, delete).
+    Uses ``transaction.on_commit()`` to avoid broadcasting before the DB
+    transaction is committed.
+    """
+    from django.db import transaction
+
+    def _send():
+        try:
+            from asgiref.sync import async_to_sync
+            from channels.layers import get_channel_layer
+
+            channel_layer = get_channel_layer()
+            if channel_layer is None:
+                return
+
+            group_name = f"ticket_feed_{ticket.tenant_id}"
+            payload = {
+                "type": event_type,
+                "ticket_id": str(ticket.pk),
+                "ticket_number": ticket.number,
+                "subject": ticket.subject,
+                "priority": ticket.priority,
+                "status_name": ticket.status.name if ticket.status else None,
+                "status_color": ticket.status.color if ticket.status else None,
+                "is_closed": ticket.status.is_closed if ticket.status else False,
+                "assignee_id": str(ticket.assignee_id) if ticket.assignee_id else None,
+                "assignee_name": (
+                    ticket.assignee.get_full_name()
+                    if ticket.assignee else None
+                ),
+                "queue_name": ticket.queue.name if ticket.queue else None,
+            }
+            if extra_data:
+                payload.update(extra_data)
+
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {"type": "ticket_event", "payload": payload},
+            )
+        except Exception:
+            logger.exception(
+                "Failed to broadcast ticket event %s for #%s",
+                event_type, ticket.number,
+            )
+
+    transaction.on_commit(_send)
+
+
+# ---------------------------------------------------------------------------
 # Ticket creation
 # ---------------------------------------------------------------------------
 
@@ -219,6 +276,17 @@ def create_ticket_activity(ticket, actor, request=None):
         event=TicketActivity.Event.CREATED,
         message=f"Ticket created: {ticket.subject}",
     )
+
+    # 3. Real-time feed + webhooks
+    broadcast_ticket_event(ticket, "ticket_created")
+    from apps.tickets.webhook_service import fire_webhooks
+    fire_webhooks(tenant, "ticket.created", {
+        "ticket_id": str(ticket.pk),
+        "ticket_number": ticket.number,
+        "subject": ticket.subject,
+        "priority": ticket.priority,
+        "created_by": actor.email if actor else None,
+    })
 
 
 # ---------------------------------------------------------------------------
@@ -377,6 +445,19 @@ def assign_ticket(ticket, assignee, actor, request=None, note=""):
         new_name,
         actor,
     )
+
+    # Real-time feed + webhooks
+    broadcast_ticket_event(ticket, "ticket_assigned", {
+        "previous_assignee": prev_name,
+        "new_assignee": new_name,
+    })
+    from apps.tickets.webhook_service import fire_webhooks
+    fire_webhooks(ticket.tenant, "ticket.assigned", {
+        "ticket_id": str(ticket.pk),
+        "ticket_number": ticket.number,
+        "assignee": new_name,
+        "assigned_by": actor.email if actor else None,
+    })
 
     return ticket
 
@@ -710,6 +791,24 @@ def change_ticket_status(ticket, new_status, actor, request=None):
                 )
 
         transaction.on_commit(_emit_breach_signal)
+
+    # --- Real-time feed + webhooks ---
+    event_name = "ticket_closed" if (now_closed and not was_closed) else "ticket_updated"
+    broadcast_ticket_event(ticket, event_name)
+
+    webhook_event = (
+        "ticket.closed" if (now_closed and not was_closed)
+        else "ticket.reopened" if (was_closed and not now_closed)
+        else "ticket.updated"
+    )
+    from apps.tickets.webhook_service import fire_webhooks
+    fire_webhooks(tenant, webhook_event, {
+        "ticket_id": str(ticket.pk),
+        "ticket_number": ticket.number,
+        "old_status": old_status_name,
+        "new_status": new_status_name,
+        "changed_by": actor.email if actor else None,
+    })
 
     return ticket
 
