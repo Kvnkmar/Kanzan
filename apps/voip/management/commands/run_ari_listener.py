@@ -57,6 +57,7 @@ class Command(BaseCommand):
                 port=voip_settings.asterisk_ari_port,
                 username=voip_settings.ari_username,
                 password=voip_settings.ari_password,
+                use_ssl=voip_settings.asterisk_use_ssl,
             )
 
             async def make_handler(tenant_id):

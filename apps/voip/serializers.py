@@ -30,6 +30,7 @@ class VoIPSettingsSerializer(serializers.ModelSerializer):
             "id",
             "asterisk_host",
             "asterisk_ari_port",
+            "asterisk_use_ssl",
             "asterisk_wss_port",
             "ari_username",
             "ari_password",

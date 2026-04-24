@@ -37,6 +37,7 @@ class TenantSettingsSerializer(serializers.ModelSerializer):
             "business_hours_end",
             "business_days",
             "auto_transition_on_assign",
+            "auto_send_ticket_created_email",
             "primary_color",
             "accent_color",
             "logo_url",

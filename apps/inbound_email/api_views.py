@@ -56,7 +56,15 @@ class InboundEmailViewSet(ReadOnlyModelViewSet):
         if tenant is None:
             return InboundEmail.objects.none()
 
-        return InboundEmail.objects.filter(tenant=tenant).select_related("ticket")
+        qs = InboundEmail.objects.filter(tenant=tenant).select_related("ticket")
+
+        # Hide bounce DSNs from the default list so the inbox stays useful.
+        # They still live in the table (and in BounceLog) for audit; callers
+        # opt back in with ?status=bounced or ?include_bounces=true.
+        params = self.request.query_params
+        if params.get("status") or params.get("include_bounces") == "true":
+            return qs
+        return qs.exclude(status=InboundEmail.Status.BOUNCED)
 
     def get_serializer_class(self):
         if self.action == "retrieve":

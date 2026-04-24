@@ -146,3 +146,65 @@ class TenantSettingsViewSet(viewsets.GenericViewSet):
         tenant.save(update_fields=["logo"])
         logo_url = request.build_absolute_uri(tenant.logo.url)
         return Response({"logo_url": logo_url})
+
+    @action(detail=False, methods=["post"], url_path="test-email")
+    def test_email(self, request, *args, **kwargs):
+        """
+        Send a test outbound email via the configured EMAIL_BACKEND.
+
+        Lets tenant admins verify SMTP credentials without waiting for a
+        ticket event. Recipient defaults to the caller's email address.
+        Logs the send to the email log so it appears on /inbound-email/.
+        """
+        from django.conf import settings as dj_settings
+        from django.core.mail import EmailMultiAlternatives
+
+        from apps.inbound_email.services import log_outbound_email
+
+        tenant = request.tenant
+        recipient = (request.data.get("recipient") or request.user.email or "").strip()
+        if not recipient:
+            return Response(
+                {"detail": "No recipient address available."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        subject = f"[{tenant.name}] Test email from Kanzen Suite"
+        body_text = (
+            "This is a test email sent from your Kanzen Suite instance.\n\n"
+            f"Tenant: {tenant.name} ({tenant.slug})\n"
+            f"Triggered by: {request.user.email}\n"
+            f"Backend: {getattr(dj_settings, 'EMAIL_BACKEND', 'unknown')}\n"
+            f"Host: {getattr(dj_settings, 'EMAIL_HOST', '(filebased)')}\n\n"
+            "If you received this, outbound mail is working."
+        )
+
+        try:
+            email = EmailMultiAlternatives(
+                subject=subject,
+                body=body_text,
+                from_email=getattr(dj_settings, "DEFAULT_FROM_EMAIL", ""),
+                to=[recipient],
+            )
+            email.send(fail_silently=False)
+        except Exception as exc:
+            return Response(
+                {"detail": f"Send failed: {exc}"},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        log_outbound_email(
+            tenant=tenant,
+            recipient_email=recipient,
+            subject=subject,
+            body_text=body_text,
+        )
+
+        return Response(
+            {
+                "detail": "Test email dispatched.",
+                "recipient": recipient,
+                "backend": getattr(dj_settings, "EMAIL_BACKEND", ""),
+            },
+            status=status.HTTP_200_OK,
+        )

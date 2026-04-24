@@ -22,46 +22,54 @@
 <!-- Stats Cards -->
 <div class="row g-3 mb-4" id="callStatsRow">
   <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="stat-card-icon bg-primary-subtle text-primary">
-        <i class="ti ti-phone"></i>
-      </div>
-      <div class="stat-card-body">
-        <div class="stat-card-value" id="statTotal">0</div>
-        <div class="stat-card-label">Total Today</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="stat-card-icon bg-success-subtle text-success">
-        <i class="ti ti-phone-check"></i>
-      </div>
-      <div class="stat-card-body">
-        <div class="stat-card-value" id="statAnswered">0</div>
-        <div class="stat-card-label">Answered</div>
+    <div class="stat-card h-100">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon-circle bg-primary-subtle text-primary">
+          <i class="ti ti-phone"></i>
+        </div>
+        <div>
+          <div class="stat-label">Total Today</div>
+          <div class="stat-value" id="statTotal">0</div>
+        </div>
       </div>
     </div>
   </div>
   <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="stat-card-icon bg-danger-subtle text-danger">
-        <i class="ti ti-phone-x"></i>
-      </div>
-      <div class="stat-card-body">
-        <div class="stat-card-value" id="statMissed">0</div>
-        <div class="stat-card-label">Missed</div>
+    <div class="stat-card h-100">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon-circle bg-success-subtle text-success">
+          <i class="ti ti-phone-check"></i>
+        </div>
+        <div>
+          <div class="stat-label">Answered</div>
+          <div class="stat-value" id="statAnswered">0</div>
+        </div>
       </div>
     </div>
   </div>
   <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="stat-card-icon bg-info-subtle text-info">
-        <i class="ti ti-clock"></i>
+    <div class="stat-card h-100">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon-circle bg-danger-subtle text-danger">
+          <i class="ti ti-phone-x"></i>
+        </div>
+        <div>
+          <div class="stat-label">Missed</div>
+          <div class="stat-value" id="statMissed">0</div>
+        </div>
       </div>
-      <div class="stat-card-body">
-        <div class="stat-card-value" id="statDuration">0m</div>
-        <div class="stat-card-label">Total Duration</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card h-100">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon-circle bg-info-subtle text-info">
+          <i class="ti ti-clock"></i>
+        </div>
+        <div>
+          <div class="stat-label">Total Duration</div>
+          <div class="stat-value" id="statDuration">0m</div>
+        </div>
       </div>
     </div>
   </div>
@@ -70,7 +78,7 @@
 <!-- Filters -->
 <div class="tl-toolbar">
   <div class="tl-toolbar-left">
-    <div class="tl-toolbar-filter-form">
+    <div class="tl-toolbar-filters">
       <div class="tl-filter-group">
         <select class="form-select form-select-sm tl-filter-select" id="directionFilter">
           <option value="">All Directions</option>
@@ -78,6 +86,8 @@
           <option value="outbound">Outbound</option>
           <option value="internal">Internal</option>
         </select>
+      </div>
+      <div class="tl-filter-group">
         <select class="form-select form-select-sm tl-filter-select" id="statusFilter">
           <option value="">All Statuses</option>
           <option value="completed">Completed</option>
@@ -91,9 +101,9 @@
     </div>
   </div>
   <div class="tl-toolbar-right">
-    <div class="tl-search-wrap">
-      <i class="ti ti-search tl-search-icon"></i>
-      <input type="text" class="form-control form-control-sm tl-search-input"
+    <div class="tl-filter-search">
+      <i class="ti ti-search"></i>
+      <input type="text" class="form-control form-control-sm"
              id="callSearch" placeholder="Search calls...">
     </div>
   </div>
@@ -116,10 +126,10 @@
     </thead>
     <tbody id="callLogBody">
       <tr class="tl-empty-row">
-        <td colspan="8">
-          <div class="tl-empty-state">
-            <i class="ti ti-phone-off"></i>
-            <p>No calls found</p>
+        <td colspan="8" class="text-center py-5">
+          <div class="tl-empty-state d-flex flex-column align-items-center text-muted">
+            <i class="ti ti-phone-off" style="font-size: 2rem; margin-bottom: 0.5rem;"></i>
+            <p class="mb-0">No calls found</p>
           </div>
         </td>
       </tr>
@@ -221,11 +231,15 @@
       emptyRow.className = 'tl-empty-row';
       var emptyCell = document.createElement('td');
       emptyCell.colSpan = 8;
+      emptyCell.className = 'text-center py-5';
       var emptyDiv = document.createElement('div');
-      emptyDiv.className = 'tl-empty-state';
+      emptyDiv.className = 'tl-empty-state d-flex flex-column align-items-center text-muted';
       var icon = document.createElement('i');
       icon.className = 'ti ti-phone-off';
+      icon.style.fontSize = '2rem';
+      icon.style.marginBottom = '0.5rem';
       var p = document.createElement('p');
+      p.className = 'mb-0';
       p.textContent = 'No calls found';
       emptyDiv.appendChild(icon);
       emptyDiv.appendChild(p);

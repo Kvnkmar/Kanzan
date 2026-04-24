@@ -1,5 +1,5 @@
 /**
- * Kanzan — Global formatting utilities.
+ * Kanzen — Global formatting utilities.
  * Reads user preferences from localStorage (set by Settings page).
  * Used across all pages for consistent date/time display.
  */
@@ -200,10 +200,10 @@ function initNavbarScroll() {
 // Notification type config: icons, colors, friendly labels
 // -----------------------------------------------------------------------
 var NOTIF_TYPE_CONFIG = {
-  ticket_assigned:      { icon: 'ti ti-user-check',           color: '#2563EB', label: 'Assigned' },
-  ticket_updated:       { icon: 'ti ti-edit',                 color: '#3B82F6', label: 'Updated' },
-  ticket_comment:       { icon: 'ti ti-message',              color: '#2563EB', label: 'Comment' },
-  mention:              { icon: 'ti ti-at',                   color: '#8B5CF6', label: 'Mention' },
+  ticket_assigned:      { icon: 'ti ti-user-check',           color: '#DC2626', label: 'Assigned' },
+  ticket_updated:       { icon: 'ti ti-edit',                 color: '#EF4444', label: 'Updated' },
+  ticket_comment:       { icon: 'ti ti-message',              color: '#DC2626', label: 'Comment' },
+  mention:              { icon: 'ti ti-at',                   color: '#EF4444', label: 'Mention' },
   message:              { icon: 'ti ti-message',              color: '#06B6D4', label: 'Message' },
   sla_breach:           { icon: 'ti ti-alert-triangle',       color: '#EF4444', label: 'SLA Alert' },
   payment_failed:       { icon: 'ti ti-credit-card',          color: '#F59E0B', label: 'Payment' },
@@ -422,6 +422,14 @@ function initSidebarBadges() {
     knowledge: 'sidebarBadgeKnowledge',
   };
 
+  // Public pages (login, register, landing, etc.) don't render the
+  // sidebar, so the badge elements aren't in the DOM. Skip the request
+  // entirely — otherwise we'd 401 on every unauthenticated page load.
+  var hasAnyBadge = Object.values(badgeMap).some(function(id) {
+    return document.getElementById(id);
+  });
+  if (!hasAnyBadge) return;
+
   Api.get('/api/v1/nav/badge-counts/').then(function(data) {
     if (!data) return;
     Object.keys(badgeMap).forEach(function(key) {
@@ -452,7 +460,7 @@ const Toast = {
     success: '#10B981',
     danger:  '#EF4444',
     warning: '#F59E0B',
-    info:    '#2563EB',
+    info:    '#DC2626',
   },
 
   show(message, type = 'success', duration = 4500) {

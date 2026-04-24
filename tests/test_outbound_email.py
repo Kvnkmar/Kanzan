@@ -126,13 +126,14 @@ class TicketReplyEmailTest(TenantTestCase):
         self.assertIn("[#1]", html_content)
         self.assertIn("Login issue", html_content)
 
-    def test_from_address_includes_tenant_name(self):
-        """From address uses tenant name as display name."""
+    def test_from_address_includes_agent_name(self):
+        """Reply emails show the agent's name as the From display name."""
         send_ticket_reply_email(
             self.ticket, "Test.", "Admin A", self.tenant_a,
         )
         email = mail.outbox[0]
-        self.assertIn(self.tenant_a.name, email.from_email)
+        self.assertIn("Admin A", email.from_email)
+        self.assertIn("noreply@kanzan.test", email.from_email)
 
 
 @override_settings(

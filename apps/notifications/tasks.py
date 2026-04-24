@@ -57,12 +57,48 @@ def send_notification_email(self, notification_id):
         )
         return
 
-    subject = f"[{notification.tenant.name}] {notification.title}"
+    # Skip addresses we know will bounce (seeded *.local accounts, RFC 2606
+    # test domains, etc.). These would just round-trip through our own
+    # inbox as DSNs, wasting retries and cluttering the bounce log.
+    from apps.notifications.utils import is_undeliverable_email
+
+    if is_undeliverable_email(recipient.email):
+        logger.info(
+            "Skipping notification %s: recipient %s has an undeliverable address (%s).",
+            notification_id, recipient.id, recipient.email,
+        )
+        return
+
+    # Resolve the ticket (if any) so we can link the outbound record and
+    # build an absolute CTA URL for the email body. ``notification.data``
+    # stores ``ticket_id`` for all ticket-related notification types.
+    ticket = None
+    ticket_id = (notification.data or {}).get("ticket_id")
+    if ticket_id:
+        from apps.tickets.models import Ticket
+
+        ticket = Ticket.unscoped.filter(
+            pk=ticket_id, tenant=notification.tenant,
+        ).first()
+
+    ticket_number = ticket.number if ticket else None
+    if ticket_number is not None:
+        subject = (
+            f"[{notification.tenant.name} #{ticket_number}] {notification.title}"
+        )
+    else:
+        subject = f"[{notification.tenant.name}] {notification.title}"
+
+    absolute_url = _absolute_url(
+        notification.tenant, (notification.data or {}).get("url", ""),
+    )
 
     context = {
         "notification": notification,
         "recipient": recipient,
         "tenant": notification.tenant,
+        "ticket": ticket,
+        "cta_url": absolute_url,
     }
 
     # Use dedicated templates for specific notification types.
@@ -114,6 +150,52 @@ def send_notification_email(self, notification_id):
             recipient.email,
         )
         raise self.retry(exc=exc)
+
+    # Log the send to the email log so it shows up on /inbound-email/.
+    # Pass ``ticket`` so the inbox shows the linked ticket badge instead
+    # of "Unlinked" for ticket-related notifications.
+    try:
+        from apps.inbound_email.services import log_outbound_email
+
+        log_outbound_email(
+            tenant=notification.tenant,
+            recipient_email=recipient.email,
+            subject=subject,
+            body_text=plain_body or "",
+            ticket=ticket,
+        )
+    except Exception:
+        logger.exception(
+            "Failed to record outbound log for notification %s", notification_id,
+        )
+
+
+def _absolute_url(tenant, path):
+    """
+    Resolve a relative path like ``/tickets/93`` into a full URL using the
+    tenant's domain (or ``{slug}.{BASE_DOMAIN}`` fallback). Returns an empty
+    string when ``path`` is empty; returns ``path`` unchanged if it already
+    looks absolute.
+    """
+    if not path:
+        return ""
+    if path.startswith("http://") or path.startswith("https://"):
+        return path
+
+    base_domain = getattr(settings, "BASE_DOMAIN", "localhost")
+    port = getattr(settings, "BASE_PORT", "8001")
+    scheme = "https" if not settings.DEBUG else "http"
+
+    if getattr(tenant, "domain", ""):
+        host = tenant.domain
+    else:
+        host = f"{tenant.slug}.{base_domain}"
+        if settings.DEBUG and port:
+            host = f"{host}:{port}"
+
+    if not path.startswith("/"):
+        path = "/" + path
+    return f"{scheme}://{host}{path}"
 
 
 @shared_task(

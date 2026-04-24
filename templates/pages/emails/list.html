@@ -66,7 +66,7 @@
         All <span class="tl-tab-count" id="emailCountAll">0</span>
       </button>
       <button class="tl-stat-tab" data-filter="reply_added">
-        <span class="tl-tab-dot" style="background:#3B82F6"></span>
+        <span class="tl-tab-dot" style="background:#EF4444"></span>
         Replies <span class="tl-tab-count" id="emailCountReplies">0</span>
       </button>
       <button class="tl-stat-tab" data-filter="ticket_created">
@@ -358,7 +358,7 @@
     return Kanzan.formatDateTime(d);
   }
 
-  var COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  var COLORS = ['#DC2626','#B91C1C','#DC2626','#0891B2','#22C55E','#F59E0B','#F87171','#EC4899','#A5B4FC','#14B8A6'];
   function avatarColor(name) {
     if (!name) return COLORS[0];
     for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);

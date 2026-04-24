@@ -106,21 +106,21 @@ span.flatpickr-weekday {
   color: #111827;
 }
 .flatpickr-day.today {
-  border-color: #2563EB;
+  border-color: #DC2626;
   background: transparent;
-  color: #2563EB;
+  color: #DC2626;
   font-weight: 700;
 }
 .flatpickr-day.today:hover {
   background: #EEF2FF;
-  border-color: #2563EB;
+  border-color: #DC2626;
   color: #4338CA;
 }
 .flatpickr-day.selected,
 .flatpickr-day.selected:hover,
 .flatpickr-day.selected:focus {
-  background: #2563EB;
-  border-color: #2563EB;
+  background: #DC2626;
+  border-color: #DC2626;
   color: #fff;
   font-weight: 600;
 }
@@ -184,7 +184,7 @@ span.flatpickr-weekday {
   font-weight: 500;
 }
 .flatpickr-time .flatpickr-am-pm {
-  color: #2563EB;
+  color: #DC2626;
   font-weight: 700;
   font-size: 0.75rem;
   border-radius: 8px;
@@ -214,7 +214,7 @@ span.flatpickr-weekday {
   font-weight: 600;
   font-family: 'Inter', sans-serif;
   color: #fff;
-  background: #2563EB;
+  background: #DC2626;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -240,10 +240,10 @@ span.flatpickr-weekday {
 [data-bs-theme="dark"] span.flatpickr-weekday { color: #6B7280; }
 [data-bs-theme="dark"] .flatpickr-day { color: #D1D5DB; }
 [data-bs-theme="dark"] .flatpickr-day:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.08); color: #F9FAFB; }
-[data-bs-theme="dark"] .flatpickr-day.today { border-color: var(--crm-primary, #2563EB); color: var(--crm-primary, #2563EB); }
+[data-bs-theme="dark"] .flatpickr-day.today { border-color: var(--crm-primary, #DC2626); color: var(--crm-primary, #DC2626); }
 [data-bs-theme="dark"] .flatpickr-day.today:hover { background: rgba(99,102,241,0.12); }
 [data-bs-theme="dark"] .flatpickr-day.selected,
-[data-bs-theme="dark"] .flatpickr-day.selected:hover { background: var(--crm-primary, #2563EB); border-color: var(--crm-primary, #2563EB); color: #fff; }
+[data-bs-theme="dark"] .flatpickr-day.selected:hover { background: var(--crm-primary, #DC2626); border-color: var(--crm-primary, #DC2626); color: #fff; }
 [data-bs-theme="dark"] .flatpickr-day.prevMonthDay,
 [data-bs-theme="dark"] .flatpickr-day.nextMonthDay { color: #4B5563; }
 [data-bs-theme="dark"] .flatpickr-time { background: #111827; border-top-color: rgba(255,255,255,0.08); }
@@ -254,7 +254,7 @@ span.flatpickr-weekday {
 [data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm { color: #D1D5DB; }
 [data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm:hover { background: rgba(255,255,255,0.06); color: #F9FAFB; }
 [data-bs-theme="dark"] .flatpickr-confirm { background: #111827; border-top-color: rgba(255,255,255,0.08); }
-[data-bs-theme="dark"] .flatpickr-confirm-btn { background: var(--crm-primary, #2563EB); color: #fff; }
+[data-bs-theme="dark"] .flatpickr-confirm-btn { background: var(--crm-primary, #DC2626); color: #fff; }
 </style>
 {% endblock %}
 
@@ -458,9 +458,12 @@ span.flatpickr-weekday {
 
           <!-- Email Actions Bar -->
           <div class="td-composer" style="padding: 0.5rem 1rem;">
-            <div class="d-flex align-items-center gap-2 w-100">
+            <div class="d-flex align-items-center gap-2 w-100 flex-wrap">
               <button type="button" id="newEmailBtn" class="td-post-btn" title="Compose a new email">
                 <i class="ti ti-mail-forward me-1" aria-hidden="true"></i>New Email
+              </button>
+              <button type="button" id="sendCreationEmailBtn" class="btn btn-sm btn-outline-primary" title="Send the ticket confirmation email to the contact">
+                <i class="ti ti-mail-check me-1" aria-hidden="true"></i>Send confirmation email
               </button>
               <button type="button" id="linkEmailBtn" class="btn btn-sm btn-outline-secondary" title="Link an existing email to this ticket">
                 <i class="ti ti-link me-1" aria-hidden="true"></i>Link Email
@@ -1048,7 +1051,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
   var AUTOSAVE_DEBOUNCE_MS = 600;
   var CONTACT_SEARCH_DEBOUNCE_MS = 300;
   var MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
-  var AVATAR_COLORS = ['#2563EB','#2563EB','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  var AVATAR_COLORS = ['#DC2626','#DC2626','#DC2626','#0891B2','#22C55E','#F59E0B','#F87171','#EC4899','#A5B4FC','#14B8A6'];
   var SLA_ICON_FONT_SIZE = '0.625rem';
 
   /* ── State ── */
@@ -2564,6 +2567,22 @@ window.dispatchEvent(new Event('tiptap-ready'));
   /* New Email button */
   document.getElementById('newEmailBtn').addEventListener('click', function() { openNewEmail(); });
 
+  /* Send confirmation email button — manual equivalent of the auto ticket-created email */
+  document.getElementById('sendCreationEmailBtn').addEventListener('click', function() {
+    if (!ticketId) return;
+    var btn = this;
+    if (!confirm('Send the ticket confirmation email to the contact?')) return;
+    btn.disabled = true;
+    Api.post('/api/v1/tickets/tickets/' + ticketId + '/send-creation-email/', {})
+      .then(function(resp) {
+        Toast.success('Confirmation email queued to ' + (resp && resp.recipient || 'the contact'));
+      })
+      .catch(function(err) {
+        Toast.error(err && err.detail ? err.detail : 'Failed to queue confirmation email');
+      })
+      .finally(function() { btn.disabled = false; });
+  });
+
   /* Close composer */
   document.getElementById('emailComposerClose').addEventListener('click', function() {
     dom.emailComposerWrap.classList.add('d-none');
@@ -3340,7 +3359,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
   /* ============================================================
      Contact Detail Slide Panel
      ============================================================ */
-  var CPANEL_AVATAR_COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  var CPANEL_AVATAR_COLORS = ['#DC2626','#B91C1C','#DC2626','#0891B2','#22C55E','#F59E0B','#F87171','#EC4899','#A5B4FC','#14B8A6'];
   function cpAvatarColor(name) { if (!name) return CPANEL_AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return CPANEL_AVATAR_COLORS[Math.abs(h) % CPANEL_AVATAR_COLORS.length]; }
 
   window.TicketContactPanel = {

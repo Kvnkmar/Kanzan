@@ -40,7 +40,11 @@ class VoIPSettings(TenantScopedModel):
     )
     asterisk_ari_port = models.PositiveIntegerField(
         default=8088,
-        help_text="Asterisk ARI HTTP port.",
+        help_text="Asterisk ARI HTTP port (8088 for HTTP, 8089 for HTTPS).",
+    )
+    asterisk_use_ssl = models.BooleanField(
+        default=False,
+        help_text="Use HTTPS/WSS for ARI connection (required if FreePBX has SSL enabled).",
     )
     asterisk_wss_port = models.PositiveIntegerField(
         default=8089,

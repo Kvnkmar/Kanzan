@@ -1065,6 +1065,63 @@ class TicketViewSet(ModelViewSet):
             status=status.HTTP_202_ACCEPTED,
         )
 
+    @action(detail=True, methods=["post"], url_path="send-creation-email")
+    def send_creation_email(self, request, pk=None):
+        """
+        Manually send the ticket-created confirmation email to the contact.
+
+        Intended for tenants that have disabled auto-send
+        (``TenantSettings.auto_send_ticket_created_email = False``); the
+        agent reviews the ticket and then clicks "Send confirmation email"
+        on the ticket page to mail the contact.
+
+        Also works when auto-send is on — useful for re-sending if the
+        contact says they didn't receive the original.
+
+        POST /api/v1/tickets/tickets/{id}/send-creation-email/
+        """
+        ticket = self.get_object()
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            return Response(
+                {"detail": "Tenant context required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        contact = getattr(ticket, "contact", None)
+        if contact is None or not getattr(contact, "email", None):
+            return Response(
+                {"detail": "Ticket has no contact email to send to."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from apps.tickets.tasks import send_ticket_created_email_task
+
+        send_ticket_created_email_task.delay(str(ticket.pk), str(tenant.pk))
+
+        from apps.tickets.models import TicketActivity as TA
+
+        TA.objects.create(
+            tenant=tenant, ticket=ticket, actor=request.user,
+            event=TA.Event.COMMENTED,
+            message=f"Confirmation email queued to {contact.email}",
+        )
+        log_activity(
+            tenant=tenant, actor=request.user, content_object=ticket,
+            action=ActivityLog.Action.FIELD_CHANGED,
+            description=f"Manually sent ticket confirmation email to {contact.email}",
+            request=request,
+        )
+
+        logger.info(
+            "Agent %s triggered manual confirmation email for ticket #%d (to=%s)",
+            request.user.email, ticket.number, contact.email,
+        )
+        return Response(
+            {"detail": "Confirmation email queued for delivery.", "recipient": contact.email},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
     @action(detail=True, methods=["post"], url_path="link-email")
     def link_email(self, request, pk=None):
         """

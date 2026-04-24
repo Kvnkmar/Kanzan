@@ -23,8 +23,8 @@ class InboundEmail(TimestampedModel):
     """
     Email record for both inbound and outbound messages.
 
-    Inbound records store the original email data from webhook providers
-    (SendGrid, Mailgun, etc.) and track processing state.
+    Inbound records store the original email data received by the
+    in-process SMTP server and track processing state.
 
     Outbound records store Message-ID references so that customer replies
     can be threaded back to the originating ticket. These are created by
@@ -94,7 +94,7 @@ class InboundEmail(TimestampedModel):
     sender_email = models.EmailField(db_index=True)
     sender_name = models.CharField(max_length=255, blank=True, default="")
     recipient_email = models.EmailField(
-        help_text="The address this email was sent to (e.g. support@tenant.kanzan.io).",
+        help_text="The address this email was sent to (e.g. support@tenant.kanzen.io).",
     )
     subject = models.CharField(max_length=998, blank=True, default="")
     body_text = models.TextField(blank=True, default="")
@@ -304,3 +304,36 @@ class BounceLog(TimestampedModel):
 
     def __str__(self):
         return f"Bounce from {self.from_address}: {self.subject[:50]}"
+
+
+class IMAPPollState(TimestampedModel):
+    """
+    Tracks the last IMAP UID the poller has processed, per mailbox.
+
+    Previously the poller only fetched UNSEEN messages — but Gmail
+    marks a message as ``\\Seen`` the moment a user opens it in the
+    web UI, which caused the poller to silently skip real incoming
+    email (the user checks "did it arrive?" in Gmail, Gmail marks it
+    seen, next poll sees nothing to do, ticket never gets created).
+
+    With a UID watermark, the poller fetches everything with
+    ``UID > last_uid`` regardless of read state. Duplicates are
+    rejected downstream via ``InboundEmail.message_id`` uniqueness.
+
+    UIDVALIDITY is also tracked: if the mailbox is reset (UIDs can
+    be re-issued from 1), we detect the change and start fresh.
+    """
+
+    host = models.CharField(max_length=255)
+    user = models.CharField(max_length=255)
+    mailbox = models.CharField(max_length=255, default="INBOX")
+    uid_validity = models.BigIntegerField(default=0)
+    last_uid = models.BigIntegerField(default=0)
+
+    class Meta:
+        unique_together = [("host", "user", "mailbox")]
+        verbose_name = "IMAP poll state"
+        verbose_name_plural = "IMAP poll state"
+
+    def __str__(self):
+        return f"{self.user}@{self.host}/{self.mailbox} last_uid={self.last_uid}"

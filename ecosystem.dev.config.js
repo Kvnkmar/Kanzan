@@ -1,5 +1,5 @@
 /**
- * Kanzen Suite — Development PM2 Configuration
+ * Kanzen — Development PM2 Configuration
  *
  * Uses Django runserver (auto-reload on Python changes) and
  * Celery worker with watchdog-based autoreload.
@@ -9,7 +9,7 @@
  * Or use: make dev / make dev-stop
  */
 
-const PROJECT_ROOT = "/home/kavin/Kanzan";
+const PROJECT_ROOT = "/home/kavin/Kanzen";
 const VENV_BIN = `${PROJECT_ROOT}/env/bin`;
 
 const COMMON_CONFIG = {

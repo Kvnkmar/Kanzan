@@ -6,7 +6,6 @@ Covers:
 - Ticket number extraction from subject
 - Quote stripping
 - Full email processing pipeline
-- SendGrid webhook endpoint
 """
 
 import pytest
@@ -118,27 +117,3 @@ class TestProcessInboundEmail:
 
         inbound.refresh_from_db()
         assert inbound.status == "rejected"
-
-
-@pytest.mark.django_db
-class TestSendGridWebhook:
-    def test_rejects_without_secret(self, client):
-        resp = client.post(
-            "/inbound/email/sendgrid/",
-            data={"from": "test@example.com", "subject": "Test"},
-        )
-        assert resp.status_code == 403
-
-    def test_accepts_with_valid_secret(self, client, settings):
-        settings.INBOUND_EMAIL_WEBHOOK_SECRET = "testsecret123"
-        resp = client.post(
-            "/inbound/email/sendgrid/?secret=testsecret123",
-            data={
-                "from": "Test User <test@example.com>",
-                "to": "support+demo@kanzan.io",
-                "subject": "Test email",
-                "text": "Hello world",
-                "headers": "",
-            },
-        )
-        assert resp.status_code == 200

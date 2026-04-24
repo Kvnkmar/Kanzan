@@ -1,5 +1,5 @@
 /**
- * Global keyboard shortcuts for the Kanzan ticketing system.
+ * Global keyboard shortcuts for the Kanzen ticketing system.
  *
  * Shortcuts:
  *   Navigation:
@@ -298,9 +298,9 @@
     var style = document.createElement('style');
     style.textContent = [
         '.keyboard-selected {',
-        '    outline: 2px solid var(--accent-color, #2563EB) !important;',
+        '    outline: 2px solid var(--accent-color, #DC2626) !important;',
         '    outline-offset: -2px;',
-        '    background-color: rgba(37, 99, 235, 0.05) !important;',
+        '    background-color: rgba(220, 38, 38, 0.05) !important;',
         '}',
         '.shortcuts-list { margin: 0; }',
         '.shortcuts-list dt { float: left; clear: left; width: 100px; font-weight: normal; }',

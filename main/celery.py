@@ -1,5 +1,5 @@
 """
-Celery application configuration for Kanzen Suite.
+Celery application configuration for Kanzen.
 
 Uses Redis db4 as broker, django-db as result backend.
 All queues are prefixed with 'kanzan_' to avoid conflicts
@@ -16,7 +16,7 @@ app = Celery("kanzan")
 app.config_from_object("django.conf:settings", namespace="CELERY")
 app.autodiscover_tasks()
 
-# Route tasks to Kanzan-specific queues
+# Route tasks to Kanzen-specific queues
 app.conf.task_routes = {
     "apps.billing.tasks.*": {"queue": "kanzan_webhooks"},
     "apps.notifications.tasks.send_email_*": {"queue": "kanzan_email"},

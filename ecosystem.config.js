@@ -1,5 +1,5 @@
 /**
- * Kanzen Suite - PM2 Process Manager Configuration
+ * Kanzen - PM2 Process Manager Configuration
  *
  * Port allocation (avoids conflicts with Tempest on port 8000):
  *   ASGI server: Unix socket /tmp/kanzan.sock (Nginx proxies 8001 here)
@@ -8,7 +8,7 @@
  *   Flower: port 5556 (Tempest uses 5555)
  */
 
-const PROJECT_ROOT = "/home/kavin/Kanzan";
+const PROJECT_ROOT = "/home/kavin/Kanzen";
 const VENV_BIN = `${PROJECT_ROOT}/.venv/bin`;
 
 const COMMON_CONFIG = {
@@ -80,6 +80,19 @@ module.exports = {
       error_file: `${PROJECT_ROOT}/logs/flower-error.log`,
       out_file: `${PROJECT_ROOT}/logs/flower-out.log`,
       env: { ...BASE_ENV, C_FORCE_ROOT: "true" },
+    },
+
+    {
+      name: "kanzan-smtp",
+      script: `${VENV_BIN}/python`,
+      args: "manage.py run_smtp_server",
+      interpreter: "none",
+      ...COMMON_CONFIG,
+      max_memory_restart: "512M",
+      kill_timeout: 8000,
+      error_file: `${PROJECT_ROOT}/logs/smtp-error.log`,
+      out_file: `${PROJECT_ROOT}/logs/smtp-out.log`,
+      env: BASE_ENV,
     },
   ],
 };

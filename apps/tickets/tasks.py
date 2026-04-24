@@ -900,7 +900,7 @@ def send_csat_survey_email(self, ticket_id, tenant_id):
             )
 
             from_email = getattr(
-                django_settings, "DEFAULT_FROM_EMAIL", "noreply@kanzan.io",
+                django_settings, "DEFAULT_FROM_EMAIL", "noreply@kanzen.io",
             )
 
             send_mail(

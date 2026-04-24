@@ -35,4 +35,10 @@ urlpatterns = [
         ),
         name="tenant-settings-logo",
     ),
+    # Send a test outbound email (admins only).
+    path(
+        "settings/test-email/",
+        TenantSettingsViewSet.as_view({"post": "test_email"}),
+        name="tenant-settings-test-email",
+    ),
 ]

@@ -6,7 +6,7 @@ Hi {{ recipient.first_name|default:recipient.email }},
 {% if notification.body %}
 {{ notification.body }}
 {% endif %}
-{% if notification.data.url %}View details: {{ notification.data.url }}{% endif %}
+{% if cta_url %}View details: {{ cta_url }}{% elif notification.data.url %}View details: {{ notification.data.url }}{% endif %}
 
 ---
 You received this because notifications are enabled for your account at {{ tenant.name }}.

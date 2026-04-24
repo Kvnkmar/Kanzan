@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Set up your workspace - Kanzen Suite{% endblock %}
+
+{% block fullpage %}
+<div class="auth-wrapper">
+  <div class="auth-form-panel">
+    <div class="auth-form-container">
+      <a href="{% url 'frontend:landing' %}" class="auth-logo">
+        <div class="auth-logo-icon"><i class="ti ti-hexagon-filled"></i></div>
+        <span>Kanzen Suite</span>
+      </a>
+
+      <h1 class="auth-title">Name your workspace</h1>
+      <p class="text-muted">This is the home for your team in Kanzen Suite.</p>
+
+      {% if error %}
+      <div class="alert alert-danger alert-sm d-flex align-items-center mt-3" role="alert">
+        <i class="ti ti-alert-circle me-2"></i>
+        {{ error }}
+      </div>
+      {% endif %}
+
+      <form method="post" autocomplete="off" class="mt-4">
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label for="name" class="form-label fw-medium">Company name</label>
+          <input type="text" name="name" class="form-control auth-input" id="name"
+                 value="{{ name }}" placeholder="Acme Inc." required autofocus maxlength="255">
+        </div>
+
+        <div class="mb-4">
+          <label for="slug" class="form-label fw-medium">Workspace URL</label>
+          <div class="input-group">
+            <span class="input-group-text">http://</span>
+            <input type="text" name="slug" class="form-control auth-input" id="slug"
+                   value="{{ slug }}" placeholder="acme"
+                   pattern="[a-z0-9][a-z0-9-]{1,62}" maxlength="63" required>
+            <span class="input-group-text">.{{ BASE_URL|slice:"7:" }}</span>
+          </div>
+          <div class="form-text">
+            Lowercase letters, numbers, and dashes. 2–63 characters.
+          </div>
+        </div>
+
+        <button type="submit" class="btn auth-btn-signin w-100">
+          Create workspace
+        </button>
+      </form>
+
+      <div class="auth-footer-links mt-3">
+        <p>Signed in as <strong>{{ request.user.email }}</strong>.
+          <a href="{% url 'frontend:logout' %}">Sign out</a></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="auth-hero">
+    <div class="auth-hero-decoration">
+      <div class="auth-geo-hexagon"></div>
+      <div class="auth-geo-line auth-geo-line-1"></div>
+      <div class="auth-geo-line auth-geo-line-2"></div>
+      <div class="auth-geo-dots"></div>
+      <div class="auth-geo-glow"></div>
+    </div>
+    <div class="auth-hero-content">
+      <div class="auth-brand-large">
+        <i class="ti ti-hexagon-filled"></i>
+        <span>Kanzen Suite</span>
+      </div>
+      <h2>One last step.</h2>
+      <p class="auth-hero-desc">
+        Pick a name and a URL for your workspace — this is where your team
+        will sign in, manage tickets, and collaborate every day.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  // Auto-derive slug from company name until the user edits it manually.
+  var nameEl = document.getElementById('name');
+  var slugEl = document.getElementById('slug');
+  var slugDirty = slugEl.value.length > 0;
+  slugEl.addEventListener('input', function() { slugDirty = true; });
+  nameEl.addEventListener('input', function() {
+    if (slugDirty) return;
+    slugEl.value = nameEl.value
+      .toLowerCase()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .trim()
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .slice(0, 63);
+  });
+})();
+</script>
+{% endblock %}

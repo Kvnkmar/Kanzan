@@ -12,8 +12,9 @@ SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
-# Use Resend HTTP API in production (via django-anymail)
-EMAIL_BACKEND = "anymail.backends.resend.EmailBackend"
+# Use SMTP for outbound email. Host/port/auth come from env (EMAIL_HOST,
+# EMAIL_PORT, EMAIL_HOST_USER, EMAIL_HOST_PASSWORD, EMAIL_USE_TLS).
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
 # Use compressed static file storage
 STORAGES = {

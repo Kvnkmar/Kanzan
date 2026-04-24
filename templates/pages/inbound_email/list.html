@@ -1,18 +1,23 @@
 {% extends "base.html" %}
-{% block title %}Inbound Email - Kanzen Suite{% endblock %}
+{% block title %}Email Log - Kanzen Suite{% endblock %}
 
 {% block content %}
 <!-- Page Header -->
-<div class="page-header">
+<div class="page-header d-flex justify-content-between align-items-start flex-wrap gap-2">
   <div>
-    <h1 class="page-title">Inbound Email</h1>
-    <p class="page-subtitle">Monitor email-to-ticket processing</p>
+    <h1 class="page-title">Email Log</h1>
+    <p class="page-subtitle">Monitor inbound delivery and outbound sends</p>
   </div>
+  {% if is_admin_or_manager %}
+  <button class="btn btn-sm btn-outline-primary" id="sendTestEmailBtn" type="button">
+    <i class="ti ti-send me-1"></i> Send test email
+  </button>
+  {% endif %}
 </div>
 
 <!-- Stats -->
 <div class="row g-3 mb-4" id="emailStats">
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-2">
     <div class="stat-card">
       <div class="stat-card-inner">
         <div class="stat-card-label">Total</div>
@@ -21,7 +26,7 @@
       <div class="stat-card-accent" style="background: var(--bs-primary);"></div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-2">
     <div class="stat-card">
       <div class="stat-card-inner">
         <div class="stat-card-label">Tickets Created</div>
@@ -30,16 +35,25 @@
       <div class="stat-card-accent" style="background: #10B981;"></div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-2">
     <div class="stat-card">
       <div class="stat-card-inner">
         <div class="stat-card-label">Replies Added</div>
         <div class="stat-card-value" id="statReplies">--</div>
       </div>
-      <div class="stat-card-accent" style="background: #3B82F6;"></div>
+      <div class="stat-card-accent" style="background: #EF4444;"></div>
     </div>
   </div>
-  <div class="col-6 col-md-3">
+  <div class="col-6 col-md-2">
+    <div class="stat-card">
+      <div class="stat-card-inner">
+        <div class="stat-card-label">Sent</div>
+        <div class="stat-card-value" id="statSent">--</div>
+      </div>
+      <div class="stat-card-accent" style="background: #DC2626;"></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-2">
     <div class="stat-card">
       <div class="stat-card-inner">
         <div class="stat-card-label">Failed / Rejected</div>
@@ -55,6 +69,14 @@
   <div class="tl-toolbar-left">
     <div class="tl-toolbar-filters">
       <div class="tl-filter-group">
+        <label for="filterDirection" class="visually-hidden">Direction</label>
+        <select id="filterDirection" class="form-select form-select-sm tl-filter-select">
+          <option value="">All Directions</option>
+          <option value="inbound">Inbound</option>
+          <option value="outbound">Outbound (Sent)</option>
+        </select>
+      </div>
+      <div class="tl-filter-group">
         <label for="filterStatus" class="visually-hidden">Status</label>
         <select id="filterStatus" class="form-select form-select-sm tl-filter-select">
           <option value="">All Statuses</option>
@@ -62,7 +84,9 @@
           <option value="processing">Processing</option>
           <option value="ticket_created">Ticket Created</option>
           <option value="reply_added">Reply Added</option>
+          <option value="sent">Sent</option>
           <option value="rejected">Rejected</option>
+          <option value="bounced">Bounced</option>
           <option value="failed">Failed</option>
         </select>
       </div>
@@ -79,11 +103,12 @@
 
 <!-- Table Header -->
 <div class="tl-table-header">
-  <div class="tl-col" style="flex:2;">Sender</div>
+  <div class="tl-col" style="flex:0.5;">Dir</div>
+  <div class="tl-col" style="flex:2;">From / To</div>
   <div class="tl-col" style="flex:3;">Subject</div>
   <div class="tl-col" style="flex:1.5;">Status</div>
   <div class="tl-col" style="flex:2;">Linked Ticket</div>
-  <div class="tl-col" style="flex:1.5;">Received</div>
+  <div class="tl-col" style="flex:1.5;">Time</div>
 </div>
 
 <!-- Email List -->
@@ -98,8 +123,8 @@
 <div id="emptyState" class="d-none">
   <div class="tl-empty">
     <div class="tl-empty-icon"><i class="ti ti-mail-off" aria-hidden="true"></i></div>
-    <h5 class="tl-empty-title">No inbound emails</h5>
-    <p class="tl-empty-text">Emails sent to your inbound address will appear here once processed.</p>
+    <h5 class="tl-empty-title">No emails yet</h5>
+    <p class="tl-empty-text">Inbound deliveries and outbound sends will appear here.</p>
   </div>
 </div>
 
@@ -141,10 +166,12 @@
 
   var STATUS_STYLES = {
     pending:        { bg: '#F59E0B1A', color: '#F59E0B', border: '#F59E0B33', label: 'Pending' },
-    processing:     { bg: '#3B82F61A', color: '#3B82F6', border: '#3B82F633', label: 'Processing' },
+    processing:     { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', label: 'Processing' },
     ticket_created: { bg: '#10B9811A', color: '#10B981', border: '#10B98133', label: 'Ticket Created' },
-    reply_added:    { bg: '#6366F11A', color: '#6366F1', border: '#6366F133', label: 'Reply Added' },
+    reply_added:    { bg: '#DC26261A', color: '#DC2626', border: '#DC262633', label: 'Reply Added' },
+    sent:           { bg: '#DC26261A', color: '#DC2626', border: '#DC262633', label: 'Sent' },
     rejected:       { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', label: 'Rejected' },
+    bounced:        { bg: '#DC26261A', color: '#DC2626', border: '#DC262633', label: 'Bounced' },
     failed:         { bg: '#DC26261A', color: '#DC2626', border: '#DC262633', label: 'Failed' }
   };
 
@@ -152,6 +179,7 @@
     emailList: document.getElementById('emailList'),
     emptyState: document.getElementById('emptyState'),
     filterStatus: document.getElementById('filterStatus'),
+    filterDirection: document.getElementById('filterDirection'),
     filterSearch: document.getElementById('filterSearch'),
     paginationNav: document.getElementById('paginationNav'),
     paginationInfo: document.getElementById('paginationInfo'),
@@ -159,6 +187,7 @@
     statTotal: document.getElementById('statTotal'),
     statCreated: document.getElementById('statCreated'),
     statReplies: document.getElementById('statReplies'),
+    statSent: document.getElementById('statSent'),
     statFailed: document.getElementById('statFailed')
   };
 
@@ -170,6 +199,8 @@
     params.set('page_size', PAGE_SIZE);
     var s = dom.filterStatus.value;
     if (s) params.set('status', s);
+    var d = dom.filterDirection.value;
+    if (d) params.set('direction', d);
     var q = dom.filterSearch.value.trim();
     if (q) params.set('search', q);
     return params.toString();
@@ -187,17 +218,21 @@
   }
 
   function loadStats() {
+    var empty = function() { return { count: 0 }; };
     Promise.all([
-      Api.get('/api/v1/inbound-email/?page_size=1'),
-      Api.get('/api/v1/inbound-email/?status=ticket_created&page_size=1'),
-      Api.get('/api/v1/inbound-email/?status=reply_added&page_size=1'),
-      Api.get('/api/v1/inbound-email/?status=failed&page_size=1').catch(function() { return { count: 0 }; }),
-      Api.get('/api/v1/inbound-email/?status=rejected&page_size=1').catch(function() { return { count: 0 }; })
+      Api.get('/api/v1/inbound-email/?page_size=1').catch(empty),
+      Api.get('/api/v1/inbound-email/?status=ticket_created&page_size=1').catch(empty),
+      Api.get('/api/v1/inbound-email/?status=reply_added&page_size=1').catch(empty),
+      Api.get('/api/v1/inbound-email/?status=sent&page_size=1').catch(empty),
+      Api.get('/api/v1/inbound-email/?status=failed&page_size=1').catch(empty),
+      Api.get('/api/v1/inbound-email/?status=rejected&page_size=1').catch(empty),
+      Api.get('/api/v1/inbound-email/?status=bounced&page_size=1').catch(empty)
     ]).then(function(results) {
       dom.statTotal.textContent = results[0].count || 0;
       dom.statCreated.textContent = results[1].count || 0;
       dom.statReplies.textContent = results[2].count || 0;
-      dom.statFailed.textContent = (results[3].count || 0) + (results[4].count || 0);
+      dom.statSent.textContent = results[3].count || 0;
+      dom.statFailed.textContent = (results[4].count || 0) + (results[5].count || 0) + (results[6].count || 0);
     }).catch(function() {});
   }
 
@@ -217,31 +252,53 @@
     var fragment = document.createDocumentFragment();
 
     emails.forEach(function(e) {
+      var isOutbound = e.direction === 'outbound';
       var row = document.createElement('div');
       row.className = 'tl-table-row';
       row.style.cursor = 'pointer';
       row.setAttribute('role', 'listitem');
       row.addEventListener('click', function() { showDetail(e.id); });
 
-      // Sender column
+      // Direction column (arrow icon)
+      var colDir = document.createElement('div');
+      colDir.className = 'tl-col';
+      colDir.style.flex = '0.5';
+      var dirIcon = document.createElement('i');
+      if (isOutbound) {
+        dirIcon.className = 'ti ti-arrow-up-right';
+        dirIcon.style.color = '#DC2626';
+        dirIcon.title = 'Outbound (sent)';
+      } else {
+        dirIcon.className = 'ti ti-arrow-down-left';
+        dirIcon.style.color = '#10B981';
+        dirIcon.title = 'Inbound (received)';
+      }
+      colDir.appendChild(dirIcon);
+
+      // Primary address column: recipient for outbound, sender for inbound
       var colSender = document.createElement('div');
       colSender.className = 'tl-col';
       colSender.style.flex = '2';
       colSender.style.flexDirection = 'column';
       colSender.style.alignItems = 'flex-start';
       colSender.style.minWidth = '0';
-      var senderName = document.createElement('div');
-      senderName.className = 'fw-medium text-truncate';
-      senderName.style.fontSize = '0.85rem';
-      senderName.textContent = e.sender_name || e.sender_email;
-      colSender.appendChild(senderName);
-      if (e.sender_name) {
-        var senderEmail = document.createElement('div');
-        senderEmail.className = 'text-muted text-truncate';
-        senderEmail.style.fontSize = '0.75rem';
-        senderEmail.textContent = e.sender_email;
-        colSender.appendChild(senderEmail);
+      var primaryName = document.createElement('div');
+      primaryName.className = 'fw-medium text-truncate';
+      primaryName.style.fontSize = '0.85rem';
+      var secondaryLine = null;
+      if (isOutbound) {
+        primaryName.textContent = e.recipient_email || '(no recipient)';
+      } else {
+        primaryName.textContent = e.sender_name || e.sender_email;
+        if (e.sender_name) {
+          secondaryLine = document.createElement('div');
+          secondaryLine.className = 'text-muted text-truncate';
+          secondaryLine.style.fontSize = '0.75rem';
+          secondaryLine.textContent = e.sender_email;
+        }
       }
+      colSender.appendChild(primaryName);
+      if (secondaryLine) colSender.appendChild(secondaryLine);
 
       // Subject column
       var colSubject = document.createElement('div');
@@ -285,6 +342,7 @@
       dateSpan.textContent = formatDate(e.created_at);
       colDate.appendChild(dateSpan);
 
+      row.appendChild(colDir);
       row.appendChild(colSender);
       row.appendChild(colSubject);
       row.appendChild(colStatus);
@@ -403,6 +461,20 @@
       headerRow.className = 'd-flex justify-content-between align-items-start mb-2';
 
       var senderDiv = document.createElement('div');
+      var dirBadge = document.createElement('span');
+      dirBadge.className = 'badge me-2';
+      if (e.direction === 'outbound') {
+        dirBadge.textContent = 'Outbound';
+        dirBadge.style.background = '#DC26261A';
+        dirBadge.style.color = '#DC2626';
+        dirBadge.style.border = '1px solid #DC262633';
+      } else {
+        dirBadge.textContent = 'Inbound';
+        dirBadge.style.background = '#10B9811A';
+        dirBadge.style.color = '#10B981';
+        dirBadge.style.border = '1px solid #10B98133';
+      }
+      senderDiv.appendChild(dirBadge);
       var senderStrong = document.createElement('strong');
       senderStrong.textContent = e.sender_name || e.sender_email;
       senderDiv.appendChild(senderStrong);
@@ -520,6 +592,49 @@
 
   // Event listeners
   dom.filterStatus.addEventListener('change', function() { currentPage = 1; loadEmails(); });
+  dom.filterDirection.addEventListener('change', function() { currentPage = 1; loadEmails(); });
+
+  // Send test email (admins/managers only; button only renders for them)
+  var testBtn = document.getElementById('sendTestEmailBtn');
+  if (testBtn) {
+    var origChildren = Array.prototype.slice.call(testBtn.childNodes);
+
+    function setSendingLabel() {
+      testBtn.textContent = '';
+      var sp = document.createElement('span');
+      sp.className = 'spinner-border spinner-border-sm me-1';
+      testBtn.appendChild(sp);
+      testBtn.appendChild(document.createTextNode('Sending...'));
+    }
+    function restoreLabel() {
+      testBtn.textContent = '';
+      origChildren.forEach(function(n) { testBtn.appendChild(n); });
+    }
+
+    testBtn.addEventListener('click', function() {
+      var recipient = window.prompt('Send test email to:', '');
+      if (recipient === null) return;
+      recipient = recipient.trim();
+      testBtn.disabled = true;
+      setSendingLabel();
+      Api.post('/api/v1/tenants/settings/test-email/', recipient ? { recipient: recipient } : {})
+        .then(function(resp) {
+          if (window.Toast) {
+            Toast.success('Test email sent to ' + (resp.recipient || recipient || 'you'));
+          }
+          loadEmails();
+          loadStats();
+        })
+        .catch(function(err) {
+          var msg = (err && err.data && err.data.detail) || 'Send failed.';
+          if (window.Toast) { Toast.error(msg); } else { alert(msg); }
+        })
+        .finally(function() {
+          testBtn.disabled = false;
+          restoreLabel();
+        });
+    });
+  }
 
   var searchTimeout;
   dom.filterSearch.addEventListener('input', function() {

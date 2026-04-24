@@ -30,7 +30,7 @@ def deliver_webhook(webhook, payload):
     """
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": "Kanzan-Webhook/1.0",
+        "User-Agent": "Kanzen-Webhook/1.0",
         "X-Webhook-ID": str(webhook.pk),
     }
 

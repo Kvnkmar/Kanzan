@@ -16,9 +16,6 @@ STORAGES = {
     },
 }
 
-# Allow session cookies without domain restriction in dev
-SESSION_COOKIE_DOMAIN = None
-CSRF_COOKIE_DOMAIN = None
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:8001",
     "http://*.localhost:8001",

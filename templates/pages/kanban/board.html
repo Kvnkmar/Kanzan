@@ -335,8 +335,8 @@
   resourceTypeSelect.addEventListener('change', updateAutoColumnsVisibility);
   updateAutoColumnsVisibility();
 
-  var PRIORITY_COLORS = {urgent:'#EF4444',high:'#F59E0B',medium:'#3B82F6',low:'#6B7280'};
-  var AVATAR_COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  var PRIORITY_COLORS = {urgent:'#EF4444',high:'#F59E0B',medium:'#EF4444',low:'#6B7280'};
+  var AVATAR_COLORS = ['#DC2626','#B91C1C','#DC2626','#0891B2','#22C55E','#F59E0B','#F87171','#EC4899','#A5B4FC','#14B8A6'];
   function avatarColor(name) { if (!name) return AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
 
   function escapeHtml(str) {
@@ -502,7 +502,7 @@
       badgesEl.appendChild(stBadge);
     }
     if (ticket.priority) {
-      var priColors = { urgent: '#EF4444', high: '#F59E0B', medium: '#3B82F6', low: '#64748B' };
+      var priColors = { urgent: '#EF4444', high: '#F59E0B', medium: '#EF4444', low: '#64748B' };
       var prBadge = document.createElement('span');
       prBadge.className = 'badge event-detail-badge';
       prBadge.style.backgroundColor = priColors[ticket.priority] || '#64748B';

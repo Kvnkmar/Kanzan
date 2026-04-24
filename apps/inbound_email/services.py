@@ -38,6 +38,90 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
+# Outbound logging (used by notifications + any non-ticket outbound path)
+# ---------------------------------------------------------------------------
+
+
+def log_outbound_email(
+    *,
+    tenant,
+    recipient_email,
+    subject,
+    body_text="",
+    message_id=None,
+    ticket=None,
+    sender_type=None,
+):
+    """
+    Record an outbound email as an InboundEmail(direction=OUTBOUND) row.
+
+    This is the generic ``ticket``-optional logger used by notification
+    emails, test sends, and any other outbound path that isn't tied to
+    a specific ticket. Ticket-scoped ticket-reply emails have their own
+    wrapper in ``apps.tickets.email_service.record_outbound_email`` that
+    also computes a deterministic idempotency key.
+
+    Args:
+        tenant: the Tenant the email was sent from (required).
+        recipient_email: where the message was sent to.
+        subject: the subject line (``\r\n`` are stripped for safety).
+        body_text: plain-text body (optional).
+        message_id: RFC 2822 Message-ID without angle brackets.
+                    A random UUID is generated if omitted.
+        ticket: optional Ticket the email relates to.
+        sender_type: one of ``InboundEmail.SenderType`` values;
+                     defaults to ``SYSTEM``.
+
+    Returns:
+        The created ``InboundEmail`` record, or None if creation failed.
+    """
+    import uuid as _uuid
+
+    from django.conf import settings as dj_settings
+    from django.db import IntegrityError
+
+    from apps.inbound_email.utils import normalize_message_id
+
+    if tenant is None:
+        return None
+
+    if message_id is None:
+        base_domain = getattr(dj_settings, "BASE_DOMAIN", "localhost")
+        message_id = f"out-{_uuid.uuid4().hex}@{base_domain}"
+
+    safe_subject = (subject or "").replace("\r", "").replace("\n", " ")
+    default_from = getattr(dj_settings, "DEFAULT_FROM_EMAIL", "")
+
+    try:
+        return InboundEmail.objects.create(
+            tenant=tenant,
+            message_id=normalize_message_id(message_id),
+            sender_email=default_from,
+            recipient_email=recipient_email or "",
+            subject=safe_subject,
+            body_text=body_text or "",
+            direction=InboundEmail.Direction.OUTBOUND,
+            sender_type=sender_type or InboundEmail.SenderType.SYSTEM,
+            status=InboundEmail.Status.SENT,
+            ticket=ticket,
+        )
+    except IntegrityError:
+        logger.warning(
+            "Outbound log collision for message_id=%s recipient=%s",
+            message_id,
+            recipient_email,
+        )
+        return None
+    except Exception:
+        logger.exception(
+            "Failed to log outbound email to %s (subject=%r)",
+            recipient_email,
+            safe_subject,
+        )
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Tenant resolution
 # ---------------------------------------------------------------------------
 
@@ -55,14 +139,14 @@ def resolve_tenant_from_address(recipient_email):
     """
     local_part, _, domain = recipient_email.partition("@")
 
-    # Strategy 1: plus-addressing (support+acme@kanzan.io)
+    # Strategy 1: plus-addressing (support+acme@kanzen.io)
     if "+" in local_part:
         slug = local_part.split("+", 1)[1]
         tenant = Tenant.objects.filter(slug=slug, is_active=True).first()
         if tenant:
             return tenant
 
-    # Strategy 2: slug as local part (acme@inbound.kanzan.io)
+    # Strategy 2: slug as local part (acme@inbound.kanzen.io)
     tenant = Tenant.objects.filter(slug=local_part, is_active=True).first()
     if tenant:
         return tenant
@@ -316,19 +400,29 @@ def _create_ticket_from_email(inbound, tenant, contact, system_user):
         tenant.slug,
     )
 
-    # Queue confirmation email AFTER transaction commits
-    def _queue_confirmation():
-        try:
-            from apps.tickets.tasks import send_ticket_created_email_task
+    # Queue confirmation email AFTER transaction commits — but only if
+    # the tenant admin has auto-send enabled. When it's off, agents
+    # trigger the confirmation manually from the ticket page.
+    settings_obj = getattr(tenant, "settings", None)
+    if settings_obj is None or settings_obj.auto_send_ticket_created_email:
+        def _queue_confirmation():
+            try:
+                from apps.tickets.tasks import send_ticket_created_email_task
 
-            send_ticket_created_email_task.delay(str(ticket.pk), str(tenant.pk))
-        except Exception:
-            logger.exception(
-                "Failed to queue ticket created email for ticket #%d",
-                ticket.number,
-            )
+                send_ticket_created_email_task.delay(str(ticket.pk), str(tenant.pk))
+            except Exception:
+                logger.exception(
+                    "Failed to queue ticket created email for ticket #%d",
+                    ticket.number,
+                )
 
-    transaction.on_commit(_queue_confirmation)
+        transaction.on_commit(_queue_confirmation)
+    else:
+        logger.info(
+            "Auto-send disabled for tenant %s; skipping confirmation email "
+            "for ticket #%d (agent can send manually).",
+            tenant.slug, ticket.number,
+        )
     return ticket
 
 

@@ -234,7 +234,7 @@
         </div>
         <div class="fd-trends-legend">
           <span class="fd-trends-legend-item">
-            <span class="fd-trends-legend-dot" style="background:#2563EB;"></span> Today
+            <span class="fd-trends-legend-dot" style="background:#DC2626;"></span> Today
           </span>
           <span class="fd-trends-legend-item">
             <span class="fd-trends-legend-dot" style="background:#CBD5E1;"></span> Yesterday
@@ -429,7 +429,7 @@
 
   var STATUS_COLORS = {
     'Open':        '#F59E0B',
-    'In Progress': '#3B82F6',
+    'In Progress': '#EF4444',
     'Waiting':     '#F59E0B',
     'Pending':     '#F97316',
     'Resolved':    '#22C55E',
@@ -685,12 +685,12 @@
           {
             label: currentLabel,
             data: currentData,
-            borderColor: '#2563EB',
-            backgroundColor: 'rgba(37,99,235,0.08)',
+            borderColor: '#DC2626',
+            backgroundColor: 'rgba(220, 38, 38,0.08)',
             borderWidth: 2, fill: true, tension: 0.35,
             pointRadius: isDaily && labels.length > 30 ? 0 : 4,
             pointBackgroundColor: '#ffffff',
-            pointBorderColor: '#2563EB', pointBorderWidth: 2, pointHoverRadius: 6
+            pointBorderColor: '#DC2626', pointBorderWidth: 2, pointHoverRadius: 6
           },
           {
             label: prevLabel,
@@ -1509,7 +1509,7 @@
     celebration: 'confetti', incident: 'alert-triangle', general: 'news'
   };
   var CATEGORY_COLORS = {
-    announcement: '#3B82F6', update: '#8B5CF6',
+    announcement: '#EF4444', update: '#EF4444',
     celebration: '#F59E0B', incident: '#EF4444', general: '#6B7280'
   };
   var CATEGORY_LABELS = {

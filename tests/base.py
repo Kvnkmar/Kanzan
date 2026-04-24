@@ -1,5 +1,5 @@
 """
-Shared test infrastructure for Kanzan Suite.
+Shared test infrastructure for Kanzen Suites.
 
 Provides KanzenBaseTestCase which sets up two isolated tenants with users,
 roles, and memberships — the minimum scaffolding needed to test

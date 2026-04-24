@@ -150,6 +150,15 @@ class TenantSettings(TimestampedModel):
             "automatically transitions it to In Progress."
         ),
     )
+    auto_send_ticket_created_email = models.BooleanField(
+        default=True,
+        help_text=(
+            "When True, the ticket-created confirmation email is sent to the "
+            "contact automatically the moment a ticket is created from an "
+            "inbound email. When False, agents send it manually from the "
+            "ticket page (button: 'Send confirmation email')."
+        ),
+    )
 
     # --- Branding ---
     primary_color = models.CharField(

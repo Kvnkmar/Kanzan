@@ -50,14 +50,21 @@ def get_reply_to_address(tenant):
     return f"support+{tenant.slug}@{base_domain}"
 
 
-def get_from_address(tenant):
+def get_from_address(tenant, display_name=None):
     """
     Get the From address for outbound emails.
 
-    Uses the tenant name as the display name with the default from email.
+    If ``display_name`` is provided (e.g. the replying agent's name),
+    it is used as the RFC 5322 display-name so the customer sees
+    "Nihan <support@...>" instead of "{Tenant} <support@...>".
+    Falls back to "{Tenant Name} Support" when no agent is known
+    (e.g. the automated ticket-created confirmation).
     """
-    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@kanzan.local")
-    return f"{tenant.name} <{from_email}>"
+    from email.utils import formataddr
+
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@kanzen.local")
+    name = (display_name or "").strip() or f"{tenant.name} Support"
+    return formataddr((name, from_email))
 
 
 def get_ticket_url(tenant, ticket):
@@ -169,6 +176,7 @@ def send_ticket_email(
     body_text,
     body_html=None,
     sender_type=InboundEmail.SenderType.SYSTEM,
+    from_name=None,
 ):
     """
     Single entry point for sending all outbound ticket emails.
@@ -192,9 +200,20 @@ def send_ticket_email(
     Raises:
         Exception: If the email fails to send (caller should handle).
     """
+    # Skip obviously-undeliverable recipients so we don't generate bounces
+    # for seed accounts (*.local) or RFC 2606 test addresses.
+    from apps.notifications.utils import is_undeliverable_email
+
+    if is_undeliverable_email(to_email):
+        logger.info(
+            "Skipping ticket email to undeliverable address %s (ticket #%s).",
+            to_email, ticket.number,
+        )
+        return None
+
     raw_message_id = generate_message_id(tenant, ticket)
     reply_to = get_reply_to_address(tenant)
-    from_address = get_from_address(tenant)
+    from_address = get_from_address(tenant, display_name=from_name)
 
     # Build threading headers (In-Reply-To, References)
     thread_headers = build_thread_headers(tenant, ticket, raw_message_id)
@@ -286,7 +305,8 @@ def send_ticket_reply_email(ticket, comment_body, agent_name, tenant):
             subject=subject,
             body_text=plain_body,
             body_html=html_body,
-            sender_type=InboundEmail.SenderType.SYSTEM,
+            sender_type=InboundEmail.SenderType.AGENT,
+            from_name=agent_name,
         )
         return True
     except Exception:
@@ -327,6 +347,10 @@ def send_ticket_created_email(ticket, tenant):
     except Exception:
         html_body = None
 
+    assignee_name = ""
+    if ticket.assignee_id:
+        assignee_name = ticket.assignee.get_full_name() or ticket.assignee.email
+
     try:
         send_ticket_email(
             tenant=tenant,
@@ -336,6 +360,7 @@ def send_ticket_created_email(ticket, tenant):
             body_text=plain_body,
             body_html=html_body,
             sender_type=InboundEmail.SenderType.SYSTEM,
+            from_name=assignee_name or None,
         )
         return True
     except Exception:

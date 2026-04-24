@@ -33,8 +33,8 @@ Pillow>=11,<12
 whitenoise>=6.8,<7
 mammoth>=1.12,<2
 
-# Email
-django-anymail>=12,<13
+# Email — in-process SMTP server (receives inbound mail without a 3rd-party webhook)
+aiosmtpd>=1.4,<2
 
 # Security & Config
 django-environ>=0.12,<1

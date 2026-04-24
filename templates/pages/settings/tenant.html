@@ -138,7 +138,7 @@
           <h3 class="st-hub-category-title">Channels</h3>
         </div>
         <div class="st-hub-cards">
-          <a href="/inbound-email/" class="st-hub-card" data-search="inbound email channel webhook sendgrid mailgun">
+          <a href="/inbound-email/" class="st-hub-card" data-search="inbound email channel smtp">
             <div class="st-hub-card-icon"><i class="ti ti-mail-forward"></i></div>
             <div class="st-hub-card-body">
               <div class="st-hub-card-title">Email</div>
@@ -582,25 +582,25 @@
             <div class="st-form-group">
               <label class="st-label">Quick Presets</label>
               <div class="branding-presets" id="colorPresets">
-                <button type="button" class="branding-preset-btn" data-primary="#2563EB" data-accent="#F59E0B" title="Royal Blue & Amber">
-                  <span class="preset-swatch" style="background:#2563EB;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#DC2626" data-accent="#F59E0B" title="Royal Blue & Amber">
+                  <span class="preset-swatch" style="background:#DC2626;"></span>
                   <span class="preset-swatch" style="background:#F59E0B;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#3B82F6" data-accent="#10B981" title="Blue & Emerald">
-                  <span class="preset-swatch" style="background:#3B82F6;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#EF4444" data-accent="#10B981" title="Blue & Emerald">
+                  <span class="preset-swatch" style="background:#EF4444;"></span>
                   <span class="preset-swatch" style="background:#10B981;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#8B5CF6" data-accent="#EC4899" title="Violet & Pink">
-                  <span class="preset-swatch" style="background:#8B5CF6;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#EF4444" data-accent="#EC4899" title="Violet & Pink">
+                  <span class="preset-swatch" style="background:#EF4444;"></span>
                   <span class="preset-swatch" style="background:#EC4899;"></span>
                 </button>
                 <button type="button" class="branding-preset-btn" data-primary="#DC2626" data-accent="#F97316" title="Red & Orange">
                   <span class="preset-swatch" style="background:#DC2626;"></span>
                   <span class="preset-swatch" style="background:#F97316;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#059669" data-accent="#2563EB" title="Green & Blue">
+                <button type="button" class="branding-preset-btn" data-primary="#059669" data-accent="#DC2626" title="Green & Blue">
                   <span class="preset-swatch" style="background:#059669;"></span>
-                  <span class="preset-swatch" style="background:#2563EB;"></span>
+                  <span class="preset-swatch" style="background:#DC2626;"></span>
                 </button>
                 <button type="button" class="branding-preset-btn" data-primary="#0EA5E9" data-accent="#F43F5E" title="Sky & Rose">
                   <span class="preset-swatch" style="background:#0EA5E9;"></span>
@@ -610,9 +610,9 @@
                   <span class="preset-swatch" style="background:#D946EF;"></span>
                   <span class="preset-swatch" style="background:#14B8A6;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#1E293B" data-accent="#3B82F6" title="Slate & Blue">
+                <button type="button" class="branding-preset-btn" data-primary="#1E293B" data-accent="#EF4444" title="Slate & Blue">
                   <span class="preset-swatch" style="background:#1E293B;"></span>
-                  <span class="preset-swatch" style="background:#3B82F6;"></span>
+                  <span class="preset-swatch" style="background:#EF4444;"></span>
                 </button>
               </div>
             </div>
@@ -622,8 +622,8 @@
               <div class="st-form-group">
                 <label for="primaryColor" class="st-label">Primary Color</label>
                 <div class="branding-color-input">
-                  <input type="color" class="form-control form-control-color" id="primaryColor" value="#2563EB">
-                  <input type="text" class="form-control" id="primaryColorHex" placeholder="#2563EB" maxlength="7">
+                  <input type="color" class="form-control form-control-color" id="primaryColor" value="#DC2626">
+                  <input type="text" class="form-control" id="primaryColorHex" placeholder="#DC2626" maxlength="7">
                 </div>
                 <div class="form-text">Buttons, links, sidebar active state, and main actions.</div>
               </div>
@@ -984,6 +984,16 @@
               </div>
               <div class="form-check form-switch mb-0">
                 <input class="form-check-input" type="checkbox" role="switch" id="autoTransitionToggle" checked>
+              </div>
+            </div>
+            <hr class="my-2">
+            <div class="d-flex align-items-center justify-content-between py-2">
+              <div>
+                <span class="st-toggle-label">Auto-send ticket confirmation email</span>
+                <span class="st-toggle-desc d-block text-muted small">When enabled, Kanzen emails the contact automatically as soon as a ticket is created from an inbound email. When disabled, agents trigger the confirmation manually from the ticket page.</span>
+              </div>
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="autoSendCreatedEmailToggle" checked>
               </div>
             </div>
           </div>
@@ -1644,7 +1654,7 @@ function switchSettingsTab(targetId) {
     document.getElementById('ssoClientId').value = s.sso_client_id || '';
     document.getElementById('ssoDomain').value = s.sso_authority_url || s.sso_domain || '';
     document.getElementById('ssoScopes').value = s.sso_scopes || 'openid email profile';
-    var color = s.primary_color || '#2563EB';
+    var color = s.primary_color || '#DC2626';
     document.getElementById('primaryColor').value = color;
     document.getElementById('primaryColorHex').value = color;
     var accent = s.accent_color || '#F59E0B';
@@ -1661,9 +1671,11 @@ function switchSettingsTab(targetId) {
     loadBusinessHoursData();
     loadHolidays();
     loadSLAPauseStatuses();
-    // Workflow toggle
+    // Workflow toggles
     var atToggle = document.getElementById('autoTransitionToggle');
     if (atToggle) atToggle.checked = s.auto_transition_on_assign !== false;
+    var sendCreatedToggle = document.getElementById('autoSendCreatedEmailToggle');
+    if (sendCreatedToggle) sendCreatedToggle.checked = s.auto_send_ticket_created_email !== false;
   }
   async function saveGeneral(e) {
     e.preventDefault(); var sp = document.getElementById('generalSpinner'); sp.classList.remove('d-none');
@@ -1901,6 +1913,21 @@ function switchSettingsTab(targetId) {
         }
       });
     }
+    // Workflow: auto-send confirmation email toggle
+    var sendCreatedToggle = document.getElementById('autoSendCreatedEmailToggle');
+    if (sendCreatedToggle) {
+      sendCreatedToggle.addEventListener('change', async function() {
+        try {
+          await Api.patch('/api/v1/tenants/settings/', { auto_send_ticket_created_email: this.checked });
+          Toast.success(this.checked
+            ? 'Confirmation emails will be sent automatically'
+            : 'Confirmation emails are now manual');
+        } catch (e) {
+          Toast.error('Failed to save workflow setting');
+          this.checked = !this.checked;
+        }
+      });
+    }
     // Business hours: toggle time inputs when day checkbox changes
     document.querySelectorAll('.bh-day-row input[type=checkbox]').forEach(function(cb) {
       cb.addEventListener('change', function() {
@@ -1940,7 +1967,7 @@ function switchSettingsTab(targetId) {
       });
     });
     document.getElementById('resetColorsBtn').addEventListener('click', function() {
-      var p = '#2563EB', a = '#F59E0B';
+      var p = '#DC2626', a = '#F59E0B';
       document.getElementById('primaryColor').value = p;
       document.getElementById('primaryColorHex').value = p;
       document.getElementById('accentColor').value = a;

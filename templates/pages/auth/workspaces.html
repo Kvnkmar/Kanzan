@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Choose a workspace - Kanzen Suite{% endblock %}
+
+{% block fullpage %}
+<div class="auth-wrapper">
+  <div class="auth-form-panel">
+    <div class="auth-form-container">
+      <a href="{% url 'frontend:landing' %}" class="auth-logo">
+        <div class="auth-logo-icon"><i class="ti ti-hexagon-filled"></i></div>
+        <span>Kanzen Suite</span>
+      </a>
+
+      <h1 class="auth-title">Choose a workspace</h1>
+      <p class="text-muted">You belong to multiple workspaces. Pick one to continue.</p>
+
+      <div class="list-group mt-4">
+        {% for ws in workspaces %}
+        <a href="{{ ws.url }}" class="list-group-item list-group-item-action d-flex align-items-center justify-content-between">
+          <div class="d-flex align-items-center">
+            <div class="auth-logo-icon me-3" style="width:40px;height:40px;font-size:1rem;">
+              {{ ws.name|slice:":1"|upper }}
+            </div>
+            <div>
+              <div class="fw-medium">{{ ws.name }}</div>
+              <div class="text-muted small">{{ ws.slug }} · {{ ws.role }}</div>
+            </div>
+          </div>
+          <i class="ti ti-arrow-right"></i>
+        </a>
+        {% empty %}
+        <div class="alert alert-info">
+          You don't have any active workspaces yet.
+          <a href="{% url 'frontend:setup-company' %}">Create one</a>.
+        </div>
+        {% endfor %}
+      </div>
+
+      <div class="auth-footer-links mt-4">
+        <p>Or <a href="{% url 'frontend:setup-company' %}">create a new workspace</a>
+          · <a href="{% url 'frontend:logout' %}">Sign out</a></p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

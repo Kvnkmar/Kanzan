@@ -12,7 +12,6 @@ Covers:
 - Multi-tenant isolation (cross-tenant safety)
 - Malformed input handling
 - Message-ID normalization (angle bracket consistency)
-- Webhook endpoint normalization (SendGrid, Mailgun)
 """
 
 import pytest
@@ -646,75 +645,6 @@ class TestMalformedInput:
         inbound.refresh_from_db()
         assert inbound.status == "ticket_created"
         assert inbound.ticket.subject == "(No Subject)"
-
-
-# ═══════════════════════════════════════════════════════════════════
-# WEBHOOK NORMALIZATION
-# ═══════════════════════════════════════════════════════════════════
-
-
-@pytest.mark.django_db
-class TestWebhookNormalization:
-    def test_sendgrid_webhook_normalizes_ids(self, client, settings):
-        """SendGrid webhook strips <> from Message-ID."""
-        settings.INBOUND_EMAIL_WEBHOOK_SECRET = "testsecret"
-        resp = client.post(
-            "/inbound/email/sendgrid/?secret=testsecret",
-            data={
-                "from": "Jane Doe <jane@example.com>",
-                "to": "support+demo@kanzan.io",
-                "subject": "Test",
-                "text": "Hello",
-                "headers": "Message-ID: <abc123@example.com>\nIn-Reply-To: <reply-to-id@example.com>",
-            },
-        )
-        assert resp.status_code == 200
-        inbound = InboundEmail.objects.latest("created_at")
-        assert inbound.message_id == "abc123@example.com"
-        assert inbound.in_reply_to == "reply-to-id@example.com"
-        assert inbound.sender_name == "Jane Doe"
-        assert inbound.sender_email == "jane@example.com"
-
-    def test_mailgun_webhook_normalizes_ids(self, client, settings):
-        """Mailgun webhook strips <> from Message-Id POST field."""
-        settings.INBOUND_EMAIL_WEBHOOK_SECRET = "testsecret"
-        resp = client.post(
-            "/inbound/email/mailgun/?secret=testsecret",
-            data={
-                "from": "John <john@example.com>",
-                "sender": "john@example.com",
-                "recipient": "support+demo@kanzan.io",
-                "subject": "Test",
-                "body-plain": "Hello",
-                "Message-Id": "<mailgun-id-456@example.com>",
-                "In-Reply-To": "<reply-to-789@example.com>",
-                "References": "<ref1@host> <ref2@host>",
-            },
-        )
-        assert resp.status_code == 200
-        inbound = InboundEmail.objects.latest("created_at")
-        # All IDs should be normalized (no angle brackets)
-        assert inbound.message_id == "mailgun-id-456@example.com"
-        assert inbound.in_reply_to == "reply-to-789@example.com"
-        assert inbound.references == "ref1@host ref2@host"
-        assert inbound.direction == InboundEmail.Direction.INBOUND
-
-    def test_sendgrid_sets_direction_and_sender_type(self, client, settings):
-        """Webhook records are marked as inbound/customer."""
-        settings.INBOUND_EMAIL_WEBHOOK_SECRET = "testsecret"
-        client.post(
-            "/inbound/email/sendgrid/?secret=testsecret",
-            data={
-                "from": "customer@test.com",
-                "to": "support@kanzan.io",
-                "subject": "Test",
-                "text": "Hello",
-                "headers": "",
-            },
-        )
-        inbound = InboundEmail.objects.latest("created_at")
-        assert inbound.direction == InboundEmail.Direction.INBOUND
-        assert inbound.sender_type == InboundEmail.SenderType.CUSTOMER
 
 
 # ═══════════════════════════════════════════════════════════════════

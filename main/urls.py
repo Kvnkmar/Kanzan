@@ -30,9 +30,6 @@ urlpatterns = [
     path("api/v1/newsfeed/", include("apps.newsfeed.urls")),
     path("api/v1/voip/", include("apps.voip.urls")),
 
-    # Inbound email webhooks (provider callbacks, not tenant-scoped API)
-    path("inbound/email/", include("apps.inbound_email.urls")),
-
     # API Schema / Docs
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path("api/docs/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),

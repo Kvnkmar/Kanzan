@@ -63,7 +63,6 @@ INSTALLED_APPS = [
     "allauth.socialaccount.providers.microsoft",
     "allauth.socialaccount.providers.openid_connect",
     "whitenoise.runserver_nostatic",
-    "anymail",
     # Project apps
     "main",
     "apps.tenants",
@@ -96,6 +95,8 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    # Enforces global logout across hosts: see apps/accounts/middleware.py.
+    "apps.accounts.middleware.SessionVersionMiddleware",
     "apps.tenants.middleware.TenantMiddleware",
     "apps.billing.middleware.SubscriptionMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -183,12 +184,14 @@ CACHES = {
 # Session via cache with DB fallback (prevents mass logout on Redis restart)
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 SESSION_CACHE_ALIAS = "default"
-SESSION_COOKIE_DOMAIN = f".{BASE_DOMAIN}" if BASE_DOMAIN != "localhost" else None
+# Host-only cookies — each host (bare domain + every tenant subdomain)
+# maintains its own session. Cross-host authentication is handled by
+# short-lived signed handoff tokens (see apps/tenants/frontend_views.py:
+# _tenant_handoff_url and auth_handoff). This is the only approach that
+# works reliably on Chrome, which refuses `Domain=.localhost` cookies in
+# dev and applies varying policies to Domain-wide cookies in prod.
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
-
-# CSRF
-CSRF_COOKIE_DOMAIN = SESSION_COOKIE_DOMAIN
 CSRF_TRUSTED_ORIGINS = [
     f"http://*.{BASE_DOMAIN}:8001",
     f"http://{BASE_DOMAIN}:8001",
@@ -310,6 +313,10 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.voip.tasks.cleanup_stale_calls",
         "schedule": 3600.0,  # Every hour
     },
+    "fetch-inbound-emails": {
+        "task": "apps.inbound_email.tasks.fetch_inbound_emails_task",
+        "schedule": 60.0,  # Poll IMAP every minute
+    },
 }
 
 # Stripe
@@ -319,21 +326,49 @@ STRIPE_WEBHOOK_SECRET = env("STRIPE_WEBHOOK_SECRET", default="")
 
 # Inbound Email
 INBOUND_EMAIL_WEBHOOK_SECRET = env("INBOUND_EMAIL_WEBHOOK_SECRET", default="")
-MAILGUN_API_KEY = env("MAILGUN_API_KEY", default="")  # For inbound webhook signature verification
 
-# Email (Resend via django-anymail)
-# Dev uses filebased backend; prod uses Resend (set in prod.py)
+# IMAP poller — pulls replies from a shared Gmail mailbox into the
+# InboundEmail pipeline every minute. Leave IMAP_HOST blank to disable.
+IMAP_HOST = env("IMAP_HOST", default="")
+IMAP_PORT = env.int("IMAP_PORT", default=993)
+IMAP_USER = env("IMAP_USER", default="")
+IMAP_PASSWORD = env("IMAP_PASSWORD", default="")
+IMAP_MAILBOX = env("IMAP_MAILBOX", default="INBOX")
+IMAP_USE_SSL = env.bool("IMAP_USE_SSL", default=True)
+# When a polled message's recipient doesn't resolve to a tenant, fall back
+# to this tenant slug (useful in single-tenant Gmail setups).
+IMAP_DEFAULT_TENANT_SLUG = env("IMAP_DEFAULT_TENANT_SLUG", default="")
+
+# In-process SMTP server (receives mail without a 3rd-party webhook)
+# Run with: `python manage.py run_smtp_server` (managed by PM2: kanzan-smtp)
+SMTP_SERVER_HOST = env("SMTP_SERVER_HOST", default="0.0.0.0")
+SMTP_SERVER_PORT = env.int("SMTP_SERVER_PORT", default=2525)
+SMTP_SERVER_HOSTNAME = env("SMTP_SERVER_HOSTNAME", default=BASE_DOMAIN)
+# Optional STARTTLS — leave both blank to run without TLS (plain SMTP)
+SMTP_SERVER_TLS_CERT_FILE = env("SMTP_SERVER_TLS_CERT_FILE", default="")
+SMTP_SERVER_TLS_KEY_FILE = env("SMTP_SERVER_TLS_KEY_FILE", default="")
+# Optional SMTP AUTH — JSON dict of {"username": "password"} pairs
+SMTP_SERVER_REQUIRE_AUTH = env.bool("SMTP_SERVER_REQUIRE_AUTH", default=False)
+SMTP_SERVER_AUTH_USERS = env.json("SMTP_SERVER_AUTH_USERS", default={})
+
+# Email (SMTP)
+# Dev defaults to the filebased backend (writes to tmp/emails/). For real
+# delivery set EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend and
+# configure EMAIL_HOST/PORT/USER/PASSWORD (see prod.py for the prod defaults).
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND", default="django.core.mail.backends.filebased.EmailBackend"
 )
 EMAIL_FILE_PATH = BASE_DIR / "tmp" / "emails"
 EMAIL_FILE_PATH.mkdir(parents=True, exist_ok=True)
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="support@kanzan.local")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="support@kanzen.local")
 
-RESEND_API_KEY = env("RESEND_API_KEY", default="")
-ANYMAIL = {
-    "RESEND_API_KEY": RESEND_API_KEY,
-}
+EMAIL_HOST = env("EMAIL_HOST", default="localhost")
+EMAIL_PORT = env.int("EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env.bool("EMAIL_USE_SSL", default=False)
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=30)
 
 # Allauth
 ACCOUNT_LOGIN_METHODS = {"email"}
@@ -390,11 +425,11 @@ LOGGING = {
 
 # Jazzmin Admin Theme
 JAZZMIN_SETTINGS = {
-    "site_title": "Kanzen Suite",
-    "site_header": "Kanzen Suite",
-    "site_brand": "Kanzen Suite",
-    "welcome_sign": "Welcome to Kanzen Suite Admin",
-    "copyright": "Kanzen Suite",
+    "site_title": "Kanzen Suites",
+    "site_header": "Kanzen Suites",
+    "site_brand": "Kanzen Suites",
+    "welcome_sign": "Welcome to Kanzen Suites Admin",
+    "copyright": "Kanzen Suites",
     "search_model": ["accounts.User", "tenants.Tenant"],
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},

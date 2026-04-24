@@ -85,6 +85,7 @@ def _get_ari_client(tenant):
         port=settings.asterisk_ari_port,
         username=settings.ari_username,
         password=settings.ari_password,
+        use_ssl=settings.asterisk_use_ssl,
     )
     return client, None
 
@@ -120,7 +121,7 @@ def originate_call(call_log, caller_extension):
         return False, error
 
     caller_id = (
-        caller_extension.caller_id_name or "Kanzan CRM"
+        caller_extension.caller_id_name or "Kanzen Suites"
     )
     if caller_extension.caller_id_number:
         caller_id = f'"{caller_id}" <{caller_extension.caller_id_number}>'

@@ -25,6 +25,13 @@ class User(AbstractUser):
     phone = models.CharField("phone number", max_length=20, null=True, blank=True)
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
 
+    # Version counter bumped on global logout. The session stores the
+    # version it was opened with; a middleware invalidates any session
+    # whose stored version is lower than the user's current version so
+    # "log out" on any host revokes sessions on every other host too.
+    # See apps/accounts/middleware.py:SessionVersionMiddleware.
+    auth_version = models.PositiveIntegerField(default=1)
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 
@@ -267,3 +274,40 @@ class Invitation(TenantScopedModel):
     @property
     def is_accepted(self):
         return self.accepted_at is not None
+
+
+class EmailVerificationToken(models.Model):
+    """
+    One-shot token emailed to new signups so they can verify ownership of
+    the address before their account is activated. Not tenant-scoped —
+    tokens exist before any tenant membership does.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="email_verification_tokens",
+    )
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    consumed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        verbose_name = "email verification token"
+        verbose_name_plural = "email verification tokens"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Verify {self.user.email} ({self.token[:8]}…)"
+
+    @property
+    def is_expired(self):
+        from django.utils import timezone
+
+        return timezone.now() > self.expires_at
+
+    @property
+    def is_consumed(self):
+        return self.consumed_at is not None

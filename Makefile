@@ -1,9 +1,9 @@
-# Kanzen Suite — Development Workflow
+# Kanzen — Development Workflow
 # Usage: make <target>
 # Run `make help` to see all available targets.
 
 SHELL := /bin/bash
-PROJECT := /home/kavin/Kanzan
+PROJECT := /home/kavin/Kanzen
 VENV := $(PROJECT)/.venv/bin
 PYTHON := $(VENV)/python
 PIP := $(VENV)/pip
@@ -27,7 +27,7 @@ NC := \033[0m
 
 help: ## Show this help
 	@echo ""
-	@echo "Kanzen Suite — Development Commands"
+	@echo "Kanzen — Development Commands"
 	@echo "────────────────────────────────────"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-22s$(NC) %s\n", $$1, $$2}'

@@ -357,7 +357,7 @@ class InvitationViewSet(
                     f"This invitation expires in {INVITATION_EXPIRY_HOURS} hours.\n\n"
                     f"- {invitation.tenant.name} Team"
                 ),
-                from_email=getattr(django_settings, 'DEFAULT_FROM_EMAIL', 'noreply@kanzan.local'),
+                from_email=getattr(django_settings, 'DEFAULT_FROM_EMAIL', 'noreply@kanzen.local'),
                 recipient_list=[invitation.email],
                 fail_silently=True,
             )

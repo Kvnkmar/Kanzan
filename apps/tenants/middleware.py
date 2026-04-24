@@ -33,7 +33,20 @@ EXEMPT_PATH_PREFIXES = (
     "/api/schema/",
     "/accounts/",
     "/inbound/email/",
+    # Auth flow on the bare domain. These views accept requests on tenant
+    # subdomains too (they redirect back to the bare domain), so they must
+    # bypass the "Tenant not found" short-circuit when the host has no match.
+    "/login/",
+    "/register/",
+    "/logout/",
+    "/verify-email/",
+    "/verify-email-sent/",
+    "/setup-company/",
+    "/workspaces/",
 )
+# NOTE: /auth/handoff/ intentionally NOT exempt — it must resolve the
+# current tenant so the handoff can verify membership and establish a
+# session scoped to that tenant's host.
 
 
 def _extract_slug(host: str, base_domain: str) -> str | None:

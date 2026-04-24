@@ -1,4 +1,4 @@
-# Kanzen Suite & Ticketing SaaS Platform — Architecture Document
+# Kanzen & Ticketing SaaS Platform — Architecture Document
 
 > **Version:** 1.0
 > **Date:** 2026-02-06
@@ -700,7 +700,7 @@ class SubscriptionMiddleware:
 | **Database** | PostgreSQL 16 | Production-grade RDBMS (replace SQLite) |
 | **Search** | Elasticsearch / Meilisearch | Full-text search across tickets, contacts |
 | **File Storage** | AWS S3 / MinIO | Scalable, durable file storage |
-| **Email** | Amazon SES / SendGrid | Transactional email delivery |
+| **Email** | Self-hosted Postfix/Dovecot or any SMTP relay | Outbound delivery via Django's SMTP backend (inbound handled by the in-process aiosmtpd server) |
 | **Monitoring** | Sentry | Error tracking and performance monitoring |
 | **APM** | New Relic / Datadog | Application performance monitoring |
 | **Logging** | ELK Stack / Loki | Centralised log aggregation |
@@ -939,13 +939,13 @@ class SubscriptionMiddleware:
 | `EMAIL_HOST_PASSWORD` | SMTP password | (empty) |
 | `EMAIL_PORT` | SMTP port | `587` |
 | `EMAIL_USE_TLS` | Use TLS for SMTP | `True` |
-| `DEFAULT_FROM_EMAIL` | Default sender email | `noreply@kanzan.local` |
+| `DEFAULT_FROM_EMAIL` | Default sender email | `noreply@kanzen.local` |
 
 ## Appendix E: Default Credentials (Development Only)
 
 | Resource | Credential |
 |----------|-----------|
-| Superuser email | `admin@kanzan.local` |
+| Superuser email | `admin@kanzen.local` |
 | Superuser password | `Pl@nC-ICT_2024` |
 | Demo tenant slug | `demo` |
 | Demo tenant URL | `http://demo.localhost:8001/` |

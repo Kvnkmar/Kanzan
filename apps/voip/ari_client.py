@@ -24,8 +24,9 @@ class ARIClient:
     Uses httpx for async HTTP requests to the ARI REST API.
     """
 
-    def __init__(self, host, port, username, password):
-        self.base_url = f"http://{host}:{port}/ari"
+    def __init__(self, host, port, username, password, use_ssl=False):
+        scheme = "https" if use_ssl else "http"
+        self.base_url = f"{scheme}://{host}:{port}/ari"
         self._auth = (username, password)
         self._client = None
 
@@ -276,10 +277,11 @@ class ARIEventListener:
     to registered handlers. Implements reconnection with exponential backoff.
     """
 
-    def __init__(self, host, port, username, password, app="kanzan-voip"):
+    def __init__(self, host, port, username, password, app="kanzan-voip", use_ssl=False):
         auth_str = b64encode(f"{username}:{password}".encode()).decode()
+        scheme = "wss" if use_ssl else "ws"
         self.ws_url = (
-            f"ws://{host}:{port}/ari/events"
+            f"{scheme}://{host}:{port}/ari/events"
             f"?app={app}&subscribeAll=true"
         )
         self.extra_headers = {"Authorization": f"Basic {auth_str}"}

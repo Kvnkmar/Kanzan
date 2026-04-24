@@ -12,9 +12,18 @@ import logging
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-from apps.notifications.models import Notification, NotificationPreference
+from apps.notifications.models import Notification, NotificationPreference, NotificationType
 
 logger = logging.getLogger(__name__)
+
+# Internal-only notification types: agent-facing reminders that should never
+# be emailed. Delivered in-app only, regardless of NotificationPreference.
+INTERNAL_ONLY_TYPES = frozenset({
+    NotificationType.TICKET_OVERDUE,
+    NotificationType.TICKET_FOLLOWUP_OVERDUE,
+    NotificationType.REMINDER_OVERDUE,
+    NotificationType.AGENT_STATUS_CHANGE,
+})
 
 
 def send_notification(
@@ -85,6 +94,9 @@ def send_notification(
         # Default: both channels enabled.
         deliver_in_app = True
         deliver_email = True
+
+    if notification_type in INTERNAL_ONLY_TYPES:
+        deliver_email = False
 
     # 3. In-app push via Channels ----------------------------------------
     # 4. Email via Celery ------------------------------------------------

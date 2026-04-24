@@ -300,10 +300,10 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
               <button type="button" class="cal-color-dot" data-color="#EF4444" title="Red" style="background:#EF4444;"></button>
               <button type="button" class="cal-color-dot" data-color="#F59E0B" title="Amber" style="background:#F59E0B;"></button>
               <button type="button" class="cal-color-dot" data-color="#10B981" title="Green" style="background:#10B981;"></button>
-              <button type="button" class="cal-color-dot" data-color="#3B82F6" title="Blue" style="background:#3B82F6;"></button>
-              <button type="button" class="cal-color-dot" data-color="#8B5CF6" title="Purple" style="background:#8B5CF6;"></button>
+              <button type="button" class="cal-color-dot" data-color="#EF4444" title="Blue" style="background:#EF4444;"></button>
+              <button type="button" class="cal-color-dot" data-color="#EF4444" title="Purple" style="background:#EF4444;"></button>
               <button type="button" class="cal-color-dot" data-color="#EC4899" title="Pink" style="background:#EC4899;"></button>
-              <button type="button" class="cal-color-dot" data-color="#2563EB" title="Blue" style="background:#2563EB;"></button>
+              <button type="button" class="cal-color-dot" data-color="#DC2626" title="Blue" style="background:#DC2626;"></button>
             </div>
             <input type="hidden" id="eventColor" value="">
           </div>
@@ -349,29 +349,29 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
   var DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   var EVENT_COLORS = {
-    'ticket':         '#2563EB',
+    'ticket':         '#DC2626',
     'meeting':        '#F59E0B',
-    'call':           '#3B82F6',
+    'call':           '#EF4444',
     'task':           '#F59E0B',
-    'reminder':       '#7C3AED',
+    'reminder':       '#991B1B',
     'other':          '#666666',
     'default':        '#666666'
   };
 
   var EVENT_BAR_COLORS_LIGHT = {
-    'ticket':         { bg: '#EFF6FF', border: '#2563EB', text: '#1E40AF' },
+    'ticket':         { bg: '#FEF2F2', border: '#DC2626', text: '#991B1B' },
     'meeting':        { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E' },
-    'call':           { bg: '#EFF6FF', border: '#3B82F6', text: '#1E40AF' },
+    'call':           { bg: '#FEF2F2', border: '#EF4444', text: '#991B1B' },
     'task':           { bg: '#FFFBEB', border: '#F59E0B', text: '#92400E' },
-    'reminder':       { bg: '#F5F3FF', border: '#7C3AED', text: '#5B21B6' },
+    'reminder':       { bg: '#FEF2F2', border: '#991B1B', text: '#5B21B6' },
     'other':          { bg: '#F1F5F9', border: '#6B7280', text: '#374151' }
   };
   var EVENT_BAR_COLORS_DARK = {
-    'ticket':         { bg: 'rgba(37,99,235,0.12)', border: '#2563EB', text: '#93C5FD' },
+    'ticket':         { bg: 'rgba(220, 38, 38,0.12)', border: '#DC2626', text: '#FCA5A5' },
     'meeting':        { bg: 'rgba(245,158,11,0.12)', border: '#F59E0B', text: '#FCD34D' },
-    'call':           { bg: 'rgba(59,130,246,0.12)', border: '#3B82F6', text: '#93C5FD' },
+    'call':           { bg: 'rgba(239, 68, 68,0.12)', border: '#EF4444', text: '#FCA5A5' },
     'task':           { bg: 'rgba(245,158,11,0.12)', border: '#F59E0B', text: '#FCD34D' },
-    'reminder':       { bg: 'rgba(124,58,237,0.12)', border: '#7C3AED', text: '#C4B5FD' },
+    'reminder':       { bg: 'rgba(124,58,237,0.12)', border: '#991B1B', text: '#FECACA' },
     'other':          { bg: 'rgba(255,255,255,0.06)', border: '#6B7280', text: '#9CA3AF' }
   };
   var DEFAULT_BAR_LIGHT = { bg: '#F1F5F9', border: '#6B7280', text: '#374151' };
@@ -534,12 +534,12 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
         badgeHtml += '<span class="badge event-detail-badge" style="background-color:' + escapeHtml(t.status_color || '#94A3B8') + ';">' + escapeHtml(t.status_name) + '</span>';
       }
       if (t.priority) {
-        var priColors = { urgent: '#EF4444', high: '#F59E0B', medium: '#3B82F6', low: '#64748B' };
+        var priColors = { urgent: '#EF4444', high: '#F59E0B', medium: '#EF4444', low: '#64748B' };
         var priColor = priColors[t.priority] || '#64748B';
         badgeHtml += '<span class="badge event-detail-badge" style="background-color:' + escapeHtml(priColor) + ';">' + escapeHtml(t.priority.charAt(0).toUpperCase() + t.priority.slice(1)) + '</span>';
       }
       if (t.category) {
-        badgeHtml += '<span class="badge event-detail-badge" style="background:rgba(139,92,246,0.12);color:#C4B5FD;">' + escapeHtml(t.category) + '</span>';
+        badgeHtml += '<span class="badge event-detail-badge" style="background:rgba(139,92,246,0.12);color:#FECACA;">' + escapeHtml(t.category) + '</span>';
       }
       if (t.is_closed) {
         badgeHtml += '<span class="badge event-detail-badge" style="background:rgba(16,185,129,0.12);color:#6EE7B7;"><i class="ti ti-check me-1"></i>Closed</span>';

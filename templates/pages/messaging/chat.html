@@ -208,7 +208,7 @@
   let participantIds = [];
   let searchTimeout = null;
 
-  var AVATAR_COLORS = ['#6366F1','#4F46E5','#2563EB','#0891B2','#22C55E','#F59E0B','#818CF8','#EC4899','#A5B4FC','#14B8A6'];
+  var AVATAR_COLORS = ['#DC2626','#B91C1C','#DC2626','#0891B2','#22C55E','#F59E0B','#F87171','#EC4899','#A5B4FC','#14B8A6'];
   function avatarColor(name) { if (!name) return AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
   function getInitials(name) { if (!name) return '?'; return name.split(' ').map(function(n) { return n.charAt(0); }).join('').substring(0, 2).toUpperCase(); }
 

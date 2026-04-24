@@ -69,7 +69,7 @@
       text-transform: capitalize;
       margin-bottom: 16px;
     }
-    .badge-ticket_assigned { background-color: #dbeafe; color: #1e40af; }
+    .badge-ticket_assigned { background-color: #fee2e2; color: #991b1b; }
     .badge-ticket_updated  { background-color: #fef3c7; color: #92400e; }
     .badge-ticket_comment  { background-color: #d1fae5; color: #065f46; }
     .badge-mention         { background-color: #ede9fe; color: #5b21b6; }
@@ -78,7 +78,7 @@
     .badge-ticket_overdue  { background-color: #fee2e2; color: #991b1b; }
     .badge-payment_failed  { background-color: #fee2e2; color: #991b1b; }
     .badge-subscription_change { background-color: #fef3c7; color: #92400e; }
-    .badge-invitation      { background-color: #dbeafe; color: #1e40af; }
+    .badge-invitation      { background-color: #fee2e2; color: #991b1b; }
     .cta {
       display: inline-block;
       padding: 10px 24px;
@@ -121,7 +121,11 @@
               <p class="notification-body">{{ notification.body }}</p>
               {% endif %}
 
-              {% if notification.data.url %}
+              {% if cta_url %}
+              <p>
+                <a href="{{ cta_url }}" class="cta">View Details</a>
+              </p>
+              {% elif notification.data.url %}
               <p>
                 <a href="{{ notification.data.url }}" class="cta">View Details</a>
               </p>
