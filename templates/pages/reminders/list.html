@@ -1,6 +1,125 @@
 {% extends "base.html" %}
 {% block title %}Reminders - Kanzen Suite{% endblock %}
 
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" rel="stylesheet">
+<style>
+/* Flatpickr — Crimson Black v9 theme (mirrors tickets/create.html) */
+.flatpickr-calendar {
+  font-family: 'Inter', sans-serif !important;
+  display: flex !important; flex-direction: column !important;
+  width: 308px; padding: 0; border-radius: 14px !important; overflow: hidden;
+  border: 1px solid #E2E8F0 !important; background: #fff !important;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.10) !important;
+}
+.flatpickr-calendar.arrowTop::before,
+.flatpickr-calendar.arrowTop::after,
+.flatpickr-calendar.arrowBottom::before,
+.flatpickr-calendar.arrowBottom::after { display: none !important; }
+.flatpickr-months { background: transparent !important; padding: 14px 12px 8px; flex-shrink: 0; }
+.flatpickr-months .flatpickr-month { height: 32px; }
+.flatpickr-months .flatpickr-prev-month,
+.flatpickr-months .flatpickr-next-month { fill: #6B6B70 !important; color: #6B6B70 !important; padding: 6px 8px; border-radius: 8px; transition: all 0.15s; }
+.flatpickr-months .flatpickr-prev-month:hover,
+.flatpickr-months .flatpickr-next-month:hover { background: #F3F4F6 !important; fill: #111827 !important; }
+.flatpickr-current-month { color: #111827 !important; font-weight: 700 !important; font-size: 0.9375rem; }
+.flatpickr-current-month .flatpickr-monthDropdown-months { background: transparent; color: #111827 !important; font-weight: 700 !important; -webkit-appearance: none; appearance: none; }
+.flatpickr-current-month .flatpickr-monthDropdown-months option { background: #fff; color: #111827; }
+.flatpickr-current-month input.cur-year { color: #111827 !important; font-weight: 700 !important; }
+span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important; font-size: 0.6875rem !important; text-transform: uppercase; letter-spacing: 0.04em; }
+.flatpickr-weekdays { background: transparent !important; padding: 0 0 2px; }
+.flatpickr-innerContainer { padding: 2px 12px 8px; flex-shrink: 0; }
+.flatpickr-rContainer { width: 100%; }
+.flatpickr-days { width: 100% !important; }
+.dayContainer { width: 100% !important; min-width: 100% !important; max-width: 100% !important; justify-content: center; }
+.flatpickr-day {
+  color: #374151 !important; font-weight: 500; font-size: 0.8125rem;
+  border-radius: 10px !important; max-width: 38px; height: 38px; line-height: 1;
+  margin: 1px; border: 2px solid transparent; transition: all 0.12s ease;
+  display: inline-flex !important; align-items: center; justify-content: center;
+  box-sizing: border-box;
+}
+.flatpickr-day:hover { background: #F3F4F6 !important; border-color: transparent !important; color: #111827 !important; }
+.flatpickr-day.today { border-color: rgba(193,18,31,0.55) !important; background: rgba(193,18,31,0.08) !important; color: var(--crm-primary, #C1121F) !important; font-weight: 700; }
+.flatpickr-day.today:hover { background: rgba(193,18,31,0.14) !important; border-color: var(--crm-primary, #C1121F) !important; }
+.flatpickr-day.selected,
+.flatpickr-day.selected:hover,
+.flatpickr-day.selected:focus,
+.flatpickr-day.today.selected,
+.flatpickr-day.today.selected:hover { background: var(--crm-primary, #C1121F) !important; border-color: var(--crm-primary, #C1121F) !important; color: #fff !important; font-weight: 600; box-shadow: 0 2px 8px rgba(193,18,31,0.35); }
+.flatpickr-day.prevMonthDay,
+.flatpickr-day.nextMonthDay { color: #D1D5DB !important; }
+.flatpickr-day.prevMonthDay:hover,
+.flatpickr-day.nextMonthDay:hover { background: #F9FAFB !important; color: #9CA3AF !important; }
+.flatpickr-day.flatpickr-disabled,
+.flatpickr-day.flatpickr-disabled:hover { color: #E5E7EB !important; cursor: default; }
+.flatpickr-time {
+  flex-shrink: 0; display: flex !important; align-items: center; justify-content: center;
+  height: 52px; max-height: 52px !important; padding: 8px 16px; margin: 0;
+  border-top: 1px solid #EEF0F3 !important; background: transparent !important; overflow: visible;
+}
+.flatpickr-time input { color: #111827 !important; font-weight: 600; font-size: 1rem; font-family: 'Inter', sans-serif; background: transparent !important; border: none; }
+.flatpickr-time input:hover,
+.flatpickr-time input:focus { background: #F3F4F6 !important; border-radius: 8px; }
+.flatpickr-time .numInputWrapper { border-radius: 8px; height: 36px; }
+.flatpickr-time .numInputWrapper:hover { background: #F3F4F6; }
+.flatpickr-time .flatpickr-time-separator { color: #9CA3AF !important; font-weight: 600; font-size: 1rem; line-height: 36px; padding: 0 6px; }
+.flatpickr-time .flatpickr-am-pm { color: var(--crm-primary, #C1121F) !important; font-weight: 700; font-size: 0.8125rem; letter-spacing: 0.04em; border-radius: 6px; background: transparent !important; height: 36px; line-height: 36px; padding: 0 8px; min-width: 36px; text-align: center; cursor: pointer; }
+.flatpickr-time .flatpickr-am-pm:hover,
+.flatpickr-time .flatpickr-am-pm:focus { background: rgba(193,18,31,0.08) !important; }
+.numInputWrapper span { border: none !important; background: transparent; opacity: 0; transition: opacity 0.15s; }
+.numInputWrapper:hover span { opacity: 1; }
+.numInputWrapper span:hover { background: rgba(0,0,0,0.05) !important; }
+.numInputWrapper span.arrowUp { top: 0; border-radius: 8px 8px 0 0; }
+.numInputWrapper span.arrowDown { bottom: 0; border-radius: 0 0 8px 8px; }
+.flatpickr-footer {
+  flex-shrink: 0; display: flex; align-items: center; justify-content: flex-end;
+  padding: 10px 14px 14px; background: transparent; border-top: none;
+}
+.flatpickr-done-btn {
+  padding: 8px 22px; font-size: 0.875rem; font-weight: 600; font-family: 'Inter', sans-serif;
+  color: #fff; background: var(--crm-primary, #C1121F); border: none; border-radius: 8px;
+  cursor: pointer; transition: background 0.15s, filter 0.15s;
+  box-shadow: 0 1px 2px rgba(193,18,31,0.25);
+}
+.flatpickr-done-btn:hover { filter: brightness(0.92); }
+.flatpickr-done-btn:active { filter: brightness(0.85); }
+.flatpickr-input.form-control[readonly],
+.form-control.flatpickr-input[readonly] { background: transparent; cursor: pointer; }
+/* Dark-mode overrides */
+[data-bs-theme="dark"] .flatpickr-calendar { background: #1A2030 !important; border-color: rgba(255,255,255,0.08) !important; box-shadow: 0 16px 48px rgba(0,0,0,0.45) !important; }
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-prev-month,
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month { fill: #94A3B8 !important; color: #94A3B8 !important; }
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-prev-month:hover,
+[data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month:hover { background: rgba(255,255,255,0.08) !important; fill: #F1F5F9 !important; }
+[data-bs-theme="dark"] .flatpickr-current-month,
+[data-bs-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months,
+[data-bs-theme="dark"] .flatpickr-current-month input.cur-year { color: #F1F5F9 !important; }
+[data-bs-theme="dark"] .flatpickr-current-month .flatpickr-monthDropdown-months option { background: #1A2030; color: #F1F5F9; }
+[data-bs-theme="dark"] span.flatpickr-weekday { color: #64748B !important; }
+[data-bs-theme="dark"] .flatpickr-day { color: #E2E8F0 !important; }
+[data-bs-theme="dark"] .flatpickr-day:hover { background: rgba(255,255,255,0.08) !important; color: #fff !important; }
+[data-bs-theme="dark"] .flatpickr-day.today { color: #fff !important; background: rgba(225,29,45,0.20) !important; border-color: rgba(225,29,45,0.55) !important; }
+[data-bs-theme="dark"] .flatpickr-day.today:hover { background: rgba(225,29,45,0.30) !important; border-color: var(--crm-primary) !important; color: #fff !important; }
+[data-bs-theme="dark"] .flatpickr-day.today.selected { color: #fff !important; background: var(--crm-primary) !important; border-color: var(--crm-primary) !important; }
+[data-bs-theme="dark"] .flatpickr-day.prevMonthDay,
+[data-bs-theme="dark"] .flatpickr-day.nextMonthDay { color: #475569 !important; }
+[data-bs-theme="dark"] .flatpickr-day.prevMonthDay:hover,
+[data-bs-theme="dark"] .flatpickr-day.nextMonthDay:hover { background: rgba(255,255,255,0.04) !important; color: #94A3B8 !important; }
+[data-bs-theme="dark"] .flatpickr-time { background: transparent !important; border-top-color: rgba(255,255,255,0.06) !important; }
+[data-bs-theme="dark"] .flatpickr-time input { color: #E2E8F0 !important; }
+[data-bs-theme="dark"] .flatpickr-time input:hover,
+[data-bs-theme="dark"] .flatpickr-time input:focus { background: rgba(255,255,255,0.06) !important; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm { color: #FCA5A5 !important; background: transparent !important; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm:hover,
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm:focus { background: rgba(225,29,45,0.14) !important; color: #fff !important; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-time-separator { color: #94A3B8 !important; }
+[data-bs-theme="dark"] .flatpickr-time .numInputWrapper:hover { background: rgba(255,255,255,0.06); }
+[data-bs-theme="dark"] .numInputWrapper span:hover { background: rgba(255,255,255,0.08) !important; }
+[data-bs-theme="dark"] .flatpickr-footer { background: transparent; border-top: none; }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Page Header -->
 <div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
@@ -139,7 +258,7 @@
         </div>
         <div class="mb-3">
           <label class="form-label">Scheduled At</label>
-          <input type="datetime-local" class="form-control" id="reminderScheduledAt" required>
+          <input type="text" class="form-control" id="reminderScheduledAt" placeholder="Select date & time" readonly required>
         </div>
         <div class="row mb-3">
           <div class="col-6">
@@ -197,7 +316,7 @@
         <input type="hidden" id="rescheduleReminderId">
         <div class="mb-3">
           <label class="form-label">New Date/Time</label>
-          <input type="datetime-local" class="form-control" id="rescheduleAt" required>
+          <input type="text" class="form-control" id="rescheduleAt" placeholder="Select date & time" readonly required>
         </div>
         <div class="mb-3">
           <label class="form-label">Note (optional)</label>
@@ -232,11 +351,44 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
 <script>
 (function() {
   'use strict';
 
   var API_BASE = '/api/v1/crm/reminders/';
+
+  // --- Flatpickr (matches ticket section's date picker) ---
+  function attachFlatpickr(selector, opts) {
+    return flatpickr(selector, Object.assign({
+      enableTime: true,
+      dateFormat: 'Y-m-d\\TH:i',
+      altInput: true,
+      altFormat: 'M j, Y  h:iK',
+      time_24hr: false,
+      allowInput: false,
+      disableMobile: true,
+      closeOnSelect: false,
+      onReady: function(selectedDates, dateStr, instance) {
+        if (instance.altInput) {
+          instance.altInput.classList.add('form-control');
+          instance.altInput.setAttribute('placeholder', 'Select date & time');
+          instance.altInput.style.cursor = 'pointer';
+        }
+        var footer = document.createElement('div');
+        footer.className = 'flatpickr-footer';
+        var okBtn = document.createElement('button');
+        okBtn.type = 'button';
+        okBtn.className = 'flatpickr-done-btn';
+        okBtn.textContent = 'OK';
+        okBtn.addEventListener('click', function() { instance.close(); });
+        footer.appendChild(okBtn);
+        instance.calendarContainer.appendChild(footer);
+      }
+    }, opts || {}));
+  }
+  attachFlatpickr('#reminderScheduledAt', { minDate: 'today' });
+  attachFlatpickr('#rescheduleAt', { minDate: 'today' });
   var currentPage = 1;
   var totalPages = 1;
   var mineOnly = false;
@@ -255,7 +407,7 @@
     var map = {
       urgent: ['Urgent', '#dc3545', '#fff'],
       high: ['High', '#fd7e14', '#fff'],
-      medium: ['Medium', '#0d6efd', '#fff'],
+      medium: ['Medium', '#C1121F', '#fff'],
       low: ['Low', '#6c757d', '#fff'],
     };
     var cfg = map[priority] || [priority, '#6c757d', '#fff'];
@@ -266,7 +418,7 @@
     var map = {
       overdue: ['Overdue', '#dc3545', '#fff'],
       pending: ['Pending', '#ffc107', '#000'],
-      completed: ['Completed', '#198754', '#fff'],
+      completed: ['Completed', '#8E8E92', '#fff'],
       cancelled: ['Cancelled', '#6c757d', '#fff'],
     };
     var cfg = map[st] || [st, '#6c757d', '#fff'];
@@ -612,7 +764,8 @@
 
   function openReschedule(id) {
     document.getElementById('rescheduleReminderId').value = id;
-    document.getElementById('rescheduleAt').value = '';
+    var at = document.getElementById('rescheduleAt');
+    if (at._flatpickr) at._flatpickr.clear(); else at.value = '';
     document.getElementById('rescheduleNote').value = '';
     new bootstrap.Modal(document.getElementById('rescheduleModal')).show();
   }
@@ -711,7 +864,8 @@
 
   document.getElementById('bulkRescheduleBtn').addEventListener('click', function() {
     document.getElementById('rescheduleReminderId').value = '__bulk__';
-    document.getElementById('rescheduleAt').value = '';
+    var at = document.getElementById('rescheduleAt');
+    if (at._flatpickr) at._flatpickr.clear(); else at.value = '';
     document.getElementById('rescheduleNote').value = '';
     new bootstrap.Modal(document.getElementById('rescheduleModal')).show();
   });
@@ -762,7 +916,8 @@
   document.getElementById('newReminderBtn').addEventListener('click', function() {
     document.getElementById('reminderId').value = '';
     document.getElementById('reminderSubject').value = '';
-    document.getElementById('reminderScheduledAt').value = '';
+    var sa = document.getElementById('reminderScheduledAt');
+    if (sa._flatpickr) sa._flatpickr.clear(); else sa.value = '';
     document.getElementById('reminderPriority').value = 'medium';
     document.getElementById('reminderNotes').value = '';
     document.getElementById('reminderModalTitle').textContent = 'New Reminder';

@@ -146,7 +146,7 @@
 (function() {
   'use strict';
 
-  const PRIORITY_COLORS = { urgent: '#EF4444', high: '#F59E0B', medium: '#EF4444', low: '#10B981' };
+  const PRIORITY_COLORS = { urgent: '#E11C2B', high: '#C1121F', medium: '#E11C2B', low: '#A8A8AC' };
 
   async function loadAnalytics() {
     const days = document.getElementById('dateRange').value;
@@ -196,7 +196,7 @@
     const total = entries.reduce((s, [, v]) => s + v, 0) || 1;
     container.innerHTML = entries.map(([name, count]) => {
       const pct = ((count / total) * 100).toFixed(1);
-      const color = PRIORITY_COLORS[name] || '#6B7280';
+      const color = PRIORITY_COLORS[name] || '#6B6B70';
       return `<div class="breakdown-row">
         <span class="breakdown-row__label breakdown-row__label--priority">${escapeHtml(name)}</span>
         <div class="breakdown-row__track">

@@ -38,7 +38,7 @@ const Api = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: response.statusText }));
-      throw { status: response.status, ...error };
+      throw { ...error, _status: response.status };
     }
 
     return response.json();
@@ -77,7 +77,7 @@ const Api = {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ detail: response.statusText }));
-      throw { status: response.status, ...error };
+      throw { ...error, _status: response.status };
     }
 
     return response.json();

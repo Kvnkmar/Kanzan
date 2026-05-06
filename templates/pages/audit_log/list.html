@@ -214,7 +214,7 @@
           <div class="stat-card-label">Tickets Created</div>
           <div class="stat-card-value" id="ibeStatCreated">--</div>
         </div>
-        <div class="stat-card-accent" style="background: #10B981;"></div>
+        <div class="stat-card-accent" style="background: #A8A8AC;"></div>
       </div>
     </div>
     <div class="col-6 col-md-2">
@@ -223,7 +223,7 @@
           <div class="stat-card-label">Replies Added</div>
           <div class="stat-card-value" id="ibeStatReplies">--</div>
         </div>
-        <div class="stat-card-accent" style="background: #EF4444;"></div>
+        <div class="stat-card-accent" style="background: #E11C2B;"></div>
       </div>
     </div>
     <div class="col-6 col-md-2">
@@ -232,7 +232,7 @@
           <div class="stat-card-label">Sent</div>
           <div class="stat-card-value" id="ibeStatSent">--</div>
         </div>
-        <div class="stat-card-accent" style="background: #DC2626;"></div>
+        <div class="stat-card-accent" style="background: #C1121F;"></div>
       </div>
     </div>
     <div class="col-6 col-md-2">
@@ -241,7 +241,7 @@
           <div class="stat-card-label">Failed / Rejected</div>
           <div class="stat-card-value" id="ibeStatFailed">--</div>
         </div>
-        <div class="stat-card-accent" style="background: #EF4444;"></div>
+        <div class="stat-card-accent" style="background: #E11C2B;"></div>
       </div>
     </div>
   </div>
@@ -354,28 +354,28 @@
   var activePreset = 'all';
 
   var AVATAR_COLORS = [
-    '#EF4444', '#10B981', '#F59E0B', '#EF4444', '#EF4444',
-    '#EC4899', '#06B6D4', '#F97316', '#DC2626', '#14B8A6'
+    '#E11C2B', '#A8A8AC', '#C1121F', '#E11C2B', '#E11C2B',
+    '#E11C2B', '#C1121F', '#C1121F', '#C1121F', '#A8A8AC'
   ];
 
   var ACTION_STYLES = {
-    created:             { bg: '#10B9811A', color: '#10B981', border: '#10B98133', icon: 'ti-plus' },
-    updated:             { bg: '#F59E0B1A', color: '#F59E0B', border: '#F59E0B33', icon: 'ti-pencil' },
-    assigned:            { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', icon: 'ti-user-check' },
-    status_changed:      { bg: '#DC26261A', color: '#DC2626', border: '#DC262633', icon: 'ti-arrows-exchange' },
-    commented:           { bg: '#10B9811A', color: '#10B981', border: '#10B98133', icon: 'ti-message' },
-    deleted:             { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', icon: 'ti-trash' },
-    field_changed:       { bg: '#F59E0B1A', color: '#F59E0B', border: '#F59E0B33', icon: 'ti-edit' },
-    imported:            { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', icon: 'ti-upload' },
-    exported:            { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', icon: 'ti-download' },
-    closed:              { bg: '#6B72801A', color: '#6B7280', border: '#6B728033', icon: 'ti-circle-check' },
-    reopened:            { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', icon: 'ti-refresh' },
-    attachment_added:    { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', icon: 'ti-paperclip' },
-    attachment_removed:  { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', icon: 'ti-paperclip' },
-    sla_updated:         { bg: '#F59E0B1A', color: '#F59E0B', border: '#F59E0B33', icon: 'ti-clock' },
-    pipeline_stage_changed: { bg: '#DC26261A', color: '#DC2626', border: '#DC262633', icon: 'ti-layout-kanban' },
-    email_linked:        { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', icon: 'ti-mail' },
-    email_actioned:      { bg: '#10B9811A', color: '#10B981', border: '#10B98133', icon: 'ti-mail-check' }
+    created:             { bg: '#A8A8AC1A', color: '#A8A8AC', border: '#A8A8AC33', icon: 'ti-plus' },
+    updated:             { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', icon: 'ti-pencil' },
+    assigned:            { bg: '#E11C2B1A', color: '#E11C2B', border: '#E11C2B33', icon: 'ti-user-check' },
+    status_changed:      { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', icon: 'ti-arrows-exchange' },
+    commented:           { bg: '#A8A8AC1A', color: '#A8A8AC', border: '#A8A8AC33', icon: 'ti-message' },
+    deleted:             { bg: '#E11C2B1A', color: '#E11C2B', border: '#E11C2B33', icon: 'ti-trash' },
+    field_changed:       { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', icon: 'ti-edit' },
+    imported:            { bg: '#E11C2B1A', color: '#E11C2B', border: '#E11C2B33', icon: 'ti-upload' },
+    exported:            { bg: '#E11C2B1A', color: '#E11C2B', border: '#E11C2B33', icon: 'ti-download' },
+    closed:              { bg: '#6B6B701A', color: '#6B6B70', border: '#6B6B7033', icon: 'ti-circle-check' },
+    reopened:            { bg: '#E11C2B1A', color: '#E11C2B', border: '#E11C2B33', icon: 'ti-refresh' },
+    attachment_added:    { bg: '#E11C2B1A', color: '#E11C2B', border: '#E11C2B33', icon: 'ti-paperclip' },
+    attachment_removed:  { bg: '#E11C2B1A', color: '#E11C2B', border: '#E11C2B33', icon: 'ti-paperclip' },
+    sla_updated:         { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', icon: 'ti-clock' },
+    pipeline_stage_changed: { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', icon: 'ti-layout-kanban' },
+    email_linked:        { bg: '#E11C2B1A', color: '#E11C2B', border: '#E11C2B33', icon: 'ti-mail' },
+    email_actioned:      { bg: '#A8A8AC1A', color: '#A8A8AC', border: '#A8A8AC33', icon: 'ti-mail-check' }
   };
 
   var ENTITY_LABELS = {
@@ -585,7 +585,7 @@
   // ── Action badge ──
 
   function createActionBadge(action, actionDisplay) {
-    var sc = ACTION_STYLES[action] || { bg: '#6B72801A', color: '#6B7280', border: '#6B728033', icon: 'ti-point' };
+    var sc = ACTION_STYLES[action] || { bg: '#6B6B701A', color: '#6B6B70', border: '#6B6B7033', icon: 'ti-point' };
     var badge = document.createElement('span');
     badge.className = 'audit-action-badge';
     badge.style.background = sc.bg;
@@ -1265,14 +1265,14 @@
   var initialized = false;
 
   var STATUS_STYLES = {
-    pending:        { bg: '#F59E0B1A', color: '#F59E0B', border: '#F59E0B33', label: 'Pending' },
-    processing:     { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', label: 'Processing' },
-    ticket_created: { bg: '#10B9811A', color: '#10B981', border: '#10B98133', label: 'Ticket Created' },
-    reply_added:    { bg: '#DC26261A', color: '#DC2626', border: '#DC262633', label: 'Reply Added' },
-    sent:           { bg: '#DC26261A', color: '#DC2626', border: '#DC262633', label: 'Sent' },
-    rejected:       { bg: '#EF44441A', color: '#EF4444', border: '#EF444433', label: 'Rejected' },
-    bounced:        { bg: '#DC26261A', color: '#DC2626', border: '#DC262633', label: 'Bounced' },
-    failed:         { bg: '#DC26261A', color: '#DC2626', border: '#DC262633', label: 'Failed' }
+    pending:        { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', label: 'Pending' },
+    processing:     { bg: '#E11C2B1A', color: '#E11C2B', border: '#E11C2B33', label: 'Processing' },
+    ticket_created: { bg: '#A8A8AC1A', color: '#A8A8AC', border: '#A8A8AC33', label: 'Ticket Created' },
+    reply_added:    { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', label: 'Reply Added' },
+    sent:           { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', label: 'Sent' },
+    rejected:       { bg: '#E11C2B1A', color: '#E11C2B', border: '#E11C2B33', label: 'Rejected' },
+    bounced:        { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', label: 'Bounced' },
+    failed:         { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', label: 'Failed' }
   };
 
   var dom = {
@@ -1365,11 +1365,11 @@
       var dirIcon = document.createElement('i');
       if (isOutbound) {
         dirIcon.className = 'ti ti-arrow-up-right';
-        dirIcon.style.color = '#DC2626';
+        dirIcon.style.color = '#C1121F';
         dirIcon.title = 'Outbound (sent)';
       } else {
         dirIcon.className = 'ti ti-arrow-down-left';
-        dirIcon.style.color = '#10B981';
+        dirIcon.style.color = '#A8A8AC';
         dirIcon.title = 'Inbound (received)';
       }
       colDir.appendChild(dirIcon);
@@ -1554,14 +1554,14 @@
       dirBadge.className = 'badge me-2';
       if (e.direction === 'outbound') {
         dirBadge.textContent = 'Outbound';
-        dirBadge.style.background = '#DC26261A';
-        dirBadge.style.color = '#DC2626';
-        dirBadge.style.border = '1px solid #DC262633';
+        dirBadge.style.background = '#C1121F1A';
+        dirBadge.style.color = '#C1121F';
+        dirBadge.style.border = '1px solid #C1121F33';
       } else {
         dirBadge.textContent = 'Inbound';
-        dirBadge.style.background = '#10B9811A';
-        dirBadge.style.color = '#10B981';
-        dirBadge.style.border = '1px solid #10B98133';
+        dirBadge.style.background = '#A8A8AC1A';
+        dirBadge.style.color = '#A8A8AC';
+        dirBadge.style.border = '1px solid #A8A8AC33';
       }
       senderDiv.appendChild(dirBadge);
       var senderStrong = document.createElement('strong');

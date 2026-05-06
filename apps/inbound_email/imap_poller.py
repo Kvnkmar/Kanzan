@@ -32,6 +32,7 @@ SMTP server.
 import email
 import imaplib
 import logging
+import re
 import uuid
 from email.policy import default as default_policy
 
@@ -83,14 +84,38 @@ def poll_once():
             logger.warning("IMAP SELECT %s failed: %s", mailbox, select_resp)
             return 0
 
-        uid_validity = _read_uidvalidity(conn, mailbox)
+        uid_validity = _read_uidvalidity(conn, mailbox, select_resp)
+        # Refuse to poll without a reliable UIDVALIDITY. Silently defaulting
+        # to 0 would let us (a) miss real mailbox resets and (b) combine
+        # with an unreadable UIDNEXT to backfill every historical message
+        # — a privacy incident against the support mailbox owner.
+        if uid_validity is None:
+            logger.error(
+                "IMAP poll aborted for %s/%s: UIDVALIDITY unreadable from "
+                "SELECT response. Refusing to poll without a reliable UID "
+                "watermark (would otherwise risk backfilling historical mail).",
+                user, mailbox,
+            )
+            return 0
+
         state = _load_state(host, user, mailbox, uid_validity)
 
         # First run on this mailbox, or UIDVALIDITY changed (rare; implies
         # the mailbox was reset). Skip historical messages by anchoring at
         # UIDNEXT - 1 so we only pick up genuinely new mail.
         if state.last_uid == 0:
-            uidnext = _read_uidnext(conn, mailbox)
+            uidnext = _read_uidnext(conn, mailbox, select_resp)
+            if uidnext is None:
+                logger.error(
+                    "IMAP poll aborted for %s/%s: fresh watermark needed but "
+                    "UIDNEXT unreadable. Refusing to backfill — we would "
+                    "ingest every message already in the mailbox.",
+                    user, mailbox,
+                )
+                return 0
+            # Anchor at UIDNEXT-1 so only genuinely new mail is picked up.
+            # UIDNEXT==1 means the mailbox has never held a message; leaving
+            # last_uid at 0 is fine since no UIDs exist to match.
             if uidnext > 1:
                 state.last_uid = uidnext - 1
                 state.save(update_fields=["last_uid", "updated_at"])
@@ -177,36 +202,93 @@ def _load_state(host, user, mailbox, uid_validity):
     return state
 
 
-def _read_uidvalidity(conn, mailbox):
-    """Read UIDVALIDITY from the untagged SELECT response."""
-    return _read_untagged_int(conn, "UIDVALIDITY")
+_RESPONSE_CODE_RES: dict[str, "re.Pattern[str]"] = {}
 
 
-def _read_uidnext(conn, mailbox):
-    """Return the mailbox UIDNEXT (UID the next new message will get)."""
-    return _read_untagged_int(conn, "UIDNEXT") or 1
+def _code_regex(name):
+    rx = _RESPONSE_CODE_RES.get(name)
+    if rx is None:
+        rx = re.compile(rf"\[{re.escape(name)}\s+(\d+)\]", re.IGNORECASE)
+        _RESPONSE_CODE_RES[name] = rx
+    return rx
 
 
-def _read_untagged_int(conn, name):
+def _read_response_code(conn, name, select_resp=None):
     """
-    Read an integer-valued untagged response captured by SELECT.
+    Return the integer value of an IMAP response code (UIDVALIDITY /
+    UIDNEXT / …) captured by the most recent SELECT, or ``None`` if it
+    cannot be read unambiguously.
 
-    SELECT returns ``* OK [UIDVALIDITY 1]``, ``* OK [UIDNEXT 370]`` etc.
-    as untagged responses; imaplib stashes them in ``untagged_responses``.
-    STATUS is not a reliable alternative because many servers forbid
-    STATUS on the currently-selected mailbox.
+    IMAP servers send these as bracketed codes inside untagged OK
+    responses, e.g. ``* OK [UIDVALIDITY 1234567890] UIDs valid``.
+    CPython's imaplib stashes them inconsistently across versions:
+    sometimes each code is extracted to its own key in
+    ``untagged_responses``, sometimes it is only left embedded in the
+    raw OK text. We check all three plausible locations and verify
+    with a regex that the digits really are the code's value (previous
+    implementation extracted all digits from whatever bytes were under
+    the key, which could return ``1`` from "UIDs valid." or similar
+    ambient text).
+
+    Returning ``None`` on failure is load-bearing: callers refuse to
+    poll when the value is unknown, so we never silently fall through
+    to ``UID 1:*`` and backfill the entire mailbox.
     """
-    raw_entries = getattr(conn, "untagged_responses", {}).get(name, [])
-    for raw in raw_entries:
+    pattern = _code_regex(name)
+    untagged = getattr(conn, "untagged_responses", {}) or {}
+
+    def _from_raw(raw):
+        if raw is None:
+            return None
         if isinstance(raw, (bytes, bytearray)):
             raw = raw.decode(errors="replace")
-        digits = "".join(ch for ch in str(raw) if ch.isdigit())
-        if digits:
-            try:
-                return int(digits)
-            except ValueError:
+        text = str(raw)
+        m = pattern.search(text)
+        if m:
+            return int(m.group(1))
+        stripped = text.strip()
+        if stripped.isdigit():
+            return int(stripped)
+        return None
+
+    # 1) Dedicated key (newer imaplib behavior).
+    for raw in untagged.get(name, []):
+        val = _from_raw(raw)
+        if val is not None:
+            return val
+
+    # 2) Embedded in bracketed response codes inside OK / PREAUTH.
+    for key in ("OK", "PREAUTH"):
+        for raw in untagged.get(key, []):
+            if raw is None:
                 continue
-    return 0
+            text = raw.decode(errors="replace") if isinstance(raw, (bytes, bytearray)) else str(raw)
+            m = pattern.search(text)
+            if m:
+                return int(m.group(1))
+
+    # 3) Raw SELECT response as final fallback.
+    if select_resp is not None:
+        items = select_resp if isinstance(select_resp, (list, tuple)) else [select_resp]
+        for raw in items:
+            if raw is None:
+                continue
+            text = raw.decode(errors="replace") if isinstance(raw, (bytes, bytearray)) else str(raw)
+            m = pattern.search(text)
+            if m:
+                return int(m.group(1))
+
+    return None
+
+
+def _read_uidvalidity(conn, mailbox, select_resp=None):
+    """Read UIDVALIDITY from the SELECT response, or ``None`` if unreadable."""
+    return _read_response_code(conn, "UIDVALIDITY", select_resp)
+
+
+def _read_uidnext(conn, mailbox, select_resp=None):
+    """Read UIDNEXT (UID the next new message will get), or ``None`` if unreadable."""
+    return _read_response_code(conn, "UIDNEXT", select_resp)
 
 
 # ---------------------------------------------------------------------------

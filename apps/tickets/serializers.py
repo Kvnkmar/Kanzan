@@ -57,6 +57,9 @@ class TicketStatusSerializer(serializers.ModelSerializer):
 
 
 class QueueSerializer(serializers.ModelSerializer):
+    open_ticket_count = serializers.IntegerField(read_only=True, default=0)
+    default_assignee_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Queue
         fields = [
@@ -64,11 +67,26 @@ class QueueSerializer(serializers.ModelSerializer):
             "name",
             "description",
             "default_assignee",
+            "default_assignee_name",
             "auto_assign",
+            "open_ticket_count",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "default_assignee_name",
+            "open_ticket_count",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_default_assignee_name(self, obj):
+        user = obj.default_assignee
+        if not user:
+            return None
+        full = (user.get_full_name() or "").strip()
+        return full or user.email
 
 
 # ---------------------------------------------------------------------------

@@ -9,7 +9,7 @@ from rest_framework import parsers, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsTenantAdmin
+from apps.accounts.permissions import IsTenantAdmin, IsTenantAdminOrManager
 from apps.tenants.models import Tenant, TenantSettings
 from apps.tenants.serializers import (
     TenantListSerializer,
@@ -95,12 +95,49 @@ class TenantSettingsViewSet(viewsets.GenericViewSet):
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
+    # Workflow toggles that Managers (hierarchy_level <= 20) are allowed
+    # to flip. Everything else in TenantSettings (auth, SSO, branding)
+    # stays admin-only.
+    _MANAGER_EDITABLE_FIELDS = frozenset({
+        "auto_transition_on_assign",
+        "auto_send_ticket_created_email",
+        "auto_assign_inbound_email_tickets",
+    })
+
     def partial_update(self, request, *args, **kwargs):
         instance = self.get_object()
+
+        # Managers may PATCH exclusively within the workflow-toggle allowlist.
+        # If the request touches anything outside that allowlist, fall back
+        # to the default Admin-only check enforced by ``permission_classes``.
+        membership = getattr(request, "membership", None)
+        if membership is None:
+            from apps.accounts.models import TenantMembership
+            membership = TenantMembership.objects.filter(
+                user=request.user, tenant=request.tenant,
+            ).select_related("role").first()
+        is_admin = membership is not None and membership.role.hierarchy_level <= 10
+        if not is_admin:
+            unknown = set(request.data.keys()) - self._MANAGER_EDITABLE_FIELDS
+            if unknown:
+                return Response(
+                    {"detail": f"Managers may only edit workflow toggles: "
+                               f"{sorted(self._MANAGER_EDITABLE_FIELDS)}."},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         serializer = self.get_serializer(instance, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data)
+
+    def get_permissions(self):
+        # The ``IsTenantAdmin`` gate blocks Managers by default. For
+        # PATCH, swap in the looser Admin-or-Manager gate and let
+        # ``partial_update`` enforce the per-field allowlist above.
+        if self.action == "partial_update":
+            return [permissions.IsAuthenticated(), IsTenantAdminOrManager()]
+        return super().get_permissions()
 
     @action(
         detail=False,

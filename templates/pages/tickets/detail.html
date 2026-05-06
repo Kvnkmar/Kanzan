@@ -34,8 +34,8 @@
 }
 .flatpickr-months .flatpickr-prev-month,
 .flatpickr-months .flatpickr-next-month {
-  fill: #6B7280;
-  color: #6B7280;
+  fill: #6B6B70;
+  color: #6B6B70;
   padding: 4px 8px;
   top: 10px;
   border-radius: 8px;
@@ -106,21 +106,21 @@ span.flatpickr-weekday {
   color: #111827;
 }
 .flatpickr-day.today {
-  border-color: #DC2626;
+  border-color: #C1121F;
   background: transparent;
-  color: #DC2626;
+  color: #C1121F;
   font-weight: 700;
 }
 .flatpickr-day.today:hover {
   background: #EEF2FF;
-  border-color: #DC2626;
+  border-color: #C1121F;
   color: #4338CA;
 }
 .flatpickr-day.selected,
 .flatpickr-day.selected:hover,
 .flatpickr-day.selected:focus {
-  background: #DC2626;
-  border-color: #DC2626;
+  background: #C1121F;
+  border-color: #C1121F;
   color: #fff;
   font-weight: 600;
 }
@@ -184,7 +184,7 @@ span.flatpickr-weekday {
   font-weight: 500;
 }
 .flatpickr-time .flatpickr-am-pm {
-  color: #DC2626;
+  color: #C1121F;
   font-weight: 700;
   font-size: 0.75rem;
   border-radius: 8px;
@@ -194,10 +194,10 @@ span.flatpickr-weekday {
   color: #4338CA;
 }
 .numInputWrapper span.arrowUp::after {
-  border-bottom-color: #6B7280;
+  border-bottom-color: #6B6B70;
 }
 .numInputWrapper span.arrowDown::after {
-  border-top-color: #6B7280;
+  border-top-color: #6B6B70;
 }
 
 /* Confirm button footer */
@@ -214,7 +214,7 @@ span.flatpickr-weekday {
   font-weight: 600;
   font-family: 'Inter', sans-serif;
   color: #fff;
-  background: #DC2626;
+  background: #C1121F;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -237,24 +237,24 @@ span.flatpickr-weekday {
 [data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month:hover { background: rgba(255,255,255,0.08); }
 [data-bs-theme="dark"] .flatpickr-months .flatpickr-prev-month:hover svg,
 [data-bs-theme="dark"] .flatpickr-months .flatpickr-next-month:hover svg { fill: #F9FAFB; }
-[data-bs-theme="dark"] span.flatpickr-weekday { color: #6B7280; }
+[data-bs-theme="dark"] span.flatpickr-weekday { color: #6B6B70; }
 [data-bs-theme="dark"] .flatpickr-day { color: #D1D5DB; }
 [data-bs-theme="dark"] .flatpickr-day:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.08); color: #F9FAFB; }
-[data-bs-theme="dark"] .flatpickr-day.today { border-color: var(--crm-primary, #DC2626); color: var(--crm-primary, #DC2626); }
+[data-bs-theme="dark"] .flatpickr-day.today { border-color: var(--crm-primary, #C1121F); color: var(--crm-primary, #C1121F); }
 [data-bs-theme="dark"] .flatpickr-day.today:hover { background: rgba(99,102,241,0.12); }
 [data-bs-theme="dark"] .flatpickr-day.selected,
-[data-bs-theme="dark"] .flatpickr-day.selected:hover { background: var(--crm-primary, #DC2626); border-color: var(--crm-primary, #DC2626); color: #fff; }
+[data-bs-theme="dark"] .flatpickr-day.selected:hover { background: var(--crm-primary, #C1121F); border-color: var(--crm-primary, #C1121F); color: #fff; }
 [data-bs-theme="dark"] .flatpickr-day.prevMonthDay,
-[data-bs-theme="dark"] .flatpickr-day.nextMonthDay { color: #4B5563; }
+[data-bs-theme="dark"] .flatpickr-day.nextMonthDay { color: #4A4A4F; }
 [data-bs-theme="dark"] .flatpickr-time { background: #111827; border-top-color: rgba(255,255,255,0.08); }
 [data-bs-theme="dark"] .flatpickr-time input { color: #F9FAFB; }
 [data-bs-theme="dark"] .flatpickr-time input:hover,
 [data-bs-theme="dark"] .flatpickr-time input:focus { background: rgba(255,255,255,0.06); }
-[data-bs-theme="dark"] .flatpickr-time .flatpickr-time-separator { color: #6B7280; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-time-separator { color: #6B6B70; }
 [data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm { color: #D1D5DB; }
 [data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm:hover { background: rgba(255,255,255,0.06); color: #F9FAFB; }
 [data-bs-theme="dark"] .flatpickr-confirm { background: #111827; border-top-color: rgba(255,255,255,0.08); }
-[data-bs-theme="dark"] .flatpickr-confirm-btn { background: var(--crm-primary, #DC2626); color: #fff; }
+[data-bs-theme="dark"] .flatpickr-confirm-btn { background: var(--crm-primary, #C1121F); color: #fff; }
 </style>
 {% endblock %}
 
@@ -723,7 +723,7 @@ span.flatpickr-weekday {
         <div id="slaStatusContent"></div>
       </div>
 
-      <!-- Quick Actions: Reminder & Call -->
+      <!-- Quick Actions: Reminder -->
       <div class="td-sb-section">
         <div class="td-sb-label">
           <div class="td-sb-icon td-sb-icon--blue"><i class="ti ti-bolt" aria-hidden="true"></i></div>
@@ -732,9 +732,6 @@ span.flatpickr-weekday {
         <div class="d-flex gap-2 mb-2">
           <button class="btn btn-sm btn-outline-primary flex-fill" id="setReminderBtn" title="Set a reminder for this ticket">
             <i class="ti ti-bell me-1"></i>Reminder
-          </button>
-          <button class="btn btn-sm btn-outline-success flex-fill" id="logCallBtn" title="Log an outbound call for this ticket">
-            <i class="ti ti-phone-outgoing me-1"></i>Log Call
           </button>
         </div>
         <div id="ticketReminders" class="small"></div>
@@ -972,53 +969,6 @@ span.flatpickr-weekday {
   </div>
 </div>
 
-<!-- Log Outbound Call Modal -->
-<div class="modal fade" id="logCallModal" tabindex="-1" aria-labelledby="logCallModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="logCallModalLabel"><i class="ti ti-phone-outgoing me-2"></i>Log Outbound Call</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label for="callSubjectInput" class="form-label">Subject <span class="text-danger">*</span></label>
-          <input type="text" id="callSubjectInput" class="form-control" placeholder="e.g. Follow-up call with contact">
-        </div>
-        <div class="mb-3">
-          <label for="callDueInput" class="form-label">Scheduled At</label>
-          <input type="datetime-local" id="callDueInput" class="form-control">
-        </div>
-        <div class="mb-3">
-          <label for="callOutcomeInput" class="form-label">Outcome</label>
-          <input type="text" id="callOutcomeInput" class="form-control" placeholder="e.g. Left voicemail, Discussed issue">
-        </div>
-        <div class="mb-3">
-          <label for="callNotesInput" class="form-label">Notes</label>
-          <textarea id="callNotesInput" class="form-control" rows="2" placeholder="Call details..."></textarea>
-        </div>
-        <div class="form-check mb-3">
-          <input class="form-check-input" type="checkbox" id="callCompletedCheck">
-          <label class="form-check-label" for="callCompletedCheck">Mark as completed (call already made)</label>
-        </div>
-        <div class="mb-3 d-none" id="callReminderWrap">
-          <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="callSetReminderCheck">
-            <label class="form-check-label" for="callSetReminderCheck">Set a reminder for this call</label>
-          </div>
-          <input type="datetime-local" id="callReminderAt" class="form-control mt-2 d-none" placeholder="Reminder time">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-success" id="saveCallBtn">
-          <i class="ti ti-phone-outgoing me-1"></i>Log Call
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
 {% endblock %}
 
 {% block extra_js %}
@@ -1051,7 +1001,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
   var AUTOSAVE_DEBOUNCE_MS = 600;
   var CONTACT_SEARCH_DEBOUNCE_MS = 300;
   var MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
-  var AVATAR_COLORS = ['#DC2626','#DC2626','#DC2626','#0891B2','#22C55E','#F59E0B','#F87171','#EC4899','#A5B4FC','#14B8A6'];
+  var AVATAR_COLORS = ['#C1121F','#C1121F','#C1121F','#9A0E18','#A8A8AC','#C1121F','#F03040','#E11C2B','#F08891','#A8A8AC'];
   var SLA_ICON_FONT_SIZE = '0.625rem';
 
   /* ── State ── */
@@ -3359,7 +3309,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
   /* ============================================================
      Contact Detail Slide Panel
      ============================================================ */
-  var CPANEL_AVATAR_COLORS = ['#DC2626','#B91C1C','#DC2626','#0891B2','#22C55E','#F59E0B','#F87171','#EC4899','#A5B4FC','#14B8A6'];
+  var CPANEL_AVATAR_COLORS = ['#C1121F','#9A0E18','#C1121F','#9A0E18','#A8A8AC','#C1121F','#F03040','#E11C2B','#F08891','#A8A8AC'];
   function cpAvatarColor(name) { if (!name) return CPANEL_AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return CPANEL_AVATAR_COLORS[Math.abs(h) % CPANEL_AVATAR_COLORS.length]; }
 
   window.TicketContactPanel = {
@@ -3552,91 +3502,6 @@ window.dispatchEvent(new Event('tiptap-ready'));
       loadActivity();
     }).catch(function(err) {
       Toast.error(err.detail || err.scheduled_at || 'Failed to create reminder.');
-    });
-  });
-
-  // Log Call button
-  document.getElementById('logCallBtn').addEventListener('click', function() {
-    document.getElementById('callSubjectInput').value = '';
-    document.getElementById('callDueInput').value = '';
-    document.getElementById('callOutcomeInput').value = '';
-    document.getElementById('callNotesInput').value = '';
-    document.getElementById('callCompletedCheck').checked = false;
-    document.getElementById('callSetReminderCheck').checked = false;
-    document.getElementById('callReminderAt').value = '';
-    document.getElementById('callReminderWrap').classList.add('d-none');
-    document.getElementById('callReminderAt').classList.add('d-none');
-
-    new bootstrap.Modal(document.getElementById('logCallModal')).show();
-  });
-
-  // Toggle reminder wrap based on completed checkbox
-  document.getElementById('callCompletedCheck').addEventListener('change', function() {
-    var wrap = document.getElementById('callReminderWrap');
-    if (!this.checked) {
-      wrap.classList.remove('d-none');
-    } else {
-      wrap.classList.add('d-none');
-      document.getElementById('callSetReminderCheck').checked = false;
-      document.getElementById('callReminderAt').classList.add('d-none');
-    }
-  });
-
-  document.getElementById('callSetReminderCheck').addEventListener('change', function() {
-    document.getElementById('callReminderAt').classList.toggle('d-none', !this.checked);
-  });
-
-  document.getElementById('saveCallBtn').addEventListener('click', function() {
-    var subject = document.getElementById('callSubjectInput').value.trim();
-    if (!subject) {
-      Toast.error('Subject is required.');
-      return;
-    }
-
-    var now = new Date().toISOString();
-    var payload = {
-      activity_type: 'call',
-      subject: subject,
-      notes: document.getElementById('callNotesInput').value,
-      outcome: document.getElementById('callOutcomeInput').value,
-      ticket: ticketId,
-    };
-
-    var dueAt = document.getElementById('callDueInput').value;
-    if (dueAt) payload.due_at = new Date(dueAt).toISOString();
-
-    if (document.getElementById('callCompletedCheck').checked) {
-      payload.completed_at = now;
-    }
-
-    // Link to ticket's contact if available
-    var contactId = document.getElementById('ticketContact') ? document.getElementById('ticketContact').value : null;
-    if (contactId) payload.contact = contactId;
-
-    Api.post('/api/v1/crm/activities/', payload).then(function(callData) {
-      Toast.success('Outbound call logged.');
-      bootstrap.Modal.getInstance(document.getElementById('logCallModal')).hide();
-      loadActivity();
-
-      // Optionally create a reminder for this call
-      if (document.getElementById('callSetReminderCheck').checked) {
-        var reminderAt = document.getElementById('callReminderAt').value;
-        if (reminderAt) {
-          Api.post('/api/v1/crm/reminders/', {
-            subject: 'Follow up: ' + subject,
-            scheduled_at: new Date(reminderAt).toISOString(),
-            priority: 'medium',
-            ticket: ticketId,
-            notes: 'Auto-created reminder for outbound call.',
-          }).then(function() {
-            Toast.success('Reminder also set.');
-            loadTicketReminders();
-            loadActivity();
-          }).catch(function() {});
-        }
-      }
-    }).catch(function(err) {
-      Toast.error(err.detail || 'Failed to log call.');
     });
   });
 

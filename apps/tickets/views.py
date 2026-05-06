@@ -133,7 +133,35 @@ class QueueViewSet(ModelViewSet):
         return super().get_permissions()
 
     def get_queryset(self):
-        return Queue.objects.all()
+        from django.db.models import Count, Q
+
+        return Queue.objects.select_related("default_assignee").annotate(
+            open_ticket_count=Count(
+                "tickets",
+                filter=Q(tickets__is_deleted=False, tickets__status__is_closed=False),
+            ),
+        )
+
+    def perform_destroy(self, instance):
+        from rest_framework.exceptions import ValidationError
+
+        open_count = Ticket.objects.filter(
+            queue=instance,
+            is_deleted=False,
+            status__is_closed=False,
+        ).count()
+        if open_count:
+            raise ValidationError(
+                {
+                    "detail": (
+                        f"Cannot delete queue '{instance.name}' — {open_count} open "
+                        f"ticket{'s' if open_count != 1 else ''} still assigned. "
+                        "Reassign or close them first."
+                    ),
+                    "open_ticket_count": open_count,
+                }
+            )
+        instance.delete()
 
 
 # ---------------------------------------------------------------------------

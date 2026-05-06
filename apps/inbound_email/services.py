@@ -390,6 +390,11 @@ def _create_ticket_from_email(inbound, tenant, contact, system_user):
     inbound.status = InboundEmail.Status.TICKET_CREATED
     inbound.save(update_fields=["ticket", "status", "updated_at"])
 
+    # Auto-assign to an Agent if the tenant has opted in. Run BEFORE
+    # the confirmation email fires so the assignee appears on the
+    # ticket from the first notification onward.
+    _maybe_auto_assign(ticket, tenant)
+
     # Process attachments
     _attach_inbound_files(inbound, ticket, system_user)
 
@@ -424,6 +429,34 @@ def _create_ticket_from_email(inbound, tenant, contact, system_user):
             tenant.slug, ticket.number,
         )
     return ticket
+
+
+def _maybe_auto_assign(ticket, tenant):
+    """
+    Apply the tenant's inbound-email auto-assign policy, if enabled.
+
+    Silent no-op when the toggle is off — keeping this outside
+    ``_create_ticket_from_email`` means a future change (e.g. a
+    per-queue override) only has to touch this helper.
+
+    Failures are swallowed with a log entry: auto-assignment is a
+    convenience, not a correctness guarantee. The ticket still exists
+    and can be assigned manually.
+    """
+    settings_obj = getattr(tenant, "settings", None)
+    if settings_obj is None or not settings_obj.auto_assign_inbound_email_tickets:
+        return
+
+    try:
+        from apps.agents.services import auto_assign_email_ticket
+
+        auto_assign_email_ticket(ticket)
+    except Exception:
+        logger.exception(
+            "Auto-assign failed for ticket #%d (tenant %s). "
+            "Ticket remains unassigned.",
+            ticket.number, tenant.slug,
+        )
 
 
 def _add_reply_to_ticket(inbound, ticket, contact, system_user):

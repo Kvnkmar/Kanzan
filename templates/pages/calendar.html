@@ -26,7 +26,7 @@
 .flatpickr-calendar.arrowTop::after { display: none !important; }
 .flatpickr-months .flatpickr-month { background: transparent !important; }
 .flatpickr-months .flatpickr-prev-month,
-.flatpickr-months .flatpickr-next-month { fill: #6B7280 !important; color: #6B7280 !important; border-radius: 8px; transition: all 0.15s; }
+.flatpickr-months .flatpickr-next-month { fill: #6B6B70 !important; color: #6B6B70 !important; border-radius: 8px; transition: all 0.15s; }
 .flatpickr-months .flatpickr-prev-month:hover,
 .flatpickr-months .flatpickr-next-month:hover { background: #F3F4F6 !important; fill: #111827 !important; }
 .flatpickr-current-month { color: #111827 !important; font-weight: 700 !important; }
@@ -37,10 +37,10 @@
 span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important; font-size: 0.6875rem !important; text-transform: uppercase; letter-spacing: 0.04em; }
 .flatpickr-day { color: #374151 !important; border-radius: 10px !important; border: 2px solid transparent; transition: all 0.12s; }
 .flatpickr-day:hover { background: #F3F4F6 !important; border-color: transparent !important; color: #111827 !important; }
-.flatpickr-day.today { border-color: var(--crm-primary, #DC2626) !important; background: transparent !important; color: var(--crm-primary, #DC2626) !important; font-weight: 700; }
+.flatpickr-day.today { border-color: var(--crm-primary, #C1121F) !important; background: transparent !important; color: var(--crm-primary, #C1121F) !important; font-weight: 700; }
 .flatpickr-day.today:hover { background: rgba(220,38,38,0.08) !important; }
 .flatpickr-day.selected,
-.flatpickr-day.selected:hover { background: var(--crm-primary, #DC2626) !important; border-color: var(--crm-primary, #DC2626) !important; color: #fff !important; }
+.flatpickr-day.selected:hover { background: var(--crm-primary, #C1121F) !important; border-color: var(--crm-primary, #C1121F) !important; color: #fff !important; }
 .flatpickr-day.prevMonthDay,
 .flatpickr-day.nextMonthDay { color: #D1D5DB !important; }
 .flatpickr-day.prevMonthDay:hover,
@@ -49,7 +49,7 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 .flatpickr-time input { color: #374151 !important; font-weight: 600 !important; }
 .flatpickr-time input:hover,
 .flatpickr-time input:focus { background: #EEF2FF !important; }
-.flatpickr-time .flatpickr-am-pm { color: var(--crm-primary, #DC2626) !important; font-weight: 700 !important; }
+.flatpickr-time .flatpickr-am-pm { color: var(--crm-primary, #C1121F) !important; font-weight: 700 !important; }
 .flatpickr-time .flatpickr-am-pm:hover { background: #EEF2FF !important; }
 .flatpickr-time .flatpickr-time-separator { color: #D1D5DB !important; }
 .numInputWrapper span { border: none !important; opacity: 0; transition: opacity 0.15s; }
@@ -297,13 +297,13 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
             <label class="form-label small text-muted mb-1"><i class="ti ti-palette me-1"></i>Color</label>
             <div class="d-flex gap-2" id="eventColorPicker">
               <button type="button" class="cal-color-dot active" data-color="" title="Default"><i class="ti ti-circle-filled" style="color:var(--crm-text-muted);font-size:0.5rem;"></i></button>
-              <button type="button" class="cal-color-dot" data-color="#EF4444" title="Red" style="background:#EF4444;"></button>
-              <button type="button" class="cal-color-dot" data-color="#F59E0B" title="Amber" style="background:#F59E0B;"></button>
-              <button type="button" class="cal-color-dot" data-color="#10B981" title="Green" style="background:#10B981;"></button>
-              <button type="button" class="cal-color-dot" data-color="#EF4444" title="Blue" style="background:#EF4444;"></button>
-              <button type="button" class="cal-color-dot" data-color="#EF4444" title="Purple" style="background:#EF4444;"></button>
-              <button type="button" class="cal-color-dot" data-color="#EC4899" title="Pink" style="background:#EC4899;"></button>
-              <button type="button" class="cal-color-dot" data-color="#DC2626" title="Blue" style="background:#DC2626;"></button>
+              <button type="button" class="cal-color-dot" data-color="#E11C2B" title="Red" style="background:#E11C2B;"></button>
+              <button type="button" class="cal-color-dot" data-color="#C1121F" title="Amber" style="background:#C1121F;"></button>
+              <button type="button" class="cal-color-dot" data-color="#A8A8AC" title="Green" style="background:#A8A8AC;"></button>
+              <button type="button" class="cal-color-dot" data-color="#E11C2B" title="Blue" style="background:#E11C2B;"></button>
+              <button type="button" class="cal-color-dot" data-color="#E11C2B" title="Purple" style="background:#E11C2B;"></button>
+              <button type="button" class="cal-color-dot" data-color="#E11C2B" title="Pink" style="background:#E11C2B;"></button>
+              <button type="button" class="cal-color-dot" data-color="#C1121F" title="Blue" style="background:#C1121F;"></button>
             </div>
             <input type="hidden" id="eventColor" value="">
           </div>
@@ -349,33 +349,33 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
   var DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
   var EVENT_COLORS = {
-    'ticket':         '#DC2626',
-    'meeting':        '#F59E0B',
-    'call':           '#EF4444',
-    'task':           '#F59E0B',
+    'ticket':         '#C1121F',
+    'meeting':        '#C1121F',
+    'call':           '#E11C2B',
+    'task':           '#C1121F',
     'reminder':       '#991B1B',
     'other':          '#666666',
     'default':        '#666666'
   };
 
   var EVENT_BAR_COLORS_LIGHT = {
-    'ticket':         { bg: '#FEF2F2', border: '#DC2626', text: '#991B1B' },
-    'meeting':        { bg: '#FEF3C7', border: '#F59E0B', text: '#92400E' },
-    'call':           { bg: '#FEF2F2', border: '#EF4444', text: '#991B1B' },
-    'task':           { bg: '#FFFBEB', border: '#F59E0B', text: '#92400E' },
-    'reminder':       { bg: '#FEF2F2', border: '#991B1B', text: '#5B21B6' },
-    'other':          { bg: '#F1F5F9', border: '#6B7280', text: '#374151' }
+    'ticket':         { bg: '#1A1A1D', border: '#C1121F', text: '#991B1B' },
+    'meeting':        { bg: '#FEF3C7', border: '#C1121F', text: '#92400E' },
+    'call':           { bg: '#1A1A1D', border: '#E11C2B', text: '#991B1B' },
+    'task':           { bg: '#FFFBEB', border: '#C1121F', text: '#92400E' },
+    'reminder':       { bg: '#1A1A1D', border: '#991B1B', text: '#5B21B6' },
+    'other':          { bg: '#F1F5F9', border: '#6B6B70', text: '#374151' }
   };
   var EVENT_BAR_COLORS_DARK = {
-    'ticket':         { bg: 'rgba(220, 38, 38,0.12)', border: '#DC2626', text: '#FCA5A5' },
-    'meeting':        { bg: 'rgba(245,158,11,0.12)', border: '#F59E0B', text: '#FCD34D' },
-    'call':           { bg: 'rgba(239, 68, 68,0.12)', border: '#EF4444', text: '#FCA5A5' },
-    'task':           { bg: 'rgba(245,158,11,0.12)', border: '#F59E0B', text: '#FCD34D' },
+    'ticket':         { bg: 'rgba(220, 38, 38,0.12)', border: '#C1121F', text: '#F08891' },
+    'meeting':        { bg: 'rgba(245,158,11,0.12)', border: '#C1121F', text: '#F03040' },
+    'call':           { bg: 'rgba(239, 68, 68,0.12)', border: '#E11C2B', text: '#F08891' },
+    'task':           { bg: 'rgba(245,158,11,0.12)', border: '#C1121F', text: '#F03040' },
     'reminder':       { bg: 'rgba(124,58,237,0.12)', border: '#991B1B', text: '#FECACA' },
-    'other':          { bg: 'rgba(255,255,255,0.06)', border: '#6B7280', text: '#9CA3AF' }
+    'other':          { bg: 'rgba(255,255,255,0.06)', border: '#6B6B70', text: '#9CA3AF' }
   };
-  var DEFAULT_BAR_LIGHT = { bg: '#F1F5F9', border: '#6B7280', text: '#374151' };
-  var DEFAULT_BAR_DARK = { bg: 'rgba(255,255,255,0.06)', border: '#6B7280', text: '#9CA3AF' };
+  var DEFAULT_BAR_LIGHT = { bg: '#F1F5F9', border: '#6B6B70', text: '#374151' };
+  var DEFAULT_BAR_DARK = { bg: 'rgba(255,255,255,0.06)', border: '#6B6B70', text: '#9CA3AF' };
 
   function isDarkMode() {
     return document.documentElement.getAttribute('data-bs-theme') === 'dark';
@@ -406,6 +406,21 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
     var div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
+  }
+
+  // Convert HTML (e.g. TipTap <p>...</p> output) to plain text for previews.
+  // Uses regex tag-stripping to avoid setting innerHTML with untrusted content.
+  function htmlToText(html) {
+    if (!html) return '';
+    var stripped = String(html)
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<br\s*\/?>(\s*)/gi, ' ')
+      .replace(/<\/(p|div|li|h[1-6])>/gi, ' ')
+      .replace(/<[^>]+>/g, '');
+    var txt = document.createElement('textarea');
+    txt.innerHTML = stripped; // decode HTML entities (&amp; etc) safely — textarea never executes
+    return (txt.value || '').replace(/\s+/g, ' ').trim();
   }
 
   function pad(n) { return n < 10 ? '0' + n : '' + n; }
@@ -534,7 +549,7 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
         badgeHtml += '<span class="badge event-detail-badge" style="background-color:' + escapeHtml(t.status_color || '#94A3B8') + ';">' + escapeHtml(t.status_name) + '</span>';
       }
       if (t.priority) {
-        var priColors = { urgent: '#EF4444', high: '#F59E0B', medium: '#EF4444', low: '#64748B' };
+        var priColors = { urgent: '#E11C2B', high: '#C1121F', medium: '#E11C2B', low: '#64748B' };
         var priColor = priColors[t.priority] || '#64748B';
         badgeHtml += '<span class="badge event-detail-badge" style="background-color:' + escapeHtml(priColor) + ';">' + escapeHtml(t.priority.charAt(0).toUpperCase() + t.priority.slice(1)) + '</span>';
       }
@@ -542,7 +557,7 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
         badgeHtml += '<span class="badge event-detail-badge" style="background:rgba(139,92,246,0.12);color:#FECACA;">' + escapeHtml(t.category) + '</span>';
       }
       if (t.is_closed) {
-        badgeHtml += '<span class="badge event-detail-badge" style="background:rgba(16,185,129,0.12);color:#6EE7B7;"><i class="ti ti-check me-1"></i>Closed</span>';
+        badgeHtml += '<span class="badge event-detail-badge" style="background:rgba(16,185,129,0.12);color:#A8A8AC;"><i class="ti ti-check me-1"></i>Closed</span>';
       }
       badgesEl.innerHTML = badgeHtml;
       badgesEl.style.display = badgeHtml ? '' : 'none';
@@ -551,21 +566,22 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
       if (t.sla_response_breached || t.sla_resolution_breached) {
         html += '<div class="event-detail-sla-alert">';
         html += '<div class="d-flex align-items-center gap-2">';
-        html += '<i class="ti ti-alert-triangle" style="color:#EF4444;font-size:0.9375rem;"></i>';
-        html += '<span style="font-size:0.8125rem;color:#FCA5A5;font-weight:600;">SLA Breached</span>';
+        html += '<i class="ti ti-alert-triangle" style="color:#E11C2B;font-size:0.9375rem;"></i>';
+        html += '<span style="font-size:0.8125rem;color:#F08891;font-weight:600;">SLA Breached</span>';
         html += '</div>';
         if (t.sla_response_breached) {
-          html += '<div style="font-size:0.75rem;color:#FCA5A5;margin-left:24px;margin-top:2px;">Response time exceeded</div>';
+          html += '<div style="font-size:0.75rem;color:#F08891;margin-left:24px;margin-top:2px;">Response time exceeded</div>';
         }
         if (t.sla_resolution_breached) {
-          html += '<div style="font-size:0.75rem;color:#FCA5A5;margin-left:24px;margin-top:2px;">Resolution time exceeded</div>';
+          html += '<div style="font-size:0.75rem;color:#F08891;margin-left:24px;margin-top:2px;">Resolution time exceeded</div>';
         }
         html += '</div>';
       }
 
-      // Description preview
-      if (t.description) {
-        var descText = t.description.length > 200 ? t.description.substring(0, 200) + '\u2026' : t.description;
+      // Description preview (TipTap output is HTML \u2014 strip tags for the modal preview)
+      var descPlain = htmlToText(t.description);
+      if (descPlain) {
+        var descText = descPlain.length > 200 ? descPlain.substring(0, 200) + '\u2026' : descPlain;
         html += '<div class="event-detail-desc">' + escapeHtml(descText) + '</div>';
       }
 
@@ -597,7 +613,7 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
         var now = new Date();
         var dueDate = new Date(t.due_date);
         var isOverdue = !t.is_closed && dueDate < now;
-        html += infoRow('calendar-event', 'Due', formatDateTime(t.due_date), isOverdue ? '#EF4444' : '');
+        html += infoRow('calendar-event', 'Due', formatDateTime(t.due_date), isOverdue ? '#E11C2B' : '');
       }
       if (t.updated_at && t.updated_at !== t.created_at) {
         html += infoRow('refresh', 'Updated', formatDateTime(t.updated_at));
@@ -632,9 +648,10 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
       badgesEl.innerHTML = '<span class="badge event-detail-badge" style="background:' + escapeHtml(color) + ';font-size:0.6875rem;">' + escapeHtml(typeLabel) + '</span>';
       badgesEl.style.display = '';
 
-      // Description
-      if (ce.description) {
-        html += '<div class="event-detail-desc">' + escapeHtml(ce.description) + '</div>';
+      // Description (calendar events store plain text but be defensive against HTML)
+      var ceDesc = htmlToText(ce.description);
+      if (ceDesc) {
+        html += '<div class="event-detail-desc">' + escapeHtml(ceDesc) + '</div>';
       }
 
       // Info rows

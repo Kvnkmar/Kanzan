@@ -171,6 +171,13 @@
               <div class="st-hub-card-desc">Define and organize ticket classification types</div>
             </div>
           </a>
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="queuesPane" data-search="queues team routing assignment department support sales billing inbox">
+            <div class="st-hub-card-icon"><i class="ti ti-inbox"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Queues</div>
+              <div class="st-hub-card-desc">Route tickets to teams with optional auto-assignment</div>
+            </div>
+          </a>
           <a href="javascript:void(0)" class="st-hub-card" data-pane="knowledgeBasePane" data-search="knowledge base articles categories documentation help">
             <div class="st-hub-card-icon"><i class="ti ti-book"></i></div>
             <div class="st-hub-card-body">
@@ -178,8 +185,8 @@
               <div class="st-hub-card-desc">Manage help articles, categories, and documentation</div>
             </div>
           </a>
-          {% if is_admin %}
-          <a href="javascript:void(0)" class="st-hub-card" data-pane="workflowPane" data-search="workflow automation assign transition status open in progress">
+          {% if is_admin_or_manager %}
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="workflowPane" data-search="workflow automation assign transition status open in progress auto-assign email">
             <div class="st-hub-card-icon"><i class="ti ti-arrows-transfer-down"></i></div>
             <div class="st-hub-card-body">
               <div class="st-hub-card-title">Workflow</div>
@@ -582,37 +589,37 @@
             <div class="st-form-group">
               <label class="st-label">Quick Presets</label>
               <div class="branding-presets" id="colorPresets">
-                <button type="button" class="branding-preset-btn" data-primary="#DC2626" data-accent="#F59E0B" title="Royal Blue & Amber">
-                  <span class="preset-swatch" style="background:#DC2626;"></span>
-                  <span class="preset-swatch" style="background:#F59E0B;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#C1121F" data-accent="#C1121F" title="Royal Blue & Amber">
+                  <span class="preset-swatch" style="background:#C1121F;"></span>
+                  <span class="preset-swatch" style="background:#C1121F;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#EF4444" data-accent="#10B981" title="Blue & Emerald">
-                  <span class="preset-swatch" style="background:#EF4444;"></span>
-                  <span class="preset-swatch" style="background:#10B981;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#E11C2B" data-accent="#A8A8AC" title="Blue & Emerald">
+                  <span class="preset-swatch" style="background:#E11C2B;"></span>
+                  <span class="preset-swatch" style="background:#A8A8AC;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#EF4444" data-accent="#EC4899" title="Violet & Pink">
-                  <span class="preset-swatch" style="background:#EF4444;"></span>
-                  <span class="preset-swatch" style="background:#EC4899;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#E11C2B" data-accent="#E11C2B" title="Violet & Pink">
+                  <span class="preset-swatch" style="background:#E11C2B;"></span>
+                  <span class="preset-swatch" style="background:#E11C2B;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#DC2626" data-accent="#F97316" title="Red & Orange">
-                  <span class="preset-swatch" style="background:#DC2626;"></span>
-                  <span class="preset-swatch" style="background:#F97316;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#C1121F" data-accent="#C1121F" title="Red & Orange">
+                  <span class="preset-swatch" style="background:#C1121F;"></span>
+                  <span class="preset-swatch" style="background:#C1121F;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#059669" data-accent="#DC2626" title="Green & Blue">
-                  <span class="preset-swatch" style="background:#059669;"></span>
-                  <span class="preset-swatch" style="background:#DC2626;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#8E8E92" data-accent="#C1121F" title="Green & Blue">
+                  <span class="preset-swatch" style="background:#8E8E92;"></span>
+                  <span class="preset-swatch" style="background:#C1121F;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#0EA5E9" data-accent="#F43F5E" title="Sky & Rose">
-                  <span class="preset-swatch" style="background:#0EA5E9;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#C1121F" data-accent="#F43F5E" title="Sky & Rose">
+                  <span class="preset-swatch" style="background:#C1121F;"></span>
                   <span class="preset-swatch" style="background:#F43F5E;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#D946EF" data-accent="#14B8A6" title="Fuchsia & Teal">
+                <button type="button" class="branding-preset-btn" data-primary="#D946EF" data-accent="#A8A8AC" title="Fuchsia & Teal">
                   <span class="preset-swatch" style="background:#D946EF;"></span>
-                  <span class="preset-swatch" style="background:#14B8A6;"></span>
+                  <span class="preset-swatch" style="background:#A8A8AC;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#1E293B" data-accent="#EF4444" title="Slate & Blue">
+                <button type="button" class="branding-preset-btn" data-primary="#1E293B" data-accent="#E11C2B" title="Slate & Blue">
                   <span class="preset-swatch" style="background:#1E293B;"></span>
-                  <span class="preset-swatch" style="background:#EF4444;"></span>
+                  <span class="preset-swatch" style="background:#E11C2B;"></span>
                 </button>
               </div>
             </div>
@@ -622,16 +629,16 @@
               <div class="st-form-group">
                 <label for="primaryColor" class="st-label">Primary Color</label>
                 <div class="branding-color-input">
-                  <input type="color" class="form-control form-control-color" id="primaryColor" value="#DC2626">
-                  <input type="text" class="form-control" id="primaryColorHex" placeholder="#DC2626" maxlength="7">
+                  <input type="color" class="form-control form-control-color" id="primaryColor" value="#C1121F">
+                  <input type="text" class="form-control" id="primaryColorHex" placeholder="#C1121F" maxlength="7">
                 </div>
                 <div class="form-text">Buttons, links, sidebar active state, and main actions.</div>
               </div>
               <div class="st-form-group">
                 <label for="accentColor" class="st-label">Accent Color</label>
                 <div class="branding-color-input">
-                  <input type="color" class="form-control form-control-color" id="accentColor" value="#F59E0B">
-                  <input type="text" class="form-control" id="accentColorHex" placeholder="#F59E0B" maxlength="7">
+                  <input type="color" class="form-control form-control-color" id="accentColor" value="#C1121F">
+                  <input type="text" class="form-control" id="accentColorHex" placeholder="#C1121F" maxlength="7">
                 </div>
                 <div class="form-text">Badges, highlights, notifications, and secondary actions.</div>
               </div>
@@ -964,7 +971,7 @@
         </div>
       </div>
 
-      {% if is_admin %}
+      {% if is_admin_or_manager %}
       <!-- Workflow -->
       <div class="settings-pane" id="workflowPane" style="display:none">
         <div class="st-section">
@@ -994,6 +1001,16 @@
               </div>
               <div class="form-check form-switch mb-0">
                 <input class="form-check-input" type="checkbox" role="switch" id="autoSendCreatedEmailToggle" checked>
+              </div>
+            </div>
+            <hr class="my-2">
+            <div class="d-flex align-items-center justify-content-between py-2">
+              <div>
+                <span class="st-toggle-label">Auto-assign inbound-email tickets to Agents</span>
+                <span class="st-toggle-desc d-block text-muted small">When enabled, tickets created from inbound customer emails are routed to the Agent (role: Agent) with the fewest open tickets, ties broken by least-recently-assigned. Offline agents are skipped. When disabled, email tickets arrive unassigned and admins/managers triage them manually.</span>
+              </div>
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="autoAssignEmailToggle">
               </div>
             </div>
           </div>
@@ -1048,6 +1065,64 @@
               <div class="modal-footer">
                 <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
                 <button type="button" class="btn btn-sm btn-primary" id="saveCategoryBtn">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Queues -->
+      <div class="settings-pane" id="queuesPane" style="display:none">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-inbox"></i></div>
+            <div class="flex-grow-1">
+              <h3 class="st-section-title">Queues</h3>
+              <p class="st-section-desc">Organise tickets into team buckets. Optionally route new tickets to a default assignee.</p>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" id="addQueueBtn"><i class="ti ti-plus me-1"></i>Add Queue</button>
+          </div>
+          <div id="queuesLoading" class="text-center py-4"><div class="spinner-border spinner-border-sm text-muted" role="status"></div></div>
+          <div id="queuesList"></div>
+          <div id="queuesEmpty" class="st-empty-state d-none">
+            <i class="ti ti-inbox"></i>
+            <p>No queues yet. Click "Add Queue" to create one — every ticket needs a queue.</p>
+          </div>
+        </div>
+        <div class="modal fade" id="queueModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h6 class="modal-title fw-semibold" id="queueModalTitle">Add Queue</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <form id="queueForm">
+                  <input type="hidden" id="queueEditId">
+                  <div class="mb-3">
+                    <label for="queueName" class="form-label">Name <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="queueName" placeholder="e.g. Support, Billing, Engineering" required maxlength="100">
+                  </div>
+                  <div class="mb-3">
+                    <label for="queueDescription" class="form-label">Description</label>
+                    <textarea class="form-control" id="queueDescription" rows="2" placeholder="What kind of tickets land here?"></textarea>
+                  </div>
+                  <div class="mb-3">
+                    <label for="queueDefaultAssignee" class="form-label">Default Assignee</label>
+                    <select class="form-select" id="queueDefaultAssignee">
+                      <option value="">No default assignee</option>
+                    </select>
+                    <div class="form-text">Optional. If set with auto-assign on, new tickets in this queue route here.</div>
+                  </div>
+                  <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="queueAutoAssign">
+                    <label class="form-check-label" for="queueAutoAssign">Auto-assign new tickets to default assignee</label>
+                  </div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary" id="saveQueueBtn">Save</button>
               </div>
             </div>
           </div>
@@ -1410,10 +1485,11 @@
 {% block extra_js %}
 <script>
 var _settingsPaneIds = [
-  {% if is_admin %}'generalPane', 'businessHoursPane', 'authPane', 'brandingPane', 'workflowPane',{% endif %}
+  {% if is_admin %}'generalPane', 'businessHoursPane', 'authPane', 'brandingPane',{% endif %}
+  {% if is_admin_or_manager %}'workflowPane',{% endif %}
   'notificationsPane',
   'themePane', 'languagePane',
-  {% if is_admin_or_manager %}'categoriesPane',{% endif %}
+  {% if is_admin_or_manager %}'categoriesPane', 'queuesPane',{% endif %}
   'cannedResponsesPane',
   'knowledgeBasePane',
   'signaturePane', 'passwordPane'
@@ -1435,6 +1511,7 @@ var settingsHub = (function() {
     languagePane: { title: 'Language & Timezone', icon: 'ti-language', category: 'Preferences' },
     workflowPane: { title: 'Workflow', icon: 'ti-arrows-transfer-down', category: 'Support Operations' },
     categoriesPane: { title: 'Ticket Categories', icon: 'ti-tag', category: 'Support Operations' },
+    queuesPane: { title: 'Queues', icon: 'ti-inbox', category: 'Support Operations' },
     cannedResponsesPane: { title: 'Canned Responses', icon: 'ti-message-chatbot', category: 'Productivity' },
     knowledgeBasePane: { title: 'Knowledge Base', icon: 'ti-book', category: 'Support Operations' },
     signaturePane: { title: 'Email Signature', icon: 'ti-signature', category: 'Channels' },
@@ -1654,10 +1731,10 @@ function switchSettingsTab(targetId) {
     document.getElementById('ssoClientId').value = s.sso_client_id || '';
     document.getElementById('ssoDomain').value = s.sso_authority_url || s.sso_domain || '';
     document.getElementById('ssoScopes').value = s.sso_scopes || 'openid email profile';
-    var color = s.primary_color || '#DC2626';
+    var color = s.primary_color || '#C1121F';
     document.getElementById('primaryColor').value = color;
     document.getElementById('primaryColorHex').value = color;
-    var accent = s.accent_color || '#F59E0B';
+    var accent = s.accent_color || '#C1121F';
     document.getElementById('accentColor').value = accent;
     document.getElementById('accentColorHex').value = accent;
     updateColorPreview(color, accent);
@@ -1671,11 +1748,9 @@ function switchSettingsTab(targetId) {
     loadBusinessHoursData();
     loadHolidays();
     loadSLAPauseStatuses();
-    // Workflow toggles
-    var atToggle = document.getElementById('autoTransitionToggle');
-    if (atToggle) atToggle.checked = s.auto_transition_on_assign !== false;
-    var sendCreatedToggle = document.getElementById('autoSendCreatedEmailToggle');
-    if (sendCreatedToggle) sendCreatedToggle.checked = s.auto_send_ticket_created_email !== false;
+    // Workflow toggles are populated/bound in the separate admin-or-manager
+    // block below so Managers can use them too — kept out of this IIFE to
+    // avoid double-binding change listeners for Admins.
   }
   async function saveGeneral(e) {
     e.preventDefault(); var sp = document.getElementById('generalSpinner'); sp.classList.remove('d-none');
@@ -1900,34 +1975,9 @@ function switchSettingsTab(targetId) {
     document.getElementById('authForm').addEventListener('submit', saveAuth);
     document.getElementById('brandingForm').addEventListener('submit', saveBranding);
     document.getElementById('authMethod').addEventListener('change', function() { toggleSsoFields(this.value); });
-    // Workflow: auto-transition toggle
-    var atToggle = document.getElementById('autoTransitionToggle');
-    if (atToggle) {
-      atToggle.addEventListener('change', async function() {
-        try {
-          await Api.patch('/api/v1/tenants/settings/', { auto_transition_on_assign: this.checked });
-          Toast.success('Workflow setting updated');
-        } catch (e) {
-          Toast.error('Failed to save workflow setting');
-          this.checked = !this.checked;
-        }
-      });
-    }
-    // Workflow: auto-send confirmation email toggle
-    var sendCreatedToggle = document.getElementById('autoSendCreatedEmailToggle');
-    if (sendCreatedToggle) {
-      sendCreatedToggle.addEventListener('change', async function() {
-        try {
-          await Api.patch('/api/v1/tenants/settings/', { auto_send_ticket_created_email: this.checked });
-          Toast.success(this.checked
-            ? 'Confirmation emails will be sent automatically'
-            : 'Confirmation emails are now manual');
-        } catch (e) {
-          Toast.error('Failed to save workflow setting');
-          this.checked = !this.checked;
-        }
-      });
-    }
+    // Workflow toggles are populated/bound in the admin-or-manager block
+    // below so Managers can flip them too — intentionally not duplicated
+    // here to avoid attaching the change listener twice for Admins.
     // Business hours: toggle time inputs when day checkbox changes
     document.querySelectorAll('.bh-day-row input[type=checkbox]').forEach(function(cb) {
       cb.addEventListener('change', function() {
@@ -1967,7 +2017,7 @@ function switchSettingsTab(targetId) {
       });
     });
     document.getElementById('resetColorsBtn').addEventListener('click', function() {
-      var p = '#DC2626', a = '#F59E0B';
+      var p = '#C1121F', a = '#C1121F';
       document.getElementById('primaryColor').value = p;
       document.getElementById('primaryColorHex').value = p;
       document.getElementById('accentColor').value = a;
@@ -2050,6 +2100,64 @@ function switchSettingsTab(targetId) {
 </script>
 {% endif %}
 {% if is_admin_or_manager %}
+<script>
+/*
+ * Workflow toggles — admin-and-manager scope.
+ *
+ * Kept separate from the admin-only settings IIFE so Managers can flip
+ * these three toggles (the backend ``TenantSettingsViewSet.partial_update``
+ * permits Managers PATCH access to exactly this allowlist). The admin
+ * IIFE deliberately does NOT bind change listeners on these elements to
+ * prevent duplicate firing for Admins.
+ */
+(function() {
+  'use strict';
+  async function init() {
+    var atToggle = document.getElementById('autoTransitionToggle');
+    var sendCreatedToggle = document.getElementById('autoSendCreatedEmailToggle');
+    var autoAssignToggle = document.getElementById('autoAssignEmailToggle');
+    if (!atToggle && !sendCreatedToggle && !autoAssignToggle) return;
+
+    // Populate from current settings.
+    try {
+      var s = await Api.get('/api/v1/tenants/settings/');
+      if (atToggle) atToggle.checked = s.auto_transition_on_assign !== false;
+      if (sendCreatedToggle) sendCreatedToggle.checked = s.auto_send_ticket_created_email !== false;
+      if (autoAssignToggle) autoAssignToggle.checked = s.auto_assign_inbound_email_tickets === true;
+    } catch (e) {
+      // Non-fatal: leave toggles in their HTML-default state. Don't
+      // show a toast because other scripts on this page may also be
+      // loading settings and surfacing the error already.
+      console.warn('Could not load workflow settings:', e);
+    }
+
+    function bind(toggle, field, onMsg, offMsg) {
+      if (!toggle) return;
+      toggle.addEventListener('change', async function() {
+        var body = {};
+        body[field] = this.checked;
+        try {
+          await Api.patch('/api/v1/tenants/settings/', body);
+          Toast.success(this.checked ? onMsg : offMsg);
+        } catch (e) {
+          Toast.error(e.detail || 'Failed to save workflow setting');
+          this.checked = !this.checked;  // revert optimistic flip
+        }
+      });
+    }
+
+    bind(atToggle, 'auto_transition_on_assign',
+         'Workflow setting updated', 'Workflow setting updated');
+    bind(sendCreatedToggle, 'auto_send_ticket_created_email',
+         'Confirmation emails will be sent automatically',
+         'Confirmation emails are now manual');
+    bind(autoAssignToggle, 'auto_assign_inbound_email_tickets',
+         'Email tickets will auto-assign to Agents by load',
+         'Email tickets will arrive unassigned');
+  }
+  document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
 <script>
 (function() {
   'use strict';
@@ -2166,6 +2274,228 @@ function switchSettingsTab(targetId) {
   document.getElementById('categoryName').addEventListener('input', function() { if (!document.getElementById('categoryEditId').value) document.getElementById('categorySlug').value = slugify(this.value); });
   var origSwitch = window.switchSettingsTab;
   window.switchSettingsTab = function(targetId) { origSwitch(targetId); if (targetId === 'categoriesPane' && !categories.length) loadCategories(); };
+})();
+
+/* ─── Queues ─────────────────────────────────────────────── */
+(function() {
+  'use strict';
+  var queues = [];
+  var tenantUsers = [];
+  var queueModal = null;
+
+  async function loadQueues() {
+    try {
+      var data = await Api.get('/api/v1/tickets/queues/');
+      queues = data.results || data;
+      renderQueues();
+    } catch(e) {
+      console.error('Error loading queues:', e);
+    } finally {
+      document.getElementById('queuesLoading').classList.add('d-none');
+    }
+  }
+
+  async function loadTenantUsers() {
+    if (tenantUsers.length) return;
+    try {
+      var data = await Api.get('/api/v1/accounts/users/');
+      tenantUsers = data.results || data;
+    } catch(e) {
+      console.error('Error loading users:', e);
+    }
+  }
+
+  function userLabel(u) {
+    var name = ((u.first_name || '') + ' ' + (u.last_name || '')).trim();
+    return name || u.email;
+  }
+
+  function renderQueues() {
+    var list = document.getElementById('queuesList');
+    var empty = document.getElementById('queuesEmpty');
+    list.textContent = '';
+    if (!queues.length) { empty.classList.remove('d-none'); return; }
+    empty.classList.add('d-none');
+
+    queues.forEach(function(q) {
+      var row = document.createElement('div');
+      row.className = 'd-flex align-items-center gap-3 py-2 px-3 rounded mb-1';
+      row.style.cssText = 'border:1px solid var(--crm-border-light);transition:background 0.1s;';
+      row.addEventListener('mouseenter', function() { this.style.background = 'var(--crm-bg)'; });
+      row.addEventListener('mouseleave', function() { this.style.background = 'transparent'; });
+
+      var infoDiv = document.createElement('div');
+      infoDiv.className = 'flex-grow-1';
+      var topLine = document.createElement('div');
+      topLine.className = 'd-flex align-items-center gap-2';
+      var nameEl = document.createElement('span');
+      nameEl.className = 'fw-medium';
+      nameEl.style.fontSize = '0.875rem';
+      nameEl.textContent = q.name;
+      topLine.appendChild(nameEl);
+      if (q.auto_assign && q.default_assignee) {
+        var autoBadge = document.createElement('span');
+        autoBadge.className = 'badge bg-primary-subtle text-primary d-inline-flex align-items-center gap-1';
+        autoBadge.style.fontSize = '0.7rem';
+        var boltIcon = document.createElement('i');
+        boltIcon.className = 'ti ti-bolt';
+        autoBadge.appendChild(boltIcon);
+        autoBadge.appendChild(document.createTextNode('Auto-assign'));
+        topLine.appendChild(autoBadge);
+      }
+      infoDiv.appendChild(topLine);
+
+      var meta = document.createElement('div');
+      meta.className = 'text-muted';
+      meta.style.fontSize = '0.75rem';
+      var parts = [];
+      if (q.default_assignee_name) parts.push('Assignee: ' + q.default_assignee_name);
+      if (q.description) parts.push(q.description);
+      meta.textContent = parts.join(' • ');
+      if (parts.length) infoDiv.appendChild(meta);
+
+      var countBadge = document.createElement('span');
+      var openCount = q.open_ticket_count || 0;
+      countBadge.className = openCount > 0 ? 'badge bg-info-subtle text-info' : 'badge bg-secondary-subtle text-secondary';
+      countBadge.textContent = openCount + ' open';
+
+      var btns = document.createElement('div');
+      btns.className = 'd-flex gap-1';
+      var editBtn = document.createElement('button');
+      editBtn.className = 'btn btn-sm btn-outline-secondary py-0 px-2';
+      editBtn.style.fontSize = '0.75rem';
+      editBtn.dataset.id = q.id;
+      var editIcon = document.createElement('i');
+      editIcon.className = 'ti ti-pencil';
+      editBtn.appendChild(editIcon);
+      editBtn.addEventListener('click', function() { editQueue(this.dataset.id); });
+
+      var delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-sm btn-outline-danger py-0 px-2';
+      delBtn.style.fontSize = '0.75rem';
+      delBtn.dataset.id = q.id;
+      delBtn.dataset.name = q.name;
+      delBtn.dataset.openCount = openCount;
+      var delIcon = document.createElement('i');
+      delIcon.className = 'ti ti-trash';
+      delBtn.appendChild(delIcon);
+      if (openCount > 0) {
+        delBtn.disabled = true;
+        delBtn.title = 'Cannot delete: ' + openCount + ' open ticket' + (openCount === 1 ? '' : 's') + ' in this queue';
+      }
+      delBtn.addEventListener('click', function() {
+        deleteQueue(this.dataset.id, this.dataset.name, parseInt(this.dataset.openCount, 10) || 0);
+      });
+      btns.appendChild(editBtn);
+      btns.appendChild(delBtn);
+
+      row.appendChild(infoDiv);
+      row.appendChild(countBadge);
+      row.appendChild(btns);
+      list.appendChild(row);
+    });
+  }
+
+  function populateAssigneeSelect(selectedId) {
+    var sel = document.getElementById('queueDefaultAssignee');
+    sel.textContent = '';
+    var blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = 'No default assignee';
+    sel.appendChild(blank);
+    tenantUsers.forEach(function(u) {
+      var opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = userLabel(u);
+      if (selectedId && String(u.id) === String(selectedId)) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  }
+
+  async function openAddModal() {
+    document.getElementById('queueModalTitle').textContent = 'Add Queue';
+    document.getElementById('queueEditId').value = '';
+    document.getElementById('queueName').value = '';
+    document.getElementById('queueDescription').value = '';
+    document.getElementById('queueAutoAssign').checked = false;
+    await loadTenantUsers();
+    populateAssigneeSelect(null);
+    if (!queueModal) queueModal = new bootstrap.Modal(document.getElementById('queueModal'));
+    queueModal.show();
+  }
+
+  async function editQueue(id) {
+    var q = queues.find(function(x) { return x.id === id; });
+    if (!q) return;
+    document.getElementById('queueModalTitle').textContent = 'Edit Queue';
+    document.getElementById('queueEditId').value = q.id;
+    document.getElementById('queueName').value = q.name;
+    document.getElementById('queueDescription').value = q.description || '';
+    document.getElementById('queueAutoAssign').checked = !!q.auto_assign;
+    await loadTenantUsers();
+    populateAssigneeSelect(q.default_assignee);
+    if (!queueModal) queueModal = new bootstrap.Modal(document.getElementById('queueModal'));
+    queueModal.show();
+  }
+
+  async function saveQueue() {
+    var name = document.getElementById('queueName').value.trim();
+    if (!name) { Toast.error('Queue name is required'); return; }
+    var assigneeRaw = document.getElementById('queueDefaultAssignee').value;
+    var payload = {
+      name: name,
+      description: document.getElementById('queueDescription').value.trim(),
+      default_assignee: assigneeRaw || null,
+      auto_assign: document.getElementById('queueAutoAssign').checked,
+    };
+    if (payload.auto_assign && !payload.default_assignee) {
+      Toast.error('Auto-assign needs a default assignee. Pick one or turn auto-assign off.');
+      return;
+    }
+    var editId = document.getElementById('queueEditId').value;
+    try {
+      if (editId) {
+        await Api.patch('/api/v1/tickets/queues/' + editId + '/', payload);
+        Toast.success('Queue updated');
+      } else {
+        await Api.post('/api/v1/tickets/queues/', payload);
+        Toast.success('Queue created');
+      }
+      queueModal.hide();
+      loadQueues();
+    } catch(e) {
+      var msg = 'Failed to save queue';
+      if (e && e.name) msg = Array.isArray(e.name) ? e.name.join(' ') : e.name;
+      else if (e && e.detail) msg = e.detail;
+      Toast.error(msg);
+    }
+  }
+
+  async function deleteQueue(id, name, openCount) {
+    if (openCount > 0) {
+      Toast.error('Cannot delete "' + name + '" — ' + openCount + ' open ticket' + (openCount === 1 ? '' : 's') + ' still assigned. Reassign or close them first.');
+      return;
+    }
+    if (!confirm('Delete queue "' + name + '"? This cannot be undone.')) return;
+    try {
+      await Api.delete('/api/v1/tickets/queues/' + id + '/');
+      Toast.success('Queue deleted');
+      loadQueues();
+    } catch(e) {
+      var msg = (e && e.detail) ? e.detail : 'Failed to delete queue';
+      Toast.error(msg);
+      loadQueues();
+    }
+  }
+
+  document.getElementById('addQueueBtn').addEventListener('click', openAddModal);
+  document.getElementById('saveQueueBtn').addEventListener('click', saveQueue);
+
+  var origSwitchQ = window.switchSettingsTab;
+  window.switchSettingsTab = function(targetId) {
+    origSwitchQ(targetId);
+    if (targetId === 'queuesPane' && !queues.length) loadQueues();
+  };
 })();
 </script>
 {% endif %}

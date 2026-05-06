@@ -17,7 +17,7 @@
         <h1 class="auth-title">Check your inbox</h1>
         <p class="text-muted mt-2">
           We've sent a verification link to<br>
-          <strong>{{ email|default:"your email" }}</strong>.
+          <strong class="auth-verify-email">{{ email|default:"your email" }}</strong>.
         </p>
         <p class="text-muted small mt-3">
           Click the link in that email to activate your account. The link
@@ -25,11 +25,14 @@
         </p>
       </div>
 
-      <div class="alert alert-secondary small" role="alert">
-        <i class="ti ti-info-circle me-1"></i>
-        Didn't get it? Check your spam folder, or
-        <a href="{% url 'frontend:register' %}">sign up again</a>
-        with the same email to resend.
+      <div class="rounded p-3 small d-flex align-items-start gap-2"
+           style="background-color: #ffffff !important; border: 1px solid #e5e7eb !important;">
+        <i class="ti ti-info-circle" style="color: #1a1a1a !important;"></i>
+        <span style="color: #1a1a1a !important;">
+          Didn't get it? Check your spam folder, or
+          <a href="{% url 'frontend:register' %}" style="color: #C1121F !important; font-weight: 600;">sign up again</a>
+          <span style="color: #1a1a1a !important;">with the same email to resend.</span>
+        </span>
       </div>
 
       <div class="auth-footer-links mt-3">

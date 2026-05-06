@@ -8,12 +8,17 @@ and auto-assigning tickets to the best-fit agent.
 import logging
 
 from django.db import transaction
-from django.db.models import F
+from django.db.models import Count, F, Max, Q
 from django.utils import timezone
 
 from apps.agents.models import AgentAvailability, AgentStatus
 
 logger = logging.getLogger(__name__)
+
+
+# Role hierarchy level that defines a pure "Agent" (not Admin/Manager).
+# See accounts.Role: Admin=10, Manager=20, Agent=30.
+AGENT_ROLE_LEVEL = 30
 
 
 def get_available_agent(tenant, queue=None):
@@ -167,3 +172,143 @@ def auto_assign_ticket(ticket):
     )
 
     return locked_agent.user
+
+
+# ---------------------------------------------------------------------------
+# Inbound-email auto-assign: load-then-fairness rotation
+# ---------------------------------------------------------------------------
+
+
+def pick_email_agent(tenant):
+    """
+    Select the next Agent-role user who should receive an inbound-email ticket
+    in ``tenant``. Returns the ``User`` instance, or ``None`` if none are
+    eligible.
+
+    Selection policy (ordered):
+        1. Must be an active tenant member with role ``hierarchy_level == 30``
+           (pure Agent). Admins and Managers are intentionally excluded so
+           auto-assignment does not pull leadership into front-line triage.
+        2. Must not be marked ``offline``. Agents with no ``AgentAvailability``
+           row at all are treated as eligible — the tenant may never have
+           configured availability, and we still want to route mail rather
+           than leave it unassigned.
+        3. Among eligible agents, pick the one with the fewest **open**
+           tickets (load balancing).
+        4. Ties are broken by least-recently-assigned (``TicketAssignment``
+           audit timestamp) so new agents — who have never been assigned
+           anything — go first, and repeated ties rotate fairly.
+
+    The query is purely read-only; callers are expected to commit the
+    assignment inside a transaction. Returning the User rather than the
+    availability row avoids coupling callers to the presence of an
+    ``AgentAvailability`` record.
+    """
+    from apps.accounts.models import TenantMembership
+    from apps.tickets.models import TicketStatus
+
+    closed_status_ids = list(
+        TicketStatus.unscoped.filter(tenant=tenant, is_closed=True)
+        .values_list("id", flat=True)
+    )
+
+    offline_user_ids = list(
+        AgentAvailability.unscoped.filter(
+            tenant=tenant, status=AgentStatus.OFFLINE,
+        ).values_list("user_id", flat=True)
+    )
+
+    memberships = (
+        TenantMembership.objects
+        .filter(
+            tenant=tenant,
+            is_active=True,
+            role__hierarchy_level=AGENT_ROLE_LEVEL,
+        )
+        .exclude(user_id__in=offline_user_ids)
+        .select_related("user")
+        .annotate(
+            open_ticket_count=Count(
+                "user__assigned_tickets",
+                filter=(
+                    Q(user__assigned_tickets__tenant=tenant)
+                    & ~Q(user__assigned_tickets__status_id__in=closed_status_ids)
+                    & Q(user__assigned_tickets__is_deleted=False)
+                ),
+                distinct=True,
+            ),
+            last_assigned_at=Max(
+                "user__ticket_assignments__created_at",
+                filter=Q(user__ticket_assignments__tenant=tenant),
+            ),
+        )
+        # NULLS FIRST so agents who have never been assigned a ticket
+        # are picked before those who already have a history, keeping
+        # rotation fair at cold-start.
+        .order_by("open_ticket_count", F("last_assigned_at").asc(nulls_first=True))
+    )
+
+    chosen = memberships.first()
+    return chosen.user if chosen else None
+
+
+def auto_assign_email_ticket(ticket):
+    """
+    Assign ``ticket`` to the next eligible Agent using the load-then-fairness
+    policy in :func:`pick_email_agent`. Intended to be called immediately
+    after a ticket is created from an inbound customer email, when the
+    tenant has ``auto_assign_inbound_email_tickets`` enabled.
+
+    No-ops (returns ``None``) when:
+        - the ticket is already assigned,
+        - no eligible agent exists.
+
+    Records a ``TicketAssignment`` audit row with a note identifying this as
+    an automatic routing decision so the audit trail is clear to reviewers.
+    Nudges the agent's ``AgentAvailability.current_ticket_count`` if a row
+    exists, so workload-based queries converge without waiting for the
+    reconcile job.
+
+    Returns the assigned ``User`` or ``None``.
+    """
+    from apps.tickets.models import TicketAssignment
+
+    if ticket.assignee_id is not None:
+        return None
+
+    user = pick_email_agent(ticket.tenant)
+    if user is None:
+        logger.info(
+            "Email auto-assign: no eligible agent for ticket #%s in tenant %s — "
+            "leaving unassigned.",
+            ticket.number, ticket.tenant,
+        )
+        return None
+
+    with transaction.atomic():
+        ticket.assignee = user
+        ticket.save(update_fields=["assignee", "updated_at"])
+
+        TicketAssignment.objects.create(
+            ticket=ticket,
+            assigned_to=user,
+            assigned_by=None,
+            note="Auto-assigned from inbound email (load + fairness).",
+            tenant=ticket.tenant,
+        )
+
+        # Best-effort workload nudge. If the agent has never set availability,
+        # there is no row to update — the reconcile job will create one when
+        # the agent logs in.
+        updated = AgentAvailability.unscoped.filter(
+            tenant=ticket.tenant, user=user,
+        ).update(
+            current_ticket_count=F("current_ticket_count") + 1,
+            last_activity=timezone.now(),
+        )
+
+    logger.info(
+        "Email auto-assign: ticket #%s → %s (tenant %s, availability_updated=%d).",
+        ticket.number, user.email, ticket.tenant, updated,
+    )
+    return user

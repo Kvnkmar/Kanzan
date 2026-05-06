@@ -159,6 +159,17 @@ class TenantSettings(TimestampedModel):
             "ticket page (button: 'Send confirmation email')."
         ),
     )
+    auto_assign_inbound_email_tickets = models.BooleanField(
+        default=False,
+        help_text=(
+            "When True, tickets created from inbound customer emails are "
+            "automatically assigned to an Agent (role hierarchy_level=30) "
+            "using a load-then-fairness policy: the agent with the fewest "
+            "open tickets wins, ties broken by least-recently-assigned. "
+            "Offline agents are skipped. When False, email tickets land "
+            "unassigned and admins/managers triage manually."
+        ),
+    )
 
     # --- Branding ---
     primary_color = models.CharField(

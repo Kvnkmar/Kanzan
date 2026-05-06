@@ -30,7 +30,7 @@
 .flatpickr-months { background: transparent !important; padding: 14px 12px 8px; flex-shrink: 0; }
 .flatpickr-months .flatpickr-month { height: 32px; }
 .flatpickr-months .flatpickr-prev-month,
-.flatpickr-months .flatpickr-next-month { fill: #6B7280 !important; color: #6B7280 !important; padding: 6px 8px; border-radius: 8px; transition: all 0.15s; }
+.flatpickr-months .flatpickr-next-month { fill: #6B6B70 !important; color: #6B6B70 !important; padding: 6px 8px; border-radius: 8px; transition: all 0.15s; }
 .flatpickr-months .flatpickr-prev-month:hover,
 .flatpickr-months .flatpickr-next-month:hover { background: #F3F4F6 !important; fill: #111827 !important; }
 .flatpickr-current-month { color: #111827 !important; font-weight: 700 !important; font-size: 0.9375rem; }
@@ -50,15 +50,19 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 
 .flatpickr-day {
   color: #374151 !important; font-weight: 500; font-size: 0.8125rem;
-  border-radius: 10px !important; max-width: 38px; height: 38px; line-height: 38px;
+  border-radius: 10px !important; max-width: 38px; height: 38px; line-height: 1;
   margin: 1px; border: 2px solid transparent; transition: all 0.12s ease;
+  display: inline-flex !important; align-items: center; justify-content: center;
+  box-sizing: border-box;
 }
 .flatpickr-day:hover { background: #F3F4F6 !important; border-color: transparent !important; color: #111827 !important; }
-.flatpickr-day.today { border-color: var(--crm-primary, #DC2626) !important; background: transparent !important; color: var(--crm-primary, #DC2626) !important; font-weight: 700; }
-.flatpickr-day.today:hover { background: rgba(220,38,38,0.08) !important; }
+.flatpickr-day.today { border-color: rgba(193,18,31,0.55) !important; background: rgba(193,18,31,0.08) !important; color: var(--crm-primary, #C1121F) !important; font-weight: 700; }
+.flatpickr-day.today:hover { background: rgba(193,18,31,0.14) !important; border-color: var(--crm-primary, #C1121F) !important; }
 .flatpickr-day.selected,
 .flatpickr-day.selected:hover,
-.flatpickr-day.selected:focus { background: var(--crm-primary, #DC2626) !important; border-color: var(--crm-primary, #DC2626) !important; color: #fff !important; font-weight: 600; }
+.flatpickr-day.selected:focus,
+.flatpickr-day.today.selected,
+.flatpickr-day.today.selected:hover { background: var(--crm-primary, #C1121F) !important; border-color: var(--crm-primary, #C1121F) !important; color: #fff !important; font-weight: 600; box-shadow: 0 2px 8px rgba(193,18,31,0.35); }
 .flatpickr-day.prevMonthDay,
 .flatpickr-day.nextMonthDay { color: #D1D5DB !important; }
 .flatpickr-day.prevMonthDay:hover,
@@ -77,9 +81,10 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 .flatpickr-time input:focus { background: #EEF2FF !important; border-radius: 8px; }
 .flatpickr-time .numInputWrapper { border-radius: 8px; height: 36px; }
 .flatpickr-time .numInputWrapper:hover { background: #EEF2FF; }
-.flatpickr-time .flatpickr-time-separator { color: #D1D5DB !important; font-weight: 600; font-size: 1rem; line-height: 36px; }
-.flatpickr-time .flatpickr-am-pm { color: var(--crm-primary, #DC2626) !important; font-weight: 700; font-size: 0.75rem; border-radius: 8px; background: transparent; height: 36px; line-height: 36px; padding: 0 8px; }
-.flatpickr-time .flatpickr-am-pm:hover { background: #EEF2FF !important; }
+.flatpickr-time .flatpickr-time-separator { color: #6B7280 !important; font-weight: 700; font-size: 1.125rem; line-height: 36px; padding: 0 4px; }
+.flatpickr-time .flatpickr-am-pm { color: var(--crm-primary, #C1121F) !important; font-weight: 700; font-size: 0.75rem; letter-spacing: 0.04em; border-radius: 8px; background: rgba(193,18,31,0.08); height: 36px; line-height: 36px; padding: 0 12px; min-width: 44px; text-align: center; cursor: pointer; }
+.flatpickr-time .flatpickr-am-pm:hover,
+.flatpickr-time .flatpickr-am-pm:focus { background: rgba(193,18,31,0.14) !important; }
 
 /* numInput arrows */
 .numInputWrapper span { border: none !important; background: transparent; opacity: 0; transition: opacity 0.15s; }
@@ -95,13 +100,13 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 }
 .flatpickr-clear-btn {
   padding: 7px 16px; font-size: 0.8125rem; font-weight: 500; font-family: 'Inter', sans-serif;
-  color: #6B7280; background: transparent; border: 1px solid #E5E7EB; border-radius: 8px;
+  color: #6B6B70; background: transparent; border: 1px solid #E5E7EB; border-radius: 8px;
   cursor: pointer; transition: all 0.15s;
 }
-.flatpickr-clear-btn:hover { color: #DC2626; border-color: #DC2626; background: rgba(220,38,38,0.04); }
+.flatpickr-clear-btn:hover { color: #C1121F; border-color: #C1121F; background: rgba(220,38,38,0.04); }
 .flatpickr-done-btn {
   padding: 7px 24px; font-size: 0.8125rem; font-weight: 600; font-family: 'Inter', sans-serif;
-  color: #fff; background: var(--crm-primary, #DC2626); border: none; border-radius: 8px;
+  color: #fff; background: var(--crm-primary, #C1121F); border: none; border-radius: 8px;
   cursor: pointer; transition: background 0.15s;
 }
 .flatpickr-done-btn:hover { filter: brightness(0.9); }
@@ -125,7 +130,9 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 [data-bs-theme="dark"] span.flatpickr-weekday { color: #64748B !important; }
 [data-bs-theme="dark"] .flatpickr-day { color: #E2E8F0 !important; }
 [data-bs-theme="dark"] .flatpickr-day:hover { background: rgba(255,255,255,0.08) !important; color: #fff !important; }
-[data-bs-theme="dark"] .flatpickr-day.today { color: var(--crm-primary) !important; background: rgba(220,38,38,0.12) !important; }
+[data-bs-theme="dark"] .flatpickr-day.today { color: #fff !important; background: rgba(225,29,45,0.20) !important; border-color: rgba(225,29,45,0.55) !important; }
+[data-bs-theme="dark"] .flatpickr-day.today:hover { background: rgba(225,29,45,0.30) !important; border-color: var(--crm-primary) !important; color: #fff !important; }
+[data-bs-theme="dark"] .flatpickr-day.today.selected { color: #fff !important; background: var(--crm-primary) !important; border-color: var(--crm-primary) !important; }
 [data-bs-theme="dark"] .flatpickr-day.prevMonthDay,
 [data-bs-theme="dark"] .flatpickr-day.nextMonthDay { color: #475569 !important; }
 [data-bs-theme="dark"] .flatpickr-day.prevMonthDay:hover,
@@ -134,14 +141,15 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 [data-bs-theme="dark"] .flatpickr-time input { color: #E2E8F0 !important; }
 [data-bs-theme="dark"] .flatpickr-time input:hover,
 [data-bs-theme="dark"] .flatpickr-time input:focus { background: rgba(255,255,255,0.06) !important; }
-[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm { color: #94A3B8 !important; }
-[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm:hover { background: rgba(255,255,255,0.06) !important; }
-[data-bs-theme="dark"] .flatpickr-time .flatpickr-time-separator { color: #475569 !important; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm { color: #FCA5A5 !important; background: rgba(225,29,45,0.14) !important; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm:hover,
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-am-pm:focus { background: rgba(225,29,45,0.24) !important; color: #fff !important; }
+[data-bs-theme="dark"] .flatpickr-time .flatpickr-time-separator { color: #94A3B8 !important; }
 [data-bs-theme="dark"] .flatpickr-time .numInputWrapper:hover { background: rgba(255,255,255,0.06); }
 [data-bs-theme="dark"] .numInputWrapper span:hover { background: rgba(255,255,255,0.08) !important; }
 [data-bs-theme="dark"] .flatpickr-footer { background: #151A23; border-top-color: rgba(255,255,255,0.06); }
 [data-bs-theme="dark"] .flatpickr-clear-btn { color: #94A3B8; border-color: rgba(255,255,255,0.1); }
-[data-bs-theme="dark"] .flatpickr-clear-btn:hover { color: #F87171; border-color: #F87171; background: rgba(248,113,113,0.08); }
+[data-bs-theme="dark"] .flatpickr-clear-btn:hover { color: #F03040; border-color: #F03040; background: rgba(248,113,113,0.08); }
 </style>
 {% endblock %}
 
@@ -403,6 +411,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
     allowInput: false,
     disableMobile: true,
     closeOnSelect: false,
+    minDate: 'today',
     onReady: function(selectedDates, dateStr, instance) {
       if (instance.altInput) {
         instance.altInput.classList.add('form-control');
@@ -522,6 +531,10 @@ window.dispatchEvent(new Event('tiptap-ready'));
     var valid = true;
     if (!subject) { showFieldError('subject', 'Subject is required.'); valid = false; }
     if (!queue) { showFieldError('queue', 'Please select a queue.'); valid = false; }
+    if (dueDate && dueDatePicker.selectedDates[0].getTime() < Date.now()) {
+      showFieldError('due_date', 'Due date must be in the future.');
+      valid = false;
+    }
     if (!valid) return;
     var payload = { subject: subject, description: desc, priority: priority, queue: queue };
     if (contact) payload.contact = contact;
@@ -556,7 +569,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
     }).catch(function(err) {
       setLoading(false);
       Toast.error('Failed to create ticket');
-      if (err && typeof err === 'object' && !err.message) { var hf = false; for (var f in err) { if (err.hasOwnProperty(f) && f !== 'status') { var m = Array.isArray(err[f]) ? err[f].join(' ') : err[f]; if (f === 'non_field_errors' || f === 'detail') showFormError(m); else { showFieldError(f, m); hf = true; } } } if (!hf && !err.non_field_errors && !err.detail) showFormError('An error occurred.'); }
+      if (err && typeof err === 'object' && !err.message) { var hf = false; var firstFieldMsg = null; for (var f in err) { if (err.hasOwnProperty(f) && f !== '_status') { var m = Array.isArray(err[f]) ? err[f].join(' ') : err[f]; if (f === 'non_field_errors' || f === 'detail') showFormError(m); else { showFieldError(f, m); hf = true; if (firstFieldMsg === null) firstFieldMsg = (f + ': ' + m); } } } if (hf && firstFieldMsg) showFormError(firstFieldMsg); else if (!hf && !err.non_field_errors && !err.detail) showFormError('An error occurred.'); }
       else showFormError('A network error occurred.');
     });
   });

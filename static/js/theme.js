@@ -12,7 +12,7 @@
 
   function getEffectiveTheme(preference) {
     if (preference === 'system') return getSystemTheme();
-    if (!preference) return 'light'; // Default to light on first visit
+    if (!preference) return 'dark'; // Default to dark — design system is dark-first
     return preference;
   }
 
@@ -42,11 +42,11 @@
   }
 
   function cycleTheme() {
-    var current = localStorage.getItem(STORAGE_KEY) || 'light';
+    var current = localStorage.getItem(STORAGE_KEY) || 'dark';
     var next;
-    if (current === 'light') next = 'dark';
-    else if (current === 'dark') next = 'system';
-    else next = 'light';
+    if (current === 'dark') next = 'light';
+    else if (current === 'light') next = 'system';
+    else next = 'dark';
 
     localStorage.setItem(STORAGE_KEY, next);
     applyTheme(next);
@@ -66,7 +66,7 @@
 
   // Bind toggle button after DOM ready
   document.addEventListener('DOMContentLoaded', function() {
-    var pref = localStorage.getItem(STORAGE_KEY) || 'light';
+    var pref = localStorage.getItem(STORAGE_KEY) || 'dark';
     updateToggleIcon(pref);
 
     var btn = document.getElementById('themeToggleBtn');

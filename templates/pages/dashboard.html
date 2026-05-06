@@ -234,7 +234,7 @@
         </div>
         <div class="fd-trends-legend">
           <span class="fd-trends-legend-item">
-            <span class="fd-trends-legend-dot" style="background:#DC2626;"></span> Today
+            <span class="fd-trends-legend-dot" style="background:#C1121F;"></span> Today
           </span>
           <span class="fd-trends-legend-item">
             <span class="fd-trends-legend-dot" style="background:#CBD5E1;"></span> Yesterday
@@ -428,12 +428,12 @@
   "use strict";
 
   var STATUS_COLORS = {
-    'Open':        '#F59E0B',
-    'In Progress': '#EF4444',
-    'Waiting':     '#F59E0B',
-    'Pending':     '#F97316',
-    'Resolved':    '#22C55E',
-    'Closed':      '#6B7280'
+    'Open':        '#C1121F',
+    'In Progress': '#E11C2B',
+    'Waiting':     '#C1121F',
+    'Pending':     '#C1121F',
+    'Resolved':    '#A8A8AC',
+    'Closed':      '#6B6B70'
   };
 
   var PRIORITY_LABELS = {
@@ -441,7 +441,7 @@
   };
 
   var PRIORITY_COLORS = {
-    urgent: '#EF4444', high: '#F97316', medium: '#F59E0B', low: '#22C55E'
+    urgent: '#E11C2B', high: '#C1121F', medium: '#C1121F', low: '#A8A8AC'
   };
 
   // Cached dashboard data for tab switching
@@ -685,12 +685,12 @@
           {
             label: currentLabel,
             data: currentData,
-            borderColor: '#DC2626',
+            borderColor: '#C1121F',
             backgroundColor: 'rgba(220, 38, 38,0.08)',
             borderWidth: 2, fill: true, tension: 0.35,
             pointRadius: isDaily && labels.length > 30 ? 0 : 4,
             pointBackgroundColor: '#ffffff',
-            pointBorderColor: '#DC2626', pointBorderWidth: 2, pointHoverRadius: 6
+            pointBorderColor: '#C1121F', pointBorderWidth: 2, pointHoverRadius: 6
           },
           {
             label: prevLabel,
@@ -1509,8 +1509,8 @@
     celebration: 'confetti', incident: 'alert-triangle', general: 'news'
   };
   var CATEGORY_COLORS = {
-    announcement: '#EF4444', update: '#EF4444',
-    celebration: '#F59E0B', incident: '#EF4444', general: '#6B7280'
+    announcement: '#E11C2B', update: '#E11C2B',
+    celebration: '#C1121F', incident: '#E11C2B', general: '#6B6B70'
   };
   var CATEGORY_LABELS = {
     announcement: 'Announcement', update: 'Update',
@@ -1817,14 +1817,14 @@
     if (!post || !detailModal) return;
 
     var cat = post.category || 'general';
-    var color = CATEGORY_COLORS[cat] || '#6B7280';
+    var color = CATEGORY_COLORS[cat] || '#6B6B70';
     var label = CATEGORY_LABELS[cat] || 'General';
     var iconName = post.emoji || CATEGORY_ICONS[cat] || 'news';
 
     // Icon
     var iconEl = document.getElementById('nfDetailIcon');
     clearEl(iconEl);
-    if (post.is_urgent) { iconEl.style.background = 'rgba(239, 68, 68, 0.12)'; iconEl.style.color = '#EF4444'; }
+    if (post.is_urgent) { iconEl.style.background = 'rgba(239, 68, 68, 0.12)'; iconEl.style.color = '#E11C2B'; }
     else { iconEl.style.background = color + '20'; iconEl.style.color = color; }
     iconEl.appendChild(icon(iconName));
 
@@ -1845,7 +1845,7 @@
     metaEl.appendChild(catBadge);
     // Badges
     if (post.is_pinned) { var pin = el('span', 'nf-pin'); pin.appendChild(icon('pin-filled')); metaEl.appendChild(pin); }
-    if (post.is_urgent) { var ub = el('span', 'nf-draft-badge'); ub.style.background = 'rgba(239, 68, 68, 0.12)'; ub.style.color = '#EF4444'; ub.textContent = 'Urgent'; metaEl.appendChild(ub); }
+    if (post.is_urgent) { var ub = el('span', 'nf-draft-badge'); ub.style.background = 'rgba(239, 68, 68, 0.12)'; ub.style.color = '#E11C2B'; ub.textContent = 'Urgent'; metaEl.appendChild(ub); }
 
     // Full content
     document.getElementById('nfDetailContent').textContent = post.content;
@@ -1892,7 +1892,7 @@
   /* ---- Build a single post card ---- */
   function buildPostCard(post) {
     var cat = post.category || 'general';
-    var color = CATEGORY_COLORS[cat] || '#6B7280';
+    var color = CATEGORY_COLORS[cat] || '#6B6B70';
     var label = CATEGORY_LABELS[cat] || 'General';
     var iconName = post.emoji || CATEGORY_ICONS[cat] || 'news';
 
@@ -1904,7 +1904,7 @@
     // Top row
     var topRow = el('div', 'nf-post__top');
     var iconWrap = el('div', 'nf-post__icon');
-    if (post.is_urgent) { iconWrap.style.background = 'rgba(239, 68, 68, 0.12)'; iconWrap.style.color = '#EF4444'; }
+    if (post.is_urgent) { iconWrap.style.background = 'rgba(239, 68, 68, 0.12)'; iconWrap.style.color = '#E11C2B'; }
     else { iconWrap.style.background = color + '20'; iconWrap.style.color = color; }
     iconWrap.appendChild(icon(iconName));
     topRow.appendChild(iconWrap);
@@ -1915,7 +1915,7 @@
     var header = el('div', 'nf-post__header');
     header.appendChild(el('span', 'nf-post__title', post.title));
     if (post.is_pinned) { var pin = el('span', 'nf-pin'); pin.title = 'Pinned'; pin.appendChild(icon('pin-filled')); header.appendChild(pin); }
-    if (post.is_urgent) { var ub = el('span', 'nf-draft-badge'); ub.style.background = 'rgba(239, 68, 68, 0.12)'; ub.style.color = '#EF4444'; ub.textContent = 'Urgent'; header.appendChild(ub); }
+    if (post.is_urgent) { var ub = el('span', 'nf-draft-badge'); ub.style.background = 'rgba(239, 68, 68, 0.12)'; ub.style.color = '#E11C2B'; ub.textContent = 'Urgent'; header.appendChild(ub); }
     if (!post.is_published && isAdmin) header.appendChild(el('span', 'nf-draft-badge', 'Draft'));
     var catBadge = el('span', 'nf-post__cat', label);
     catBadge.style.color = color; catBadge.style.background = color + '14';

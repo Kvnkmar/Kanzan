@@ -278,7 +278,7 @@ def landing_page(request):
             return redirect("frontend:dashboard")
         return _redirect_to_root_login(request)
     # BASE_URL is already injected by apps.tenants.context_processors.tenant_context.
-    return render(request, "pages/landing.html")
+    return render(request, "landing/landing_crm.html")
 
 
 @require_http_methods(["GET", "POST"])

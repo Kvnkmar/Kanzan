@@ -2,201 +2,940 @@
 {% load static %}
 {% block title %}Kanzen Suite — Modern Helpdesk & CRM Platform{% endblock %}
 
+{% block extra_css %}
+<style>
+/* ================================================================
+   Kanzen Landing v2 — Editorial-Dark
+   All styles scoped under .kz-lp to avoid Bootstrap / custom.css bleed
+   ================================================================ */
+
+.kz-lp {
+  --kz-bg:        #0A0A0B;
+  --kz-surface:   #111113;
+  --kz-surface-2: #161618;
+  --kz-border:    rgba(255, 255, 255, 0.08);
+  --kz-border-2:  rgba(255, 255, 255, 0.15);
+  --kz-text:      #FFFFFF;
+  --kz-text-mute: #9CA3AF;
+  --kz-text-dim:  #6B7280;
+  --kz-accent:    #6366F1;
+  --kz-accent-2:  #15162E;
+
+  background: var(--kz-bg);
+  color: var(--kz-text);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.kz-lp *,
+.kz-lp *::before,
+.kz-lp *::after { box-sizing: border-box; }
+
+.kz-lp a { color: inherit; text-decoration: none; transition: color 0.2s ease; }
+.kz-lp h1, .kz-lp h2, .kz-lp h3, .kz-lp h4, .kz-lp h5, .kz-lp h6 { margin: 0; font-weight: 400; }
+.kz-lp p { margin: 0; }
+.kz-lp ul { list-style: none; margin: 0; padding: 0; }
+.kz-lp button { font-family: inherit; cursor: pointer; }
+
+.kz-container {
+  width: 100%;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+/* -------- Reveal-on-scroll -------- */
+.kz-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.kz-reveal.kz-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .kz-reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* ============================================================
+   Navbar
+   ============================================================ */
+.kz-nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  background: rgba(10, 10, 11, 0.55);
+  transition: backdrop-filter 0.25s ease, background 0.25s ease, border-color 0.25s ease;
+  border-bottom: 1px solid transparent;
+}
+.kz-nav--scrolled {
+  background: rgba(10, 10, 11, 0.78);
+  backdrop-filter: saturate(150%) blur(12px);
+  -webkit-backdrop-filter: saturate(150%) blur(12px);
+  border-bottom-color: var(--kz-border);
+}
+.kz-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+.kz-logo {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: var(--kz-text);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+.kz-logo-dot {
+  width: 6px; height: 6px;
+  background: var(--kz-accent);
+  border-radius: 50%;
+  display: inline-block;
+  transform: translateY(-2px);
+}
+.kz-nav-links {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+.kz-nav-links a {
+  color: var(--kz-text-mute);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.kz-nav-links a:hover { color: var(--kz-text); }
+
+.kz-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.kz-nav-signin {
+  color: var(--kz-text-mute);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 14px;
+}
+.kz-nav-signin:hover { color: var(--kz-text); }
+
+.kz-nav-toggle {
+  display: none;
+  background: transparent;
+  border: 1px solid var(--kz-border);
+  color: var(--kz-text);
+  width: 40px; height: 40px;
+  border-radius: 8px;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.kz-nav-mobile {
+  display: none;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 24px 20px;
+  background: rgba(10,10,11,0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--kz-border);
+}
+.kz-nav-mobile a {
+  color: var(--kz-text-mute);
+  font-size: 15px;
+  font-weight: 500;
+  padding: 12px 4px;
+  border-bottom: 1px solid var(--kz-border);
+}
+.kz-nav-mobile a:last-child { border-bottom: none; }
+.kz-nav-mobile a:hover { color: var(--kz-text); }
+.kz-nav.kz-nav--open .kz-nav-mobile { display: flex; }
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.kz-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 999px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: -0.005em;
+  padding: 10px 20px;
+  border: 1px solid transparent;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.kz-btn:hover { transform: translateY(-1px); }
+.kz-btn:active { transform: translateY(0); }
+
+.kz-btn--primary {
+  background: var(--kz-accent);
+  color: #FFFFFF;
+}
+.kz-btn--primary:hover {
+  background: #818CF8;
+  color: #FFFFFF;
+}
+
+.kz-btn--ghost {
+  background: transparent;
+  color: var(--kz-text);
+  border-color: var(--kz-border);
+}
+.kz-btn--ghost:hover {
+  background: rgba(255,255,255,0.04);
+  border-color: var(--kz-border-2);
+}
+
+.kz-btn--lg {
+  padding: 14px 26px;
+  font-size: 15px;
+}
+
+.kz-btn--full { width: 100%; }
+
+/* ============================================================
+   Hero
+   ============================================================ */
+.kz-hero {
+  position: relative;
+  padding: 120px 0 96px;
+  overflow: hidden;
+}
+.kz-hero-bg {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(255,255,255,0.09) 1px, transparent 1px);
+  background-size: 26px 26px;
+  background-position: 0 0;
+  -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 0%, #000 35%, transparent 75%);
+          mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, #000 0%, #000 35%, transparent 75%);
+  pointer-events: none;
+  z-index: 0;
+}
+.kz-hero-glow {
+  position: absolute;
+  top: 55%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 820px;
+  height: 820px;
+  background: radial-gradient(circle, rgba(99, 102, 241, 0.18) 0%, rgba(99,102,241,0.06) 35%, transparent 65%);
+  filter: blur(24px);
+  pointer-events: none;
+  z-index: 0;
+}
+.kz-hero-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+.kz-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  background: rgba(99, 102, 241, 0.06);
+  color: var(--kz-text);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+}
+.kz-pill-dot {
+  width: 6px; height: 6px;
+  background: var(--kz-accent);
+  border-radius: 50%;
+  box-shadow: 0 0 12px rgba(99,102,241,0.7);
+}
+
+.kz-hero-h1 {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 700;
+  font-size: clamp(40px, 7vw, 68px);
+  line-height: 1.04;
+  letter-spacing: -0.04em;
+  color: var(--kz-text);
+  margin: 28px 0 22px;
+}
+.kz-hero-h1 em {
+  font-style: normal;
+  color: var(--kz-text);
+}
+.kz-hero-h1 em::after {
+  content: ".";
+  color: var(--kz-accent);
+}
+
+.kz-hero-sub {
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--kz-text-mute);
+  max-width: 600px;
+  margin: 0 auto 36px;
+}
+
+.kz-hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 40px;
+}
+
+.kz-trust {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--kz-text-mute);
+  font-size: 13px;
+}
+.kz-trust-avatars {
+  display: inline-flex;
+}
+.kz-trust-avatars span {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  border: 2px solid var(--kz-bg);
+  margin-left: -8px;
+  font-family: 'Inter', sans-serif;
+}
+.kz-trust-avatars span:first-child { margin-left: 0; }
+
+/* ============================================================
+   Stats bar
+   ============================================================ */
+.kz-stats {
+  background: var(--kz-surface);
+  border-top: 1px solid var(--kz-border);
+  border-bottom: 1px solid var(--kz-border);
+  padding: 40px 0;
+}
+.kz-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+}
+.kz-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  text-align: center;
+  border-right: 1px solid var(--kz-border);
+}
+.kz-stat:last-child { border-right: none; }
+.kz-stat-num {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+  color: var(--kz-text);
+}
+.kz-stat-label {
+  font-size: 13px;
+  color: var(--kz-text-mute);
+  letter-spacing: -0.005em;
+}
+
+/* ============================================================
+   Section heads
+   ============================================================ */
+.kz-section {
+  padding: 110px 0;
+  position: relative;
+}
+.kz-section-head {
+  text-align: center;
+  max-width: 660px;
+  margin: 0 auto 64px;
+}
+.kz-eyebrow {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--kz-accent);
+  margin-bottom: 16px;
+}
+.kz-h2 {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: clamp(32px, 4.6vw, 46px);
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
+  color: var(--kz-text);
+  margin-bottom: 14px;
+}
+.kz-h2 em { font-style: normal; color: var(--kz-accent); }
+.kz-section-sub {
+  font-size: 16px;
+  color: var(--kz-text-mute);
+  line-height: 1.6;
+}
+
+/* ============================================================
+   Features (3x2 with gap creating "table" lines)
+   ============================================================ */
+.kz-features-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1px;
+  background: var(--kz-border);
+  border: 1px solid var(--kz-border);
+}
+.kz-fcard {
+  background: var(--kz-surface);
+  padding: 36px 32px;
+  position: relative;
+  transition: background 0.2s ease;
+  border-left: 3px solid transparent;
+}
+.kz-fcard::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--kz-accent);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 0.3s ease;
+}
+.kz-fcard:hover {
+  background: var(--kz-surface-2);
+}
+.kz-fcard:hover::before { transform: scaleY(1); }
+
+.kz-fcard-icon {
+  width: 40px; height: 40px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(99, 102, 241, 0.08);
+  color: var(--kz-accent);
+  font-size: 22px;
+  margin-bottom: 22px;
+}
+.kz-fcard h4 {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--kz-text);
+  margin-bottom: 8px;
+  letter-spacing: -0.005em;
+}
+.kz-fcard p {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--kz-text-mute);
+}
+
+/* ============================================================
+   Workflow — alternating with dashed connector
+   ============================================================ */
+.kz-wf-list {
+  position: relative;
+  max-width: 920px;
+  margin: 0 auto;
+  padding: 20px 0;
+}
+.kz-wf-list::before {
+  content: "";
+  position: absolute;
+  top: 0; bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 1px dashed var(--kz-border-2);
+}
+.kz-wf-step {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 60px;
+  padding: 36px 0;
+}
+.kz-wf-step:nth-child(even) { direction: rtl; }
+.kz-wf-step:nth-child(even) > * { direction: ltr; }
+
+.kz-wf-bullet {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px; height: 12px;
+  border-radius: 50%;
+  background: var(--kz-accent);
+  box-shadow: 0 0 0 4px var(--kz-bg), 0 0 20px rgba(99,102,241,0.4);
+  z-index: 1;
+}
+
+.kz-wf-side {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 56px;
+}
+.kz-wf-step:nth-child(even) .kz-wf-side {
+  justify-content: flex-start;
+  padding-right: 0;
+  padding-left: 56px;
+}
+.kz-wf-num {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-weight: 700;
+  font-size: clamp(72px, 9vw, 110px);
+  line-height: 0.9;
+  letter-spacing: -0.06em;
+  color: rgba(255,255,255,0.07);
+  pointer-events: none;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+  display: inline-block;
+}
+
+.kz-wf-body {
+  padding-left: 56px;
+}
+.kz-wf-step:nth-child(even) .kz-wf-body {
+  padding-left: 0;
+  padding-right: 56px;
+  text-align: right;
+}
+.kz-wf-step:nth-child(even) .kz-wf-body p {
+  margin-left: auto;
+}
+.kz-wf-body h4 {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  color: var(--kz-text);
+  margin-bottom: 10px;
+}
+.kz-wf-body p {
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--kz-text-mute);
+  max-width: 380px;
+}
+
+/* ============================================================
+   Pricing
+   ============================================================ */
+.kz-pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.kz-pcard {
+  position: relative;
+  background: var(--kz-surface);
+  border: 1px solid var(--kz-border);
+  border-radius: 4px;
+  padding: 36px 28px;
+  display: flex;
+  flex-direction: column;
+}
+.kz-pcard--featured {
+  border-color: var(--kz-accent);
+  box-shadow: 0 0 0 1px var(--kz-accent), 0 20px 60px -20px rgba(99,102,241,0.15);
+}
+.kz-pcard-badge {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: var(--kz-accent);
+  color: #FFFFFF;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 4px 10px;
+  border-radius: 999px;
+}
+.kz-pcard-tier {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--kz-text-mute);
+  margin-bottom: 14px;
+}
+.kz-pcard-price {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  font-variant-numeric: tabular-nums;
+  color: var(--kz-text);
+  margin-bottom: 6px;
+}
+.kz-pcard-price span {
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  color: var(--kz-text-mute);
+  margin-left: 4px;
+}
+.kz-pcard-desc {
+  font-size: 14px;
+  color: var(--kz-text-mute);
+  margin-bottom: 26px;
+  min-height: 40px;
+}
+.kz-pcard-list {
+  margin-bottom: 28px;
+  flex: 1;
+}
+.kz-pcard-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--kz-text);
+  padding: 7px 0;
+  line-height: 1.45;
+}
+.kz-pcard-list i {
+  color: var(--kz-accent);
+  font-size: 16px;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   CTA Banner
+   ============================================================ */
+.kz-cta {
+  background: var(--kz-accent-2);
+  padding: 100px 0;
+  position: relative;
+  overflow: hidden;
+  border-top: 1px solid var(--kz-border);
+  border-bottom: 1px solid var(--kz-border);
+}
+.kz-cta::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(99,102,241,0.15) 0%, transparent 60%);
+  filter: blur(40px);
+  pointer-events: none;
+}
+.kz-cta-inner {
+  position: relative;
+  text-align: center;
+  max-width: 620px;
+  margin: 0 auto;
+}
+.kz-cta h2 {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.035em;
+  color: var(--kz-text);
+  margin-bottom: 16px;
+}
+.kz-cta p {
+  font-size: 17px;
+  color: var(--kz-text-mute);
+  margin-bottom: 32px;
+}
+
+/* ============================================================
+   Footer
+   ============================================================ */
+.kz-footer {
+  background: var(--kz-bg);
+  padding: 64px 0 32px;
+  border-top: 1px solid var(--kz-border);
+}
+.kz-footer-grid {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr;
+  gap: 40px;
+  padding-bottom: 48px;
+}
+.kz-footer-brand p {
+  font-size: 14px;
+  color: var(--kz-text-mute);
+  margin-top: 16px;
+  line-height: 1.55;
+  max-width: 280px;
+}
+.kz-footer-col h6 {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--kz-text-dim);
+  margin-bottom: 16px;
+}
+.kz-footer-col a {
+  display: block;
+  font-size: 14px;
+  color: var(--kz-text-mute);
+  padding: 6px 0;
+}
+.kz-footer-col a:hover { color: var(--kz-text); }
+
+.kz-footer-bottom {
+  border-top: 1px solid var(--kz-border);
+  padding-top: 24px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+.kz-footer-bottom small {
+  font-size: 13px;
+  color: var(--kz-text-dim);
+}
+.kz-footer-social {
+  display: flex;
+  gap: 16px;
+}
+.kz-footer-social a {
+  color: var(--kz-text-mute);
+  font-size: 18px;
+}
+.kz-footer-social a:hover { color: var(--kz-text); }
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 991px) {
+  .kz-nav-links { display: none; }
+  .kz-nav-actions .kz-nav-signin { display: none; }
+  .kz-nav-toggle { display: inline-flex; }
+
+  .kz-stats-row { grid-template-columns: repeat(2, 1fr); }
+  .kz-stat:nth-child(2) { border-right: none; }
+  .kz-stat:nth-child(1), .kz-stat:nth-child(2) {
+    border-bottom: 1px solid var(--kz-border);
+    padding-bottom: 24px;
+  }
+  .kz-stat:nth-child(3), .kz-stat:nth-child(4) { padding-top: 24px; }
+
+  .kz-features-grid { grid-template-columns: repeat(2, 1fr); }
+  .kz-pricing-grid { grid-template-columns: 1fr; max-width: 460px; margin: 0 auto; }
+
+  .kz-wf-list::before { left: 24px; }
+  .kz-wf-step,
+  .kz-wf-step:nth-child(even) { grid-template-columns: 1fr; direction: ltr; gap: 0; padding: 24px 0 24px 56px; }
+  .kz-wf-bullet { left: 24px; transform: translate(-50%, 0); top: 36px; }
+  .kz-wf-side,
+  .kz-wf-step:nth-child(even) .kz-wf-side {
+    justify-content: flex-start;
+    padding: 0 0 8px 0;
+  }
+  .kz-wf-num { font-size: 56px; line-height: 1; }
+  .kz-wf-body,
+  .kz-wf-step:nth-child(even) .kz-wf-body {
+    padding: 0;
+    text-align: left;
+  }
+  .kz-wf-step:nth-child(even) .kz-wf-body p { margin-left: 0; }
+
+  .kz-footer-grid { grid-template-columns: 1fr 1fr; gap: 32px; }
+  .kz-footer-brand { grid-column: 1 / -1; }
+}
+
+@media (max-width: 640px) {
+  .kz-section { padding: 80px 0; }
+  .kz-section-head { margin-bottom: 44px; }
+  .kz-features-grid { grid-template-columns: 1fr; }
+  .kz-stats-row { grid-template-columns: 1fr; }
+  .kz-stat { border-right: none !important; border-bottom: 1px solid var(--kz-border); padding: 16px 0; }
+  .kz-stat:last-child { border-bottom: none; }
+
+  .kz-hero { padding: 100px 0 60px; }
+  .kz-hero-sub { font-size: 16px; }
+  .kz-hero-cta { width: 100%; flex-direction: column; }
+  .kz-hero-cta .kz-btn { width: 100%; }
+
+  .kz-footer-grid { grid-template-columns: 1fr; }
+  .kz-footer-brand { grid-column: auto; }
+  .kz-footer-bottom { flex-direction: column; align-items: flex-start; }
+
+  .kz-pcard-price { font-size: 32px; }
+}
+</style>
+{% endblock %}
+
 {% block fullpage %}
-<div class="lp">
+<noscript><style>.kz-reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
+
+<div class="kz-lp" data-bs-theme="dark">
 
   <!-- ─── Navbar ─── -->
-  <nav class="lp-nav" id="lpNav">
-    <div class="lp-nav-inner">
-      <a href="{% url 'frontend:landing' %}" class="lp-logo">
-        <div class="lp-logo-mark"><i class="ti ti-hexagon-filled"></i></div>
-        <span>Kanzen</span>
+  <nav class="kz-nav" id="kzNav">
+    <div class="kz-nav-inner">
+      <a href="{% url 'frontend:landing' %}" class="kz-logo">
+        Kanzen<span class="kz-logo-dot"></span>
       </a>
-      <div class="lp-nav-links d-none d-md-flex">
+      <div class="kz-nav-links">
         <a href="#features">Features</a>
         <a href="#workflow">Workflow</a>
         <a href="#pricing">Pricing</a>
       </div>
-      <div class="lp-nav-actions">
-        <a href="{{ BASE_URL }}/login/" class="lp-nav-signin">Sign In</a>
-        <a href="{{ BASE_URL }}/register/" class="lp-btn lp-btn--primary lp-btn--sm">Get Started</a>
+      <div class="kz-nav-actions">
+        <a href="{{ BASE_URL }}/login/" class="kz-nav-signin">Sign In</a>
+        <a href="{{ BASE_URL }}/register/" class="kz-btn kz-btn--primary">Get Started</a>
+        <button class="kz-nav-toggle" id="kzNavToggle" aria-label="Toggle menu">
+          <i class="ti ti-menu-2"></i>
+        </button>
       </div>
+    </div>
+    <div class="kz-nav-mobile">
+      <a href="#features">Features</a>
+      <a href="#workflow">Workflow</a>
+      <a href="#pricing">Pricing</a>
+      <a href="{{ BASE_URL }}/login/">Sign In</a>
     </div>
   </nav>
 
   <!-- ─── Hero ─── -->
-  <section class="lp-hero">
-    <div class="lp-hero-bg">
-      <div class="lp-hero-orb lp-hero-orb--1"></div>
-      <div class="lp-hero-orb lp-hero-orb--2"></div>
-      <div class="lp-hero-orb lp-hero-orb--3"></div>
-      <div class="lp-hero-noise"></div>
-    </div>
-    <div class="container position-relative" style="z-index:2;">
-      <div class="lp-hero-content">
-        <div class="lp-pill">
-          <span class="lp-pill-dot"></span>
-          <span>Now in Beta — Free to get started</span>
-        </div>
-        <h1 class="lp-hero-h1">
-          Support that<br>
-          <span class="lp-hero-gradient-text">moves with you</span>
+  <section class="kz-hero">
+    <div class="kz-hero-bg"></div>
+    <div class="kz-hero-glow"></div>
+    <div class="kz-container">
+      <div class="kz-hero-content">
+        <span class="kz-pill">
+          <span class="kz-pill-dot"></span>
+          Now in Beta · Free to get started
+        </span>
+        <h1 class="kz-hero-h1">
+          Support that moves<br>
+          <em>with you</em>
         </h1>
-        <p class="lp-hero-sub">
+        <p class="kz-hero-sub">
           Kanzen unifies ticketing, CRM, and real-time collaboration
-          into one clean workspace. Built for teams who refuse to
-          settle for clunky tools.
+          into one clean workspace.
         </p>
-        <div class="lp-hero-btns">
-          <a href="{{ BASE_URL }}/register/" class="lp-btn lp-btn--primary lp-btn--lg">
-            Start Free <i class="ti ti-arrow-right"></i>
+        <div class="kz-hero-cta">
+          <a href="{{ BASE_URL }}/register/" class="kz-btn kz-btn--primary kz-btn--lg">
+            Start Free
+            <i class="ti ti-arrow-right"></i>
           </a>
-          <a href="#features" class="lp-btn lp-btn--glass lp-btn--lg">
-            <i class="ti ti-player-play"></i> See how it works
+          <a href="#features" class="kz-btn kz-btn--ghost kz-btn--lg">
+            See how it works
+            <i class="ti ti-arrow-down"></i>
           </a>
         </div>
-        <div class="lp-hero-trust">
-          <div class="lp-trust-avatars">
-            <span style="background:#DC2626;">K</span>
-            <span style="background:#DC2626;">M</span>
-            <span style="background:#0891B2;">D</span>
-            <span style="background:#059669;">S</span>
-            <span style="background:#D97706;">A</span>
+        <div class="kz-trust">
+          <div class="kz-trust-avatars">
+            <span style="background:#3B82F6;">K</span>
+            <span style="background:#EC4899;">M</span>
+            <span style="background:#F59E0B;">D</span>
+            <span style="background:#10B981;">S</span>
+            <span style="background:#8B5CF6;">A</span>
           </div>
-          <span class="lp-trust-text">Trusted by <strong>500+</strong> support teams</span>
-        </div>
-      </div>
-
-      <!-- Browser mockup -->
-      <div class="lp-browser">
-        <div class="lp-browser-bar">
-          <div class="lp-browser-dots">
-            <i></i><i></i><i></i>
-          </div>
-          <div class="lp-browser-url">
-            <i class="ti ti-lock"></i>
-            app.kanzensuite.com
-          </div>
-          <div class="lp-browser-dots" style="visibility:hidden;"><i></i></div>
-        </div>
-        <div class="lp-browser-body">
-          <!-- Mini sidebar -->
-          <div class="lp-mock-sidebar">
-            <div class="lp-ms-logo"><i class="ti ti-hexagon-filled"></i></div>
-            <div class="lp-ms-item lp-ms-active"><i class="ti ti-layout-dashboard"></i></div>
-            <div class="lp-ms-item"><i class="ti ti-ticket"></i></div>
-            <div class="lp-ms-item"><i class="ti ti-address-book"></i></div>
-            <div class="lp-ms-item"><i class="ti ti-layout-kanban"></i></div>
-            <div class="lp-ms-item"><i class="ti ti-message"></i></div>
-            <div class="lp-ms-item"><i class="ti ti-chart-bar"></i></div>
-          </div>
-          <!-- Mini content -->
-          <div class="lp-mock-content">
-            <div class="lp-mc-header">
-              <div class="lp-mc-search"><i class="ti ti-search"></i> Search...</div>
-              <div class="lp-mc-header-r">
-                <span class="lp-mc-dot" style="background:#10B981;"></span>
-                <span class="lp-mc-avatar">K</span>
-              </div>
-            </div>
-            <div class="lp-mc-title">Dashboard</div>
-            <div class="lp-mc-stats">
-              <div class="lp-mc-stat">
-                <span class="lp-mc-stat-n" style="color:#DC2626;">24</span>
-                <span class="lp-mc-stat-l">Open</span>
-              </div>
-              <div class="lp-mc-stat">
-                <span class="lp-mc-stat-n" style="color:#10B981;">18</span>
-                <span class="lp-mc-stat-l">Resolved</span>
-              </div>
-              <div class="lp-mc-stat">
-                <span class="lp-mc-stat-n" style="color:#F59E0B;">2.4h</span>
-                <span class="lp-mc-stat-l">Avg Response</span>
-              </div>
-              <div class="lp-mc-stat">
-                <span class="lp-mc-stat-n" style="color:#EF4444;">96%</span>
-                <span class="lp-mc-stat-l">SLA Met</span>
-              </div>
-            </div>
-            <div class="lp-mc-chart">
-              <div class="lp-mc-bar" style="--h:35%"></div>
-              <div class="lp-mc-bar" style="--h:58%"></div>
-              <div class="lp-mc-bar" style="--h:45%"></div>
-              <div class="lp-mc-bar" style="--h:72%"></div>
-              <div class="lp-mc-bar" style="--h:52%"></div>
-              <div class="lp-mc-bar lp-mc-bar--accent" style="--h:88%"></div>
-              <div class="lp-mc-bar" style="--h:65%"></div>
-              <div class="lp-mc-bar" style="--h:48%"></div>
-            </div>
-          </div>
+          <span>Trusted by <strong style="color:var(--kz-text);">500+</strong> support teams</span>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- ─── Logos / Social Proof ─── -->
-  <section class="lp-proof">
-    <div class="container">
-      <div class="lp-proof-row">
-        <div class="lp-proof-stat">
-          <span class="lp-proof-num">50K+</span>
-          <span class="lp-proof-label">Tickets resolved</span>
+  <!-- ─── Stats ─── -->
+  <section class="kz-stats">
+    <div class="kz-container">
+      <div class="kz-stats-row">
+        <div class="kz-stat">
+          <span class="kz-stat-num">50K+</span>
+          <span class="kz-stat-label">Tickets resolved</span>
         </div>
-        <div class="lp-proof-sep"></div>
-        <div class="lp-proof-stat">
-          <span class="lp-proof-num">500+</span>
-          <span class="lp-proof-label">Teams active</span>
+        <div class="kz-stat">
+          <span class="kz-stat-num">500+</span>
+          <span class="kz-stat-label">Teams active</span>
         </div>
-        <div class="lp-proof-sep"></div>
-        <div class="lp-proof-stat">
-          <span class="lp-proof-num">99.9%</span>
-          <span class="lp-proof-label">Uptime SLA</span>
+        <div class="kz-stat">
+          <span class="kz-stat-num">99.9%</span>
+          <span class="kz-stat-label">Uptime SLA</span>
         </div>
-        <div class="lp-proof-sep"></div>
-        <div class="lp-proof-stat">
-          <span class="lp-proof-num">&lt;2m</span>
-          <span class="lp-proof-label">Avg first response</span>
+        <div class="kz-stat">
+          <span class="kz-stat-num">&lt;2m</span>
+          <span class="kz-stat-label">Avg first response</span>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ─── Features ─── -->
-  <section class="lp-features" id="features">
-    <div class="container">
-      <div class="lp-section-head">
-        <span class="lp-tag">Features</span>
-        <h2 class="lp-h2">One platform.<br>Every tool your team needs.</h2>
-        <p class="lp-sub">No more stitching together 5 different apps. Kanzen has it all built in.</p>
+  <section class="kz-section" id="features">
+    <div class="kz-container">
+      <div class="kz-section-head">
+        <span class="kz-eyebrow">Features</span>
+        <h2 class="kz-h2">One platform.<br><em>Every tool</em> your team needs.</h2>
+        <p class="kz-section-sub">No more stitching together five different apps. Kanzen has it all built in.</p>
       </div>
-      <div class="lp-features-grid">
-        <div class="lp-fcard lp-reveal">
-          <div class="lp-fcard-icon" style="--fc:#DC2626;"><i class="ti ti-ticket"></i></div>
+      <div class="kz-features-grid">
+        <div class="kz-fcard kz-reveal">
+          <div class="kz-fcard-icon"><i class="ti ti-ticket"></i></div>
           <h4>Smart Ticketing</h4>
           <p>Auto-assign, priority queues, SLA timers, and canned responses. Every ticket lands in the right hands.</p>
         </div>
-        <div class="lp-fcard lp-reveal">
-          <div class="lp-fcard-icon" style="--fc:#EF4444;"><i class="ti ti-address-book"></i></div>
+        <div class="kz-fcard kz-reveal">
+          <div class="kz-fcard-icon"><i class="ti ti-address-book"></i></div>
           <h4>Contact CRM</h4>
           <p>Unified contact profiles with companies, history, groups, and custom fields. Know your customer before replying.</p>
         </div>
-        <div class="lp-fcard lp-reveal">
-          <div class="lp-fcard-icon" style="--fc:#0891B2;"><i class="ti ti-layout-kanban"></i></div>
+        <div class="kz-fcard kz-reveal">
+          <div class="kz-fcard-icon"><i class="ti ti-layout-kanban"></i></div>
           <h4>Kanban Boards</h4>
           <p>Visual workflow boards synced with ticket statuses. Drag, drop, and ship — with WIP limits to keep focus.</p>
         </div>
-        <div class="lp-fcard lp-reveal">
-          <div class="lp-fcard-icon" style="--fc:#059669;"><i class="ti ti-chart-bar"></i></div>
+        <div class="kz-fcard kz-reveal">
+          <div class="kz-fcard-icon"><i class="ti ti-chart-bar"></i></div>
           <h4>Live Analytics</h4>
           <p>Real-time dashboards showing volume, response times, SLA compliance, and agent performance at a glance.</p>
         </div>
-        <div class="lp-fcard lp-reveal">
-          <div class="lp-fcard-icon" style="--fc:#D97706;"><i class="ti ti-message"></i></div>
+        <div class="kz-fcard kz-reveal">
+          <div class="kz-fcard-icon"><i class="ti ti-message-circle"></i></div>
           <h4>Team Chat</h4>
           <p>Built-in WebSocket messaging — direct conversations, group threads, and ticket-linked discussions. No tab switching.</p>
         </div>
-        <div class="lp-fcard lp-reveal">
-          <div class="lp-fcard-icon" style="--fc:#DC2626;"><i class="ti ti-shield-lock"></i></div>
+        <div class="kz-fcard kz-reveal">
+          <div class="kz-fcard-icon"><i class="ti ti-shield-lock"></i></div>
           <h4>Enterprise Security</h4>
           <p>Row-level multi-tenancy, RBAC, SSO, audit logs, and encrypted data. Your customers' data stays safe.</p>
         </div>
@@ -204,199 +943,229 @@
     </div>
   </section>
 
-  <!-- ─── Workflow Showcase ─── -->
-  <section class="lp-workflow" id="workflow">
-    <div class="container">
-      <div class="lp-section-head">
-        <span class="lp-tag">Workflow</span>
-        <h2 class="lp-h2">From inbox to resolved<br>in record time</h2>
-        <p class="lp-sub">See how a ticket flows through Kanzen — from customer email to happy resolution.</p>
+  <!-- ─── Workflow ─── -->
+  <section class="kz-section" id="workflow" style="background: linear-gradient(180deg, transparent, rgba(255,255,255,0.015), transparent);">
+    <div class="kz-container">
+      <div class="kz-section-head">
+        <span class="kz-eyebrow">Workflow</span>
+        <h2 class="kz-h2">From inbox to <em>resolved</em><br>in record time.</h2>
+        <p class="kz-section-sub">See how a ticket flows through Kanzen — from customer email to happy resolution.</p>
       </div>
-      <div class="lp-wf-steps">
-        <div class="lp-wf-step lp-reveal">
-          <div class="lp-wf-num">1</div>
-          <div class="lp-wf-body">
+      <div class="kz-wf-list">
+
+        <div class="kz-wf-step kz-reveal">
+          <div class="kz-wf-bullet"></div>
+          <div class="kz-wf-side">
+            <span class="kz-wf-num">01</span>
+          </div>
+          <div class="kz-wf-body">
             <h4>Ticket arrives</h4>
             <p>Email, form, or API — tickets auto-create with smart routing to the right queue and agent.</p>
           </div>
         </div>
-        <div class="lp-wf-connector"></div>
-        <div class="lp-wf-step lp-reveal">
-          <div class="lp-wf-num">2</div>
-          <div class="lp-wf-body">
+
+        <div class="kz-wf-step kz-reveal">
+          <div class="kz-wf-bullet"></div>
+          <div class="kz-wf-side">
+            <span class="kz-wf-num">02</span>
+          </div>
+          <div class="kz-wf-body">
             <h4>Team collaborates</h4>
             <p>Internal comments, @mentions, file attachments, and real-time chat — all in one thread.</p>
           </div>
         </div>
-        <div class="lp-wf-connector"></div>
-        <div class="lp-wf-step lp-reveal">
-          <div class="lp-wf-num">3</div>
-          <div class="lp-wf-body">
+
+        <div class="kz-wf-step kz-reveal">
+          <div class="kz-wf-bullet"></div>
+          <div class="kz-wf-side">
+            <span class="kz-wf-num">03</span>
+          </div>
+          <div class="kz-wf-body">
             <h4>SLA tracked automatically</h4>
             <p>Response and resolution timers run per priority. Breach alerts fire before it's too late.</p>
           </div>
         </div>
-        <div class="lp-wf-connector"></div>
-        <div class="lp-wf-step lp-reveal">
-          <div class="lp-wf-num">4</div>
-          <div class="lp-wf-body">
+
+        <div class="kz-wf-step kz-reveal">
+          <div class="kz-wf-bullet"></div>
+          <div class="kz-wf-side">
+            <span class="kz-wf-num">04</span>
+          </div>
+          <div class="kz-wf-body">
             <h4>Customer delighted</h4>
             <p>Resolved, logged, and measured. Your dashboard updates in real time. On to the next one.</p>
           </div>
         </div>
+
       </div>
     </div>
   </section>
 
   <!-- ─── Pricing ─── -->
-  <section class="lp-pricing" id="pricing">
-    <div class="container">
-      <div class="lp-section-head">
-        <span class="lp-tag">Pricing</span>
-        <h2 class="lp-h2">Start free. Scale when ready.</h2>
-        <p class="lp-sub">No credit card required. Upgrade or downgrade anytime.</p>
+  <section class="kz-section" id="pricing">
+    <div class="kz-container">
+      <div class="kz-section-head">
+        <span class="kz-eyebrow">Pricing</span>
+        <h2 class="kz-h2">Start free. <em>Scale</em> when ready.</h2>
+        <p class="kz-section-sub">No credit card required. Upgrade or downgrade anytime.</p>
       </div>
-      <div class="lp-pricing-grid">
+      <div class="kz-pricing-grid">
+
         <!-- Free -->
-        <div class="lp-pcard lp-reveal">
-          <div class="lp-pcard-head">
-            <span class="lp-pcard-tier">Free</span>
-            <div class="lp-pcard-price">$0<span>/mo</span></div>
-            <p class="lp-pcard-desc">For small teams getting started</p>
-          </div>
-          <ul class="lp-pcard-list">
-            <li><i class="ti ti-check"></i> Up to 3 agents</li>
-            <li><i class="ti ti-check"></i> 100 tickets/month</li>
-            <li><i class="ti ti-check"></i> Contact management</li>
-            <li><i class="ti ti-check"></i> Kanban boards</li>
-            <li><i class="ti ti-check"></i> Email support</li>
+        <div class="kz-pcard kz-reveal">
+          <span class="kz-pcard-tier">Free</span>
+          <div class="kz-pcard-price">$0<span>/mo</span></div>
+          <p class="kz-pcard-desc">For small teams getting started</p>
+          <ul class="kz-pcard-list">
+            <li><i class="ti ti-check"></i>Up to 3 agents</li>
+            <li><i class="ti ti-check"></i>100 tickets/month</li>
+            <li><i class="ti ti-check"></i>Contact management</li>
+            <li><i class="ti ti-check"></i>Kanban boards</li>
+            <li><i class="ti ti-check"></i>Email support</li>
           </ul>
-          <a href="{{ BASE_URL }}/register/" class="lp-btn lp-btn--outline lp-btn--full">Get Started</a>
+          <a href="{{ BASE_URL }}/register/" class="kz-btn kz-btn--ghost kz-btn--full">Get Started</a>
         </div>
+
         <!-- Pro -->
-        <div class="lp-pcard lp-pcard--featured lp-reveal">
-          <div class="lp-pcard-badge">Most Popular</div>
-          <div class="lp-pcard-head">
-            <span class="lp-pcard-tier">Pro</span>
-            <div class="lp-pcard-price">$29<span>/agent/mo</span></div>
-            <p class="lp-pcard-desc">For growing teams</p>
-          </div>
-          <ul class="lp-pcard-list">
-            <li><i class="ti ti-check"></i> Up to 25 agents</li>
-            <li><i class="ti ti-check"></i> 5,000 tickets/month</li>
-            <li><i class="ti ti-check"></i> SLA management</li>
-            <li><i class="ti ti-check"></i> Advanced analytics</li>
-            <li><i class="ti ti-check"></i> API access</li>
-            <li><i class="ti ti-check"></i> Priority support</li>
+        <div class="kz-pcard kz-pcard--featured kz-reveal">
+          <span class="kz-pcard-badge">Most Popular</span>
+          <span class="kz-pcard-tier">Pro</span>
+          <div class="kz-pcard-price">$29<span>/agent/mo</span></div>
+          <p class="kz-pcard-desc">For growing teams</p>
+          <ul class="kz-pcard-list">
+            <li><i class="ti ti-check"></i>Up to 25 agents</li>
+            <li><i class="ti ti-check"></i>5,000 tickets/month</li>
+            <li><i class="ti ti-check"></i>SLA management</li>
+            <li><i class="ti ti-check"></i>Advanced analytics</li>
+            <li><i class="ti ti-check"></i>API access</li>
+            <li><i class="ti ti-check"></i>Priority support</li>
           </ul>
-          <a href="{{ BASE_URL }}/register/" class="lp-btn lp-btn--primary lp-btn--full">Start Free Trial</a>
+          <a href="{{ BASE_URL }}/register/" class="kz-btn kz-btn--primary kz-btn--full">Start Free Trial</a>
         </div>
+
         <!-- Enterprise -->
-        <div class="lp-pcard lp-reveal">
-          <div class="lp-pcard-head">
-            <span class="lp-pcard-tier">Enterprise</span>
-            <div class="lp-pcard-price">Custom</div>
-            <p class="lp-pcard-desc">For large organizations</p>
-          </div>
-          <ul class="lp-pcard-list">
-            <li><i class="ti ti-check"></i> Unlimited everything</li>
-            <li><i class="ti ti-check"></i> SSO / SAML</li>
-            <li><i class="ti ti-check"></i> Dedicated infrastructure</li>
-            <li><i class="ti ti-check"></i> Custom integrations</li>
-            <li><i class="ti ti-check"></i> SLA guarantee</li>
-            <li><i class="ti ti-check"></i> Onboarding support</li>
+        <div class="kz-pcard kz-reveal">
+          <span class="kz-pcard-tier">Enterprise</span>
+          <div class="kz-pcard-price">Custom</div>
+          <p class="kz-pcard-desc">For large organizations</p>
+          <ul class="kz-pcard-list">
+            <li><i class="ti ti-check"></i>Unlimited everything</li>
+            <li><i class="ti ti-check"></i>SSO / SAML</li>
+            <li><i class="ti ti-check"></i>Dedicated infrastructure</li>
+            <li><i class="ti ti-check"></i>Custom integrations</li>
+            <li><i class="ti ti-check"></i>SLA guarantee</li>
+            <li><i class="ti ti-check"></i>Onboarding support</li>
           </ul>
-          <a href="mailto:sales@kanzensuite.com" class="lp-btn lp-btn--outline lp-btn--full">Contact Sales</a>
+          <a href="mailto:sales@kanzensuite.com" class="kz-btn kz-btn--ghost kz-btn--full">Contact Sales</a>
         </div>
+
       </div>
     </div>
   </section>
 
-  <!-- ─── CTA ─── -->
-  <section class="lp-cta">
-    <div class="container">
-      <div class="lp-cta-card">
-        <div class="lp-cta-glow"></div>
+  <!-- ─── CTA Banner ─── -->
+  <section class="kz-cta">
+    <div class="kz-container">
+      <div class="kz-cta-inner">
         <h2>Ready to level up your support?</h2>
         <p>Join 500+ teams delivering exceptional customer service with Kanzen Suite.</p>
-        <a href="{{ BASE_URL }}/register/" class="lp-btn lp-btn--white lp-btn--lg">
-          Get Started Free <i class="ti ti-arrow-right"></i>
+        <a href="{{ BASE_URL }}/register/" class="kz-btn kz-btn--primary kz-btn--lg">
+          Get Started Free
+          <i class="ti ti-arrow-right"></i>
         </a>
       </div>
     </div>
   </section>
 
   <!-- ─── Footer ─── -->
-  <footer class="lp-footer">
-    <div class="container">
-      <div class="lp-footer-grid">
-        <div class="lp-footer-brand">
-          <div class="lp-logo lp-logo--footer">
-            <div class="lp-logo-mark"><i class="ti ti-hexagon-filled"></i></div>
-            <span>Kanzen</span>
-          </div>
-          <p>Modern helpdesk & CRM for teams that care about their customers.</p>
+  <footer class="kz-footer">
+    <div class="kz-container">
+      <div class="kz-footer-grid">
+        <div class="kz-footer-brand">
+          <a href="{% url 'frontend:landing' %}" class="kz-logo">
+            Kanzen<span class="kz-logo-dot"></span>
+          </a>
+          <p>Modern helpdesk &amp; CRM for teams that care about their customers.</p>
         </div>
-        <div class="lp-footer-col">
+        <div class="kz-footer-col">
           <h6>Product</h6>
           <a href="#features">Features</a>
           <a href="#workflow">Workflow</a>
           <a href="#pricing">Pricing</a>
         </div>
-        <div class="lp-footer-col">
+        <div class="kz-footer-col">
           <h6>Company</h6>
           <a href="mailto:sales@kanzensuite.com">Contact</a>
           <a href="#">Privacy</a>
           <a href="#">Terms</a>
         </div>
-        <div class="lp-footer-col">
+        <div class="kz-footer-col">
           <h6>Developers</h6>
           <a href="{{ BASE_URL }}/api/docs/">API Docs</a>
           <a href="#">Changelog</a>
           <a href="#">Status</a>
         </div>
       </div>
-      <div class="lp-footer-bottom">
+      <div class="kz-footer-bottom">
         <small>&copy; {% now "Y" %} Kanzen Suite. All rights reserved.</small>
-        <div class="lp-footer-social">
-          <a href="#"><i class="ti ti-brand-github"></i></a>
-          <a href="#"><i class="ti ti-brand-x"></i></a>
-          <a href="#"><i class="ti ti-brand-linkedin"></i></a>
+        <div class="kz-footer-social">
+          <a href="#" aria-label="GitHub"><i class="ti ti-brand-github"></i></a>
+          <a href="#" aria-label="X"><i class="ti ti-brand-x"></i></a>
+          <a href="#" aria-label="LinkedIn"><i class="ti ti-brand-linkedin"></i></a>
         </div>
       </div>
     </div>
   </footer>
+
 </div>
 
 <script>
 (function() {
-  // Sticky nav
-  var nav = document.getElementById('lpNav');
+  var nav = document.getElementById('kzNav');
+  var toggle = document.getElementById('kzNavToggle');
+
   if (nav) {
-    window.addEventListener('scroll', function() {
-      nav.classList.toggle('lp-nav--scrolled', window.scrollY > 40);
+    var onScroll = function() {
+      if (window.scrollY > 60) nav.classList.add('kz-nav--scrolled');
+      else nav.classList.remove('kz-nav--scrolled');
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  }
+
+  if (toggle && nav) {
+    toggle.addEventListener('click', function() {
+      nav.classList.toggle('kz-nav--open');
     });
   }
 
-  // Smooth scroll
-  document.querySelectorAll('.lp a[href^="#"]').forEach(function(a) {
+  document.querySelectorAll('.kz-lp a[href^="#"]').forEach(function(a) {
     a.addEventListener('click', function(e) {
-      var t = document.querySelector(a.getAttribute('href'));
-      if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+      var id = a.getAttribute('href');
+      if (id.length < 2) return;
+      var t = document.querySelector(id);
+      if (t) {
+        e.preventDefault();
+        if (nav) nav.classList.remove('kz-nav--open');
+        t.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     });
   });
 
-  // Reveal on scroll
-  var obs = new IntersectionObserver(function(entries) {
-    entries.forEach(function(en) {
-      if (en.isIntersecting) {
-        en.target.classList.add('lp-visible');
-        obs.unobserve(en.target);
-      }
-    });
-  }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
+  if ('IntersectionObserver' in window) {
+    var obs = new IntersectionObserver(function(entries) {
+      entries.forEach(function(en) {
+        if (en.isIntersecting) {
+          en.target.classList.add('kz-visible');
+          obs.unobserve(en.target);
+        }
+      });
+    }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
 
-  document.querySelectorAll('.lp-reveal').forEach(function(el) { obs.observe(el); });
+    document.querySelectorAll('.kz-reveal').forEach(function(el) { obs.observe(el); });
+  } else {
+    document.querySelectorAll('.kz-reveal').forEach(function(el) { el.classList.add('kz-visible'); });
+  }
 })();
 </script>
 {% endblock %}

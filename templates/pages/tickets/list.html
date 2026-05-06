@@ -95,6 +95,7 @@
         <li><a class="dropdown-item layout-option" href="#" data-layout="card"><i class="ti ti-layout-grid me-2" aria-hidden="true"></i>Card</a></li>
       </ul>
     </div>
+    {% comment %} Saved Views dropdown hidden — preserved for future re-enable
     <div class="dropdown">
       <button class="btn btn-sm btn-outline-secondary dropdown-toggle tl-view-btn" type="button" id="viewSelector" data-bs-toggle="dropdown" aria-expanded="false">
         <i class="ti ti-funnel me-1" aria-hidden="true"></i><span id="currentViewName">All Tickets</span>
@@ -110,6 +111,7 @@
         </a></li>
       </ul>
     </div>
+    {% endcomment %}
   </div>
 </div>
 
@@ -120,7 +122,7 @@
     <span class="tl-tab-count" id="statTotal">--</span>
   </button>
   <button class="tl-stat-tab" data-filter="open" role="tab" aria-selected="false">
-    <span class="tl-tab-dot" style="background:#EF4444;"></span>
+    <span class="tl-tab-dot" style="background:#E11C2B;"></span>
     <span class="tl-tab-label">Open</span>
     <span class="tl-tab-count" id="statOpen">--</span>
   </button>
@@ -130,7 +132,7 @@
     <span class="tl-tab-count" id="statProgress">--</span>
   </button>
   <button class="tl-stat-tab" data-filter="urgent" role="tab" aria-selected="false">
-    <span class="tl-tab-dot" style="background:#EF4444;"></span>
+    <span class="tl-tab-dot" style="background:#E11C2B;"></span>
     <span class="tl-tab-label">Urgent</span>
     <span class="tl-tab-count" id="statUrgent">--</span>
   </button>
@@ -310,10 +312,10 @@
   /* ── Constants ── */
   var PAGE_SIZE = 25;
   var SEARCH_DEBOUNCE_MS = 400;
-  var PRIORITY_COLORS = { urgent: '#EF4444', high: '#F97316', medium: '#F59E0B', low: '#10B981' };
-  var PRIORITY_BG_LIGHT = { urgent: '#FEF2F2', high: '#FFF7ED', medium: '#FFFBEB', low: '#ECFDF5' };
+  var PRIORITY_COLORS = { urgent: '#E11C2B', high: '#C1121F', medium: '#C1121F', low: '#A8A8AC' };
+  var PRIORITY_BG_LIGHT = { urgent: '#1A1A1D', high: '#FFF7ED', medium: '#FFFBEB', low: '#ECFDF5' };
   var PRIORITY_BG_DARK = { urgent: 'rgba(239,68,68,0.12)', high: 'rgba(249,115,22,0.12)', medium: 'rgba(245,158,11,0.12)', low: 'rgba(16,185,129,0.12)' };
-  var PRIORITY_TEXT_DARK = { urgent: '#FCA5A5', high: '#FDBA74', medium: '#FCD34D', low: '#6EE7B7' };
+  var PRIORITY_TEXT_DARK = { urgent: '#F08891', high: '#FDBA74', medium: '#F03040', low: '#A8A8AC' };
 
   /* ── State ── */
   var currentPage = 1;
@@ -1091,6 +1093,7 @@
     _viewsCache: null,
 
     init: async function() {
+      if (!dom.savedViewsList || !dom.currentViewName) return; /* dropdown hidden */
       var data = await this._fetchViews();
       this.renderViewsList(data);
       var defaultView = data.find(function(v) { return v.is_default; });
@@ -1244,9 +1247,11 @@
     }
   };
 
-  /* Saved views button listeners */
-  document.getElementById('clearViewBtn').addEventListener('click', function(e) { e.preventDefault(); SavedViews.clearView(); });
-  document.getElementById('saveViewBtn').addEventListener('click', function(e) { e.preventDefault(); SavedViews.saveCurrentView(); });
+  /* Saved views button listeners (guarded — markup may be hidden) */
+  var clearViewBtnEl = document.getElementById('clearViewBtn');
+  if (clearViewBtnEl) clearViewBtnEl.addEventListener('click', function(e) { e.preventDefault(); SavedViews.clearView(); });
+  var saveViewBtnEl = document.getElementById('saveViewBtn');
+  if (saveViewBtnEl) saveViewBtnEl.addEventListener('click', function(e) { e.preventDefault(); SavedViews.saveCurrentView(); });
 
   /* ── Stat Tab Clicks ── */
   dom.statTabs.forEach(function(tab) {

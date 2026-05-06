@@ -335,8 +335,8 @@
   resourceTypeSelect.addEventListener('change', updateAutoColumnsVisibility);
   updateAutoColumnsVisibility();
 
-  var PRIORITY_COLORS = {urgent:'#EF4444',high:'#F59E0B',medium:'#EF4444',low:'#6B7280'};
-  var AVATAR_COLORS = ['#DC2626','#B91C1C','#DC2626','#0891B2','#22C55E','#F59E0B','#F87171','#EC4899','#A5B4FC','#14B8A6'];
+  var PRIORITY_COLORS = {urgent:'#E11C2B',high:'#C1121F',medium:'#E11C2B',low:'#6B6B70'};
+  var AVATAR_COLORS = ['#C1121F','#9A0E18','#C1121F','#9A0E18','#A8A8AC','#C1121F','#F03040','#E11C2B','#F08891','#A8A8AC'];
   function avatarColor(name) { if (!name) return AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
 
   function escapeHtml(str) {
@@ -502,7 +502,7 @@
       badgesEl.appendChild(stBadge);
     }
     if (ticket.priority) {
-      var priColors = { urgent: '#EF4444', high: '#F59E0B', medium: '#EF4444', low: '#64748B' };
+      var priColors = { urgent: '#E11C2B', high: '#C1121F', medium: '#E11C2B', low: '#64748B' };
       var prBadge = document.createElement('span');
       prBadge.className = 'badge event-detail-badge';
       prBadge.style.backgroundColor = priColors[ticket.priority] || '#64748B';
@@ -574,7 +574,19 @@
     col.dataset.columnId = column.id;
 
     var cards = column.cards || [];
-    var colColor = column.color || '#94A3B8';
+    // Semantic fallback when no DB color: open=info, in-progress/pending=warning,
+    // resolved=success, closed/cancelled=neutral, urgent/blocked=danger.
+    var colColor = column.color || (function() {
+      var styles = getComputedStyle(document.documentElement);
+      var name = (column.name || '').toLowerCase();
+      if (/(resolv|complet|done|won)/.test(name))         return styles.getPropertyValue('--status-success-dot').trim() || '#22C55E';
+      if (/(open|new|todo|to.?do|backlog)/.test(name))    return styles.getPropertyValue('--status-info-dot').trim()    || '#3B82F6';
+      if (/(progress|pending|review|on.?hold|wait)/.test(name))
+                                                          return styles.getPropertyValue('--status-warning-dot').trim() || '#F59E0B';
+      if (/(urgent|blocked|escalat|breach|critical|fail|lost)/.test(name))
+                                                          return styles.getPropertyValue('--status-danger-dot').trim()  || '#C1121F';
+      return styles.getPropertyValue('--status-neutral-dot').trim() || '#6B7280';
+    })();
 
     // Header
     var headerDiv = document.createElement('div');

@@ -1,0 +1,1393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Kanzen Suite — helpdesk and CRM in one platform. Stop juggling Zendesk and HubSpot. See SLA status on every contact, auto-assign tickets by workload, and unify support and sales pipelines.">
+  <title>Kanzen Suite — Helpdesk + CRM, in one platform</title>
+
+  <!-- Favicon (served from Django's static/images/DP.png) -->
+  <link rel="icon" type="image/png" href="/static/images/DP.png">
+  <link rel="apple-touch-icon" href="/static/images/DP.png">
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+
+  <!-- Bootstrap 5.3 + Bootstrap Icons -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+
+  <style>
+    /* ============================================================
+       Design tokens
+       ============================================================ */
+    :root {
+      --kz-primary: #C1121F;
+      --kz-primary-dark: #9A0E18;
+      --kz-primary-soft: #FEF1F2;
+      --kz-accent: #E11D2D;
+      --kz-dark: #0A0A0B;
+      --kz-surface: #F8F8FA;
+      --kz-text: #0A0A0B;
+      --kz-text-muted: #6B7280;
+      --kz-border: #E5E7EB;
+
+      /* Bootstrap overrides */
+      --bs-primary: var(--kz-primary);
+      --bs-primary-rgb: 193, 18, 31;
+      --bs-body-color: var(--kz-text);
+      --bs-body-bg: #FFFFFF;
+      --bs-body-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* ============================================================
+       Base / typography
+       ============================================================ */
+    body {
+      font-family: 'Inter', sans-serif;
+      color: var(--kz-text);
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    h1, h2, h3, h4, h5, h6,
+    .display-1, .display-2, .display-3, .display-4, .display-5, .display-6 {
+      font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+      letter-spacing: -0.02em;
+      color: var(--kz-text);
+    }
+
+    .text-muted-soft { color: var(--kz-text-muted) !important; }
+    .bg-surface { background-color: var(--kz-surface) !important; }
+    .bg-dark-navy { background-color: var(--kz-dark) !important; }
+    .text-primary-kz { color: var(--kz-primary) !important; }
+
+    /* Bootstrap button overrides for indigo primary */
+    .btn-primary {
+      --bs-btn-bg: var(--kz-primary);
+      --bs-btn-border-color: var(--kz-primary);
+      --bs-btn-hover-bg: var(--kz-primary-dark);
+      --bs-btn-hover-border-color: var(--kz-primary-dark);
+      --bs-btn-active-bg: var(--kz-primary-dark);
+      --bs-btn-active-border-color: var(--kz-primary-dark);
+      --bs-btn-disabled-bg: var(--kz-primary);
+      --bs-btn-disabled-border-color: var(--kz-primary);
+      --bs-btn-color: #fff;
+      --bs-btn-hover-color: #fff;
+      --bs-btn-active-color: #fff;
+      --bs-btn-disabled-color: #fff;
+      font-weight: 600;
+    }
+
+    .btn-outline-primary {
+      --bs-btn-color: var(--kz-primary);
+      --bs-btn-border-color: var(--kz-primary);
+      --bs-btn-hover-bg: var(--kz-primary);
+      --bs-btn-hover-border-color: var(--kz-primary);
+      --bs-btn-active-bg: var(--kz-primary-dark);
+      --bs-btn-active-border-color: var(--kz-primary-dark);
+      font-weight: 600;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1px solid var(--kz-border);
+      color: var(--kz-text);
+      font-weight: 600;
+    }
+    .btn-ghost:hover {
+      background: var(--kz-surface);
+      border-color: #D1D5DB;
+      color: var(--kz-text);
+    }
+
+    .btn-light-on-dark {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.18);
+      color: #fff;
+      font-weight: 600;
+    }
+    .btn-light-on-dark:hover {
+      background: rgba(255,255,255,0.14);
+      color: #fff;
+    }
+
+    /* Soft eyebrow tag */
+    .kz-eyebrow {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--kz-primary);
+      margin-bottom: 12px;
+    }
+
+    /* ============================================================
+       Navbar
+       ============================================================ */
+    .kz-navbar {
+      background: rgba(255, 255, 255, 0.0);
+      transition: background 0.25s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+      border-bottom: 1px solid transparent;
+      padding-top: 14px;
+      padding-bottom: 14px;
+    }
+    .kz-navbar.scrolled {
+      background: rgba(255, 255, 255, 0.92);
+      backdrop-filter: saturate(180%) blur(12px);
+      -webkit-backdrop-filter: saturate(180%) blur(12px);
+      border-bottom-color: var(--kz-border);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+    }
+    .kz-navbar .navbar-brand {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 19px;
+      letter-spacing: -0.025em;
+      color: var(--kz-text);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .kz-navbar .navbar-brand .kz-logo-mark {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      background: var(--kz-primary);
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+    .kz-navbar .nav-link {
+      color: var(--kz-text-muted);
+      font-weight: 500;
+      padding: 8px 14px;
+    }
+    .kz-navbar .nav-link:hover,
+    .kz-navbar .nav-link:focus {
+      color: var(--kz-text);
+    }
+
+    /* ============================================================
+       Hero
+       ============================================================ */
+    .kz-hero {
+      padding-top: 140px;
+      padding-bottom: 80px;
+      background: #FFFFFF;
+    }
+    .kz-hero-h1 {
+      font-size: clamp(36px, 5vw, 56px);
+      font-weight: 800;
+      line-height: 1.05;
+      letter-spacing: -0.035em;
+      color: var(--kz-text);
+    }
+    .kz-hero-h1 .accent {
+      color: var(--kz-primary);
+    }
+    .kz-hero-sub {
+      font-size: 18px;
+      line-height: 1.55;
+      color: var(--kz-text-muted);
+      max-width: 620px;
+    }
+
+    /* Hero mockup ------------------------------------------------- */
+    .kz-mockup {
+      background: #FFFFFF;
+      border: 1px solid var(--kz-border);
+      border-radius: 16px;
+      box-shadow: 0 24px 60px -28px rgba(31, 36, 90, 0.18),
+                  0 8px 24px -8px rgba(31, 36, 90, 0.06);
+      overflow: hidden;
+    }
+    .kz-mockup-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--kz-border);
+      background: #FBFBFD;
+    }
+    .kz-mockup-bar .dot {
+      width: 10px; height: 10px; border-radius: 50%;
+      background: #E5E7EB;
+    }
+    .kz-mockup-bar .dot.r { background: #FCA5A5; }
+    .kz-mockup-bar .dot.y { background: #FCD34D; }
+    .kz-mockup-bar .dot.g { background: #86EFAC; }
+    .kz-mockup-bar .url {
+      margin-left: 12px;
+      color: var(--kz-text-muted);
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .kz-mockup-body {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      min-height: 460px;
+    }
+    @media (max-width: 767.98px) {
+      .kz-mockup-body { grid-template-columns: 1fr; min-height: auto; }
+    }
+
+    .kz-mock-list {
+      border-right: 1px solid var(--kz-border);
+      background: #FCFCFD;
+      padding: 12px 8px;
+    }
+    @media (max-width: 767.98px) {
+      .kz-mock-list { border-right: none; border-bottom: 1px solid var(--kz-border); }
+    }
+    .kz-mock-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 10px 12px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--kz-text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .kz-mock-contact {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      cursor: default;
+    }
+    .kz-mock-contact + .kz-mock-contact { margin-top: 2px; }
+    .kz-mock-contact.is-active {
+      background: var(--kz-primary-soft);
+    }
+    .kz-mock-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    /* Avatar swatches (kept out of inline styles) */
+    /* Monochrome avatar swatches — class names kept for stability, values now red/black/grey */
+    .av-indigo { background: #C1121F; }
+    .av-cyan   { background: #1F2937; }
+    .av-orange { background: #4B5563; }
+    .av-green  { background: #6B7280; }
+    .av-pink   { background: #9A0E18; }
+    .kz-mock-contact-meta {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.2;
+    }
+    .kz-mock-contact-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--kz-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .kz-mock-contact.is-active .kz-mock-contact-name { color: var(--kz-primary-dark); }
+    .kz-mock-contact-co {
+      font-size: 11px;
+      color: var(--kz-text-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .kz-mock-unread {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--kz-primary);
+      margin-left: auto;
+    }
+
+    .kz-mock-detail {
+      padding: 22px 26px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .kz-mock-detail-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .kz-mock-detail-name {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 19px;
+      font-weight: 700;
+      color: var(--kz-text);
+      letter-spacing: -0.01em;
+      margin: 0;
+    }
+    .kz-mock-detail-co {
+      font-size: 13px;
+      color: var(--kz-text-muted);
+      margin-top: 2px;
+    }
+    .kz-mock-detail-email {
+      font-size: 12px;
+      color: var(--kz-primary);
+      margin-top: 4px;
+    }
+    .kz-mock-section-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--kz-text-muted);
+      margin-bottom: 8px;
+    }
+
+    .kz-mock-ticket {
+      border: 1px solid var(--kz-border);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .kz-mock-ticket-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--kz-text);
+    }
+    .kz-mock-ticket-meta {
+      font-size: 12px;
+      color: var(--kz-text-muted);
+      margin-top: 6px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .kz-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+    .kz-badge.badge-open {
+      background: #FEF3C7;
+      color: #92400E;
+    }
+    .kz-badge.badge-sla-ok {
+      background: #DCFCE7;
+      color: #166534;
+    }
+    .kz-badge.badge-sla-ok::before {
+      content: '';
+      width: 6px; height: 6px; border-radius: 50%;
+      background: #22C55E;
+    }
+
+    .kz-mock-sla {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      background: var(--kz-surface);
+      border-radius: 10px;
+      font-size: 13px;
+    }
+    .kz-mock-sla-label {
+      font-weight: 600;
+      color: var(--kz-text);
+    }
+    .kz-mock-sla-time {
+      color: var(--kz-text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .kz-mock-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .kz-mock-event {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .kz-mock-event-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--kz-primary);
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+    .kz-mock-event-text {
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--kz-text);
+    }
+    .kz-mock-event-time {
+      font-size: 11px;
+      color: var(--kz-text-muted);
+      margin-bottom: 2px;
+    }
+
+    /* ============================================================
+       Logos strip
+       ============================================================ */
+    .kz-logos {
+      padding: 48px 0;
+      background: #FFFFFF;
+      border-top: 1px solid var(--kz-border);
+      border-bottom: 1px solid var(--kz-border);
+    }
+    .kz-logos-label {
+      text-align: center;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--kz-text-muted);
+      margin-bottom: 22px;
+    }
+    .kz-logos-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 40px;
+      flex-wrap: wrap;
+    }
+    .kz-logo-name {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      font-size: 17px;
+      color: #9CA3AF;
+      letter-spacing: -0.01em;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: color 0.2s ease;
+    }
+    .kz-logo-name:hover { color: var(--kz-text-muted); }
+    .kz-logo-name i { font-size: 18px; }
+
+    /* ============================================================
+       Sections (general)
+       ============================================================ */
+    .kz-section { padding: 96px 0; }
+    .kz-section-head h2 {
+      font-size: clamp(28px, 3.4vw, 40px);
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.025em;
+    }
+    .kz-section-head p {
+      font-size: 17px;
+      line-height: 1.55;
+      color: var(--kz-text-muted);
+      max-width: 640px;
+    }
+
+    /* ============================================================
+       Feature highlights
+       ============================================================ */
+    .kz-feature-card {
+      background: #FFFFFF;
+      border: 1px solid var(--kz-border);
+      border-radius: 14px;
+      padding: 28px;
+      height: 100%;
+      transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .kz-feature-card:hover {
+      border-color: #FECACA;
+      transform: translateY(-2px);
+      box-shadow: 0 14px 40px -18px rgba(193, 18, 31, 0.18);
+    }
+    .kz-feature-icon {
+      width: 44px; height: 44px;
+      border-radius: 10px;
+      background: var(--kz-primary-soft);
+      color: var(--kz-primary);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 18px;
+    }
+    .kz-feature-card h3 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      letter-spacing: -0.015em;
+    }
+    .kz-feature-card p {
+      font-size: 15px;
+      color: var(--kz-text-muted);
+      margin: 0;
+      line-height: 1.55;
+    }
+
+    /* ============================================================
+       Product screenshot sections
+       ============================================================ */
+    .kz-product-img {
+      width: 100%;
+      border: 1px solid var(--kz-border);
+      border-radius: 14px;
+      box-shadow: 0 16px 40px -20px rgba(31, 36, 90, 0.14);
+      display: block;
+    }
+    .kz-product-feature-list {
+      list-style: none;
+      padding: 0;
+      margin: 18px 0 0;
+    }
+    .kz-product-feature-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 15px;
+      color: var(--kz-text);
+    }
+    .kz-product-feature-list li i {
+      color: var(--kz-primary);
+      font-size: 18px;
+      margin-top: 1px;
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       Testimonials
+       ============================================================ */
+    .kz-testimonial {
+      background: var(--kz-surface);
+      border: 1px solid var(--kz-border);
+      border-radius: 16px;
+      padding: 32px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+    .kz-quote-mark {
+      color: var(--kz-primary);
+      font-size: 28px;
+      line-height: 1;
+    }
+    .kz-quote-text {
+      font-size: 17px;
+      line-height: 1.55;
+      color: var(--kz-text);
+      font-weight: 500;
+      margin: 0;
+    }
+    .kz-quote-author {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: auto;
+    }
+    .kz-quote-avatar {
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-weight: 600;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .kz-quote-avatar.av-indigo { background: var(--kz-primary); }
+    .kz-quote-avatar.av-cyan { background: var(--kz-accent); }
+    .kz-quote-name { font-weight: 600; font-size: 14px; line-height: 1.2; }
+    .kz-quote-role { font-size: 12px; color: var(--kz-text-muted); margin-top: 2px; }
+
+    /* ============================================================
+       Pricing
+       ============================================================ */
+    .kz-price-card {
+      background: #FFFFFF;
+      border: 1px solid var(--kz-border);
+      border-radius: 16px;
+      padding: 32px 28px;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      position: relative;
+    }
+    .kz-price-card.featured {
+      border-color: var(--kz-primary);
+      box-shadow: 0 0 0 1px var(--kz-primary), 0 24px 60px -24px rgba(193, 18, 31, 0.25);
+    }
+    .kz-price-badge {
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--kz-primary);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 5px 12px;
+      border-radius: 999px;
+    }
+    .kz-price-tier {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--kz-text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+    }
+    .kz-price-amount {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      margin-bottom: 4px;
+    }
+    .kz-price-amount .num {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 40px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      color: var(--kz-text);
+    }
+    .kz-price-amount .period {
+      font-size: 14px;
+      color: var(--kz-text-muted);
+    }
+    .kz-price-desc {
+      font-size: 14px;
+      color: var(--kz-text-muted);
+      margin-bottom: 22px;
+      min-height: 42px;
+    }
+    .kz-price-list {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 26px;
+      flex: 1;
+    }
+    .kz-price-list li {
+      font-size: 14px;
+      color: var(--kz-text);
+      padding: 7px 0;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      line-height: 1.45;
+    }
+    .kz-price-list li i {
+      color: var(--kz-primary);
+      font-size: 16px;
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    /* ============================================================
+       Final CTA banner
+       ============================================================ */
+    .kz-final-cta {
+      background: var(--kz-dark);
+      color: #fff;
+      padding: 88px 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .kz-final-cta::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(193, 18, 31, 0.30) 0%, transparent 65%);
+      filter: blur(40px);
+      pointer-events: none;
+    }
+    .kz-final-cta .container { position: relative; z-index: 1; }
+    .kz-final-cta h2 {
+      color: #fff;
+      font-size: clamp(28px, 3.4vw, 40px);
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+    }
+    .kz-final-cta p {
+      color: rgba(255,255,255,0.72);
+      font-size: 17px;
+      line-height: 1.55;
+    }
+    .kz-cta-form {
+      display: flex;
+      gap: 8px;
+      max-width: 460px;
+      margin: 0 auto;
+    }
+    .kz-cta-form input {
+      flex: 1;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.16);
+      color: #fff;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+    }
+    .kz-cta-form input::placeholder { color: rgba(255,255,255,0.45); }
+    .kz-cta-form input:focus {
+      outline: none;
+      border-color: var(--kz-primary);
+      background: rgba(255,255,255,0.12);
+    }
+    .kz-cta-form button {
+      background: var(--kz-primary);
+      color: #fff;
+      border: none;
+      padding: 12px 18px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .kz-cta-form button:hover { background: var(--kz-primary-dark); }
+    .kz-cta-disclaimer {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.55);
+    }
+    @media (max-width: 575.98px) {
+      .kz-cta-form { flex-direction: column; }
+    }
+
+    /* ============================================================
+       Footer
+       ============================================================ */
+    .kz-footer {
+      background: #FFFFFF;
+      padding: 64px 0 32px;
+      border-top: 1px solid var(--kz-border);
+    }
+    .kz-footer h6 {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--kz-text-muted);
+      margin-bottom: 14px;
+    }
+    .kz-footer a {
+      display: block;
+      font-size: 14px;
+      color: var(--kz-text-muted);
+      text-decoration: none;
+      padding: 5px 0;
+    }
+    .kz-footer a:hover { color: var(--kz-text); }
+    .kz-footer-bottom {
+      border-top: 1px solid var(--kz-border);
+      padding-top: 22px;
+      margin-top: 48px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      font-size: 13px;
+      color: var(--kz-text-muted);
+    }
+
+    /* ============================================================
+       Reveal-on-scroll
+       ============================================================ */
+    .kz-reveal {
+      opacity: 0;
+      transform: translateY(16px);
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+    .kz-reveal.is-visible {
+      opacity: 1;
+      transform: none;
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .kz-reveal { opacity: 1; transform: none; transition: none; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ============================================================
+       NAVBAR
+       ============================================================ -->
+  <nav class="navbar navbar-expand-lg fixed-top kz-navbar" id="kzNavbar" aria-label="Main navigation">
+    <div class="container">
+      <a class="navbar-brand" href="#top">
+        <span class="kz-logo-mark"><i class="bi bi-hexagon-fill"></i></span>
+        Kanzen Suite
+      </a>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#kzNavCollapse" aria-controls="kzNavCollapse" aria-expanded="false" aria-label="Toggle navigation">
+        <i class="bi bi-list fs-3"></i>
+      </button>
+      <div class="collapse navbar-collapse" id="kzNavCollapse">
+        <ul class="navbar-nav mx-auto mb-2 mb-lg-0">
+          <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
+          <li class="nav-item"><a class="nav-link" href="#product">Product</a></li>
+          <li class="nav-item"><a class="nav-link" href="#testimonials">Customers</a></li>
+          <li class="nav-item"><a class="nav-link" href="#pricing">Pricing</a></li>
+        </ul>
+        <a href="/login/" class="btn btn-primary rounded-pill px-3 py-2">Login</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ============================================================
+       HERO
+       ============================================================ -->
+  <header class="kz-hero" id="top">
+    <div class="container">
+      <div class="row align-items-center g-5">
+
+        <div class="col-lg-6">
+          <span class="kz-eyebrow">Helpdesk × CRM</span>
+          <h1 class="kz-hero-h1 mb-3">
+            Support tickets. CRM contacts. <span class="accent">One platform.</span>
+          </h1>
+          <p class="kz-hero-sub mb-4">
+            Kanzen Suite connects your support inbox, contact records, and pipelines so your team always has full context — without switching tabs.
+          </p>
+          <div class="d-flex flex-wrap gap-2 mb-4">
+            <a href="/signup/" class="btn btn-primary rounded-pill px-4 py-2">
+              Start free trial <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+            <a href="#demo" class="btn btn-ghost rounded-pill px-4 py-2">
+              <i class="bi bi-play-circle me-1"></i> See a demo
+            </a>
+          </div>
+          <p class="text-muted-soft small mb-0">
+            <i class="bi bi-check-circle-fill text-primary-kz me-1"></i>
+            14-day free trial · No credit card required
+          </p>
+        </div>
+
+        <div class="col-lg-6">
+          <!-- HERO MOCKUP: contact timeline view -->
+          <div class="kz-mockup" role="img" aria-label="Kanzen Suite contact view showing the selected contact Sarah Mitchell from Brightline Co with her latest ticket, SLA status, and recent activity timeline">
+            <div class="kz-mockup-bar" aria-hidden="true">
+              <span class="dot r"></span>
+              <span class="dot y"></span>
+              <span class="dot g"></span>
+              <span class="url">app.kanzensuite.com / contacts</span>
+            </div>
+            <div class="kz-mockup-body">
+
+              <!-- Contact list -->
+              <aside class="kz-mock-list" aria-label="Contact list">
+                <div class="kz-mock-list-header">
+                  <span>Contacts</span>
+                  <span>5</span>
+                </div>
+
+                <div class="kz-mock-contact is-active">
+                  <span class="kz-mock-avatar av-indigo">SM</span>
+                  <div class="kz-mock-contact-meta">
+                    <span class="kz-mock-contact-name">Sarah Mitchell</span>
+                    <span class="kz-mock-contact-co">Brightline Co</span>
+                  </div>
+                  <span class="kz-mock-unread"></span>
+                </div>
+
+                <div class="kz-mock-contact">
+                  <span class="kz-mock-avatar av-cyan">MC</span>
+                  <div class="kz-mock-contact-meta">
+                    <span class="kz-mock-contact-name">Marcus Chen</span>
+                    <span class="kz-mock-contact-co">Forge Studios</span>
+                  </div>
+                </div>
+
+                <div class="kz-mock-contact">
+                  <span class="kz-mock-avatar av-orange">PS</span>
+                  <div class="kz-mock-contact-meta">
+                    <span class="kz-mock-contact-name">Priya Sharma</span>
+                    <span class="kz-mock-contact-co">Northwind Labs</span>
+                  </div>
+                </div>
+
+                <div class="kz-mock-contact">
+                  <span class="kz-mock-avatar av-green">DA</span>
+                  <div class="kz-mock-contact-meta">
+                    <span class="kz-mock-contact-name">Diego Alvarez</span>
+                    <span class="kz-mock-contact-co">Helix Health</span>
+                  </div>
+                </div>
+
+                <div class="kz-mock-contact">
+                  <span class="kz-mock-avatar av-pink">LT</span>
+                  <div class="kz-mock-contact-meta">
+                    <span class="kz-mock-contact-name">Lena Torres</span>
+                    <span class="kz-mock-contact-co">Pixel &amp; Pine</span>
+                  </div>
+                </div>
+              </aside>
+
+              <!-- Detail pane -->
+              <main class="kz-mock-detail" aria-label="Selected contact details">
+                <div class="kz-mock-detail-head">
+                  <div>
+                    <h4 class="kz-mock-detail-name">Sarah Mitchell</h4>
+                    <div class="kz-mock-detail-co">Operations Lead · Brightline Co</div>
+                    <div class="kz-mock-detail-email">sarah@brightline.co</div>
+                  </div>
+                  <button type="button" class="btn btn-sm btn-outline-primary rounded-pill px-3" aria-label="Reply to Sarah">
+                    <i class="bi bi-reply me-1"></i>Reply
+                  </button>
+                </div>
+
+                <div>
+                  <div class="kz-mock-section-label">Latest ticket</div>
+                  <div class="kz-mock-ticket">
+                    <div class="kz-mock-ticket-title">Invoice export not generating PDF</div>
+                    <div class="kz-mock-ticket-meta">
+                      <span class="kz-badge badge-open">Open</span>
+                      <span>·</span>
+                      <span>#3421</span>
+                      <span>·</span>
+                      <span>Assigned to Marcus</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="kz-mock-sla">
+                  <div>
+                    <div class="kz-mock-sla-label">SLA — Response</div>
+                    <div class="kz-mock-sla-time">Due in 1h 47m</div>
+                  </div>
+                  <span class="kz-badge badge-sla-ok">On track</span>
+                </div>
+
+                <div>
+                  <div class="kz-mock-section-label">Activity</div>
+                  <div class="kz-mock-timeline">
+                    <div class="kz-mock-event">
+                      <span class="kz-mock-event-dot" aria-hidden="true"></span>
+                      <div>
+                        <div class="kz-mock-event-time">2h ago</div>
+                        <div class="kz-mock-event-text">Reply sent by Marcus — "Looking into the export pipeline now."</div>
+                      </div>
+                    </div>
+                    <div class="kz-mock-event">
+                      <span class="kz-mock-event-dot" aria-hidden="true"></span>
+                      <div>
+                        <div class="kz-mock-event-time">5h ago</div>
+                        <div class="kz-mock-event-text">Ticket #3421 opened from billing@brightline.co</div>
+                      </div>
+                    </div>
+                    <div class="kz-mock-event">
+                      <span class="kz-mock-event-dot" aria-hidden="true"></span>
+                      <div>
+                        <div class="kz-mock-event-time">Yesterday</div>
+                        <div class="kz-mock-event-text">Logged in to dashboard from Kuala Lumpur</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </main>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       LOGOS STRIP
+       ============================================================ -->
+  <section class="kz-logos">
+    <div class="container">
+      <div class="kz-logos-label">Trusted by support and revenue teams at</div>
+      <div class="kz-logos-row">
+        <span class="kz-logo-name"><i class="bi bi-hexagon-fill"></i>Brightline Co</span>
+        <span class="kz-logo-name"><i class="bi bi-fire"></i>Forge Studios</span>
+        <span class="kz-logo-name"><i class="bi bi-cloud-fill"></i>Northwind Labs</span>
+        <span class="kz-logo-name"><i class="bi bi-heart-pulse-fill"></i>Helix Health</span>
+        <span class="kz-logo-name"><i class="bi bi-tree-fill"></i>Pixel &amp; Pine</span>
+        <span class="kz-logo-name"><i class="bi bi-water"></i>Tidewater Bank</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FEATURE HIGHLIGHTS (3-column)
+       ============================================================ -->
+  <section class="kz-section bg-surface" id="features">
+    <div class="container">
+      <div class="text-center mx-auto mb-5 kz-section-head" style="max-width: 720px;">
+        <span class="kz-eyebrow">What you get</span>
+        <h2 class="mb-3">Everything your support team needs to actually know your customers.</h2>
+        <p class="mx-auto">No more flipping between Zendesk and HubSpot to answer a single question. Every ticket, every contact, every pipeline stage — together.</p>
+      </div>
+
+      <div class="row g-4">
+        <div class="col-md-4 kz-reveal">
+          <div class="kz-feature-card">
+            <span class="kz-feature-icon"><i class="bi bi-inboxes-fill"></i></span>
+            <h3>Unified inbox + CRM</h3>
+            <p>Every ticket, every conversation, one contact record. When a customer emails, your team sees their full history without switching tabs.</p>
+          </div>
+        </div>
+
+        <div class="col-md-4 kz-reveal">
+          <div class="kz-feature-card">
+            <span class="kz-feature-icon"><i class="bi bi-stopwatch-fill"></i></span>
+            <h3>SLA-aware contacts</h3>
+            <p>See SLA status right on the contact card. Know which customers have urgent open tickets before you reply, not after.</p>
+          </div>
+        </div>
+
+        <div class="col-md-4 kz-reveal">
+          <div class="kz-feature-card">
+            <span class="kz-feature-icon"><i class="bi bi-kanban-fill"></i></span>
+            <h3>Kanban pipeline</h3>
+            <p>Move deals and support stages side by side. Visualize where every customer sits — sales, onboarding, or active support — on one board.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       PRODUCT SCREENSHOT — Section A (image left, text right)
+       ============================================================ -->
+  <section class="kz-section" id="product">
+    <div class="container">
+      <div class="row align-items-center g-5">
+        <div class="col-lg-6 kz-reveal order-lg-1 order-2">
+          <img
+            src="https://placehold.co/960x600/FEF1F2/C1121F?text=Contact+Timeline+View&font=Inter"
+            alt="Contact timeline view in Kanzen Suite showing a customer's full ticket and email history in one chronological feed"
+            class="kz-product-img"
+            width="960" height="600"
+            loading="lazy">
+        </div>
+        <div class="col-lg-6 kz-reveal order-lg-2 order-1">
+          <span class="kz-eyebrow">Contact timeline</span>
+          <h2 class="kz-section-head h2 mb-3" style="font-size: clamp(26px, 3vw, 36px); font-weight: 800; letter-spacing: -0.025em;">
+            Every customer interaction, in one chronological feed.
+          </h2>
+          <p class="text-muted-soft mb-2" style="font-size: 17px; line-height: 1.55;">
+            Email replies, support tickets, status changes, deal updates, and notes — stitched into a single timeline per contact. Your team scrolls one screen instead of digging through three tools.
+          </p>
+          <ul class="kz-product-feature-list">
+            <li><i class="bi bi-check-circle-fill"></i>Threaded ticket history with linked email replies</li>
+            <li><i class="bi bi-check-circle-fill"></i>Full audit trail — who changed what, and when</li>
+            <li><i class="bi bi-check-circle-fill"></i>Pin notes that stay visible above the fold</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       PRODUCT SCREENSHOT — Section B (text left, image right)
+       ============================================================ -->
+  <section class="kz-section bg-surface">
+    <div class="container">
+      <div class="row align-items-center g-5">
+        <div class="col-lg-6 kz-reveal">
+          <span class="kz-eyebrow">Round-robin assignment</span>
+          <h2 class="kz-section-head h2 mb-3" style="font-size: clamp(26px, 3vw, 36px); font-weight: 800; letter-spacing: -0.025em;">
+            Auto-assign tickets to whoever is least busy.
+          </h2>
+          <p class="text-muted-soft mb-2" style="font-size: 17px; line-height: 1.55;">
+            Kanzen tracks each agent's open ticket load and last-assigned timestamp, then routes new tickets to the agent with the lightest workload — fairly, automatically, and with full audit logs.
+          </p>
+          <ul class="kz-product-feature-list">
+            <li><i class="bi bi-check-circle-fill"></i>Workload-aware routing across queues and skills</li>
+            <li><i class="bi bi-check-circle-fill"></i>Respects working hours and out-of-office</li>
+            <li><i class="bi bi-check-circle-fill"></i>One-click manual override when needed</li>
+          </ul>
+        </div>
+        <div class="col-lg-6 kz-reveal">
+          <img
+            src="https://placehold.co/960x600/FEF1F2/C1121F?text=Round-robin+Assignment&font=Inter"
+            alt="Round-robin assignment dashboard showing five agents, their current ticket counts, and a new ticket being routed to the agent with the lowest load"
+            class="kz-product-img"
+            width="960" height="600"
+            loading="lazy">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       TESTIMONIALS
+       ============================================================ -->
+  <section class="kz-section" id="testimonials">
+    <div class="container">
+      <div class="text-center mx-auto mb-5 kz-section-head" style="max-width: 640px;">
+        <span class="kz-eyebrow">From our customers</span>
+        <h2 class="mb-0">Two tools replaced. One team, better aligned.</h2>
+      </div>
+
+      <div class="row g-4 justify-content-center">
+        <div class="col-md-6 col-lg-5 kz-reveal">
+          <article class="kz-testimonial">
+            <i class="bi bi-quote kz-quote-mark" aria-hidden="true"></i>
+            <p class="kz-quote-text">
+              We replaced Zendesk and HubSpot with Kanzen. Our agents finally have one screen instead of three — and onboarding new hires takes half the time.
+            </p>
+            <div class="kz-quote-author">
+              <span class="kz-quote-avatar av-indigo">AR</span>
+              <div>
+                <div class="kz-quote-name">Amelia Reed</div>
+                <div class="kz-quote-role">Head of Customer Success · Brightline Co</div>
+              </div>
+            </div>
+          </article>
+        </div>
+
+        <div class="col-md-6 col-lg-5 kz-reveal">
+          <article class="kz-testimonial">
+            <i class="bi bi-quote kz-quote-mark" aria-hidden="true"></i>
+            <p class="kz-quote-text">
+              Round-robin assignment alone saved us six hours a week. The CRM context inside every ticket is a bonus we didn't expect to love this much.
+            </p>
+            <div class="kz-quote-author">
+              <span class="kz-quote-avatar av-cyan">JL</span>
+              <div>
+                <div class="kz-quote-name">Jonas Lindqvist</div>
+                <div class="kz-quote-role">Support Lead · Forge Studios</div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       PRICING
+       ============================================================ -->
+  <section class="kz-section bg-surface" id="pricing">
+    <div class="container">
+      <div class="text-center mx-auto mb-5 kz-section-head" style="max-width: 640px;">
+        <span class="kz-eyebrow">Pricing</span>
+        <h2 class="mb-3">Simple pricing. No per-agent surprises.</h2>
+        <p class="mx-auto">Pick a tier that matches your team size. Move up or down at any time — no contracts, no setup fees.</p>
+      </div>
+
+      <div class="row g-4 justify-content-center">
+
+        <!-- Starter -->
+        <div class="col-md-6 col-lg-4 kz-reveal">
+          <div class="kz-price-card">
+            <span class="kz-price-tier">Starter</span>
+            <div class="kz-price-amount">
+              <span class="num">Free</span>
+            </div>
+            <p class="kz-price-desc">For small teams getting started with structured support.</p>
+            <ul class="kz-price-list">
+              <li><i class="bi bi-check-circle-fill"></i>Up to 3 agents</li>
+              <li><i class="bi bi-check-circle-fill"></i>100 tickets / month</li>
+              <li><i class="bi bi-check-circle-fill"></i>500 contacts</li>
+              <li><i class="bi bi-check-circle-fill"></i>Email + web inbox</li>
+              <li><i class="bi bi-check-circle-fill"></i>Community support</li>
+            </ul>
+            <a href="/signup/?plan=starter" class="btn btn-ghost rounded-pill w-100">Get started</a>
+          </div>
+        </div>
+
+        <!-- Growth (featured) -->
+        <div class="col-md-6 col-lg-4 kz-reveal">
+          <div class="kz-price-card featured">
+            <span class="kz-price-badge">Most popular</span>
+            <span class="kz-price-tier">Growth</span>
+            <div class="kz-price-amount">
+              <span class="num">RM&nbsp;79</span>
+              <span class="period">/mo</span>
+            </div>
+            <p class="kz-price-desc">For growing support teams that need SLAs and routing.</p>
+            <ul class="kz-price-list">
+              <li><i class="bi bi-check-circle-fill"></i>Up to 10 agents</li>
+              <li><i class="bi bi-check-circle-fill"></i>Unlimited tickets</li>
+              <li><i class="bi bi-check-circle-fill"></i>10,000 contacts</li>
+              <li><i class="bi bi-check-circle-fill"></i>SLA management + round-robin</li>
+              <li><i class="bi bi-check-circle-fill"></i>Priority email support</li>
+            </ul>
+            <a href="/signup/?plan=growth" class="btn btn-primary rounded-pill w-100">Get started</a>
+          </div>
+        </div>
+
+        <!-- Business -->
+        <div class="col-md-6 col-lg-4 kz-reveal">
+          <div class="kz-price-card">
+            <span class="kz-price-tier">Business</span>
+            <div class="kz-price-amount">
+              <span class="num">RM&nbsp;199</span>
+              <span class="period">/mo</span>
+            </div>
+            <p class="kz-price-desc">For larger teams with custom SLAs and integrations.</p>
+            <ul class="kz-price-list">
+              <li><i class="bi bi-check-circle-fill"></i>Up to 25 agents</li>
+              <li><i class="bi bi-check-circle-fill"></i>Custom SLAs + business hours</li>
+              <li><i class="bi bi-check-circle-fill"></i>Webhooks + REST API access</li>
+              <li><i class="bi bi-check-circle-fill"></i>SSO + audit logs</li>
+              <li><i class="bi bi-check-circle-fill"></i>Dedicated success manager</li>
+            </ul>
+            <a href="/signup/?plan=business" class="btn btn-ghost rounded-pill w-100">Get started</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FINAL CTA BANNER
+       ============================================================ -->
+  <section class="kz-final-cta" id="demo">
+    <!-- TODO: wire form submit to /api/v1/early-access/ once endpoint ships;
+         for now this is a static landing page with a no-op submit. -->
+    <div class="container text-center">
+      <h2 class="mb-3">Your support team and CRM, finally in one place.</h2>
+      <p class="mb-4 mx-auto" style="max-width: 560px;">
+        Join teams already using Kanzen Suite to close tickets faster and build better customer relationships.
+      </p>
+      <form class="kz-cta-form" onsubmit="event.preventDefault(); alert('Thanks! We\'ll email you shortly.');" aria-label="Request early access">
+        <label for="kzEmail" class="visually-hidden">Work email</label>
+        <input type="email" id="kzEmail" name="email" required placeholder="you@company.com" autocomplete="email">
+        <button type="submit">Get early access</button>
+      </form>
+      <p class="mt-3 mb-0 kz-cta-disclaimer">
+        No credit card required · Unsubscribe anytime
+      </p>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       FOOTER
+       ============================================================ -->
+  <footer class="kz-footer">
+    <div class="container">
+      <div class="row g-4">
+        <div class="col-lg-4 col-md-12">
+          <a class="navbar-brand mb-3 d-inline-flex" href="#top">
+            <span class="kz-logo-mark"><i class="bi bi-hexagon-fill"></i></span>
+            Kanzen Suite
+          </a>
+          <p class="text-muted-soft" style="font-size: 14px; max-width: 320px;">
+            The helpdesk that remembers every customer. Built for teams that don't want to choose between support quality and CRM context.
+          </p>
+        </div>
+
+        <div class="col-lg-2 col-6">
+          <h6>Product</h6>
+          <a href="#features">Features</a>
+          <a href="#pricing">Pricing</a>
+          <a href="/changelog/">Changelog</a>
+          <a href="/integrations/">Integrations</a>
+        </div>
+
+        <div class="col-lg-2 col-6">
+          <h6>Resources</h6>
+          <a href="/docs/">Docs</a>
+          <a href="/guides/">Guides</a>
+          <a href="/api/">API reference</a>
+          <a href="/status/">Status</a>
+        </div>
+
+        <div class="col-lg-2 col-6">
+          <h6>Company</h6>
+          <a href="/about/">About</a>
+          <a href="/customers/">Customers</a>
+          <a href="/careers/">Careers</a>
+          <a href="/contact/">Contact</a>
+        </div>
+
+        <div class="col-lg-2 col-6">
+          <h6>Legal</h6>
+          <a href="/privacy/">Privacy</a>
+          <a href="/terms/">Terms</a>
+          <a href="/security/">Security</a>
+          <a href="/dpa/">DPA</a>
+        </div>
+      </div>
+
+      <div class="kz-footer-bottom">
+        <span>© 2026 Kanzen Suite. All rights reserved.</span>
+        <span>
+          <a href="https://twitter.com/" class="d-inline-block me-3" aria-label="Twitter / X"><i class="bi bi-twitter-x"></i></a>
+          <a href="https://github.com/" class="d-inline-block me-3" aria-label="GitHub"><i class="bi bi-github"></i></a>
+          <a href="https://linkedin.com/" class="d-inline-block" aria-label="LinkedIn"><i class="bi bi-linkedin"></i></a>
+        </span>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Bootstrap 5.3 bundle (popper + dropdowns + collapse) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+  <script>
+    (function () {
+      // 1. Sticky nav: add .scrolled past 20px
+      var nav = document.getElementById('kzNavbar');
+      var onScroll = function () {
+        if (window.scrollY > 20) nav.classList.add('scrolled');
+        else nav.classList.remove('scrolled');
+      };
+      window.addEventListener('scroll', onScroll, { passive: true });
+      onScroll();
+
+      // 2. Smooth scroll for in-page anchors (closes mobile collapse first)
+      var collapseEl = document.getElementById('kzNavCollapse');
+      document.querySelectorAll('a[href^="#"]').forEach(function (a) {
+        a.addEventListener('click', function (e) {
+          var href = a.getAttribute('href');
+          if (href.length < 2) return;
+          var target = document.querySelector(href);
+          if (!target) return;
+          e.preventDefault();
+          // Close mobile menu if open
+          if (collapseEl && collapseEl.classList.contains('show')) {
+            var bs = bootstrap.Collapse.getInstance(collapseEl) || new bootstrap.Collapse(collapseEl, { toggle: false });
+            bs.hide();
+          }
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+
+      // 3. Reveal on scroll
+      if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (en) {
+            if (en.isIntersecting) {
+              en.target.classList.add('is-visible');
+              io.unobserve(en.target);
+            }
+          });
+        }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+        document.querySelectorAll('.kz-reveal').forEach(function (el) { io.observe(el); });
+      } else {
+        document.querySelectorAll('.kz-reveal').forEach(function (el) { el.classList.add('is-visible'); });
+      }
+    })();
+  </script>
+
+</body>
+</html>

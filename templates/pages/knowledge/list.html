@@ -107,7 +107,7 @@
     <span class="kb-stat-sep"></span>
     <span class="kb-stat-chip"><span class="kb-stat-dot kb-stat-dot--draft"></span><strong id="statDrafts">0</strong> drafts</span>
     <span class="kb-stat-sep"></span>
-    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#F59E0B;"></span><strong id="statPending">0</strong> pending</span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#C1121F;"></span><strong id="statPending">0</strong> pending</span>
     <span class="kb-stat-sep"></span>
     <span class="kb-stat-chip"><i class="ti ti-folders me-1" style="font-size:0.75rem;opacity:0.5;"></i><strong id="statCategories">0</strong> categories</span>
   </div>
@@ -378,11 +378,11 @@
     <span class="kb-stat-sep"></span>
     <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#9CA3AF;"></span><strong id="myStatDraft">0</strong> drafts</span>
     <span class="kb-stat-sep"></span>
-    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#F59E0B;"></span><strong id="myStatPending">0</strong> pending</span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#C1121F;"></span><strong id="myStatPending">0</strong> pending</span>
     <span class="kb-stat-sep"></span>
     <span class="kb-stat-chip"><span class="kb-stat-dot kb-stat-dot--published"></span><strong id="myStatPublished">0</strong> published</span>
     <span class="kb-stat-sep"></span>
-    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#EF4444;"></span><strong id="myStatRejected">0</strong> rejected</span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#E11C2B;"></span><strong id="myStatRejected">0</strong> rejected</span>
   </div>
 
   <!-- My Articles List -->
@@ -596,8 +596,8 @@
 
     var actions = '<button class="kb-action-btn" title="' + pinTitle + '" onclick="KBAdmin.togglePin(\'' + a.id + '\', ' + a.is_pinned + ')"><i class="ti ' + pinIcon + '"></i></button>';
     if (isPending) {
-      actions += '<button class="kb-action-btn" title="Approve" style="color:#10B981;" onclick="KBAdmin.approveArticle(\'' + a.id + '\')"><i class="ti ti-check"></i></button>';
-      actions += '<button class="kb-action-btn" title="Reject" style="color:#EF4444;" onclick="KBAdmin.showReject(\'' + a.id + '\', \'' + safeTitle + '\')"><i class="ti ti-x"></i></button>';
+      actions += '<button class="kb-action-btn" title="Approve" style="color:#A8A8AC;" onclick="KBAdmin.approveArticle(\'' + a.id + '\')"><i class="ti ti-check"></i></button>';
+      actions += '<button class="kb-action-btn" title="Reject" style="color:#E11C2B;" onclick="KBAdmin.showReject(\'' + a.id + '\', \'' + safeTitle + '\')"><i class="ti ti-x"></i></button>';
     }
     actions += '<button class="kb-action-btn" title="Edit" onclick="KBAdmin.editArticle(\'' + a.id + '\')"><i class="ti ti-pencil"></i></button>';
     actions += '<button class="kb-action-btn kb-action-btn--danger" title="Delete" onclick="KBAdmin.showDelete(\'' + a.id + '\', \'' + safeTitle + '\')"><i class="ti ti-trash"></i></button>';
@@ -607,7 +607,7 @@
       metaExtra = '<span class="kb-row-dot"></span><span><i class="ti ti-send me-1"></i>Submitted ' + relDate(a.submitted_at) + '</span>';
     }
     if (a.status === 'rejected' && a.reviewer_name) {
-      metaExtra = '<span class="kb-row-dot"></span><span style="color:#EF4444;"><i class="ti ti-x me-1"></i>Rejected by ' + esc(a.reviewer_name) + '</span>';
+      metaExtra = '<span class="kb-row-dot"></span><span style="color:#E11C2B;"><i class="ti ti-x me-1"></i>Rejected by ' + esc(a.reviewer_name) + '</span>';
     }
 
     var rejectionRow = '';
@@ -1094,7 +1094,7 @@
 
     var statusExtra = '';
     if (a.status === 'pending_review') {
-      statusExtra = '<span class="kb-row-dot"></span><span style="color:#F59E0B;"><i class="ti ti-clock me-1"></i>Awaiting review</span>';
+      statusExtra = '<span class="kb-row-dot"></span><span style="color:#C1121F;"><i class="ti ti-clock me-1"></i>Awaiting review</span>';
     }
 
     return '<div class="kb-admin-row" data-id="' + a.id + '">' +

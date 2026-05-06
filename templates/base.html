@@ -1,6 +1,6 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="en" data-bs-theme="dark">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -12,7 +12,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.31.0/dist/tabler-icons.min.css" rel="stylesheet">
-  <link href="{% static 'css/custom.css' %}?v=redtheme-1" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <link href="{% static 'css/custom-v15.css' %}" rel="stylesheet">
   <script>
     // Detect real mobile devices (not desktop zoom) using screen size + touch
     (function() {
@@ -26,9 +27,8 @@
     })();
   </script>
   <script src="{% static 'js/theme.js' %}"></script>
-  {% if tenant and tenant.settings and tenant.settings.primary_color %}
-  <style>:root { --crm-primary: {{ tenant.settings.primary_color|escape }}; }</style>
-  {% endif %}
+  {# Tenant primary_color override disabled — design system enforces strict 3-color palette (red/black/white). #}
+  {# To re-enable per-tenant branding within palette constraints, restore this block and validate color server-side. #}
   {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -99,6 +99,92 @@
   <script src="{% static 'js/voip-softphone.js' %}"></script>
   {% endif %}
   {% endif %}
+  <script>
+  // ---- Flatpickr global loader + auto-init.
+  //      Replaces native browser datetime pickers (which don't respect
+  //      the project's red accent-color) with the themed flatpickr widget.
+  //      Opt out of attachment with [data-no-flatpickr] on an input.
+  (function() {
+    var FP_SOURCES = [
+      'https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.js',
+      'https://cdnjs.cloudflare.com/ajax/libs/flatpickr/4.6.13/flatpickr.min.js',
+      'https://unpkg.com/flatpickr/dist/flatpickr.min.js'
+    ];
+
+    function loadScript(src, onload, onerror) {
+      var s = document.createElement('script');
+      s.src = src; s.async = false;
+      s.onload = onload; s.onerror = onerror;
+      document.head.appendChild(s);
+    }
+
+    function loadFlatpickr(idx) {
+      idx = idx || 0;
+      if (window.flatpickr) return;
+      if (idx >= FP_SOURCES.length) {
+        console.warn('[Kanzen] flatpickr: all CDN sources failed; native browser picker will be used.');
+        return;
+      }
+      loadScript(FP_SOURCES[idx],
+        function() { console.log('[Kanzen] flatpickr loaded from', FP_SOURCES[idx]); initAll(); },
+        function() { console.warn('[Kanzen] flatpickr: failed', FP_SOURCES[idx]); loadFlatpickr(idx + 1); }
+      );
+    }
+
+    function initKanzenFlatpickr(root) {
+      if (!window.flatpickr) return 0;
+      var scope = root || document;
+      var sel = 'input[type="datetime-local"]:not([data-no-flatpickr]):not(.flatpickr-input),'
+              + 'input[type="date"]:not([data-no-flatpickr]):not(.flatpickr-input)';
+      var attached = 0;
+      scope.querySelectorAll(sel).forEach(function(el) {
+        if (el._flatpickr) return;
+        var dateOnly = el.type === 'date';
+        flatpickr(el, {
+          enableTime: !dateOnly,
+          dateFormat: dateOnly ? 'Y-m-d' : 'Y-m-d\\TH:i',
+          altInput: true,
+          altInputClass: 'form-control kanzen-fp-alt',
+          altFormat: dateOnly ? 'M j, Y' : 'M j, Y · h:i K',
+          time_24hr: false,
+          allowInput: true,
+          disableMobile: true,
+          position: 'auto',
+        });
+        // Wrap the visible alt-input + the now-hidden original in a relative
+        // span and stamp a Tabler calendar icon at the right edge. Skip if
+        // already wrapped (idempotent re-runs).
+        var alt = el.previousSibling;
+        if (alt && alt.classList && alt.classList.contains('kanzen-fp-alt')
+            && !(alt.parentNode && alt.parentNode.classList.contains('kanzen-fp-wrap'))) {
+          var wrap = document.createElement('span');
+          wrap.className = 'kanzen-fp-wrap';
+          alt.parentNode.insertBefore(wrap, alt);
+          wrap.appendChild(alt);
+          wrap.appendChild(el);
+          var icon = document.createElement('i');
+          icon.className = 'ti ti-calendar kanzen-fp-icon';
+          icon.setAttribute('aria-hidden', 'true');
+          wrap.appendChild(icon);
+        }
+        attached++;
+      });
+      if (attached) console.log('[Kanzen] flatpickr attached to', attached, 'input(s)');
+      return attached;
+    }
+    window.initKanzenFlatpickr = initKanzenFlatpickr;
+
+    function initAll() { initKanzenFlatpickr(document); }
+
+    // Kick off CDN loading immediately. Multiple fallback CDNs handle the case
+    // where one is blocked by an extension or unreachable.
+    loadFlatpickr(0);
+
+    // Re-scan after Bootstrap modal open — catches inputs whose values
+    // are populated programmatically right before the modal is shown.
+    document.addEventListener('shown.bs.modal', function(e) { initKanzenFlatpickr(e.target); });
+  })();
+  </script>
   {% block extra_js %}{% endblock %}
   <script>
   document.addEventListener('DOMContentLoaded', function() {

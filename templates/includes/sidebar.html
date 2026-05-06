@@ -22,9 +22,9 @@
       </a>
     </div>
 
-    <!-- Support -->
+    <!-- Inbox -->
     <div class="nav-section">
-      <span class="nav-section-label">Support</span>
+      <span class="nav-section-label">Inbox</span>
       <a href="{% url 'frontend:ticket-list' %}" class="sidebar-link {% if 'ticket' in request.resolver_match.url_name %}active{% endif %}" data-sidebar-tooltip="Tickets">
         <i class="ti ti-ticket"></i>
         <span class="sidebar-link-text">Tickets</span>
@@ -35,15 +35,17 @@
         <span class="sidebar-link-text">Emails</span>
         <span class="badge sidebar-badge" id="sidebarBadgeEmails" style="display:none;"></span>
       </a>
-      <a href="{% url 'frontend:knowledge-list' %}" class="sidebar-link {% if 'knowledge' in request.resolver_match.url_name %}active{% endif %}" data-sidebar-tooltip="Knowledge Base">
-        <i class="ti ti-book"></i>
-        <span class="sidebar-link-text">Knowledge Base</span>
-        <span class="badge sidebar-badge" id="sidebarBadgeKnowledge" style="display:none;"></span>
+      <a href="{% url 'frontend:messaging' %}" class="sidebar-link {% if request.resolver_match.url_name == 'messaging' %}active{% endif %}" data-sidebar-tooltip="Messages">
+        <i class="ti ti-message"></i>
+        <span class="sidebar-link-text">Messages</span>
+        <span class="badge sidebar-badge" id="sidebarBadgeMessages" style="display:none;"></span>
       </a>
+      {% comment %} Calls tab hidden — preserved for future re-enable
       <a href="{% url 'frontend:calls' %}" class="sidebar-link {% if request.resolver_match.url_name == 'calls' %}active{% endif %}" data-sidebar-tooltip="Calls">
         <i class="ti ti-phone"></i>
         <span class="sidebar-link-text">Calls</span>
       </a>
+      {% endcomment %}
     </div>
 
     <!-- CRM -->
@@ -57,25 +59,25 @@
         <i class="ti ti-layout-kanban"></i>
         <span class="sidebar-link-text">Boards</span>
       </a>
-      <a href="{% url 'frontend:reminders' %}" class="sidebar-link {% if request.resolver_match.url_name == 'reminders' %}active{% endif %}" data-sidebar-tooltip="Reminders">
-        <i class="ti ti-bell"></i>
-        <span class="sidebar-link-text">Reminders</span>
-        <span class="badge sidebar-badge" id="sidebarBadgeReminders" style="display:none;"></span>
+      <a href="{% url 'frontend:knowledge-list' %}" class="sidebar-link {% if 'knowledge' in request.resolver_match.url_name %}active{% endif %}" data-sidebar-tooltip="Knowledge Base">
+        <i class="ti ti-book"></i>
+        <span class="sidebar-link-text">Knowledge Base</span>
+        <span class="badge sidebar-badge" id="sidebarBadgeKnowledge" style="display:none;"></span>
       </a>
     </div>
 
-    <!-- Activities -->
+    <!-- Planning -->
     <div class="nav-section">
-      <span class="nav-section-label">Activities</span>
+      <span class="nav-section-label">Planning</span>
       <a href="{% url 'frontend:calendar' %}" class="sidebar-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}" data-sidebar-tooltip="Calendar">
         <i class="ti ti-calendar"></i>
         <span class="sidebar-link-text">Calendar</span>
         <span class="badge sidebar-badge" id="sidebarBadgeCalendar" style="display:none;"></span>
       </a>
-      <a href="{% url 'frontend:messaging' %}" class="sidebar-link {% if request.resolver_match.url_name == 'messaging' %}active{% endif %}" data-sidebar-tooltip="Messages">
-        <i class="ti ti-message"></i>
-        <span class="sidebar-link-text">Messages</span>
-        <span class="badge sidebar-badge" id="sidebarBadgeMessages" style="display:none;"></span>
+      <a href="{% url 'frontend:reminders' %}" class="sidebar-link {% if request.resolver_match.url_name == 'reminders' %}active{% endif %}" data-sidebar-tooltip="Reminders">
+        <i class="ti ti-bell"></i>
+        <span class="sidebar-link-text">Reminders</span>
+        <span class="badge sidebar-badge" id="sidebarBadgeReminders" style="display:none;"></span>
       </a>
     </div>
 
