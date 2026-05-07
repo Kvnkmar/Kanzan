@@ -13,11 +13,96 @@
       <p class="ae-page-subtitle">Monitor agent availability and workload</p>
     </div>
   </div>
-  <button class="ae-refresh-btn" id="refreshAllBtn" title="Refresh all data">
-    <i class="ti ti-refresh"></i>
-    <span>Refresh</span>
-  </button>
+  <div class="ae-page-header__right">
+    <span class="ae-agent-counter" id="agentCounter" aria-live="polite">
+      <span id="agentCounterOnline">0</span><span class="ae-agent-counter__sep">/</span><span id="agentCounterTotal">0</span>
+      <span class="ae-agent-counter__label">agents</span>
+    </span>
+    <button class="ae-refresh-btn" id="refreshAllBtn" title="Refresh all data">
+      <i class="ti ti-refresh"></i>
+      <span>Refresh</span>
+    </button>
+  </div>
 </div>
+
+{% if is_admin %}
+<!-- Change Permanent Role Modal (admin only) -->
+<div class="modal fade" id="changeRoleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="ti ti-shield me-2"></i>Change Role</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">
+          Update the permanent role for <strong id="changeRoleTargetName">this user</strong>.
+        </p>
+        <div class="mb-2">
+          <label class="form-label">New role</label>
+          <select class="form-select" id="changeRoleSelect">
+            <option value="">Loading roles…</option>
+          </select>
+        </div>
+        <div id="changeRoleError" class="alert alert-danger d-none small py-2 mb-0"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="changeRoleConfirmBtn">
+          <span id="changeRoleConfirmLabel">Save</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Grant Temporary Role Modal (admin only) -->
+<div class="modal fade" id="tempRoleModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="ti ti-shield-bolt me-2"></i>Grant Temporary Role
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted small mb-3">
+          Grant <strong id="tempRoleTargetName">this user</strong> a temporary role.
+          Their permissions will revert automatically when the role expires.
+        </p>
+        <div class="mb-3">
+          <label class="form-label">Role</label>
+          <select class="form-select" id="tempRoleSelect">
+            <option value="">Loading roles…</option>
+          </select>
+          <div class="form-text">Permanent role: <span id="tempRolePermanent">—</span></div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Duration</label>
+          <div class="d-flex flex-wrap gap-2" id="tempRoleDurationChips">
+            <button type="button" class="btn btn-sm btn-outline-secondary ae-duration-chip" data-hours="1">1 hour</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary ae-duration-chip" data-hours="4">4 hours</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary ae-duration-chip active" data-hours="8">8 hours</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary ae-duration-chip" data-hours="24">24 hours</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary ae-duration-chip" data-hours="72">3 days</button>
+            <button type="button" class="btn btn-sm btn-outline-secondary ae-duration-chip" data-hours="custom">Custom…</button>
+          </div>
+          <input type="number" min="1" max="720" step="1" class="form-control mt-2 d-none" id="tempRoleCustomHours" placeholder="Hours (max 720)">
+          <div class="form-text">Expires at: <span id="tempRoleExpiryPreview" class="fw-semibold">—</span></div>
+        </div>
+        <div id="tempRoleError" class="alert alert-danger d-none small py-2 mb-0"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="tempRoleConfirmBtn">
+          <span id="tempRoleConfirmLabel">Grant role</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
 
 <!-- Agents Table -->
 <div class="ae-card">
@@ -32,11 +117,12 @@
           <th>Open Tickets</th>
           <th>Capacity</th>
           <th>Last Active</th>
+          {% if is_admin %}<th class="text-end pe-3">Actions</th>{% endif %}
         </tr>
       </thead>
       <tbody id="agentsTableBody">
         <tr>
-          <td colspan="7" class="text-center py-5">
+          <td colspan="{% if is_admin %}8{% else %}7{% endif %}" class="text-center py-5">
             <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
             <span class="text-muted">Loading agents...</span>
           </td>
@@ -59,11 +145,30 @@
 
   var AGENTS_API = '/api/v1/agents/agents';
   var REFRESH_INTERVAL = 30000;
+  var IS_ADMIN = {% if is_admin %}true{% else %}false{% endif %};
+  var CURRENT_USER_ID = '{{ request.user.id|default:"" }}';
+  var COL_SPAN = IS_ADMIN ? 8 : 7;
 
   /* ── Helpers ── */
 
   function formatDate(d) {
     return Kanzan.timeAgo(d);
+  }
+
+  function extractErrorMessage(err) {
+    if (!err) return null;
+    if (err.detail) return err.detail;
+    // DRF non-field validation errors come as arrays / objects of strings
+    if (Array.isArray(err) && err.length) return String(err[0]);
+    if (typeof err === 'object') {
+      var keys = Object.keys(err).filter(function(k) { return k !== '_status'; });
+      if (keys.length) {
+        var v = err[keys[0]];
+        if (Array.isArray(v) && v.length) return String(v[0]);
+        if (typeof v === 'string') return v;
+      }
+    }
+    return null;
   }
 
   var COLORS = ['#C1121F','#9A0E18','#C1121F','#9A0E18','#A8A8AC','#C1121F','#F03040','#E11C2B','#F08891','#A8A8AC'];
@@ -85,7 +190,7 @@
     return 'ae-badge-role--viewer';
   }
 
-  var STATUS_LABELS = { online: 'Online', away: 'Away', busy: 'Busy', offline: 'Offline' };
+  var STATUS_LABELS = { online: 'Online', away: 'Away', busy: 'Busy', offline: 'Offline', deactivated: 'Deactivated' };
   function makeStatusBadge(st) {
     var span = document.createElement('span');
     span.className = 'ae-status-badge ae-status-badge--' + st;
@@ -120,7 +225,8 @@
      ════════════════════════════════════════ */
 
   function loadAgents() {
-    Api.get(AGENTS_API + '/all-members/').then(function(data) {
+    var url = AGENTS_API + '/all-members/' + (IS_ADMIN ? '?include_deactivated=true' : '');
+    Api.get(url).then(function(data) {
       var agents = data.results || data;
       var tbody = document.getElementById('agentsTableBody');
 
@@ -132,12 +238,25 @@
       document.getElementById('agentsTableWrap').classList.remove('d-none');
       document.getElementById('agentsEmptyState').classList.add('d-none');
 
-      agents.sort(function(a, b) { return (a.status === 'online' ? 0 : 1) - (b.status === 'online' ? 0 : 1); });
+      // Update header counter — only active members count toward the total
+      var activeAgents = agents.filter(function(a) { return a.is_active !== false; });
+      var onlineCount = activeAgents.filter(function(a) { return a.status === 'online'; }).length;
+      document.getElementById('agentCounterOnline').textContent = onlineCount;
+      document.getElementById('agentCounterTotal').textContent = activeAgents.length;
+
+      // Order: active+online → other active → deactivated last
+      agents.sort(function(a, b) {
+        var aRank = a.is_active === false ? 2 : (a.status === 'online' ? 0 : 1);
+        var bRank = b.is_active === false ? 2 : (b.status === 'online' ? 0 : 1);
+        return aRank - bRank;
+      });
 
       tbody.textContent = '';
       agents.forEach(function(a) {
         var name = a.user_name || a.user_email || 'Unknown';
         var tr = document.createElement('tr');
+        var isDeactivated = a.is_active === false;
+        if (isDeactivated) tr.classList.add('ae-row-deactivated');
 
         var td1 = document.createElement('td');
         td1.className = 'ps-3';
@@ -161,10 +280,29 @@
         tr.appendChild(td2);
 
         var td3 = document.createElement('td');
-        var roleBadge = document.createElement('span');
-        roleBadge.className = 'ae-badge-role ' + getRoleBadgeClass(a.role);
-        roleBadge.textContent = a.role || 'Unknown';
-        td3.appendChild(roleBadge);
+        var roleWrap = document.createElement('div');
+        roleWrap.className = 'd-flex flex-wrap align-items-center gap-1';
+        if (a.temporary_role) {
+          var tempBadge = document.createElement('span');
+          tempBadge.className = 'ae-badge-role ' + getRoleBadgeClass(a.temporary_role);
+          tempBadge.title = 'Temporary — expires ' + (a.temporary_role_expires_at ? new Date(a.temporary_role_expires_at).toLocaleString() : '');
+          var clockIcon = document.createElement('i');
+          clockIcon.className = 'ti ti-clock-bolt me-1';
+          tempBadge.appendChild(clockIcon);
+          tempBadge.appendChild(document.createTextNode(a.temporary_role));
+          roleWrap.appendChild(tempBadge);
+          var permBadge = document.createElement('span');
+          permBadge.className = 'ae-badge-role ae-badge-role--ghost';
+          permBadge.textContent = a.permanent_role || a.role;
+          permBadge.title = 'Permanent role';
+          roleWrap.appendChild(permBadge);
+        } else {
+          var roleBadge = document.createElement('span');
+          roleBadge.className = 'ae-badge-role ' + getRoleBadgeClass(a.role);
+          roleBadge.textContent = a.role || 'Unknown';
+          roleWrap.appendChild(roleBadge);
+        }
+        td3.appendChild(roleWrap);
         tr.appendChild(td3);
 
         var td4 = document.createElement('td');
@@ -187,6 +325,76 @@
         td7.textContent = formatDate(a.last_activity);
         tr.appendChild(td7);
 
+        if (IS_ADMIN) {
+          var td8 = document.createElement('td');
+          td8.className = 'text-end pe-3';
+          if (a.user_id === CURRENT_USER_ID) {
+            var dash = document.createElement('span');
+            dash.className = 'text-muted';
+            dash.textContent = '—';
+            td8.appendChild(dash);
+          } else if (isDeactivated) {
+            var reactivateBtn = document.createElement('button');
+            reactivateBtn.type = 'button';
+            reactivateBtn.className = 'btn btn-sm btn-outline-success';
+            reactivateBtn.title = 'Reactivate this member';
+            var reactIcon = document.createElement('i');
+            reactIcon.className = 'ti ti-user-check me-1';
+            reactivateBtn.appendChild(reactIcon);
+            reactivateBtn.appendChild(document.createTextNode('Reactivate'));
+            reactivateBtn.addEventListener('click', function() { reactivateMember(a); });
+            td8.appendChild(reactivateBtn);
+          } else {
+            var btnGroup = document.createElement('div');
+            btnGroup.className = 'd-inline-flex gap-1';
+
+            var changeRoleBtn = document.createElement('button');
+            changeRoleBtn.type = 'button';
+            changeRoleBtn.className = 'btn btn-sm btn-outline-secondary ae-action-btn';
+            changeRoleBtn.title = 'Change permanent role';
+            var changeRoleIcon = document.createElement('i');
+            changeRoleIcon.className = 'ti ti-shield';
+            changeRoleBtn.appendChild(changeRoleIcon);
+            changeRoleBtn.addEventListener('click', function() { openChangeRoleModal(a); });
+            btnGroup.appendChild(changeRoleBtn);
+
+            var grantBtn = document.createElement('button');
+            grantBtn.type = 'button';
+            grantBtn.className = 'btn btn-sm btn-outline-primary ae-action-btn';
+            grantBtn.title = a.temporary_role ? 'Change temporary role' : 'Grant temporary role';
+            var grantIcon = document.createElement('i');
+            grantIcon.className = 'ti ti-shield-bolt';
+            grantBtn.appendChild(grantIcon);
+            grantBtn.addEventListener('click', function() { openTempRoleModal(a); });
+            btnGroup.appendChild(grantBtn);
+
+            if (a.temporary_role) {
+              var revokeBtn = document.createElement('button');
+              revokeBtn.type = 'button';
+              revokeBtn.className = 'btn btn-sm btn-outline-danger ae-action-btn';
+              revokeBtn.title = 'Revoke temporary role';
+              var revokeIcon = document.createElement('i');
+              revokeIcon.className = 'ti ti-shield-off';
+              revokeBtn.appendChild(revokeIcon);
+              revokeBtn.addEventListener('click', function() { revokeTempRole(a); });
+              btnGroup.appendChild(revokeBtn);
+            }
+
+            var deactivateBtn = document.createElement('button');
+            deactivateBtn.type = 'button';
+            deactivateBtn.className = 'btn btn-sm btn-outline-danger ae-action-btn';
+            deactivateBtn.title = 'Deactivate this member';
+            var deactivateIcon = document.createElement('i');
+            deactivateIcon.className = 'ti ti-user-x';
+            deactivateBtn.appendChild(deactivateIcon);
+            deactivateBtn.addEventListener('click', function() { deactivateMember(a); });
+            btnGroup.appendChild(deactivateBtn);
+
+            td8.appendChild(btnGroup);
+          }
+          tr.appendChild(td8);
+        }
+
         tbody.appendChild(tr);
       });
     }).catch(function() {
@@ -194,12 +402,266 @@
       tbody.textContent = '';
       var tr = document.createElement('tr');
       var td = document.createElement('td');
-      td.colSpan = 7;
+      td.colSpan = COL_SPAN;
       td.className = 'text-center py-5 text-danger';
       td.textContent = 'Failed to load agents.';
       tr.appendChild(td);
       tbody.appendChild(tr);
     });
+  }
+
+  /* ════════════════════════════════════════
+     TEMPORARY ROLE (admin only)
+     ════════════════════════════════════════ */
+
+  var rolesCache = null;
+  var tempRoleTargetUserId = null;
+
+  function loadAssignableRoles() {
+    if (!IS_ADMIN) return Promise.resolve([]);
+    if (rolesCache) return Promise.resolve(rolesCache);
+    return Api.get(AGENTS_API + '/assignable-roles/').then(function(data) {
+      rolesCache = data || [];
+      return rolesCache;
+    }).catch(function() { return []; });
+  }
+
+  function getSelectedDurationHours() {
+    var active = document.querySelector('.ae-duration-chip.active');
+    if (!active) return 8;
+    var raw = active.getAttribute('data-hours');
+    if (raw === 'custom') {
+      var v = parseFloat(document.getElementById('tempRoleCustomHours').value);
+      if (isNaN(v) || v <= 0) return null;
+      return v;
+    }
+    return parseFloat(raw);
+  }
+
+  function refreshExpiryPreview() {
+    var hours = getSelectedDurationHours();
+    var preview = document.getElementById('tempRoleExpiryPreview');
+    if (hours === null || isNaN(hours)) {
+      preview.textContent = '—';
+      return;
+    }
+    var d = new Date(Date.now() + hours * 3600 * 1000);
+    preview.textContent = d.toLocaleString();
+  }
+
+  function openTempRoleModal(member) {
+    if (!IS_ADMIN) return;
+    var modalEl = document.getElementById('tempRoleModal');
+    if (!modalEl) return;
+
+    tempRoleTargetUserId = member.user_id;
+    document.getElementById('tempRoleTargetName').textContent =
+      member.user_name || member.user_email || 'this user';
+    document.getElementById('tempRolePermanent').textContent =
+      member.permanent_role || member.role || '—';
+
+    var errBox = document.getElementById('tempRoleError');
+    errBox.classList.add('d-none');
+    errBox.textContent = '';
+
+    // Reset duration to default 8h
+    document.querySelectorAll('.ae-duration-chip').forEach(function(c) {
+      c.classList.toggle('active', c.getAttribute('data-hours') === '8');
+    });
+    document.getElementById('tempRoleCustomHours').classList.add('d-none');
+    document.getElementById('tempRoleCustomHours').value = '';
+
+    // Populate role dropdown
+    var sel = document.getElementById('tempRoleSelect');
+    sel.textContent = '';
+    var loading = document.createElement('option');
+    loading.value = '';
+    loading.textContent = 'Loading roles…';
+    sel.appendChild(loading);
+
+    loadAssignableRoles().then(function(roles) {
+      sel.textContent = '';
+      var placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a role…';
+      sel.appendChild(placeholder);
+
+      var permId = member.permanent_role_id;
+      var preselect = member.temporary_role_id;
+      roles.forEach(function(r) {
+        if (r.id === permId) return; // can't pick the same as permanent role
+        var opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = r.name + ' (level ' + r.hierarchy_level + ')';
+        if (preselect && r.id === preselect) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    });
+
+    refreshExpiryPreview();
+    var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+  }
+
+  function showTempRoleError(msg) {
+    var errBox = document.getElementById('tempRoleError');
+    errBox.textContent = msg;
+    errBox.classList.remove('d-none');
+  }
+
+  function submitGrantTempRole() {
+    var roleId = document.getElementById('tempRoleSelect').value;
+    if (!roleId) { showTempRoleError('Please select a role.'); return; }
+    if (!tempRoleTargetUserId) { showTempRoleError('No target user.'); return; }
+    var hours = getSelectedDurationHours();
+    if (hours === null || isNaN(hours) || hours <= 0) {
+      showTempRoleError('Please enter a valid duration.');
+      return;
+    }
+
+    var btn = document.getElementById('tempRoleConfirmBtn');
+    btn.disabled = true;
+    document.getElementById('tempRoleConfirmLabel').textContent = 'Granting…';
+
+    Api.post(AGENTS_API + '/grant-temp-role/', {
+      user_id: tempRoleTargetUserId,
+      role_id: roleId,
+      duration_hours: hours,
+    }).then(function() {
+      var modalEl = document.getElementById('tempRoleModal');
+      bootstrap.Modal.getInstance(modalEl).hide();
+      Toast.success('Temporary role granted.');
+      loadAgents();
+    }).catch(function(err) {
+      var msg = extractErrorMessage(err) || 'Failed to grant role.';
+      showTempRoleError(msg);
+    }).finally(function() {
+      btn.disabled = false;
+      document.getElementById('tempRoleConfirmLabel').textContent = 'Grant role';
+    });
+  }
+
+  function revokeTempRole(member) {
+    if (!IS_ADMIN) return;
+    if (!confirm('Revoke ' + (member.user_name || 'this user') + "'s temporary " + (member.temporary_role || 'role') + '?')) return;
+    Api.post(AGENTS_API + '/revoke-temp-role/', { user_id: member.user_id })
+      .then(function() {
+        Toast.success('Temporary role revoked.');
+        loadAgents();
+      })
+      .catch(function(err) {
+        var msg = extractErrorMessage(err) || 'Failed to revoke role.';
+        Toast.error(msg);
+      });
+  }
+
+  /* ════════════════════════════════════════
+     CHANGE PERMANENT ROLE (admin only)
+     ════════════════════════════════════════ */
+
+  var changeRoleTargetMembershipId = null;
+
+  function openChangeRoleModal(member) {
+    if (!IS_ADMIN) return;
+    var modalEl = document.getElementById('changeRoleModal');
+    if (!modalEl) return;
+
+    changeRoleTargetMembershipId = member.membership_id || member.id;
+    document.getElementById('changeRoleTargetName').textContent =
+      member.user_name || member.user_email || 'this user';
+
+    var errBox = document.getElementById('changeRoleError');
+    errBox.classList.add('d-none');
+    errBox.textContent = '';
+
+    var sel = document.getElementById('changeRoleSelect');
+    sel.textContent = '';
+    var loading = document.createElement('option');
+    loading.value = '';
+    loading.textContent = 'Loading roles…';
+    sel.appendChild(loading);
+
+    loadAssignableRoles().then(function(roles) {
+      sel.textContent = '';
+      var placeholder = document.createElement('option');
+      placeholder.value = '';
+      placeholder.textContent = 'Select a role…';
+      sel.appendChild(placeholder);
+      roles.forEach(function(r) {
+        var opt = document.createElement('option');
+        opt.value = r.id;
+        opt.textContent = r.name + ' (level ' + r.hierarchy_level + ')';
+        if (member.permanent_role_id && r.id === member.permanent_role_id) {
+          opt.selected = true;
+        }
+        sel.appendChild(opt);
+      });
+    });
+
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  }
+
+  function submitChangeRole() {
+    if (!changeRoleTargetMembershipId) return;
+    var sel = document.getElementById('changeRoleSelect');
+    var roleId = sel.value;
+    var errBox = document.getElementById('changeRoleError');
+    if (!roleId) {
+      errBox.textContent = 'Please pick a role.';
+      errBox.classList.remove('d-none');
+      return;
+    }
+    var btn = document.getElementById('changeRoleConfirmBtn');
+    btn.disabled = true;
+    document.getElementById('changeRoleConfirmLabel').textContent = 'Saving…';
+
+    Api.patch('/api/v1/accounts/memberships/' + changeRoleTargetMembershipId + '/', { role: roleId })
+      .then(function() {
+        bootstrap.Modal.getInstance(document.getElementById('changeRoleModal')).hide();
+        Toast.success('Role updated.');
+        loadAgents();
+      })
+      .catch(function(err) {
+        var msg = extractErrorMessage(err) || 'Failed to update role.';
+        errBox.textContent = msg;
+        errBox.classList.remove('d-none');
+      })
+      .finally(function() {
+        btn.disabled = false;
+        document.getElementById('changeRoleConfirmLabel').textContent = 'Save';
+      });
+  }
+
+  /* ════════════════════════════════════════
+     REACTIVATE MEMBER (admin only)
+     ════════════════════════════════════════ */
+
+  function reactivateMember(member) {
+    if (!IS_ADMIN) return;
+    if (!confirm('Reactivate ' + (member.user_name || 'this member') + '?')) return;
+    Api.post(AGENTS_API + '/reactivate/', { user_id: member.user_id })
+      .then(function() {
+        Toast.success('Member reactivated.');
+        loadAgents();
+      })
+      .catch(function(err) {
+        var msg = extractErrorMessage(err) || 'Failed to reactivate.';
+        Toast.error(msg);
+      });
+  }
+
+  function deactivateMember(member) {
+    if (!IS_ADMIN) return;
+    if (!confirm('Deactivate ' + (member.user_name || 'this member') + '?')) return;
+    Api.delete('/api/v1/accounts/users/' + member.user_id + '/')
+      .then(function() {
+        Toast.success('Member deactivated.');
+        loadAgents();
+      })
+      .catch(function(err) {
+        var msg = extractErrorMessage(err) || 'Failed to deactivate.';
+        Toast.error(msg);
+      });
   }
 
   /* ════════════════════════════════════════
@@ -212,6 +674,31 @@
     loadAgents();
     setTimeout(function() { self.disabled = false; }, 1000);
   });
+
+  if (IS_ADMIN) {
+    document.querySelectorAll('.ae-duration-chip').forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        document.querySelectorAll('.ae-duration-chip').forEach(function(c) {
+          c.classList.remove('active');
+        });
+        chip.classList.add('active');
+        var custom = document.getElementById('tempRoleCustomHours');
+        if (chip.getAttribute('data-hours') === 'custom') {
+          custom.classList.remove('d-none');
+          custom.focus();
+        } else {
+          custom.classList.add('d-none');
+        }
+        refreshExpiryPreview();
+      });
+    });
+    var customInput = document.getElementById('tempRoleCustomHours');
+    if (customInput) customInput.addEventListener('input', refreshExpiryPreview);
+    var confirmBtn = document.getElementById('tempRoleConfirmBtn');
+    if (confirmBtn) confirmBtn.addEventListener('click', submitGrantTempRole);
+    var changeRoleConfirm = document.getElementById('changeRoleConfirmBtn');
+    if (changeRoleConfirm) changeRoleConfirm.addEventListener('click', submitChangeRole);
+  }
 
   loadAgents();
   setInterval(loadAgents, REFRESH_INTERVAL);

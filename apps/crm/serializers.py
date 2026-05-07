@@ -42,12 +42,10 @@ class ReminderSerializer(serializers.ModelSerializer):
     status = serializers.SerializerMethodField()
     overdue_duration_seconds = serializers.SerializerMethodField()
     overdue_display = serializers.SerializerMethodField()
-    contact_name = serializers.SerializerMethodField()
-    contact_email = serializers.SerializerMethodField()
+    contacts_display = serializers.SerializerMethodField()
+    tickets_display = serializers.SerializerMethodField()
     assigned_to_name = serializers.SerializerMethodField()
     created_by_name = serializers.SerializerMethodField()
-    ticket_number = serializers.SerializerMethodField()
-    ticket_subject = serializers.SerializerMethodField()
 
     class Meta:
         model = Reminder
@@ -62,12 +60,10 @@ class ReminderSerializer(serializers.ModelSerializer):
             "status",
             "overdue_duration_seconds",
             "overdue_display",
-            "contact",
-            "contact_name",
-            "contact_email",
-            "ticket",
-            "ticket_number",
-            "ticket_subject",
+            "contacts",
+            "contacts_display",
+            "tickets",
+            "tickets_display",
             "assigned_to",
             "assigned_to_name",
             "created_by",
@@ -108,27 +104,31 @@ class ReminderSerializer(serializers.ModelSerializer):
             days = total_seconds // 86400
             return f"{days}d overdue"
 
-    def get_contact_name(self, obj):
-        if obj.contact:
-            return obj.contact.full_name
-        return None
+    def get_contacts_display(self, obj):
+        return [
+            {
+                "id": str(c.id),
+                "name": c.full_name,
+                "email": c.email,
+            }
+            for c in obj.contacts.all()
+        ]
 
-    def get_contact_email(self, obj):
-        if obj.contact:
-            return obj.contact.email
-        return None
+    def get_tickets_display(self, obj):
+        return [
+            {
+                "id": str(t.id),
+                "number": t.number,
+                "subject": t.subject,
+            }
+            for t in obj.tickets.all()
+        ]
 
     def get_assigned_to_name(self, obj):
         return obj.assigned_to.get_full_name() if obj.assigned_to else None
 
     def get_created_by_name(self, obj):
         return obj.created_by.get_full_name() if obj.created_by else None
-
-    def get_ticket_number(self, obj):
-        return obj.ticket.number if obj.ticket else None
-
-    def get_ticket_subject(self, obj):
-        return obj.ticket.subject if obj.ticket else None
 
 
 class ReminderCreateSerializer(serializers.ModelSerializer):
@@ -142,8 +142,8 @@ class ReminderCreateSerializer(serializers.ModelSerializer):
             "notes",
             "scheduled_at",
             "priority",
-            "contact",
-            "ticket",
+            "contacts",
+            "tickets",
             "assigned_to",
         ]
         read_only_fields = ["id"]

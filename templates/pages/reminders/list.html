@@ -117,6 +117,112 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 [data-bs-theme="dark"] .flatpickr-time .numInputWrapper:hover { background: rgba(255,255,255,0.06); }
 [data-bs-theme="dark"] .numInputWrapper span:hover { background: rgba(255,255,255,0.08) !important; }
 [data-bs-theme="dark"] .flatpickr-footer { background: transparent; border-top: none; }
+
+/* Multi-pick chip field (Contacts / Tickets) */
+.reminder-multi {
+  display: flex; flex-direction: column; gap: 6px;
+  border: 1px solid var(--bs-border-color, #E2E8F0);
+  border-radius: 8px;
+  padding: 6px;
+  background: var(--bs-body-bg, #fff);
+}
+.reminder-multi-chips {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  min-height: 0;
+}
+.reminder-multi-chips:empty { display: none; }
+.reminder-multi-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 6px 3px 10px;
+  background: rgba(193,18,31,0.10);
+  color: var(--crm-primary, #C1121F);
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  max-width: 100%;
+}
+.reminder-multi-chip > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+.reminder-multi-chip > button {
+  background: none; border: none; padding: 0 2px;
+  color: var(--crm-primary, #C1121F);
+  cursor: pointer;
+  font-size: 0.875rem;
+  line-height: 1;
+  display: inline-flex; align-items: center;
+  border-radius: 999px;
+  transition: background 0.12s;
+}
+.reminder-multi-chip > button:hover { background: rgba(193,18,31,0.18); }
+.reminder-multi-add {
+  border: 1px dashed var(--bs-border-color, #E2E8F0);
+  padding-right: 2rem !important;
+  background-position: right 0.625rem center !important;
+}
+[data-bs-theme="dark"] .reminder-multi { background: transparent; border-color: rgba(255,255,255,0.10); }
+[data-bs-theme="dark"] .reminder-multi-chip { background: rgba(225,29,45,0.18); color: #FCA5A5; }
+[data-bs-theme="dark"] .reminder-multi-chip > button { color: #FCA5A5; }
+[data-bs-theme="dark"] .reminder-multi-chip > button:hover { background: rgba(225,29,45,0.28); }
+
+/* Priority + status pills (soft, design-system aligned) */
+.reminder-pill {
+  display: inline-flex; align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+  line-height: 1.4;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.reminder-pill--priority-urgent   { background: rgba(193,18,31,0.10); color: #B0121E; border-color: rgba(193,18,31,0.18); }
+.reminder-pill--priority-high     { background: rgba(245,158,11,0.14); color: #B45309; border-color: rgba(245,158,11,0.25); }
+.reminder-pill--priority-medium   { background: rgba(59,130,246,0.12); color: #1D4ED8; border-color: rgba(59,130,246,0.22); }
+.reminder-pill--priority-low      { background: rgba(107,114,128,0.14); color: #4B5563; border-color: rgba(107,114,128,0.22); }
+.reminder-pill--status-overdue    { background: rgba(193,18,31,0.10); color: #B0121E; border-color: rgba(193,18,31,0.18); }
+.reminder-pill--status-pending    { background: rgba(245,158,11,0.14); color: #B45309; border-color: rgba(245,158,11,0.25); }
+.reminder-pill--status-completed  { background: rgba(34,197,94,0.13); color: #15803D; border-color: rgba(34,197,94,0.22); }
+.reminder-pill--status-cancelled  { background: rgba(107,114,128,0.14); color: #4B5563; border-color: rgba(107,114,128,0.22); }
+[data-bs-theme="dark"] .reminder-pill--priority-urgent,
+[data-bs-theme="dark"] .reminder-pill--status-overdue   { background: rgba(225,29,45,0.16); color: #FCA5A5; border-color: rgba(225,29,45,0.32); }
+[data-bs-theme="dark"] .reminder-pill--priority-high,
+[data-bs-theme="dark"] .reminder-pill--status-pending   { background: rgba(245,158,11,0.18); color: #FCD34D; border-color: rgba(245,158,11,0.32); }
+[data-bs-theme="dark"] .reminder-pill--priority-medium  { background: rgba(96,165,250,0.18); color: #93C5FD; border-color: rgba(96,165,250,0.32); }
+[data-bs-theme="dark"] .reminder-pill--priority-low,
+[data-bs-theme="dark"] .reminder-pill--status-cancelled { background: rgba(148,163,184,0.18); color: #CBD5E1; border-color: rgba(148,163,184,0.32); }
+[data-bs-theme="dark"] .reminder-pill--status-completed { background: rgba(34,197,94,0.18); color: #86EFAC; border-color: rgba(34,197,94,0.32); }
+
+/* Row action buttons — uniform ghost icon buttons with colored hover */
+.reminder-actions { display: inline-flex; align-items: center; gap: 4px; }
+.reminder-action-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px;
+  padding: 0;
+  border: 1px solid var(--bs-border-color, #E2E8F0);
+  background: transparent;
+  border-radius: 8px;
+  color: var(--bs-body-color, #4B5563);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s, color 0.12s;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+.reminder-action-btn:hover { background: var(--bs-tertiary-bg, #F3F4F6); }
+.reminder-action-btn--complete:hover  { background: rgba(34,197,94,0.12);  border-color: rgba(34,197,94,0.40);  color: #15803D; }
+.reminder-action-btn--reschedule:hover{ background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.42); color: #B45309; }
+.reminder-action-btn--cancel:hover    { background: rgba(193,18,31,0.10);  border-color: rgba(193,18,31,0.32);  color: #B0121E; }
+[data-bs-theme="dark"] .reminder-action-btn { border-color: rgba(255,255,255,0.10); color: #CBD5E1; }
+[data-bs-theme="dark"] .reminder-action-btn:hover { background: rgba(255,255,255,0.06); }
+[data-bs-theme="dark"] .reminder-action-btn--complete:hover  { background: rgba(34,197,94,0.20);  color: #86EFAC; }
+[data-bs-theme="dark"] .reminder-action-btn--reschedule:hover{ background: rgba(245,158,11,0.22); color: #FCD34D; }
+[data-bs-theme="dark"] .reminder-action-btn--cancel:hover    { background: rgba(225,29,45,0.20);  color: #FCA5A5; }
 </style>
 {% endblock %}
 
@@ -193,9 +299,9 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
             <th style="padding-left:1rem;">
               <input type="checkbox" id="selectAll" class="form-check-input">
             </th>
-            <th>Contact</th>
+            <th>Contacts</th>
             <th>Subject</th>
-            <th>Ticket</th>
+            <th>Tickets</th>
             <th>Assigned To</th>
             <th>Scheduled</th>
             <th>Overdue</th>
@@ -279,16 +385,22 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
         </div>
         <div class="row mb-3">
           <div class="col-6">
-            <label class="form-label">Contact</label>
-            <select class="form-select" id="reminderContact">
-              <option value="">None</option>
-            </select>
+            <label class="form-label">Contacts</label>
+            <div class="reminder-multi" id="reminderContactsField">
+              <div class="reminder-multi-chips" id="reminderContactsChips"></div>
+              <select class="form-select form-select-sm reminder-multi-add" id="reminderContactsAdd">
+                <option value="">+ Add contact</option>
+              </select>
+            </div>
           </div>
           <div class="col-6">
-            <label class="form-label">Ticket</label>
-            <select class="form-select" id="reminderTicket">
-              <option value="">None</option>
-            </select>
+            <label class="form-label">Tickets</label>
+            <div class="reminder-multi" id="reminderTicketsField">
+              <div class="reminder-multi-chips" id="reminderTicketsChips"></div>
+              <select class="form-select form-select-sm reminder-multi-add" id="reminderTicketsAdd">
+                <option value="">+ Add ticket</option>
+              </select>
+            </div>
           </div>
         </div>
         <div class="mb-3">
@@ -394,35 +506,24 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
   var mineOnly = false;
   var selectedIds = new Set();
 
-  function createBadge(text, bgColor, textColor) {
+  function softBadge(text, kind) {
     var span = document.createElement('span');
-    span.className = 'badge';
-    span.style.background = bgColor;
-    span.style.color = textColor;
+    span.className = 'reminder-pill reminder-pill--' + kind;
     span.textContent = text;
     return span;
   }
 
   function priorityBadge(priority) {
-    var map = {
-      urgent: ['Urgent', '#dc3545', '#fff'],
-      high: ['High', '#fd7e14', '#fff'],
-      medium: ['Medium', '#C1121F', '#fff'],
-      low: ['Low', '#6c757d', '#fff'],
-    };
-    var cfg = map[priority] || [priority, '#6c757d', '#fff'];
-    return createBadge(cfg[0], cfg[1], cfg[2]);
+    var labels = { urgent: 'Urgent', high: 'High', medium: 'Medium', low: 'Low' };
+    return softBadge(labels[priority] || priority, 'priority-' + priority);
   }
 
   function statusBadge(st) {
-    var map = {
-      overdue: ['Overdue', '#dc3545', '#fff'],
-      pending: ['Pending', '#ffc107', '#000'],
-      completed: ['Completed', '#8E8E92', '#fff'],
-      cancelled: ['Cancelled', '#6c757d', '#fff'],
+    var labels = {
+      overdue: 'Overdue', pending: 'Pending',
+      completed: 'Completed', cancelled: 'Cancelled',
     };
-    var cfg = map[st] || [st, '#6c757d', '#fff'];
-    return createBadge(cfg[0], cfg[1], cfg[2]);
+    return softBadge(labels[st] || st, 'status-' + st);
   }
 
   function getFilters() {
@@ -460,8 +561,13 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
     tdCheck.appendChild(cb);
     tr.appendChild(tdCheck);
 
-    // Contact
-    tr.appendChild(createTextCell(r.contact_name || r.contact_email || '-'));
+    // Contacts (comma-separated names)
+    var contactsList = r.contacts_display || [];
+    var contactsText = contactsList
+      .map(function(c) { return c.name || c.email; })
+      .filter(Boolean)
+      .join(', ');
+    tr.appendChild(createTextCell(contactsText || '-'));
 
     // Subject (bold)
     var tdSubject = document.createElement('td');
@@ -470,14 +576,20 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
     tdSubject.appendChild(strong);
     tr.appendChild(tdSubject);
 
-    // Ticket (clickable link)
+    // Tickets (clickable links, comma-separated)
     var tdTicket = document.createElement('td');
-    if (r.ticket_number) {
-      var ticketLink = document.createElement('a');
-      ticketLink.href = '/tickets/' + r.ticket_number + '/';
-      ticketLink.textContent = '#' + r.ticket_number;
-      ticketLink.title = r.ticket_subject || '';
-      tdTicket.appendChild(ticketLink);
+    var ticketsList = r.tickets_display || [];
+    if (ticketsList.length) {
+      ticketsList.forEach(function(t, idx) {
+        var link = document.createElement('a');
+        link.href = '/tickets/' + t.number + '/';
+        link.textContent = '#' + t.number;
+        link.title = t.subject || '';
+        tdTicket.appendChild(link);
+        if (idx < ticketsList.length - 1) {
+          tdTicket.appendChild(document.createTextNode(', '));
+        }
+      });
     } else {
       tdTicket.textContent = '-';
     }
@@ -516,37 +628,28 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
     var tdActions = document.createElement('td');
     if (isActionable) {
       var btnGroup = document.createElement('div');
-      btnGroup.className = 'btn-group btn-group-sm';
+      btnGroup.className = 'reminder-actions';
 
-      var btnComplete = document.createElement('button');
-      btnComplete.className = 'btn btn-sm btn-outline-success';
-      btnComplete.title = 'Complete';
-      btnComplete.dataset.id = r.id;
-      var iCheck = document.createElement('i');
-      iCheck.className = 'ti ti-check';
-      btnComplete.appendChild(iCheck);
-      btnComplete.addEventListener('click', function() { completeReminder(r.id); });
-      btnGroup.appendChild(btnComplete);
+      function makeActionBtn(variant, iconClass, label, handler) {
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'reminder-action-btn reminder-action-btn--' + variant;
+        b.title = label;
+        b.setAttribute('aria-label', label);
+        b.dataset.id = r.id;
+        var icon = document.createElement('i');
+        icon.className = iconClass;
+        b.appendChild(icon);
+        b.addEventListener('click', handler);
+        return b;
+      }
 
-      var btnReschedule = document.createElement('button');
-      btnReschedule.className = 'btn btn-sm btn-outline-warning';
-      btnReschedule.title = 'Reschedule';
-      btnReschedule.dataset.id = r.id;
-      var iCal = document.createElement('i');
-      iCal.className = 'ti ti-calendar';
-      btnReschedule.appendChild(iCal);
-      btnReschedule.addEventListener('click', function() { openReschedule(r.id); });
-      btnGroup.appendChild(btnReschedule);
-
-      var btnCancel = document.createElement('button');
-      btnCancel.className = 'btn btn-sm btn-outline-secondary';
-      btnCancel.title = 'Cancel';
-      btnCancel.dataset.id = r.id;
-      var iX = document.createElement('i');
-      iX.className = 'ti ti-x';
-      btnCancel.appendChild(iX);
-      btnCancel.addEventListener('click', function() { cancelReminder(r.id); });
-      btnGroup.appendChild(btnCancel);
+      btnGroup.appendChild(makeActionBtn('complete', 'ti ti-check', 'Complete',
+        function() { completeReminder(r.id); }));
+      btnGroup.appendChild(makeActionBtn('reschedule', 'ti ti-calendar', 'Reschedule',
+        function() { openReschedule(r.id); }));
+      btnGroup.appendChild(makeActionBtn('cancel', 'ti ti-x', 'Cancel',
+        function() { cancelReminder(r.id); }));
 
       tdActions.appendChild(btnGroup);
     }
@@ -608,13 +711,44 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
     }
 
     details.appendChild(buildDetailRow('Assigned To', r.assigned_to_name || 'Unassigned'));
-    details.appendChild(buildDetailRow('Contact', r.contact_name || r.contact_email || '-'));
 
-    if (r.ticket_number) {
-      var ticketLink = document.createElement('a');
-      ticketLink.href = '/tickets/' + r.ticket_number + '/';
-      ticketLink.textContent = '#' + r.ticket_number + (r.ticket_subject ? ' — ' + r.ticket_subject : '');
-      details.appendChild(buildDetailRow('Ticket', ticketLink));
+    var contactsArr = r.contacts_display || [];
+    if (contactsArr.length) {
+      var contactWrap = document.createElement('div');
+      contactWrap.style.display = 'flex';
+      contactWrap.style.flexDirection = 'column';
+      contactWrap.style.alignItems = 'flex-end';
+      contactWrap.style.gap = '2px';
+      contactsArr.forEach(function(c) {
+        var line = document.createElement('span');
+        line.textContent = c.name || c.email || '-';
+        contactWrap.appendChild(line);
+      });
+      details.appendChild(buildDetailRow(
+        contactsArr.length > 1 ? 'Contacts' : 'Contact',
+        contactWrap
+      ));
+    } else {
+      details.appendChild(buildDetailRow('Contact', '-'));
+    }
+
+    var ticketsArr = r.tickets_display || [];
+    if (ticketsArr.length) {
+      var ticketWrap = document.createElement('div');
+      ticketWrap.style.display = 'flex';
+      ticketWrap.style.flexDirection = 'column';
+      ticketWrap.style.alignItems = 'flex-end';
+      ticketWrap.style.gap = '2px';
+      ticketsArr.forEach(function(t) {
+        var link = document.createElement('a');
+        link.href = '/tickets/' + t.number + '/';
+        link.textContent = '#' + t.number + (t.subject ? ' — ' + t.subject : '');
+        ticketWrap.appendChild(link);
+      });
+      details.appendChild(buildDetailRow(
+        ticketsArr.length > 1 ? 'Tickets' : 'Ticket',
+        ticketWrap
+      ));
     } else {
       details.appendChild(buildDetailRow('Ticket', '-'));
     }
@@ -912,6 +1046,99 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
     });
   }
 
+  // ── Chip-style multi-pick fields ──────────────────────────────────────
+  // Each field maintains: a Map of selected (id → label), a pool of all
+  // available items, and the DOM nodes for chips + the "+ Add" select.
+  function createMultiPicker(opts) {
+    var selected = new Map(); // id -> label
+    var pool = [];            // [{ id, label }]
+
+    function rebuildAddSelect() {
+      var sel = opts.addSelect;
+      sel.textContent = '';
+      var def = document.createElement('option');
+      def.value = '';
+      def.textContent = opts.addPlaceholder;
+      sel.appendChild(def);
+      pool.forEach(function(item) {
+        if (selected.has(item.id)) return;
+        var o = document.createElement('option');
+        o.value = item.id;
+        o.textContent = item.label;
+        sel.appendChild(o);
+      });
+    }
+
+    function rebuildChips() {
+      var box = opts.chipsBox;
+      box.textContent = '';
+      selected.forEach(function(label, id) {
+        var chip = document.createElement('span');
+        chip.className = 'reminder-multi-chip';
+        var labelEl = document.createElement('span');
+        labelEl.textContent = label;
+        chip.appendChild(labelEl);
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.setAttribute('aria-label', 'Remove');
+        var icon = document.createElement('i');
+        icon.className = 'ti ti-x';
+        btn.appendChild(icon);
+        btn.addEventListener('click', function() {
+          selected.delete(id);
+          rebuildChips();
+          rebuildAddSelect();
+        });
+        chip.appendChild(btn);
+        box.appendChild(chip);
+      });
+    }
+
+    opts.addSelect.addEventListener('change', function() {
+      var id = this.value;
+      if (!id) return;
+      var item = pool.find(function(p) { return p.id === id; });
+      if (item) {
+        selected.set(id, item.label);
+        rebuildChips();
+        rebuildAddSelect();
+      }
+      this.value = '';
+    });
+
+    return {
+      setPool: function(items) {
+        pool = items.slice();
+        rebuildAddSelect();
+      },
+      reset: function() {
+        selected.clear();
+        rebuildChips();
+        rebuildAddSelect();
+      },
+      setSelected: function(items) {
+        selected.clear();
+        items.forEach(function(item) { selected.set(item.id, item.label); });
+        rebuildChips();
+        rebuildAddSelect();
+      },
+      getIds: function() {
+        return Array.from(selected.keys());
+      },
+    };
+  }
+
+  var contactPicker = createMultiPicker({
+    chipsBox: document.getElementById('reminderContactsChips'),
+    addSelect: document.getElementById('reminderContactsAdd'),
+    addPlaceholder: '+ Add contact',
+  });
+  var ticketPicker = createMultiPicker({
+    chipsBox: document.getElementById('reminderTicketsChips'),
+    addSelect: document.getElementById('reminderTicketsAdd'),
+    addPlaceholder: '+ Add ticket',
+  });
+
   // New reminder modal
   document.getElementById('newReminderBtn').addEventListener('click', function() {
     document.getElementById('reminderId').value = '';
@@ -921,6 +1148,8 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
     document.getElementById('reminderPriority').value = 'medium';
     document.getElementById('reminderNotes').value = '';
     document.getElementById('reminderModalTitle').textContent = 'New Reminder';
+    contactPicker.reset();
+    ticketPicker.reset();
 
     // Load users for assignment dropdown
     Api.get('/api/v1/agents/agents/all-members/').then(function(data) {
@@ -933,26 +1162,26 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
       );
     }).catch(function() {});
 
-    // Load contacts for dropdown
+    // Load contacts for picker
     Api.get('/api/v1/contacts/contacts/?page_size=100').then(function(data) {
-      populateSelect(
-        document.getElementById('reminderContact'),
-        data.results || [],
-        'id',
-        function(c) { return ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email; },
-        'None'
-      );
+      var items = (data.results || []).map(function(c) {
+        return {
+          id: String(c.id),
+          label: ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email || c.id,
+        };
+      });
+      contactPicker.setPool(items);
     }).catch(function() {});
 
-    // Load tickets for dropdown
+    // Load tickets for picker
     Api.get('/api/v1/tickets/tickets/?page_size=50&ordering=-created_at').then(function(data) {
-      populateSelect(
-        document.getElementById('reminderTicket'),
-        data.results || [],
-        'id',
-        function(t) { return '#' + t.number + ' — ' + (t.subject || '').substring(0, 50); },
-        'None'
-      );
+      var items = (data.results || []).map(function(t) {
+        return {
+          id: String(t.id),
+          label: '#' + t.number + ' — ' + (t.subject || '').substring(0, 50),
+        };
+      });
+      ticketPicker.setPool(items);
     }).catch(function() {});
 
     new bootstrap.Modal(document.getElementById('reminderModal')).show();
@@ -983,13 +1212,11 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
       scheduled_at: scheduledDate.toISOString(),
       priority: document.getElementById('reminderPriority').value,
       notes: document.getElementById('reminderNotes').value,
+      contacts: contactPicker.getIds(),
+      tickets: ticketPicker.getIds(),
     };
     var assignedTo = document.getElementById('reminderAssignedTo').value;
     if (assignedTo) payload.assigned_to = assignedTo;
-    var contact = document.getElementById('reminderContact').value;
-    if (contact) payload.contact = contact;
-    var ticket = document.getElementById('reminderTicket').value;
-    if (ticket) payload.ticket = ticket;
 
     var promise = id ? Api.patch(API_BASE + id + '/', payload) : Api.post(API_BASE, payload);
     promise.then(function() {

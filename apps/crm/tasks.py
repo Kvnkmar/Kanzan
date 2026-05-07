@@ -58,7 +58,8 @@ def check_overdue_reminders(self):
                     completed_at__isnull=True,
                     cancelled_at__isnull=True,
                 )
-                .select_related("assigned_to", "contact")
+                .select_related("assigned_to")
+                .prefetch_related("contacts")
                 .iterator(chunk_size=200)
             )
 
@@ -79,9 +80,13 @@ def check_overdue_reminders(self):
                 if already_notified:
                     continue
 
-                contact_name = (
-                    reminder.contact.full_name if reminder.contact else "Unknown"
-                )
+                linked_contacts = list(reminder.contacts.all())
+                if linked_contacts:
+                    contact_name = ", ".join(
+                        c.full_name for c in linked_contacts if c.full_name
+                    ) or "Unknown"
+                else:
+                    contact_name = "Unknown"
                 overdue_mins = int(
                     (now - reminder.scheduled_at).total_seconds() / 60
                 )
@@ -104,7 +109,7 @@ def check_overdue_reminders(self):
                     ),
                     data={
                         "reminder_id": str(reminder.pk),
-                        "contact_id": str(reminder.contact_id) if reminder.contact_id else None,
+                        "contact_ids": [str(c.id) for c in linked_contacts],
                         "url": "/reminders/",
                     },
                 )

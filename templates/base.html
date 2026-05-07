@@ -27,8 +27,18 @@
     })();
   </script>
   <script src="{% static 'js/theme.js' %}"></script>
-  {# Tenant primary_color override disabled — design system enforces strict 3-color palette (red/black/white). #}
-  {# To re-enable per-tenant branding within palette constraints, restore this block and validate color server-side. #}
+  {% if tenant and tenant.settings %}
+  <style>
+    :root {
+      --crm-primary: {{ tenant.settings.primary_color|default:"#C1121F" }};
+      --crm-primary-500: {{ tenant.settings.primary_color|default:"#C1121F" }};
+      --crm-primary-600: {{ tenant.settings.primary_color|default:"#C1121F" }};
+      --crm-primary-700: {{ tenant.settings.primary_color|default:"#C1121F" }};
+      --crm-accent: {{ tenant.settings.accent_color|default:"#E11D2D" }};
+      --crm-accent-500: {{ tenant.settings.accent_color|default:"#E11D2D" }};
+    }
+  </style>
+  {% endif %}
   {% block extra_css %}{% endblock %}
 </head>
 <body>

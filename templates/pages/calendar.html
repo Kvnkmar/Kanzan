@@ -350,6 +350,8 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 
   var EVENT_COLORS = {
     'ticket':         '#C1121F',
+    'ticket_created': '#71717A',
+    'ticket_due':     '#E11C2B',
     'meeting':        '#C1121F',
     'call':           '#E11C2B',
     'task':           '#C1121F',
@@ -360,6 +362,8 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 
   var EVENT_BAR_COLORS_LIGHT = {
     'ticket':         { bg: '#1A1A1D', border: '#C1121F', text: '#991B1B' },
+    'ticket_created': { bg: '#F4F4F5', border: '#71717A', text: '#52525B' },
+    'ticket_due':     { bg: '#FEE2E2', border: '#E11C2B', text: '#991B1B' },
     'meeting':        { bg: '#FEF3C7', border: '#C1121F', text: '#92400E' },
     'call':           { bg: '#1A1A1D', border: '#E11C2B', text: '#991B1B' },
     'task':           { bg: '#FFFBEB', border: '#C1121F', text: '#92400E' },
@@ -368,6 +372,8 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
   };
   var EVENT_BAR_COLORS_DARK = {
     'ticket':         { bg: 'rgba(220, 38, 38,0.12)', border: '#C1121F', text: '#F08891' },
+    'ticket_created': { bg: 'rgba(255,255,255,0.05)', border: '#71717A', text: '#A1A1AA' },
+    'ticket_due':     { bg: 'rgba(225, 28, 43, 0.15)', border: '#E11C2B', text: '#FECACA' },
     'meeting':        { bg: 'rgba(245,158,11,0.12)', border: '#C1121F', text: '#F03040' },
     'call':           { bg: 'rgba(239, 68, 68,0.12)', border: '#E11C2B', text: '#F08891' },
     'task':           { bg: 'rgba(245,158,11,0.12)', border: '#C1121F', text: '#F03040' },
@@ -391,6 +397,8 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
 
   var EVENT_TYPE_LABELS = {
     'ticket': 'Ticket',
+    'ticket_created': 'Ticket Created',
+    'ticket_due': 'Ticket Due',
     'meeting': 'Meeting',
     'call': 'Call',
     'task': 'Task',
@@ -463,6 +471,15 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
            ' at ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
   }
 
+  // Replace the link button's icon + text without using innerHTML.
+  function setLinkBtnLabel(btn, iconName, labelText) {
+    while (btn.firstChild) btn.removeChild(btn.firstChild);
+    var icon = document.createElement('i');
+    icon.className = 'ti ti-' + iconName + ' me-1';
+    btn.appendChild(icon);
+    btn.appendChild(document.createTextNode(labelText));
+  }
+
   /* ------------------------------------------------------------------ */
   /*  Data Fetching                                                      */
   /* ------------------------------------------------------------------ */
@@ -480,26 +497,39 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
       '&date_to=' + endDate + '&page_size=200'
     ).catch(function() { return { results: [] }; });
 
-    return Promise.all([ticketPromise, calEventPromise]).then(function(results) {
+    var reminderPromise = Api.get(
+      '/api/v1/crm/reminders/?scheduled_after=' + startDate +
+      '&scheduled_before=' + endDate + 'T23:59:59&page_size=200'
+    ).catch(function() { return { results: [] }; });
+
+    return Promise.all([ticketPromise, calEventPromise, reminderPromise]).then(function(results) {
       var events = {};
       var tickets = results[0].results || results[0] || [];
       tickets.forEach(function(t) {
-        var ticketLabel = '#' + t.number + ' ' + (t.subject || t.title || 'Ticket');
+        var ticketSubject = '#' + t.number + ' ' + (t.subject || t.title || 'Ticket');
         var createdDk = localDateKey(t.created_at);
         var dueDk = t.due_date ? localDateKey(t.due_date) : null;
-        // One entry per ticket per unique day
-        var dates = {};
-        if (createdDk) dates[createdDk] = localTime(t.created_at);
-        if (dueDk && !dates[dueDk]) dates[dueDk] = localTime(t.due_date);
-        Object.keys(dates).forEach(function(dk) {
-          if (!events[dk]) events[dk] = [];
-          events[dk].push({
-            type: 'ticket',
-            label: ticketLabel,
-            time: dates[dk],
+
+        // When created and due fall on the same day, the "Due" entry alone
+        // captures both signals — skip the "Created" entry to avoid clutter.
+        if (createdDk && createdDk !== dueDk) {
+          if (!events[createdDk]) events[createdDk] = [];
+          events[createdDk].push({
+            type: 'ticket_created',
+            label: 'Created · ' + ticketSubject,
+            time: localTime(t.created_at),
             ticket: t
           });
-        });
+        }
+        if (dueDk) {
+          if (!events[dueDk]) events[dueDk] = [];
+          events[dueDk].push({
+            type: 'ticket_due',
+            label: 'Due · ' + ticketSubject,
+            time: localTime(t.due_date),
+            ticket: t
+          });
+        }
       });
       var calEvents = results[1].results || results[1] || [];
       calEvents.forEach(function(ce) {
@@ -511,6 +541,20 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
           time: (ce.is_all_day ? null : (ce.event_time ? ce.event_time.substring(0, 5) : null)),
           customColor: ce.color || '',
           calEvent: ce
+        });
+      });
+      var reminders = results[2].results || results[2] || [];
+      reminders.forEach(function(r) {
+        // Skip cancelled reminders; completed ones stay for historical context.
+        if (r.cancelled_at) return;
+        var dk = localDateKey(r.scheduled_at);
+        if (!dk) return;
+        if (!events[dk]) events[dk] = [];
+        events[dk].push({
+          type: 'reminder',
+          label: r.subject,
+          time: localTime(r.scheduled_at),
+          reminder: r
         });
       });
       eventsCache[key] = events;
@@ -634,6 +678,84 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
       body.innerHTML = html;
 
       linkBtn.href = '/tickets/' + t.number + '/';
+      setLinkBtnLabel(linkBtn, 'arrow-right', 'View Ticket');
+      linkBtn.style.display = '';
+      deleteBtn.style.display = 'none';
+      editBtn.style.display = 'none';
+      footer.style.display = '';
+    } else if (ev.reminder) {
+      // ── Reminder detail view ──
+      var r = ev.reminder;
+      titleEl.textContent = r.subject || 'Reminder';
+
+      var priColors = { urgent: '#E11C2B', high: '#C1121F', medium: '#E11C2B', low: '#64748B' };
+      var statusColors = {
+        pending:   'rgba(59,130,246,0.18)',
+        overdue:   'rgba(225,28,43,0.20)',
+        completed: 'rgba(16,185,129,0.18)',
+        cancelled: 'rgba(107,114,128,0.18)'
+      };
+      var statusTextColors = {
+        pending:   '#93C5FD',
+        overdue:   '#F08891',
+        completed: '#A8A8AC',
+        cancelled: '#9CA3AF'
+      };
+
+      var rBadgeHtml = '<span class="badge event-detail-badge" style="background:' + EVENT_COLORS['reminder'] + ';font-size:0.6875rem;"><i class="ti ti-bell me-1"></i>Reminder</span>';
+      if (r.priority) {
+        rBadgeHtml += '<span class="badge event-detail-badge" style="background-color:' + (priColors[r.priority] || '#64748B') + ';">' + escapeHtml(r.priority.charAt(0).toUpperCase() + r.priority.slice(1)) + '</span>';
+      }
+      if (r.status) {
+        var sBg = statusColors[r.status] || 'rgba(107,114,128,0.18)';
+        var sFg = statusTextColors[r.status] || '#9CA3AF';
+        rBadgeHtml += '<span class="badge event-detail-badge" style="background:' + sBg + ';color:' + sFg + ';">' + escapeHtml(r.status.charAt(0).toUpperCase() + r.status.slice(1)) + '</span>';
+      }
+      badgesEl.innerHTML = rBadgeHtml;
+      badgesEl.style.display = '';
+
+      var rNotes = htmlToText(r.notes);
+      if (rNotes) {
+        var notesText = rNotes.length > 200 ? rNotes.substring(0, 200) + '…' : rNotes;
+        html += '<div class="event-detail-desc">' + escapeHtml(notesText) + '</div>';
+      }
+
+      function rInfoRow(icon, label, value, valueColor) {
+        return '<div class="event-detail-row">' +
+          '<div class="event-detail-row-label">' +
+          '<i class="ti ti-' + escapeHtml(icon) + '"></i>' +
+          '<span>' + escapeHtml(label) + '</span>' +
+          '</div>' +
+          '<span class="event-detail-row-value"' + (valueColor ? ' style="color:' + escapeHtml(valueColor) + ';"' : '') + '>' + escapeHtml(value) + '</span>' +
+          '</div>';
+      }
+
+      html += '<div class="event-detail-info">';
+      var scheduledColor = r.status === 'overdue' ? '#E11C2B' : '';
+      html += rInfoRow('clock', 'Scheduled', formatDateTime(r.scheduled_at), scheduledColor);
+      if (r.overdue_display && r.status === 'overdue') {
+        html += rInfoRow('alert-triangle', 'Overdue', r.overdue_display, '#E11C2B');
+      }
+      if (r.assigned_to_name) {
+        html += rInfoRow('user', 'Assigned to', r.assigned_to_name);
+      } else {
+        html += rInfoRow('user-x', 'Assigned to', 'Unassigned', '#64748B');
+      }
+      if (r.contact_name) {
+        html += rInfoRow('address-book', 'Contact', r.contact_name);
+      }
+      if (r.ticket_number) {
+        html += rInfoRow('ticket', 'Ticket', '#' + r.ticket_number + (r.ticket_subject ? ' · ' + r.ticket_subject : ''));
+      }
+      if (r.completed_at) {
+        html += rInfoRow('check', 'Completed', formatDateTime(r.completed_at), '#A8A8AC');
+      }
+      html += '</div>';
+
+      body.innerHTML = html;
+
+      linkBtn.href = '/reminders/';
+      setLinkBtnLabel(linkBtn, 'arrow-right', 'Open Reminders');
       linkBtn.style.display = '';
       deleteBtn.style.display = 'none';
       editBtn.style.display = 'none';

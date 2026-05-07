@@ -33,14 +33,14 @@ def tenant_context(request):
             from apps.accounts.models import TenantMembership
 
             membership = (
-                TenantMembership.objects.select_related("role")
+                TenantMembership.objects.select_related("role", "temporary_role")
                 .filter(user=request.user, tenant=tenant, is_active=True)
                 .first()
             )
             setattr(request, cache_attr, membership)
 
         if membership:
-            user_role = membership.role
+            user_role = membership.effective_role
             is_admin = user_role.hierarchy_level <= 10
             is_admin_or_manager = user_role.hierarchy_level <= 20
             is_agent_or_above = user_role.hierarchy_level <= 30

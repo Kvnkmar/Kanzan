@@ -211,19 +211,20 @@ class DashboardView(APIView):
         # Top 5 most overdue for quick display
         top_overdue = list(
             overdue_qs.order_by("scheduled_at")
-            .select_related("contact", "assigned_to")
-            .values(
-                "id", "subject", "priority", "scheduled_at",
-                "contact__first_name", "contact__last_name",
-                "assigned_to__first_name", "assigned_to__last_name",
-            )[:5]
+            .select_related("assigned_to")
+            .prefetch_related("contacts")[:5]
         )
 
         items = []
-        for item in top_overdue:
-            contact_name = f"{item['contact__first_name'] or ''} {item['contact__last_name'] or ''}".strip() or None
-            assigned_name = f"{item['assigned_to__first_name'] or ''} {item['assigned_to__last_name'] or ''}".strip() or None
-            overdue_secs = int((now - item["scheduled_at"]).total_seconds())
+        for reminder in top_overdue:
+            contact_names = [c.full_name for c in reminder.contacts.all() if c.full_name]
+            contact_name = ", ".join(contact_names) if contact_names else None
+            assigned_name = (
+                reminder.assigned_to.get_full_name()
+                if reminder.assigned_to
+                else None
+            )
+            overdue_secs = int((now - reminder.scheduled_at).total_seconds())
             if overdue_secs >= 86400:
                 display = f"{overdue_secs // 86400}d overdue"
             elif overdue_secs >= 3600:
@@ -231,9 +232,9 @@ class DashboardView(APIView):
             else:
                 display = f"{overdue_secs // 60}m overdue"
             items.append({
-                "id": str(item["id"]),
-                "subject": item["subject"],
-                "priority": item["priority"],
+                "id": str(reminder.id),
+                "subject": reminder.subject,
+                "priority": reminder.priority,
                 "contact_name": contact_name,
                 "assigned_to_name": assigned_name,
                 "overdue_display": display,

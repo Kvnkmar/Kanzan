@@ -226,6 +226,24 @@ class TenantMembership(models.Model):
     )
     joined_at = models.DateTimeField(auto_now_add=True)
 
+    temporary_role = models.ForeignKey(
+        "accounts.Role",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="temporary_members",
+        help_text="Role temporarily granted by an admin; overrides role until expiry.",
+    )
+    temporary_role_expires_at = models.DateTimeField(null=True, blank=True)
+    temporary_role_granted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="temporary_grants_made",
+    )
+    temporary_role_granted_at = models.DateTimeField(null=True, blank=True)
+
     class Meta:
         verbose_name = "tenant membership"
         verbose_name_plural = "tenant memberships"
@@ -234,6 +252,24 @@ class TenantMembership(models.Model):
 
     def __str__(self):
         return f"{self.user.email} -> {self.tenant} ({self.role.name})"
+
+    @property
+    def has_active_temporary_role(self):
+        """True if a temporary role is set and has not yet expired."""
+        from django.utils import timezone
+
+        return (
+            self.temporary_role_id is not None
+            and self.temporary_role_expires_at is not None
+            and self.temporary_role_expires_at > timezone.now()
+        )
+
+    @property
+    def effective_role(self):
+        """The role currently in effect — temporary if active, else permanent."""
+        if self.has_active_temporary_role:
+            return self.temporary_role
+        return self.role
 
 
 class Invitation(TenantScopedModel):

@@ -193,7 +193,7 @@
 
   // ═══ Load Profile ═══
   function loadProfile() {
-    Api.get(PROFILE_API).then(function(data) {
+    return Api.get(PROFILE_API).then(function(data) {
       profileData = data;
       var user = data.user || {};
 
@@ -202,7 +202,10 @@
 
       if (user.avatar) {
         avatarEl.textContent = '';
-        avatarEl.style.background = 'url(' + user.avatar + ') center/cover no-repeat';
+        // Quote the URL and escape any embedded double-quotes — guards against
+        // CSS-context confusion from filenames containing quotes/parentheses.
+        var safeUrl = String(user.avatar).replace(/"/g, '\\"');
+        avatarEl.style.background = 'url("' + safeUrl + '") center/cover no-repeat';
       } else {
         avatarEl.style.background = avatarColor(fullName);
         avatarEl.textContent = getInitials(fullName);
@@ -227,9 +230,24 @@
       document.getElementById('jobTitle').value = data.job_title || '';
       document.getElementById('department').value = data.department || '';
       document.getElementById('bio').value = data.bio || '';
-    }).catch(function() {
-      Toast.error('Failed to load profile data.');
+    }).catch(function(err) {
+      console.error('Failed to load profile:', err);
+      Toast.error((err && err.detail) || 'Failed to load profile data.');
     });
+  }
+
+  function extractError(err, fallback) {
+    if (!err) return fallback;
+    if (err.detail) return err.detail;
+    // Surface field-level validation errors from DRF.
+    for (var key in err) {
+      if (Object.prototype.hasOwnProperty.call(err, key)) {
+        var v = err[key];
+        if (Array.isArray(v) && v.length) return key + ': ' + v[0];
+        if (typeof v === 'string') return key + ': ' + v;
+      }
+    }
+    return fallback;
   }
 
 
@@ -237,29 +255,38 @@
   document.getElementById('avatarInput').addEventListener('change', function() {
     var file = this.files[0];
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) { Toast.warning('Image must be under 5MB'); return; }
-    if (!profileData || !profileData.user) return;
-
+    if (!file.type || !file.type.startsWith('image/')) {
+      Toast.error('Please choose an image file (PNG, JPG, or WebP).');
+      this.value = '';
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      Toast.warning('Avatar must be under 2 MB.');
+      this.value = '';
+      return;
+    }
+    if (!profileData || !profileData.user) {
+      Toast.error('Profile is still loading. Try again in a moment.');
+      return;
+    }
+    var input = this;
     var fd = new FormData();
     fd.append('avatar', file);
     Api.upload('/api/v1/accounts/profiles/upload-avatar/', fd).then(function() {
       Toast.success('Avatar updated');
-      loadProfile();
+      return loadProfile();
     }).catch(function(err) {
-      var msg = 'Failed to upload avatar';
-      if (err) {
-        if (err.avatar) msg = Array.isArray(err.avatar) ? err.avatar[0] : err.avatar;
-        else if (err.detail) msg = err.detail;
-        else if (err.non_field_errors) msg = Array.isArray(err.non_field_errors) ? err.non_field_errors[0] : err.non_field_errors;
-      }
-      Toast.error(msg);
-    });
+      Toast.error(extractError(err, 'Failed to upload avatar'));
+    }).finally(function() { input.value = ''; });
   });
 
   // ═══ Save Personal Info ═══
   document.getElementById('personalForm').addEventListener('submit', function(e) {
     e.preventDefault();
-    if (!profileData || !profileData.user) return;
+    if (!profileData || !profileData.user) {
+      Toast.error('Profile is still loading. Try again in a moment.');
+      return;
+    }
     var btn = document.getElementById('savePersonalBtn');
     var spinner = document.getElementById('personalSpinner');
     btn.disabled = true; spinner.classList.remove('d-none');
@@ -270,9 +297,9 @@
       phone: document.getElementById('phoneField').value.trim()
     }).then(function() {
       Toast.success('Personal information saved');
-      loadProfile();
+      return loadProfile();
     }).catch(function(err) {
-      Toast.error(err.detail || 'Failed to update');
+      Toast.error(extractError(err, 'Failed to update personal information'));
     }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
   });
 
@@ -289,9 +316,9 @@
       bio: document.getElementById('bio').value.trim()
     }).then(function() {
       Toast.success('Work information saved');
-      loadProfile();
+      return loadProfile();
     }).catch(function(err) {
-      Toast.error(err.detail || 'Failed to update');
+      Toast.error(extractError(err, 'Failed to update work information'));
     }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
   });
 

@@ -220,7 +220,7 @@ class ActivityViewSet(viewsets.ModelViewSet):
         # Overdue reminders assigned to this user
         overdue_reminders = Reminder.objects.overdue().filter(
             assigned_to=user,
-        ).select_related("contact", "ticket")
+        ).prefetch_related("contacts", "tickets")
         reminder_data = ReminderSerializer(overdue_reminders, many=True).data
 
         return Response({
@@ -247,7 +247,7 @@ class ReminderViewSet(viewsets.ModelViewSet):
     """
 
     permission_classes = [IsAuthenticated, IsTenantMember]
-    search_fields = ["subject", "notes", "contact__first_name", "contact__last_name"]
+    search_fields = ["subject", "notes", "contacts__first_name", "contacts__last_name"]
     ordering_fields = ["scheduled_at", "priority", "created_at"]
     ordering = ["scheduled_at"]
 
@@ -256,8 +256,8 @@ class ReminderViewSet(viewsets.ModelViewSet):
             return Reminder.objects.none()
 
         qs = Reminder.objects.select_related(
-            "created_by", "assigned_to", "ticket", "contact",
-        )
+            "created_by", "assigned_to",
+        ).prefetch_related("contacts", "tickets")
 
         # Agent-level row restriction: agents see only their own reminders
         user = self.request.user
@@ -281,9 +281,9 @@ class ReminderViewSet(viewsets.ModelViewSet):
         if assigned_to := params.get("assigned_to"):
             qs = qs.filter(assigned_to_id=assigned_to)
         if contact := params.get("contact"):
-            qs = qs.filter(contact_id=contact)
+            qs = qs.filter(contacts__id=contact).distinct()
         if ticket := params.get("ticket"):
-            qs = qs.filter(ticket_id=ticket)
+            qs = qs.filter(tickets__id=ticket).distinct()
         if priority := params.get("priority"):
             qs = qs.filter(priority=priority)
         if params.get("mine") == "true":
@@ -293,7 +293,7 @@ class ReminderViewSet(viewsets.ModelViewSet):
         if scheduled_before := params.get("scheduled_before"):
             qs = qs.filter(scheduled_at__lt=scheduled_before)
         if queue := params.get("queue"):
-            qs = qs.filter(ticket__queue_id=queue)
+            qs = qs.filter(tickets__queue_id=queue).distinct()
 
         # Status filter (computed, so we apply it in Python-compatible way)
         now = timezone.now()
@@ -606,51 +606,56 @@ class ReminderViewSet(viewsets.ModelViewSet):
                 request=self.request,
             )
 
-            # Also log to ticket timeline if reminder is linked to a ticket
-            if reminder.ticket_id:
+            # Fan out to every linked ticket's timeline.
+            ticket_ids = list(reminder.tickets.values_list("id", flat=True))
+            if ticket_ids:
                 self._log_reminder_to_ticket_timeline(
-                    reminder, action_type, description
+                    reminder, ticket_ids, action_type, description
                 )
         except Exception:
             logger.exception(
                 "Failed to log reminder audit for %s", reminder.pk
             )
 
-    def _log_reminder_to_ticket_timeline(self, reminder, action_type, description):
-        """Write a TicketActivity when a reminder is linked to a ticket."""
+    def _log_reminder_to_ticket_timeline(
+        self, reminder, ticket_ids, action_type, description
+    ):
+        """Write a TicketActivity for each ticket linked to the reminder."""
         from apps.tickets.models import Ticket, TicketActivity
 
-        try:
-            ticket = Ticket.unscoped.select_related("tenant", "contact").get(
-                pk=reminder.ticket_id
-            )
+        if action_type == ActivityLog.Action.REMINDER_COMPLETED:
+            event = TicketActivity.Event.REMINDER_COMPLETED
+        else:
+            event = TicketActivity.Event.REMINDER_SET
 
-            if action_type == ActivityLog.Action.REMINDER_COMPLETED:
-                event = TicketActivity.Event.REMINDER_COMPLETED
-            else:
-                event = TicketActivity.Event.REMINDER_SET
+        first_contact = reminder.contacts.first()
+        contact_name = str(first_contact) if first_contact else None
 
-            contact_name = str(reminder.contact) if reminder.contact else None
-            TicketActivity.objects.create(
-                tenant=ticket.tenant,
-                ticket=ticket,
-                contact=ticket.contact if ticket.contact_id else None,
-                actor=self.request.user,
-                event=event,
-                message=description,
-                metadata={
-                    "reminder_id": str(reminder.pk),
-                    "scheduled_at": reminder.scheduled_at.isoformat(),
-                    "priority": reminder.priority,
-                    "contact_name": contact_name,
-                },
-            )
-        except Ticket.DoesNotExist:
-            pass
-        except Exception:
-            logger.exception(
-                "Failed to log reminder to ticket timeline for %s", reminder.pk
-            )
+        tickets = Ticket.unscoped.select_related("tenant", "contact").filter(
+            pk__in=ticket_ids
+        )
+        for ticket in tickets:
+            try:
+                TicketActivity.objects.create(
+                    tenant=ticket.tenant,
+                    ticket=ticket,
+                    contact=ticket.contact if ticket.contact_id else None,
+                    actor=self.request.user,
+                    event=event,
+                    message=description,
+                    metadata={
+                        "reminder_id": str(reminder.pk),
+                        "scheduled_at": reminder.scheduled_at.isoformat(),
+                        "priority": reminder.priority,
+                        "contact_name": contact_name,
+                    },
+                )
+            except Exception:
+                logger.exception(
+                    "Failed to log reminder %s to ticket %s timeline",
+                    reminder.pk,
+                    ticket.pk,
+                )
 
 
 class PipelineForecastView(RetrieveAPIView):

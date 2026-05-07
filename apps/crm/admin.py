@@ -32,11 +32,10 @@ class ReminderAdmin(TenantFilteredAdmin, admin.ModelAdmin):
         "scheduled_at",
         "completed_at",
         "cancelled_at",
-        "contact",
-        "ticket",
         "tenant",
     ]
     list_filter = ["priority", "tenant"]
     search_fields = ["subject", "notes"]
     ordering = ["scheduled_at"]
-    raw_id_fields = ["ticket", "contact", "created_by", "assigned_to"]
+    raw_id_fields = ["created_by", "assigned_to"]
+    filter_horizontal = ["contacts", "tickets"]

@@ -159,17 +159,13 @@ class Reminder(TenantScopedModel):
         default=Priority.MEDIUM,
     )
 
-    contact = models.ForeignKey(
+    contacts = models.ManyToManyField(
         "contacts.Contact",
-        on_delete=models.SET_NULL,
-        null=True,
         blank=True,
         related_name="reminders",
     )
-    ticket = models.ForeignKey(
+    tickets = models.ManyToManyField(
         "tickets.Ticket",
-        on_delete=models.SET_NULL,
-        null=True,
         blank=True,
         related_name="reminders",
     )
@@ -199,7 +195,6 @@ class Reminder(TenantScopedModel):
                 name="reminder_overdue_idx",
             ),
             models.Index(fields=["tenant", "assigned_to"]),
-            models.Index(fields=["tenant", "contact"]),
         ]
 
     def __str__(self):

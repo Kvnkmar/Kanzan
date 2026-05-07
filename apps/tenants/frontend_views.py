@@ -247,12 +247,12 @@ def _role_required(max_hierarchy):
             from apps.accounts.models import TenantMembership
 
             membership = (
-                TenantMembership.objects.select_related("role")
+                TenantMembership.objects.select_related("role", "temporary_role")
                 .filter(user=request.user, tenant=tenant, is_active=True)
                 .first()
             )
 
-            if membership is None or membership.role.hierarchy_level > max_hierarchy:
+            if membership is None or membership.effective_role.hierarchy_level > max_hierarchy:
                 return render(
                     request,
                     "pages/403.html",

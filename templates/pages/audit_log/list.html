@@ -142,8 +142,7 @@
   <div class="tl-col" style="flex:2;">User</div>
   <div class="tl-col" style="flex:1.5;">Action</div>
   <div class="tl-col" style="flex:1.2;">Entity</div>
-  <div class="tl-col" style="flex:3;">Description</div>
-  <div class="tl-col" style="flex:1;">IP Address</div>
+  <div class="tl-col" style="flex:4;">Description</div>
   <div class="tl-col" style="flex:1.5;">When</div>
 </div>
 
@@ -672,13 +671,8 @@
 
       var colDesc = document.createElement('div');
       colDesc.className = 'tl-col';
-      colDesc.style.flex = '3';
+      colDesc.style.flex = '4';
       colDesc.appendChild(createSkeletonBlock('85%', null, 'skeleton-text'));
-
-      var colIp = document.createElement('div');
-      colIp.className = 'tl-col';
-      colIp.style.flex = '1';
-      colIp.appendChild(createSkeletonBlock('80px', null, 'skeleton-text'));
 
       var colDate = document.createElement('div');
       colDate.className = 'tl-col';
@@ -689,7 +683,6 @@
       row.appendChild(colAction);
       row.appendChild(colEntity);
       row.appendChild(colDesc);
-      row.appendChild(colIp);
       row.appendChild(colDate);
       fragment.appendChild(row);
     }
@@ -828,7 +821,7 @@
       // Description column with inline preview
       var colDesc = document.createElement('div');
       colDesc.className = 'tl-col';
-      colDesc.style.flex = '3';
+      colDesc.style.flex = '4';
       colDesc.style.flexDirection = 'column';
       colDesc.style.alignItems = 'flex-start';
       colDesc.style.minWidth = '0';
@@ -841,15 +834,6 @@
         var preview = buildInlineChangePreview(e.changes);
         if (preview) colDesc.appendChild(preview);
       }
-
-      // IP column
-      var colIp = document.createElement('div');
-      colIp.className = 'tl-col';
-      colIp.style.flex = '1';
-      var ipSpan = makeText('span', e.ip_address || '--', 'text-muted');
-      ipSpan.style.fontSize = '0.8rem';
-      ipSpan.style.fontFamily = 'monospace';
-      colIp.appendChild(ipSpan);
 
       // When column with tooltip
       var colDate = document.createElement('div');
@@ -865,7 +849,6 @@
       row.appendChild(colAction);
       row.appendChild(colEntity);
       row.appendChild(colDesc);
-      row.appendChild(colIp);
       row.appendChild(colDate);
       fragment.appendChild(row);
     });
@@ -1009,16 +992,6 @@
     timeItem.appendChild(document.createTextNode(formatFullDate(entry.created_at)));
     metaDiv.appendChild(timeItem);
 
-    // IP
-    if (entry.ip_address) {
-      var ipItem = document.createElement('div');
-      ipItem.className = 'audit-detail-meta-item';
-      ipItem.appendChild(makeIcon('ti ti-world me-1'));
-      var ipSpan = makeText('span', entry.ip_address);
-      ipSpan.style.fontFamily = 'monospace';
-      ipItem.appendChild(ipSpan);
-      metaDiv.appendChild(ipItem);
-    }
     body.appendChild(metaDiv);
     body.appendChild(document.createElement('hr'));
 

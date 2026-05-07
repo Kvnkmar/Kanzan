@@ -10194,6 +10194,76 @@ h4.fw-semibold, h4.fw-bold {
 .ae-refresh-btn:active { transform: scale(0.97); }
 .ae-refresh-btn i { font-size: 1rem; }
 
+/* ── Page header right cluster (counter + refresh) ── */
+.ae-page-header__right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.ae-agent-counter {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25rem;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius);
+  background: var(--crm-surface);
+  color: var(--crm-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.ae-agent-counter__sep {
+  color: var(--crm-text-muted);
+  margin: 0 0.125rem;
+  font-weight: 500;
+}
+.ae-agent-counter__label {
+  color: var(--crm-text-muted);
+  font-weight: 500;
+  font-size: 0.75rem;
+  margin-left: 0.375rem;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+/* ── Temp-role badge variants & per-row action buttons ── */
+.ae-badge-role--ghost {
+  background: transparent;
+  color: var(--crm-text-muted);
+  border: 1px dashed var(--crm-border);
+  font-weight: 500;
+}
+.ae-action-btn {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.95rem;
+  border-radius: 8px;
+}
+
+/* ── Grant temporary role modal: duration chips ── */
+.ae-duration-chip {
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+.ae-duration-chip.active {
+  background: var(--crm-primary);
+  color: #fff;
+  border-color: var(--crm-primary);
+}
+.ae-duration-chip.active:hover {
+  background: var(--crm-primary);
+  color: #fff;
+  border-color: var(--crm-primary);
+}
+
 /* ── Segmented Tabs ── */
 .ae-tabs-wrap {
   margin-bottom: 1.5rem;
@@ -10440,6 +10510,25 @@ h4.fw-semibold, h4.fw-bold {
 }
 .ae-status-badge--offline .ae-status-dot {
   background: #8A8A90;
+}
+.ae-status-badge--deactivated {
+  background: rgba(193, 18, 31,0.08);
+  color: #991B1B;
+  font-style: italic;
+}
+.ae-status-badge--deactivated .ae-status-dot {
+  background: #991B1B;
+  box-shadow: 0 0 0 2px rgba(193, 18, 31,0.18);
+}
+.ae-row-deactivated {
+  background: var(--crm-border-light, rgba(0,0,0,0.02));
+}
+.ae-row-deactivated td {
+  color: var(--crm-text-muted);
+}
+.ae-row-deactivated .ae-avatar,
+.ae-row-deactivated .fw-medium {
+  opacity: 0.7;
 }
 
 /* ── Capacity Bar ── */
@@ -15265,7 +15354,7 @@ body.is-mobile-sm .date-range-picker {
 }
 .bulk-toolbar-info {
   font-size: 0.875rem;
-  color: var(--text-secondary, #9ca3af);
+  color: #fff;
 }
 .bulk-toolbar-count {
   display: inline-flex;
@@ -15284,6 +15373,17 @@ body.is-mobile-sm .date-range-picker {
 .bulk-toolbar-actions {
   display: flex;
   gap: 0.5rem;
+}
+.bulk-toolbar-actions #bulkToolbarClearBtn {
+  background: #fff;
+  color: #1a1d23;
+  border-color: #fff;
+}
+.bulk-toolbar-actions #bulkToolbarClearBtn:hover,
+.bulk-toolbar-actions #bulkToolbarClearBtn:focus {
+  background: rgba(255, 255, 255, 0.9);
+  color: #1a1d23;
+  border-color: rgba(255, 255, 255, 0.9);
 }
 @media (max-width: 991.98px) {
   .bulk-toolbar { left: 0; }
@@ -15363,12 +15463,34 @@ body.is-mobile-sm .date-range-picker {
 .bulk-card .td-cselect--sm {
   max-width: 100%;
   flex: 1;
+  width: 100%;
 }
 .bulk-card .td-cselect-trigger {
   height: 34px;
   padding: 0 0.75rem;
   font-size: 0.8125rem;
+  font-weight: 500;
   border-radius: 0.5rem;
+  background: #fff;
+  border: 1px solid rgba(193, 18, 31, 0.2);
+  color: var(--crm-text);
+  box-shadow: 0 1px 2px rgba(193, 18, 31, 0.04);
+}
+.bulk-card .td-cselect-trigger:hover {
+  border-color: rgba(193, 18, 31, 0.4);
+  background: rgba(193, 18, 31, 0.02);
+}
+.bulk-card .td-cselect.open .td-cselect-trigger {
+  border-color: var(--crm-primary);
+  box-shadow: 0 0 0 3px rgba(193, 18, 31, 0.12);
+  background: #fff;
+}
+.bulk-card .td-cselect-arrow {
+  color: var(--crm-primary);
+  opacity: 0.7;
+}
+.bulk-card .td-cselect.open .td-cselect-arrow {
+  opacity: 1;
 }
 
 /* Card grid */
@@ -15437,16 +15559,35 @@ body.is-mobile-sm .date-range-picker {
   gap: 0.5rem;
   align-items: center;
 }
-.bulk-select {
+.bulk-card .bulk-select.form-select {
   flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 34px;
   border-radius: 0.5rem;
   font-size: 0.8125rem;
-  border-color: var(--crm-border);
+  border: 1px solid var(--crm-border);
   padding: 0.4rem 2rem 0.4rem 0.75rem;
+  background-color: #fff;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%236B7280' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center;
+  background-size: 12px 12px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
-.bulk-select:focus {
+.bulk-card .bulk-select.form-select:hover {
+  border-color: rgba(193, 18, 31, 0.35);
+}
+.bulk-card .bulk-select.form-select:focus {
+  border-color: rgba(193, 18, 31, 0.5);
   box-shadow: 0 0 0 3px rgba(193, 18, 31, 0.1);
+  outline: none;
 }
 
 /* Action button base */
@@ -15616,6 +15757,21 @@ body.is-mobile-sm .date-range-picker {
 [data-bs-theme="dark"] .bulk-card-icon--status { background: rgba(225, 28, 43, 0.12); color: #F03040; }
 [data-bs-theme="dark"] .bulk-card-icon--priority { background: rgba(193, 18, 31, 0.12); color: #C1121F; }
 [data-bs-theme="dark"] .bulk-card-hint { color: #9CA3AF; }
+[data-bs-theme="dark"] .bulk-card .td-cselect-trigger {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--crm-text);
+  box-shadow: none;
+}
+[data-bs-theme="dark"] .bulk-card .td-cselect-trigger:hover {
+  background: rgba(193, 18, 31, 0.08);
+  border-color: rgba(193, 18, 31, 0.4);
+}
+[data-bs-theme="dark"] .bulk-card .td-cselect.open .td-cselect-trigger {
+  border-color: var(--crm-primary);
+  box-shadow: 0 0 0 3px rgba(193, 18, 31, 0.18);
+  background: rgba(255, 255, 255, 0.04);
+}
 [data-bs-theme="dark"] .bulk-card .bulk-select.form-select {
   background-color: #131315 !important;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239CA3AF' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E") !important;

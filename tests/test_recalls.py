@@ -32,9 +32,26 @@ from main.context import clear_current_tenant, set_current_tenant
 # ---------------------------------------------------------------------------
 
 def _create_reminder(tenant, user, **kwargs):
-    """Create a reminder with tenant context set."""
+    """Create a reminder with tenant context set.
+
+    The legacy ``contact`` / ``ticket`` keyword arguments are accepted for
+    convenience — they map onto the new ManyToMany ``contacts`` / ``tickets``
+    relations so existing tests keep working without rewriting every call.
+    """
     set_current_tenant(tenant)
+    contact = kwargs.pop("contact", None)
+    contacts = kwargs.pop("contacts", None)
+    if contact and not contacts:
+        contacts = [contact]
+    ticket = kwargs.pop("ticket", None)
+    tickets = kwargs.pop("tickets", None)
+    if ticket and not tickets:
+        tickets = [ticket]
     reminder = ReminderFactory(tenant=tenant, created_by=user, **kwargs)
+    if contacts:
+        reminder.contacts.set(contacts)
+    if tickets:
+        reminder.tickets.set(tickets)
     clear_current_tenant()
     return reminder
 
@@ -635,8 +652,11 @@ class TestReminderContactLinkage:
 
         resp = admin_client.get(f"/api/v1/crm/reminders/{reminder.id}/")
         assert resp.status_code == 200
-        assert str(resp.data["contact"]) == str(contact.id)
-        assert resp.data["contact_name"] is not None
+        contact_ids = [str(cid) for cid in resp.data["contacts"]]
+        assert str(contact.id) in contact_ids
+        display = resp.data["contacts_display"]
+        assert len(display) == 1
+        assert display[0]["name"] is not None
 
     def test_filter_by_contact(self, tenant, admin_user, admin_client):
         set_current_tenant(tenant)

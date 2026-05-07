@@ -1,10 +1,40 @@
 {% extends "base.html" %}
 {% block title %}Settings - Kanzen Suite{% endblock %}
 
+{% block extra_css %}
+<style>
+  .st-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+    color: var(--crm-text-secondary, #6b7280);
+    background: transparent;
+    border: 1px solid var(--crm-border-light, rgba(255,255,255,0.08));
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    text-decoration: none;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .st-back-link:hover {
+    background: var(--crm-bg-hover, rgba(255,255,255,0.04));
+    color: var(--crm-primary, #C1121F);
+    border-color: var(--crm-primary, #C1121F);
+  }
+  .st-back-link i { font-size: 1rem; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="st-layout st-layout--hub">
   <!-- Settings Sidebar (category-level) -->
   <div class="st-sidebar">
+    <a href="/dashboard/" class="st-back-link" title="Back to dashboard">
+      <i class="ti ti-arrow-left"></i>
+      <span>Back to Dashboard</span>
+    </a>
     <nav class="st-nav">
       <a href="javascript:void(0)" class="st-nav-item st-nav-cat active" data-category="all" onclick="settingsHub.scrollToCategory('all')">
         <div class="st-nav-icon"><i class="ti ti-home"></i></div>
@@ -16,10 +46,7 @@
         <div class="st-nav-text"><span class="st-nav-name">Workspace</span></div>
       </a>
       {% endif %}
-      <a href="javascript:void(0)" class="st-nav-item st-nav-cat" data-category="team" onclick="settingsHub.scrollToCategory('team')">
-        <div class="st-nav-icon"><i class="ti ti-users-group"></i></div>
-        <div class="st-nav-text"><span class="st-nav-name">Team</span></div>
-      </a>
+      {# Team tab hidden — feature pending #}
       <a href="javascript:void(0)" class="st-nav-item st-nav-cat" data-category="channels" onclick="settingsHub.scrollToCategory('channels')">
         <div class="st-nav-icon"><i class="ti ti-send"></i></div>
         <div class="st-nav-text"><span class="st-nav-name">Channels</span></div>
@@ -103,34 +130,7 @@
       </div>
       {% endif %}
 
-      <!-- Team -->
-      <div class="st-hub-category" data-cat="team">
-        <div class="st-hub-category-header">
-          <h3 class="st-hub-category-title">Team</h3>
-        </div>
-        <div class="st-hub-cards">
-          {% if is_admin_or_manager %}
-          <a href="/users/" class="st-hub-card" data-search="users members team roles invite">
-            <div class="st-hub-card-icon"><i class="ti ti-users"></i></div>
-            <div class="st-hub-card-body">
-              <div class="st-hub-card-title">Users</div>
-              <div class="st-hub-card-desc">Manage team members, roles, and invitations</div>
-            </div>
-            <i class="ti ti-external-link st-hub-card-ext"></i>
-          </a>
-          {% endif %}
-          {% if is_admin_or_manager %}
-          <a href="/agents/" class="st-hub-card" data-search="agents availability status online offline">
-            <div class="st-hub-card-icon"><i class="ti ti-headset"></i></div>
-            <div class="st-hub-card-body">
-              <div class="st-hub-card-title">Agents</div>
-              <div class="st-hub-card-desc">Agent availability, workload, and status management</div>
-            </div>
-            <i class="ti ti-external-link st-hub-card-ext"></i>
-          </a>
-          {% endif %}
-        </div>
-      </div>
+      {# Team category hidden — feature pending #}
 
       <!-- Channels -->
       <div class="st-hub-category" data-cat="channels">
@@ -589,37 +589,37 @@
             <div class="st-form-group">
               <label class="st-label">Quick Presets</label>
               <div class="branding-presets" id="colorPresets">
-                <button type="button" class="branding-preset-btn" data-primary="#C1121F" data-accent="#C1121F" title="Royal Blue & Amber">
+                <button type="button" class="branding-preset-btn" data-primary="#C1121F" data-accent="#E11D2D" title="Crimson Black (default)">
                   <span class="preset-swatch" style="background:#C1121F;"></span>
-                  <span class="preset-swatch" style="background:#C1121F;"></span>
+                  <span class="preset-swatch" style="background:#E11D2D;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#E11C2B" data-accent="#A8A8AC" title="Blue & Emerald">
-                  <span class="preset-swatch" style="background:#E11C2B;"></span>
-                  <span class="preset-swatch" style="background:#A8A8AC;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#2563EB" data-accent="#F59E0B" title="Royal Blue & Amber">
+                  <span class="preset-swatch" style="background:#2563EB;"></span>
+                  <span class="preset-swatch" style="background:#F59E0B;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#E11C2B" data-accent="#E11C2B" title="Violet & Pink">
-                  <span class="preset-swatch" style="background:#E11C2B;"></span>
-                  <span class="preset-swatch" style="background:#E11C2B;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#0EA5E9" data-accent="#10B981" title="Sky & Emerald">
+                  <span class="preset-swatch" style="background:#0EA5E9;"></span>
+                  <span class="preset-swatch" style="background:#10B981;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#C1121F" data-accent="#C1121F" title="Red & Orange">
-                  <span class="preset-swatch" style="background:#C1121F;"></span>
-                  <span class="preset-swatch" style="background:#C1121F;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#7C3AED" data-accent="#EC4899" title="Violet & Pink">
+                  <span class="preset-swatch" style="background:#7C3AED;"></span>
+                  <span class="preset-swatch" style="background:#EC4899;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#8E8E92" data-accent="#C1121F" title="Green & Blue">
-                  <span class="preset-swatch" style="background:#8E8E92;"></span>
-                  <span class="preset-swatch" style="background:#C1121F;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#DC2626" data-accent="#F97316" title="Red & Orange">
+                  <span class="preset-swatch" style="background:#DC2626;"></span>
+                  <span class="preset-swatch" style="background:#F97316;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#C1121F" data-accent="#F43F5E" title="Sky & Rose">
-                  <span class="preset-swatch" style="background:#C1121F;"></span>
-                  <span class="preset-swatch" style="background:#F43F5E;"></span>
+                <button type="button" class="branding-preset-btn" data-primary="#059669" data-accent="#0EA5E9" title="Emerald & Sky">
+                  <span class="preset-swatch" style="background:#059669;"></span>
+                  <span class="preset-swatch" style="background:#0EA5E9;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#D946EF" data-accent="#A8A8AC" title="Fuchsia & Teal">
+                <button type="button" class="branding-preset-btn" data-primary="#D946EF" data-accent="#14B8A6" title="Fuchsia & Teal">
                   <span class="preset-swatch" style="background:#D946EF;"></span>
-                  <span class="preset-swatch" style="background:#A8A8AC;"></span>
+                  <span class="preset-swatch" style="background:#14B8A6;"></span>
                 </button>
-                <button type="button" class="branding-preset-btn" data-primary="#1E293B" data-accent="#E11C2B" title="Slate & Blue">
+                <button type="button" class="branding-preset-btn" data-primary="#1E293B" data-accent="#3B82F6" title="Slate & Blue">
                   <span class="preset-swatch" style="background:#1E293B;"></span>
-                  <span class="preset-swatch" style="background:#E11C2B;"></span>
+                  <span class="preset-swatch" style="background:#3B82F6;"></span>
                 </button>
               </div>
             </div>
@@ -1623,14 +1623,42 @@ var settingsHub = (function() {
     document.querySelectorAll('.st-nav-cat').forEach(function(el) { el.classList.remove('active'); });
     var navItem = document.querySelector('.st-nav-cat[data-category="' + cat + '"]');
     if (navItem) navItem.classList.add('active');
+
+    // If a detail pane is currently open, exit it first so the hub becomes
+    // visible. Without this, clicking a sidebar category while reading a
+    // pane (e.g. Data Management) leaves the user stuck on that pane.
+    var detail = document.getElementById('settingsDetail');
+    if (detail && detail.style.display !== 'none') {
+      backToHub();
+    }
+
+    // Reset any active search so the filter UI doesn't fight the category filter
+    var searchInput = document.getElementById('settingsSearchInput');
+    if (searchInput) searchInput.value = '';
+    var noResults = document.getElementById('hubNoResults');
+    if (noResults) noResults.style.display = 'none';
+    var recentSection = document.getElementById('hubRecent');
+
     if (cat === 'all') {
-      document.querySelectorAll('.st-hub-category').forEach(function(el) { el.style.display = ''; });
+      document.querySelectorAll('.st-hub-category').forEach(function(el) {
+        el.style.display = '';
+        el.querySelectorAll('.st-hub-card').forEach(function(card) { card.style.display = ''; });
+      });
+      if (recentSection) renderRecent();
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    document.querySelectorAll('.st-hub-category').forEach(function(el) { el.style.display = ''; });
-    var target = document.querySelector('.st-hub-category[data-cat="' + cat + '"]');
-    if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // Show ONLY the requested category, hide the rest (incl. recent).
+    document.querySelectorAll('.st-hub-category').forEach(function(el) {
+      var match = el.getAttribute('data-cat') === cat;
+      el.style.display = match ? '' : 'none';
+      if (match) {
+        el.querySelectorAll('.st-hub-card').forEach(function(card) { card.style.display = ''; });
+      }
+    });
+    if (recentSection) recentSection.style.display = 'none';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function initSearch() {
@@ -1957,17 +1985,36 @@ function switchSettingsTab(targetId) {
     try { await Api.patch('/api/v1/tenants/settings/', payload); Toast.success('Authentication settings saved'); }
     catch (e) { Toast.error(e.detail || 'Failed to save auth settings'); } finally { sp.classList.add('d-none'); }
   }
+  function applyBrandColors(primary, accent) {
+    var root = document.documentElement;
+    root.style.setProperty('--crm-primary', primary);
+    root.style.setProperty('--crm-primary-600', primary);
+    root.style.setProperty('--crm-primary-700', primary);
+    root.style.setProperty('--crm-primary-500', primary);
+    root.style.setProperty('--crm-accent', accent);
+    root.style.setProperty('--crm-accent-500', accent);
+  }
   async function saveBranding(e) {
     e.preventDefault(); var sp = document.getElementById('brandingSpinner'); sp.classList.remove('d-none');
     var primary = document.getElementById('primaryColor').value;
     var accent = document.getElementById('accentColor').value;
+    var hexRe = /^#[0-9a-fA-F]{6}$/;
+    if (!hexRe.test(primary) || !hexRe.test(accent)) {
+      sp.classList.add('d-none');
+      Toast.error('Colors must be 6-digit hex codes (e.g. #C1121F).');
+      return;
+    }
     try {
       await Api.patch('/api/v1/tenants/settings/', { primary_color: primary, accent_color: accent });
+      applyBrandColors(primary, accent);
       Toast.success('Branding updated');
-      document.documentElement.style.setProperty('--crm-primary', primary);
-      document.documentElement.style.setProperty('--crm-accent', accent);
     }
-    catch (e) { Toast.error(e.detail || 'Failed to save branding'); } finally { sp.classList.add('d-none'); }
+    catch (err) {
+      var msg = err && (err.detail || err.primary_color || err.accent_color);
+      if (Array.isArray(msg)) msg = msg[0];
+      Toast.error(msg || 'Failed to save branding');
+    }
+    finally { sp.classList.add('d-none'); }
   }
   function bindFormEvents() {
     document.getElementById('generalForm').addEventListener('submit', saveGeneral);
@@ -2017,7 +2064,7 @@ function switchSettingsTab(targetId) {
       });
     });
     document.getElementById('resetColorsBtn').addEventListener('click', function() {
-      var p = '#C1121F', a = '#C1121F';
+      var p = '#C1121F', a = '#E11D2D';
       document.getElementById('primaryColor').value = p;
       document.getElementById('primaryColorHex').value = p;
       document.getElementById('accentColor').value = a;
@@ -3363,11 +3410,12 @@ function switchSettingsTab(targetId) {
 
   document.getElementById('saveLanguageBtn').addEventListener('click', async function() {
     var sp = document.getElementById('languageSpinner');
-    sp.classList.remove('d-none');
+    var btn = this;
+    sp.classList.remove('d-none'); btn.disabled = true;
     var lang = document.getElementById('prefLanguage').value;
     var tz = document.getElementById('prefTimezone').value;
     var dateFmt = document.getElementById('prefDateFormat').value;
-    var timeFmt = getSegmentedValue('timeFormatSegmented');
+    var timeFmt = getSegmentedValue('timeFormatSegmented') || '24h';
     try {
       await Api.patch('/api/v1/accounts/profiles/me/', {
         language: lang,
@@ -3375,15 +3423,19 @@ function switchSettingsTab(targetId) {
         date_format: dateFmt,
         time_format: timeFmt
       });
-      // Store in localStorage so Kanzan.formatDate/formatDateTime use them
       localStorage.setItem('kanzan_language', lang);
       localStorage.setItem('kanzan_timezone', tz);
       localStorage.setItem('kanzan_date_format', dateFmt);
       localStorage.setItem('kanzan_time_format', timeFmt);
-      Toast.success('Regional settings saved — dates will update on next page load');
-    } catch(e) {
-      Toast.error(e.detail || 'Failed to save regional settings');
-    } finally { sp.classList.add('d-none'); }
+      try { sessionStorage.setItem('kanzan_toast', JSON.stringify({ type: 'success', message: 'Regional settings saved' })); } catch(_) {}
+      // Reload so Kanzan.formatDate / formatDateTime pick up the new prefs across the page.
+      window.location.reload();
+    } catch(err) {
+      var msg = err && (err.detail || err.timezone || err.language || err.date_format || err.time_format);
+      if (Array.isArray(msg)) msg = msg[0];
+      Toast.error(msg || 'Failed to save regional settings');
+      sp.classList.add('d-none'); btn.disabled = false;
+    }
   });
 
   // -------------------------------------------------------

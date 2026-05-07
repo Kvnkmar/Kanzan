@@ -107,7 +107,7 @@ def _get_membership(request, tenant):
         return getattr(request, cache_attr)
 
     membership = (
-        TenantMembership.objects.select_related("role")
+        TenantMembership.objects.select_related("role", "temporary_role")
         .filter(user=request.user, tenant=tenant, is_active=True)
         .first()
     )
@@ -159,12 +159,14 @@ class HasTenantPermission(BasePermission):
 
         codename = f"{resource}.{action_verb}"
 
+        effective_role = membership.effective_role
+
         # Check explicit permissions first
-        if membership.role.permissions.exists():
-            return membership.role.has_permission(codename)
+        if effective_role.permissions.exists():
+            return effective_role.has_permission(codename)
 
         # Fallback: hierarchy-based defaults when no permissions are assigned
-        level = membership.role.hierarchy_level
+        level = effective_role.hierarchy_level
         if action_verb == "view":
             return level <= 40          # Everyone can view
         elif action_verb in ("create", "update"):
@@ -193,7 +195,7 @@ class IsTicketAccessible(BasePermission):
             return False
 
         # Admin / Manager see everything in their tenant
-        if membership.role.hierarchy_level <= 20:
+        if membership.effective_role.hierarchy_level <= 20:
             return True
 
         # Agent / Viewer: only own or assigned tickets
@@ -246,7 +248,7 @@ class IsTenantAdmin(BasePermission):
         if membership is None:
             return False
 
-        return membership.role.hierarchy_level <= 10
+        return membership.effective_role.hierarchy_level <= 10
 
 
 class IsTenantAdminOrManager(BasePermission):
@@ -268,4 +270,4 @@ class IsTenantAdminOrManager(BasePermission):
         if membership is None:
             return False
 
-        return membership.role.hierarchy_level <= 20
+        return membership.effective_role.hierarchy_level <= 20

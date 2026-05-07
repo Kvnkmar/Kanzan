@@ -1,13 +1,20 @@
-Hi {{ recipient.first_name|default:recipient.email }},
-
-[{{ notification.get_type_display }}]
+{% autoescape off %}Hi {{ recipient.first_name|default:recipient.email }},
 
 {{ notification.title }}
-{% if notification.body %}
+{% if notification.body and notification.body != ticket.subject %}
 {{ notification.body }}
+{% endif %}{% if ticket %}
+Ticket:    #{{ ticket.number }} — {{ ticket.subject }}
+Status:    {{ ticket.status.name|default:"--" }}
+Priority:  {{ ticket.priority|default:"--"|capfirst }}
+{% endif %}{% if cta_url %}
+Open in {{ tenant.name }}:
+{{ cta_url }}
+{% elif notification.data.url %}
+Open in {{ tenant.name }}:
+{{ notification.data.url }}
 {% endif %}
-{% if cta_url %}View details: {{ cta_url }}{% elif notification.data.url %}View details: {{ notification.data.url }}{% endif %}
-
----
-You received this because notifications are enabled for your account at {{ tenant.name }}.
-To manage your notification preferences, visit your account settings.
+—
+You're receiving this notification from {{ tenant.name }}.
+Manage your preferences in your account settings.
+{% endautoescape %}

@@ -324,7 +324,7 @@ class InvitationViewSet(
             from apps.accounts.permissions import _get_membership
 
             membership = _get_membership(self.request, self.request.tenant)
-            if membership and role.hierarchy_level < membership.role.hierarchy_level:
+            if membership and role.hierarchy_level < membership.effective_role.hierarchy_level:
                 from rest_framework.exceptions import PermissionDenied
 
                 raise PermissionDenied(

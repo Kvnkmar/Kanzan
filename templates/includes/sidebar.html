@@ -89,6 +89,7 @@
         <i class="ti ti-chart-bar"></i>
         <span class="sidebar-link-text">Analytics</span>
       </a>
+      {% comment %} Agents and Users tabs hidden — accessible from Settings page; preserved for future re-enable
       <a href="{% url 'frontend:agents' %}" class="sidebar-link {% if request.resolver_match.url_name == 'agents' %}active{% endif %}" data-sidebar-tooltip="Agents">
         <i class="ti ti-users"></i>
         <span class="sidebar-link-text">Agents</span>
@@ -97,6 +98,7 @@
         <i class="ti ti-user-cog"></i>
         <span class="sidebar-link-text">Users</span>
       </a>
+      {% endcomment %}
       <a href="{% url 'frontend:audit-log' %}" class="sidebar-link {% if request.resolver_match.url_name == 'audit-log' %}active{% endif %}" data-sidebar-tooltip="Audit Log">
         <i class="ti ti-history"></i>
         <span class="sidebar-link-text">Audit Log</span>
@@ -104,7 +106,7 @@
       {% endif %}
     </div>
 
-    <!-- Settings (all members) + Administration (Admin only) -->
+    {% comment %} Settings and Billing tabs hidden — Settings reachable via user dropdown footer; preserved for future re-enable
     <div class="nav-section">
       <span class="nav-section-label">Settings</span>
       <a href="{% url 'frontend:settings' %}" class="sidebar-link {% if request.resolver_match.url_name == 'settings' %}active{% endif %}" data-sidebar-tooltip="Settings">
@@ -118,6 +120,7 @@
       </a>
       {% endif %}
     </div>
+    {% endcomment %}
   </nav>
 
   <!-- User Footer -->

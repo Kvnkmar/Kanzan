@@ -115,8 +115,8 @@ class TenantSettingsViewSet(viewsets.GenericViewSet):
             from apps.accounts.models import TenantMembership
             membership = TenantMembership.objects.filter(
                 user=request.user, tenant=request.tenant,
-            ).select_related("role").first()
-        is_admin = membership is not None and membership.role.hierarchy_level <= 10
+            ).select_related("role", "temporary_role").first()
+        is_admin = membership is not None and membership.effective_role.hierarchy_level <= 10
         if not is_admin:
             unknown = set(request.data.keys()) - self._MANAGER_EDITABLE_FIELDS
             if unknown:
