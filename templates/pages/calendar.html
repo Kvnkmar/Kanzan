@@ -595,13 +595,13 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 
   var EVENT_BAR_COLORS_LIGHT = {
     'ticket':         { bg: 'var(--crm-input-bg)', border: 'var(--crm-primary)', text: 'var(--crm-primary-active)' },
-    'ticket_created': { bg: '#F4F4F5', border: '#71717A', text: '#52525B' },
-    'ticket_due':     { bg: '#FEE2E2', border: 'var(--crm-accent)', text: 'var(--crm-primary-active)' },
-    'meeting':        { bg: '#FEF3C7', border: 'var(--crm-primary)', text: '#92400E' },
+    'ticket_created': { bg: 'var(--crm-hover-bg)', border: '#71717A', text: 'var(--crm-text-secondary)' },
+    'ticket_due':     { bg: 'var(--status-danger-bg)', border: 'var(--crm-accent)', text: 'var(--crm-primary-active)' },
+    'meeting':        { bg: 'var(--status-warning-bg)', border: 'var(--crm-primary)', text: 'var(--status-warning-text)' },
     'call':           { bg: 'var(--crm-input-bg)', border: 'var(--crm-accent)', text: 'var(--crm-primary-active)' },
-    'task':           { bg: '#FFFBEB', border: 'var(--crm-primary)', text: '#92400E' },
-    'reminder':       { bg: 'var(--crm-input-bg)', border: 'var(--crm-primary-active)', text: '#5B21B6' },
-    'other':          { bg: 'var(--crm-bg-elevated-2)', border: '#6B6B70', text: '#374151' }
+    'task':           { bg: 'var(--status-warning-bg)', border: 'var(--crm-primary)', text: 'var(--status-warning-text)' },
+    'reminder':       { bg: 'var(--crm-input-bg)', border: 'var(--crm-primary-active)', text: 'var(--status-info-text)' },
+    'other':          { bg: 'var(--crm-bg-elevated-2)', border: '#6B6B70', text: 'var(--crm-surface-elevated)' }
   };
   var EVENT_BAR_COLORS_DARK = {
     'ticket':         { bg: 'rgba(220, 38, 38,0.12)', border: 'var(--crm-primary)', text: 'var(--crm-primary-300)' },
@@ -613,7 +613,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     'reminder':       { bg: 'rgba(124,58,237,0.12)', border: 'var(--crm-primary-active)', text: 'var(--crm-primary-200)' },
     'other':          { bg: 'rgba(255,255,255,0.06)', border: '#6B6B70', text: 'var(--status-neutral-dot)' }
   };
-  var DEFAULT_BAR_LIGHT = { bg: 'var(--crm-bg-elevated-2)', border: '#6B6B70', text: '#374151' };
+  var DEFAULT_BAR_LIGHT = { bg: 'var(--crm-bg-elevated-2)', border: '#6B6B70', text: 'var(--crm-surface-elevated)' };
   var DEFAULT_BAR_DARK = { bg: 'rgba(255,255,255,0.06)', border: '#6B6B70', text: 'var(--status-neutral-dot)' };
 
   function isDarkMode() {
@@ -987,7 +987,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
         cancelled: 'rgba(107,114,128,0.18)'
       };
       var statusTextColors = {
-        pending:   '#93C5FD',
+        pending:   'var(--status-info-text)',
         overdue:   'var(--crm-primary-300)',
         completed: 'var(--status-neutral-dot)',
         cancelled: 'var(--status-neutral-dot)'

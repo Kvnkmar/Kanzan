@@ -35,6 +35,10 @@ ALLOWLIST_FILES = {
     ROOT / "scripts/check_theme.py",                 # this file (regex patterns)
     ROOT / "templates/pages/settings/tenant.html",   # colour picker UI
     ROOT / "static/js/theme.js",                     # may carry fallback hex
+    # Legacy "v9" CSS snapshot — NOT loaded by base.html (custom-v15.css is
+    # the live file). Kept around as a committed reference copy; no point
+    # sweeping ~20k lines that nothing serves.
+    ROOT / "static/css/custom.css",
 }
 
 ALLOWLIST_DIRS = [

@@ -52,7 +52,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .flatpickr-day.prevMonthDay:hover,
 .flatpickr-day.nextMonthDay:hover { background: var(--crm-bg-elevated-2) !important; color: var(--crm-text-muted) !important; }
 .flatpickr-day.flatpickr-disabled,
-.flatpickr-day.flatpickr-disabled:hover { color: #E5E7EB !important; cursor: default; }
+.flatpickr-day.flatpickr-disabled:hover { color: var(--crm-text-secondary) !important; cursor: default; }
 .flatpickr-time {
   flex-shrink: 0; display: flex !important; align-items: center; justify-content: center;
   height: 52px; max-height: 52px !important; padding: 8px 16px; margin: 0;
@@ -193,11 +193,11 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 [data-bs-theme="dark"] .reminder-pill--priority-urgent,
 [data-bs-theme="dark"] .reminder-pill--status-overdue   { background: rgba(var(--crm-accent-rgb), 0.16); color: var(--crm-primary-300); border-color: rgba(var(--crm-accent-rgb), 0.32); }
 [data-bs-theme="dark"] .reminder-pill--priority-high,
-[data-bs-theme="dark"] .reminder-pill--status-pending   { background: rgba(245,158,11,0.18); color: #FCD34D; border-color: rgba(245,158,11,0.32); }
-[data-bs-theme="dark"] .reminder-pill--priority-medium  { background: rgba(96,165,250,0.18); color: #93C5FD; border-color: rgba(96,165,250,0.32); }
+[data-bs-theme="dark"] .reminder-pill--status-pending   { background: rgba(245,158,11,0.18); color: var(--status-warning-text); border-color: rgba(245,158,11,0.32); }
+[data-bs-theme="dark"] .reminder-pill--priority-medium  { background: rgba(96,165,250,0.18); color: var(--status-info-text); border-color: rgba(96,165,250,0.32); }
 [data-bs-theme="dark"] .reminder-pill--priority-low,
 [data-bs-theme="dark"] .reminder-pill--status-cancelled { background: rgba(148,163,184,0.18); color: var(--crm-text-secondary); border-color: rgba(148,163,184,0.32); }
-[data-bs-theme="dark"] .reminder-pill--status-completed { background: rgba(34,197,94,0.18); color: #86EFAC; border-color: rgba(34,197,94,0.32); }
+[data-bs-theme="dark"] .reminder-pill--status-completed { background: rgba(34,197,94,0.18); color: var(--status-success-text); border-color: rgba(34,197,94,0.32); }
 
 /* Row action buttons — uniform ghost icon buttons with colored hover */
 .reminder-actions { display: inline-flex; align-items: center; gap: 4px; }
@@ -220,8 +220,8 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .reminder-action-btn--cancel:hover    { background: rgba(var(--crm-primary-rgb), 0.10);  border-color: rgba(var(--crm-primary-rgb), 0.32);  color: var(--crm-primary-active); }
 [data-bs-theme="dark"] .reminder-action-btn { border-color: rgba(255,255,255,0.10); color: var(--crm-text-secondary); }
 [data-bs-theme="dark"] .reminder-action-btn:hover { background: rgba(255,255,255,0.06); }
-[data-bs-theme="dark"] .reminder-action-btn--complete:hover  { background: rgba(34,197,94,0.20);  color: #86EFAC; }
-[data-bs-theme="dark"] .reminder-action-btn--reschedule:hover{ background: rgba(245,158,11,0.22); color: #FCD34D; }
+[data-bs-theme="dark"] .reminder-action-btn--complete:hover  { background: rgba(34,197,94,0.20);  color: var(--status-success-text); }
+[data-bs-theme="dark"] .reminder-action-btn--reschedule:hover{ background: rgba(245,158,11,0.22); color: var(--status-warning-text); }
 [data-bs-theme="dark"] .reminder-action-btn--cancel:hover    { background: rgba(var(--crm-accent-rgb), 0.20);  color: var(--crm-primary-300); }
 </style>
 {% endblock %}
