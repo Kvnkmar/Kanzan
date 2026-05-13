@@ -234,10 +234,10 @@
         </div>
         <div class="fd-trends-legend">
           <span class="fd-trends-legend-item">
-            <span class="fd-trends-legend-dot" style="background:#C1121F;"></span> Today
+            <span class="fd-trends-legend-dot" style="background:var(--crm-primary);"></span> Today
           </span>
           <span class="fd-trends-legend-item">
-            <span class="fd-trends-legend-dot" style="background:#CBD5E1;"></span> Yesterday
+            <span class="fd-trends-legend-dot" style="background:var(--crm-border);"></span> Yesterday
           </span>
         </div>
       </div>
@@ -428,11 +428,11 @@
   "use strict";
 
   var STATUS_COLORS = {
-    'Open':        '#C1121F',
-    'In Progress': '#E11C2B',
-    'Waiting':     '#C1121F',
-    'Pending':     '#C1121F',
-    'Resolved':    '#A8A8AC',
+    'Open':        'var(--crm-primary)',
+    'In Progress': 'var(--crm-accent)',
+    'Waiting':     'var(--crm-primary)',
+    'Pending':     'var(--crm-primary)',
+    'Resolved':    'var(--status-neutral-dot)',
     'Closed':      '#6B6B70'
   };
 
@@ -441,7 +441,7 @@
   };
 
   var PRIORITY_COLORS = {
-    urgent: '#E11C2B', high: '#C1121F', medium: '#C1121F', low: '#A8A8AC'
+    urgent: 'var(--crm-accent)', high: 'var(--crm-primary)', medium: 'var(--crm-primary)', low: 'var(--status-neutral-dot)'
   };
 
   // Cached dashboard data for tab switching
@@ -675,7 +675,7 @@
     // For daily mode with many labels, skip some to avoid crowding
     var maxTicks = isDaily && labels.length > 15 ? 15 : undefined;
 
-    var textColor = getComputedStyle(document.documentElement).getPropertyValue('--crm-text-muted').trim() || '#94A3B8';
+    var textColor = getComputedStyle(document.documentElement).getPropertyValue('--crm-text-muted').trim() || 'var(--status-neutral-dot)';
 
     trendsChartInstance = new Chart(canvas.getContext('2d'), {
       type: 'line',
@@ -685,17 +685,17 @@
           {
             label: currentLabel,
             data: currentData,
-            borderColor: '#C1121F',
+            borderColor: 'var(--crm-primary)',
             backgroundColor: 'rgba(220, 38, 38,0.08)',
             borderWidth: 2, fill: true, tension: 0.35,
             pointRadius: isDaily && labels.length > 30 ? 0 : 4,
-            pointBackgroundColor: '#ffffff',
-            pointBorderColor: '#C1121F', pointBorderWidth: 2, pointHoverRadius: 6
+            pointBackgroundColor: 'var(--crm-surface)',
+            pointBorderColor: 'var(--crm-primary)', pointBorderWidth: 2, pointHoverRadius: 6
           },
           {
             label: prevLabel,
             data: previousData,
-            borderColor: '#CBD5E1',
+            borderColor: 'var(--crm-border)',
             backgroundColor: 'transparent',
             borderWidth: 1.5, fill: false, tension: 0.35,
             pointRadius: 0, pointHoverRadius: 4
@@ -708,7 +708,7 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: '#1E293B', titleColor: '#F9FAFB', bodyColor: '#94A3B8',
+            backgroundColor: 'var(--crm-surface)', titleColor: 'var(--crm-bg-elevated-2)', bodyColor: 'var(--status-neutral-dot)',
             padding: 10, cornerRadius: 8, displayColors: true, boxWidth: 8, boxHeight: 8
           }
         },
@@ -877,7 +877,7 @@
         cutout: '72%', responsive: true, maintainAspectRatio: true,
         plugins: {
           legend: { display: false },
-          tooltip: { backgroundColor: '#1E293B', titleColor: '#F9FAFB', bodyColor: '#94A3B8', padding: 10, cornerRadius: 8 }
+          tooltip: { backgroundColor: 'var(--crm-surface)', titleColor: 'var(--crm-bg-elevated-2)', bodyColor: 'var(--status-neutral-dot)', padding: 10, cornerRadius: 8 }
         },
         onClick: function(evt, elements) {
           if (elements.length > 0) {
@@ -910,7 +910,7 @@
         if (count > 0) {
           pLabels.push(PRIORITY_LABELS[k] || k);
           pValues.push(count);
-          pColors.push(PRIORITY_COLORS[k] || '#94A3B8');
+          pColors.push(PRIORITY_COLORS[k] || 'var(--status-neutral-dot)');
         }
         pTotal += count;
       });
@@ -920,7 +920,7 @@
       var sKeys = Object.keys(byStatus);
       var sLabels = sKeys;
       var sValues = sKeys.map(function(k) { return byStatus[k]; });
-      var sColors = sKeys.map(function(k) { return STATUS_COLORS[k] || '#94A3B8'; });
+      var sColors = sKeys.map(function(k) { return STATUS_COLORS[k] || 'var(--status-neutral-dot)'; });
       var sTotal = (stats.open_count || 0) + (stats.closed_count || 0);
       renderOverviewDoughnut(body, sLabels, sValues, sColors, sTotal, 'status');
     }
@@ -1071,7 +1071,7 @@
       var tdPriority = document.createElement('td');
       var priBadge = document.createElement('span');
       priBadge.className = 'badge';
-      var priColor = PRIORITY_COLORS[p.priority] || '#94A3B8';
+      var priColor = PRIORITY_COLORS[p.priority] || 'var(--status-neutral-dot)';
       priBadge.style.backgroundColor = priColor;
       priBadge.style.fontSize = '0.625rem';
       priBadge.textContent = PRIORITY_LABELS[p.priority] || p.priority || '';
@@ -1333,7 +1333,7 @@
 
     var fragment = document.createDocumentFragment();
     tickets.forEach(function(t, idx) {
-      var dotColor = t.status_color || '#94A3B8';
+      var dotColor = t.status_color || 'var(--status-neutral-dot)';
       var isLast = idx === tickets.length - 1;
 
       var link = document.createElement('a');
@@ -1509,11 +1509,11 @@
     celebration: 'confetti', incident: 'alert-triangle', general: 'news'
   };
   var CATEGORY_COLORS = {
-    announcement: '#E11C2B', // brand red
+    announcement: 'var(--crm-accent)', // brand red
     update:       '#2563EB', // info blue
-    celebration:  '#10B981', // success green
-    incident:     '#F59E0B', // warning amber
-    general:      '#64748B'  // slate
+    celebration:  'var(--status-success-dot)', // success green
+    incident:     'var(--status-warning-dot)', // warning amber
+    general:      'var(--status-neutral-dot)'  // slate
   };
   var CATEGORY_LABELS = {
     announcement: 'Announcement', update: 'Update',
@@ -1838,7 +1838,7 @@
     // Icon
     var iconEl = document.getElementById('nfDetailIcon');
     clearEl(iconEl);
-    if (post.is_urgent) { iconEl.style.background = 'rgba(239, 68, 68, 0.12)'; iconEl.style.color = '#E11C2B'; }
+    if (post.is_urgent) { iconEl.style.background = 'rgba(239, 68, 68, 0.12)'; iconEl.style.color = 'var(--crm-accent)'; }
     else { iconEl.style.background = color + '20'; iconEl.style.color = color; }
     iconEl.appendChild(icon(iconName));
 
@@ -1859,7 +1859,7 @@
     metaEl.appendChild(catBadge);
     // Badges
     if (post.is_pinned) { var pin = el('span', 'nf-pin'); pin.appendChild(icon('pin-filled')); metaEl.appendChild(pin); }
-    if (post.is_urgent) { var ub = el('span', 'nf-draft-badge'); ub.style.background = 'rgba(239, 68, 68, 0.12)'; ub.style.color = '#E11C2B'; ub.textContent = 'Urgent'; metaEl.appendChild(ub); }
+    if (post.is_urgent) { var ub = el('span', 'nf-draft-badge'); ub.style.background = 'rgba(239, 68, 68, 0.12)'; ub.style.color = 'var(--crm-accent)'; ub.textContent = 'Urgent'; metaEl.appendChild(ub); }
 
     // Full content
     document.getElementById('nfDetailContent').textContent = post.content;
@@ -1919,7 +1919,7 @@
     // Top row
     var topRow = el('div', 'nf-post__top');
     var iconWrap = el('div', 'nf-post__icon');
-    if (post.is_urgent) { iconWrap.style.background = 'rgba(239, 68, 68, 0.12)'; iconWrap.style.color = '#E11C2B'; }
+    if (post.is_urgent) { iconWrap.style.background = 'rgba(239, 68, 68, 0.12)'; iconWrap.style.color = 'var(--crm-accent)'; }
     else { iconWrap.style.background = color + '20'; iconWrap.style.color = color; }
     iconWrap.appendChild(icon(iconName));
     topRow.appendChild(iconWrap);
@@ -1930,7 +1930,7 @@
     var header = el('div', 'nf-post__header');
     header.appendChild(el('span', 'nf-post__title', post.title));
     if (post.is_pinned) { var pin = el('span', 'nf-pin'); pin.title = 'Pinned'; pin.appendChild(icon('pin-filled')); header.appendChild(pin); }
-    if (post.is_urgent) { var ub = el('span', 'nf-draft-badge'); ub.style.background = 'rgba(239, 68, 68, 0.12)'; ub.style.color = '#E11C2B'; ub.textContent = 'Urgent'; header.appendChild(ub); }
+    if (post.is_urgent) { var ub = el('span', 'nf-draft-badge'); ub.style.background = 'rgba(239, 68, 68, 0.12)'; ub.style.color = 'var(--crm-accent)'; ub.textContent = 'Urgent'; header.appendChild(ub); }
     if (!post.is_published && isAdmin) header.appendChild(el('span', 'nf-draft-badge', 'Draft'));
     var catBadge = el('span', 'nf-post__cat', label);
     catBadge.style.color = color; catBadge.style.background = color + '14';

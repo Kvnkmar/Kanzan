@@ -412,8 +412,8 @@
   isPersonalCheckbox.addEventListener('change', updateAutoColumnsVisibility);
   updateAutoColumnsVisibility();
 
-  var PRIORITY_COLORS = {urgent:'#E11C2B',high:'#C1121F',medium:'#E11C2B',low:'#6B6B70'};
-  var AVATAR_COLORS = ['#C1121F','#9A0E18','#C1121F','#9A0E18','#A8A8AC','#C1121F','#F03040','#E11C2B','#F08891','#A8A8AC'];
+  var PRIORITY_COLORS = {urgent:'var(--crm-accent)',high:'var(--crm-primary)',medium:'var(--crm-accent)',low:'#6B6B70'};
+  var AVATAR_COLORS = ['var(--crm-primary)','var(--crm-primary-active)','var(--crm-primary)','var(--crm-primary-active)','var(--status-neutral-dot)','var(--crm-primary)','var(--crm-accent)','var(--crm-accent)','var(--crm-primary-300)','var(--status-neutral-dot)'];
   function avatarColor(name) { if (!name) return AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
 
   function escapeHtml(str) {
@@ -482,7 +482,7 @@
     card.dataset.ticketNumber = ticket.number || '';
     card.dataset.cardId = ticket._cardId || '';
 
-    var prColor = PRIORITY_COLORS[ticket.priority] || '#E5E7EB';
+    var prColor = PRIORITY_COLORS[ticket.priority] || 'var(--crm-border)';
     card.style.setProperty('--card-priority-color', prColor);
 
     var assigneeName = getAssigneeName(ticket);
@@ -574,15 +574,15 @@
       var stLabel = ticket.status.replace(/_/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
       var stBadge = document.createElement('span');
       stBadge.className = 'badge event-detail-badge';
-      stBadge.style.backgroundColor = ticket.status_color || '#94A3B8';
+      stBadge.style.backgroundColor = ticket.status_color || 'var(--status-neutral-dot)';
       stBadge.textContent = stLabel;
       badgesEl.appendChild(stBadge);
     }
     if (ticket.priority) {
-      var priColors = { urgent: '#E11C2B', high: '#C1121F', medium: '#E11C2B', low: '#64748B' };
+      var priColors = { urgent: 'var(--crm-accent)', high: 'var(--crm-primary)', medium: 'var(--crm-accent)', low: 'var(--status-neutral-dot)' };
       var prBadge = document.createElement('span');
       prBadge.className = 'badge event-detail-badge';
-      prBadge.style.backgroundColor = priColors[ticket.priority] || '#64748B';
+      prBadge.style.backgroundColor = priColors[ticket.priority] || 'var(--status-neutral-dot)';
       prBadge.textContent = ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1);
       badgesEl.appendChild(prBadge);
     }
@@ -656,12 +656,12 @@
     var colColor = column.color || (function() {
       var styles = getComputedStyle(document.documentElement);
       var name = (column.name || '').toLowerCase();
-      if (/(resolv|complet|done|won)/.test(name))         return styles.getPropertyValue('--status-success-dot').trim() || '#22C55E';
-      if (/(open|new|todo|to.?do|backlog)/.test(name))    return styles.getPropertyValue('--status-info-dot').trim()    || '#3B82F6';
+      if (/(resolv|complet|done|won)/.test(name))         return styles.getPropertyValue('--status-success-dot').trim() || 'var(--status-success-dot)';
+      if (/(open|new|todo|to.?do|backlog)/.test(name))    return styles.getPropertyValue('--status-info-dot').trim()    || 'var(--status-info-dot)';
       if (/(progress|pending|review|on.?hold|wait)/.test(name))
-                                                          return styles.getPropertyValue('--status-warning-dot').trim() || '#F59E0B';
+                                                          return styles.getPropertyValue('--status-warning-dot').trim() || 'var(--status-warning-dot)';
       if (/(urgent|blocked|escalat|breach|critical|fail|lost)/.test(name))
-                                                          return styles.getPropertyValue('--status-danger-dot').trim()  || '#C1121F';
+                                                          return styles.getPropertyValue('--status-danger-dot').trim()  || 'var(--crm-primary)';
       return styles.getPropertyValue('--status-neutral-dot').trim() || '#6B7280';
     })();
 
