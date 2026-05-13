@@ -199,13 +199,18 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
             <div class="invalid-feedback" id="priorityError"></div>
           </div>
           <div class="col-md-4">
-            <label for="ticketQueue" class="ct-label">
-              Queue <span class="text-danger">*</span>
-            </label>
-            <select id="ticketQueue" name="queue" class="form-select ct-select" required>
-              <option value="">Select a queue...</option>
+            <label for="ticketCategory" class="ct-label">Category</label>
+            <select id="ticketCategory" name="category" class="form-select ct-select">
+              <option value="">No category</option>
             </select>
-            <div class="invalid-feedback" id="queueError"></div>
+            <div class="invalid-feedback" id="categoryError"></div>
+          </div>
+          <div class="col-md-4">
+            <label for="ticketStatus" class="ct-label">Status</label>
+            <select id="ticketStatus" name="status" class="form-select ct-select">
+              <option value="">Loading...</option>
+            </select>
+            <div class="invalid-feedback" id="statusError"></div>
           </div>
           <div class="col-md-4">
             <label for="ticketAssignee" class="ct-label">Assignee</label>
@@ -220,11 +225,13 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
             <div class="invalid-feedback" id="due_dateError"></div>
           </div>
           <div class="col-md-4">
-            <label for="ticketCategory" class="ct-label">Category</label>
-            <select id="ticketCategory" name="category" class="form-select ct-select">
-              <option value="">No category</option>
+            <label for="ticketQueue" class="ct-label">
+              Subcategory <span class="text-danger">*</span>
+            </label>
+            <select id="ticketQueue" name="queue" class="form-select ct-select" required>
+              <option value="">Select a subcategory...</option>
             </select>
-            <div class="invalid-feedback" id="categoryError"></div>
+            <div class="invalid-feedback" id="queueError"></div>
           </div>
           <div class="col-md-4">
             <label for="ticketContact" class="ct-label">Contact</label>
@@ -246,8 +253,14 @@ span.flatpickr-weekday { color: #9CA3AF !important; font-weight: 600 !important;
         <div class="ct-section-header">
           <div class="ct-section-icon ct-section-icon--slate"><i class="ti ti-align-left" aria-hidden="true"></i></div>
           <span class="ct-section-title">Description</span>
+          <button type="button" id="cannedResponseBtn" class="btn btn-sm btn-outline-secondary ms-auto" title="Insert canned response">
+            <i class="ti ti-message-chatbot me-1" aria-hidden="true"></i>Canned response
+          </button>
         </div>
-        <div id="ticketDescriptionEditor"></div>
+        <div class="position-relative">
+          <div id="cannedPickerDropdown" class="canned-picker-dropdown d-none"></div>
+          <div id="ticketDescriptionEditor"></div>
+        </div>
         <div class="invalid-feedback" id="descriptionError"></div>
       </div>
 
@@ -400,6 +413,28 @@ window.dispatchEvent(new Event('tiptap-ready'));
     if (currentUserId) s.value = currentUserId;
   }).catch(function(e) { console.error('Error:', e); });
   Api.get('/api/v1/tickets/ticket-categories/').then(function(data) { var s = document.getElementById('ticketCategory'); (data.results || data).forEach(function(c) { var o = document.createElement('option'); o.value = c.id; o.textContent = c.name; s.appendChild(o); }); }).catch(function(e) { console.error('Error:', e); });
+  Api.get('/api/v1/tickets/ticket-statuses/').then(function(data) {
+    var s = document.getElementById('ticketStatus');
+    var statuses = (data.results || data).slice().sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+    s.textContent = '';
+    var defaultId = '';
+    statuses.forEach(function(st) {
+      var o = document.createElement('option');
+      o.value = st.id;
+      o.textContent = st.name + (st.is_closed ? ' (Closed)' : '');
+      if (st.is_default) defaultId = st.id;
+      s.appendChild(o);
+    });
+    if (defaultId) s.value = defaultId;
+  }).catch(function(e) {
+    console.error('Error:', e);
+    var s = document.getElementById('ticketStatus');
+    s.textContent = '';
+    var o = document.createElement('option');
+    o.value = '';
+    o.textContent = 'Default';
+    s.appendChild(o);
+  });
 
   // --- Flatpickr date picker ---
   var dueDatePicker = flatpickr('#ticketDueDate', {
@@ -515,6 +550,113 @@ window.dispatchEvent(new Event('tiptap-ready'));
     });
   }
 
+  // --- Canned response picker ---
+  (function() {
+    var dropdown = document.getElementById('cannedPickerDropdown');
+    var toggleBtn = document.getElementById('cannedResponseBtn');
+    if (!dropdown || !toggleBtn) return;
+    var allCanned = [];
+    var selectedIdx = -1;
+    var visible = false;
+    var agentName = '{{ request.user.get_full_name|escapejs }}'.trim();
+    var agentFirst = '{{ request.user.first_name|escapejs }}';
+    var agentEmail = '{{ request.user.email|escapejs }}';
+
+    function show() { dropdown.classList.remove('d-none'); dropdown.style.display = 'block'; visible = true; }
+    function hide() { dropdown.classList.add('d-none'); dropdown.style.display = ''; visible = false; selectedIdx = -1; }
+
+    function fetchCanned() {
+      return Api.get('/api/v1/tickets/canned-responses/').then(function(data) {
+        allCanned = data.results || data;
+      }).catch(function() { allCanned = []; });
+    }
+
+    function renderDropdown(items) {
+      dropdown.textContent = '';
+      if (!items || !items.length) {
+        var empty = document.createElement('div');
+        empty.className = 'canned-picker-item';
+        empty.style.textAlign = 'center';
+        empty.style.color = 'var(--crm-text-muted)';
+        empty.style.cursor = 'default';
+        empty.textContent = 'No canned responses yet. Create one in Settings.';
+        dropdown.appendChild(empty);
+        show();
+        return;
+      }
+      items.forEach(function(cr, idx) {
+        var el = document.createElement('div');
+        el.className = 'canned-picker-item' + (idx === selectedIdx ? ' active' : '');
+        var titleDiv = document.createElement('div');
+        titleDiv.className = 'canned-picker-title';
+        titleDiv.textContent = cr.title;
+        if (cr.shortcut) {
+          var code = document.createElement('code');
+          code.textContent = ' ' + cr.shortcut;
+          titleDiv.appendChild(code);
+        }
+        var previewDiv = document.createElement('div');
+        previewDiv.className = 'canned-picker-preview';
+        previewDiv.textContent = (cr.content || '').replace(/<[^>]+>/g, '').substring(0, 80);
+        el.appendChild(titleDiv);
+        el.appendChild(previewDiv);
+        el.addEventListener('click', function() { selectCanned(cr); });
+        el.addEventListener('mouseenter', function() { selectedIdx = idx; highlight(); });
+        dropdown.appendChild(el);
+      });
+      show();
+    }
+
+    function highlight() {
+      dropdown.querySelectorAll('.canned-picker-item').forEach(function(el, i) {
+        el.classList.toggle('active', i === selectedIdx);
+      });
+    }
+
+    function renderContent(content) {
+      var subject = document.getElementById('ticketSubject').value || '';
+      var contactSelect = document.getElementById('ticketContact');
+      var contactName = '';
+      if (contactSelect && contactSelect.selectedIndex > 0) {
+        contactName = contactSelect.options[contactSelect.selectedIndex].text || '';
+      }
+      content = content.replace(/\{\{ticket\.number\}\}/g, '');
+      content = content.replace(/\{\{ticket\.subject\}\}/g, subject);
+      content = content.replace(/\{\{contact\.name\}\}/g, contactName);
+      content = content.replace(/\{\{contact\.first_name\}\}/g, contactName.split(' ')[0] || '');
+      content = content.replace(/\{\{contact\.email\}\}/g, '');
+      content = content.replace(/\{\{agent\.name\}\}/g, agentName);
+      content = content.replace(/\{\{agent\.first_name\}\}/g, agentFirst);
+      content = content.replace(/\{\{agent\.email\}\}/g, agentEmail);
+      return content;
+    }
+
+    function selectCanned(cr) {
+      hide();
+      if (!descEditor) return;
+      var content = renderContent(cr.content || '');
+      var inner = descEditor.editor || descEditor;
+      if (inner && inner.commands) {
+        inner.chain().focus().insertContent(content).run();
+      } else if (descEditor.setContent) {
+        descEditor.setContent(content);
+      }
+      Toast.info('Canned response inserted');
+    }
+
+    toggleBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (visible) { hide(); return; }
+      fetchCanned().then(function() { selectedIdx = -1; renderDropdown(allCanned); });
+    });
+
+    document.addEventListener('click', function(e) {
+      if (visible && !dropdown.contains(e.target) && e.target !== toggleBtn && !toggleBtn.contains(e.target)) {
+        hide();
+      }
+    });
+  })();
+
   // --- Form helpers ---
   function clearErrors() { document.querySelectorAll('.is-invalid').forEach(function(f) { f.classList.remove('is-invalid'); }); document.querySelectorAll('.invalid-feedback').forEach(function(fb) { fb.textContent = ''; }); var a = document.getElementById('formAlert'); a.classList.add('d-none'); a.classList.remove('alert-danger', 'alert-success'); }
   function showFieldError(name, msg) { var i = document.querySelector('[name="' + name + '"]'); if (i) i.classList.add('is-invalid'); var e = document.getElementById(name + 'Error'); if (e) e.textContent = msg; }
@@ -526,17 +668,19 @@ window.dispatchEvent(new Event('tiptap-ready'));
     e.preventDefault(); clearErrors();
     var subject = document.getElementById('ticketSubject').value.trim(), desc = descEditor ? descEditor.getHTML() : '', priority = document.getElementById('ticketPriority').value, queue = document.getElementById('ticketQueue').value, contact = document.getElementById('ticketContact').value;
     var assignee = document.getElementById('ticketAssignee').value, dueDate = dueDatePicker.selectedDates.length ? dueDatePicker.selectedDates[0].toISOString() : '';
+    var status = document.getElementById('ticketStatus').value;
     var categorySelect = document.getElementById('ticketCategory');
     var category = categorySelect.selectedIndex > 0 ? categorySelect.options[categorySelect.selectedIndex].text : '';
     var valid = true;
     if (!subject) { showFieldError('subject', 'Subject is required.'); valid = false; }
-    if (!queue) { showFieldError('queue', 'Please select a queue.'); valid = false; }
+    if (!queue) { showFieldError('queue', 'Please select a subcategory.'); valid = false; }
     if (dueDate && dueDatePicker.selectedDates[0].getTime() < Date.now()) {
       showFieldError('due_date', 'Due date must be in the future.');
       valid = false;
     }
     if (!valid) return;
     var payload = { subject: subject, description: desc, priority: priority, queue: queue };
+    if (status) payload.status = status;
     if (contact) payload.contact = contact;
     if (assignee) payload.assignee = assignee;
     if (dueDate) payload.due_date = dueDate;

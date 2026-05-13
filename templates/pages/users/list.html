@@ -243,22 +243,33 @@
     });
   }
 
-  function getStatusDotClass(status) {
-    switch (status) {
-      case 'online': return 'status-dot-active';
-      case 'away': return 'status-dot-away';
-      case 'busy': return 'status-dot-busy';
-      default: return 'status-dot-inactive';
-    }
-  }
+  var BUILTIN_STATUS_DOT_CLASSES = {
+    online: 'status-dot-active',
+    away: 'status-dot-away',
+    busy: 'status-dot-busy',
+    offline: 'status-dot-inactive',
+    deactivated: 'status-dot-inactive'
+  };
+  var BUILTIN_STATUS_LABELS = {
+    online: 'Online', away: 'Away', busy: 'Busy',
+    offline: 'Offline', deactivated: 'Deactivated'
+  };
 
-  function getStatusLabel(status) {
-    switch (status) {
-      case 'online': return 'Online';
-      case 'away': return 'Away';
-      case 'busy': return 'Busy';
-      default: return 'Offline';
+  // Build the status cell markup for the user row, honoring custom statuses.
+  // All dynamic values pass through escapeHtml so the surrounding innerHTML
+  // assignment stays safe.
+  function renderStatusCell(row) {
+    var slug = (row && row.status) || 'offline';
+    var label = (row && row.status_display) || BUILTIN_STATUS_LABELS[slug] || 'Offline';
+    var customHex = row && row.custom_status && row.custom_status.color_hex;
+    var dot;
+    if (customHex) {
+      dot = '<span class="status-dot" style="background:' + escapeHtml(customHex) + ';box-shadow:none;"></span>';
+    } else {
+      var cls = BUILTIN_STATUS_DOT_CLASSES[slug] || 'status-dot-inactive';
+      dot = '<span class="status-dot ' + cls + '"></span>';
     }
+    return '<span class="status-indicator">' + dot + escapeHtml(label) + '</span>';
   }
 
   function loadUsers() {
@@ -267,9 +278,9 @@
       Api.get('/api/v1/agents/agents/all-members/').catch(function() { return []; })
     ]).then(function(results) {
       var data = results[0], agentData = results[1];
-      var agentStatusMap = {};
+      var agentRowMap = {};
       (Array.isArray(agentData) ? agentData : (agentData.results || [])).forEach(function(a) {
-        agentStatusMap[a.user_id] = a.status || 'offline';
+        agentRowMap[a.user_id] = a;
       });
 
       var users = data.results || data, tbody = document.getElementById('usersTableBody');
@@ -286,12 +297,12 @@
         var fn = ((u.first_name || '') + ' ' + (u.last_name || '')).trim() || 'No Name';
         var m = membershipMap[u.id], rn = m && m.role_detail ? m.role_detail.name : 'No Role', mid = m ? m.id : '';
         var bgColor = avatarColor(fn);
-        var agentStatus = agentStatusMap[u.id] || 'offline';
+        var agentRow = agentRowMap[u.id];
         html += '<tr>' +
           '<td class="ps-3"><div class="d-flex align-items-center gap-2"><div class="user-avatar" style="background:' + bgColor + ';">' + getInitials(fn) + '</div><div class="fw-medium">' + escapeHtml(fn) + '</div></div></td>' +
           '<td class="text-muted small">' + escapeHtml(u.email) + '</td>' +
           '<td><span class="badge ' + getRoleBadgeClass(rn) + '">' + escapeHtml(rn) + '</span></td>' +
-          '<td><span class="status-indicator"><span class="status-dot ' + getStatusDotClass(agentStatus) + '"></span>' + getStatusLabel(agentStatus) + '</span></td>' +
+          '<td>' + renderStatusCell(agentRow) + '</td>' +
           '<td class="text-muted small pe-3">' + formatDate(u.date_joined) + '</td>' +
           '</tr>';
       });

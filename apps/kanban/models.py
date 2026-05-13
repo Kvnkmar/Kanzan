@@ -35,6 +35,13 @@ class Board(TenantScopedModel):
         default=False,
         help_text="Whether this is the default board for its resource type.",
     )
+    is_personal = models.BooleanField(
+        default=False,
+        help_text=(
+            "Personal boards are visible only to their creator and do not "
+            "sync card movements back to ticket status."
+        ),
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

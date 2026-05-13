@@ -17,7 +17,6 @@ Nav item → key mapping:
 
 import logging
 
-from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q, Count
 from django.utils import timezone
 from rest_framework.permissions import IsAuthenticated
@@ -121,33 +120,36 @@ class BadgeCountView(APIView):
     @staticmethod
     def _message_count(tenant, user):
         """
-        Unread comments on tickets assigned to the user.
+        Unread chat messages across conversations the user participates in.
 
-        Unread = no CommentRead row for (comment, user),
-        excluding internal notes and the user's own comments.
+        Unread = ``created_at > participant.last_read_at`` (or the user has
+        never opened the conversation). Excludes the user's own messages.
+        Scopes by conversation tenant so cross-tenant chats never bleed
+        into another workspace's badge.
         """
-        from apps.comments.models import Comment, CommentRead
-        from apps.tickets.models import Ticket
+        from apps.messaging.models import ConversationParticipant, Message
 
-        ticket_ct = ContentType.objects.get_for_model(Ticket)
+        participations = list(
+            ConversationParticipant.objects.filter(
+                user=user,
+                conversation__tenant=tenant,
+            ).values("conversation_id", "last_read_at")
+        )
+        if not participations:
+            return 0
 
-        assigned_ticket_ids = Ticket.unscoped.filter(
-            tenant=tenant, assignee=user,
-        ).values_list("pk", flat=True)
-
-        read_comment_ids = CommentRead.objects.filter(
-            user=user,
-        ).values_list("comment_id", flat=True)
+        # Build one ORed predicate over every (conversation, last_read_at)
+        # pair so the whole count is a single DB roundtrip instead of N+1.
+        cond = Q()
+        for p in participations:
+            per = Q(conversation_id=p["conversation_id"])
+            if p["last_read_at"]:
+                per &= Q(created_at__gt=p["last_read_at"])
+            cond |= per
 
         return (
-            Comment.unscoped.filter(
-                tenant=tenant,
-                content_type=ticket_ct,
-                object_id__in=assigned_ticket_ids,
-                is_internal=False,
-            )
+            Message.unscoped.filter(cond)
             .exclude(author=user)
-            .exclude(pk__in=read_comment_ids)
             .count()
         )
 

@@ -2,6 +2,7 @@
 
 from rest_framework import serializers
 
+from apps.accounts.models import UserGroup
 from apps.knowledge.models import Article, Category
 
 
@@ -37,6 +38,8 @@ class ArticleListSerializer(serializers.ModelSerializer):
     )
     author_name = serializers.SerializerMethodField()
     reviewer_name = serializers.SerializerMethodField()
+    allowed_groups = serializers.SerializerMethodField()
+    allowed_group_names = serializers.SerializerMethodField()
 
     class Meta:
         model = Article
@@ -56,6 +59,8 @@ class ArticleListSerializer(serializers.ModelSerializer):
             "tags",
             "file",
             "file_name",
+            "allowed_groups",
+            "allowed_group_names",
             "published_at",
             "submitted_at",
             "reviewed_at",
@@ -78,6 +83,12 @@ class ArticleListSerializer(serializers.ModelSerializer):
             return name or obj.reviewer.email
         return None
 
+    def get_allowed_groups(self, obj):
+        return [str(g.id) for g in obj.allowed_groups.all()]
+
+    def get_allowed_group_names(self, obj):
+        return [g.name for g in obj.allowed_groups.all()]
+
 
 class ArticleDetailSerializer(ArticleListSerializer):
     category_detail = CategorySerializer(source="category", read_only=True)
@@ -91,6 +102,25 @@ class ArticleCreateSerializer(serializers.ModelSerializer):
         child=serializers.CharField(), required=False, default=list
     )
     is_pinned = serializers.BooleanField(required=False, default=False)
+    allowed_groups = serializers.PrimaryKeyRelatedField(
+        many=True,
+        queryset=UserGroup.objects.none(),
+        required=False,
+        help_text=(
+            "List of UserGroup IDs allowed to view this article. "
+            "Empty list = visible to all tenant members. The current "
+            "tenant's groups are the only valid choices."
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None) if request else None
+        if tenant:
+            self.fields["allowed_groups"].child_relation.queryset = (
+                UserGroup.objects.filter(tenant=tenant)
+            )
 
     class Meta:
         model = Article
@@ -106,6 +136,7 @@ class ArticleCreateSerializer(serializers.ModelSerializer):
             "tags",
             "file",
             "file_name",
+            "allowed_groups",
             "author",
             "view_count",
             "published_at",

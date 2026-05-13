@@ -161,9 +161,13 @@ class HasTenantPermission(BasePermission):
 
         effective_role = membership.effective_role
 
-        # Check explicit permissions first
-        if effective_role.permissions.exists():
-            return effective_role.has_permission(codename)
+        # Check explicit permissions first. When a temporary role is active
+        # with a curated `temporary_permissions` allow-list, this returns the
+        # intersection of role perms and the allow-list — the admin-restricted
+        # subset.
+        effective_perms = membership.get_effective_permissions_qs()
+        if effective_perms.exists():
+            return membership.has_effective_permission(codename)
 
         # Fallback: hierarchy-based defaults when no permissions are assigned
         level = effective_role.hierarchy_level

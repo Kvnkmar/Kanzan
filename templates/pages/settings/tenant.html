@@ -46,7 +46,12 @@
         <div class="st-nav-text"><span class="st-nav-name">Workspace</span></div>
       </a>
       {% endif %}
-      {# Team tab hidden — feature pending #}
+      {% if is_admin_or_manager %}
+      <a href="javascript:void(0)" class="st-nav-item st-nav-cat" data-category="team" onclick="settingsHub.scrollToCategory('team')">
+        <div class="st-nav-icon"><i class="ti ti-users-group"></i></div>
+        <div class="st-nav-text"><span class="st-nav-name">Team</span></div>
+      </a>
+      {% endif %}
       <a href="javascript:void(0)" class="st-nav-item st-nav-cat" data-category="channels" onclick="settingsHub.scrollToCategory('channels')">
         <div class="st-nav-icon"><i class="ti ti-send"></i></div>
         <div class="st-nav-text"><span class="st-nav-name">Channels</span></div>
@@ -130,7 +135,41 @@
       </div>
       {% endif %}
 
-      {# Team category hidden — feature pending #}
+      {% if is_admin_or_manager %}
+      <!-- Team -->
+      <div class="st-hub-category" data-cat="team">
+        <div class="st-hub-category-header">
+          <h3 class="st-hub-category-title">Team</h3>
+          <span class="st-hub-badge"><i class="ti ti-shield-lock"></i> Admin</span>
+        </div>
+        <div class="st-hub-cards">
+          <a href="/users/" class="st-hub-card" data-search="users members invite role permission rbac team manage user">
+            <div class="st-hub-card-icon"><i class="ti ti-user-cog"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Users</div>
+              <div class="st-hub-card-desc">Manage workspace members, roles, and invitations</div>
+            </div>
+            <i class="ti ti-external-link st-hub-card-ext"></i>
+          </a>
+          <a href="/agents/" class="st-hub-card" data-search="agents availability workload status capacity team lead tl temporary role">
+            <div class="st-hub-card-icon"><i class="ti ti-users"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Agents</div>
+              <div class="st-hub-card-desc">View availability, workload, and grant temporary roles</div>
+            </div>
+            <i class="ti ti-external-link st-hub-card-ext"></i>
+          </a>
+          <a href="/groups/" class="st-hub-card" data-search="groups group team department squad organisation members user">
+            <div class="st-hub-card-icon"><i class="ti ti-users-group"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Groups</div>
+              <div class="st-hub-card-desc">Create groups and organise team members</div>
+            </div>
+            <i class="ti ti-external-link st-hub-card-ext"></i>
+          </a>
+        </div>
+      </div>
+      {% endif %}
 
       <!-- Channels -->
       <div class="st-hub-category" data-cat="channels">
@@ -191,6 +230,13 @@
             <div class="st-hub-card-body">
               <div class="st-hub-card-title">Workflow</div>
               <div class="st-hub-card-desc">Assignment behaviour and status transition rules</div>
+            </div>
+          </a>
+          <a href="javascript:void(0)" class="st-hub-card" data-pane="customStatusesPane" data-search="custom agent status dropdown availability in meeting lunch on call team lead tl">
+            <div class="st-hub-card-icon"><i class="ti ti-circle-dot"></i></div>
+            <div class="st-hub-card-body">
+              <div class="st-hub-card-title">Custom Statuses</div>
+              <div class="st-hub-card-desc">Curate the agent availability dropdown beyond Online/Away/Busy/Offline</div>
             </div>
           </a>
           {% endif %}
@@ -1129,6 +1175,73 @@
         </div>
       </div>
 
+      <!-- Custom Agent Statuses (Admin + Manager only) -->
+      <div class="settings-pane" id="customStatusesPane" style="display:none">
+        <div class="st-section">
+          <div class="st-section-header">
+            <div class="st-section-icon"><i class="ti ti-circle-dot"></i></div>
+            <div class="flex-grow-1">
+              <h3 class="st-section-title">Custom Statuses</h3>
+              <p class="st-section-desc">Add custom availability statuses (e.g. <em>In Meeting</em>, <em>Lunch</em>, <em>On Call</em>) that everyone in this workspace can pick from the navbar dropdown.</p>
+            </div>
+            <button type="button" class="btn btn-sm btn-primary" id="addCustomStatusBtn"><i class="ti ti-plus me-1"></i>Add Status</button>
+          </div>
+          <div id="customStatusesLoading" class="text-center py-4"><div class="spinner-border spinner-border-sm text-muted" role="status"></div></div>
+          <div id="customStatusesList"></div>
+          <div id="customStatusesEmpty" class="st-empty-state d-none">
+            <i class="ti ti-circle-dot"></i>
+            <p>No custom statuses yet. Click "Add Status" to create one.</p>
+          </div>
+        </div>
+        <div class="modal fade" id="customStatusModal" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h6 class="modal-title fw-semibold" id="customStatusModalTitle">Add Custom Status</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <form id="customStatusForm">
+                  <input type="hidden" id="customStatusEditId">
+                  <div class="mb-3">
+                    <label for="customStatusLabel" class="form-label">Label <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="customStatusLabel" placeholder="e.g. In Meeting" required maxlength="50">
+                  </div>
+                  <div class="mb-3">
+                    <label for="customStatusSlug" class="form-label">Slug</label>
+                    <input type="text" class="form-control" id="customStatusSlug" placeholder="auto-generated" maxlength="40">
+                    <div class="form-text">Stable identifier. Auto-generated from label if blank. Cannot be <code>online</code>, <code>away</code>, <code>busy</code>, or <code>offline</code>.</div>
+                  </div>
+                  <div class="mb-3">
+                    <label for="customStatusDescription" class="form-label">Description</label>
+                    <input type="text" class="form-control" id="customStatusDescription" placeholder="e.g. Back at 3pm" maxlength="100">
+                    <div class="form-text">Shown below the label in the dropdown.</div>
+                  </div>
+                  <div class="row g-3">
+                    <div class="col-7">
+                      <label class="form-label">Color</label>
+                      <div id="customStatusColorPalette" class="d-flex flex-wrap gap-2"></div>
+                    </div>
+                    <div class="col-5">
+                      <label for="customStatusOrder" class="form-label">Order</label>
+                      <input type="number" class="form-control" id="customStatusOrder" value="0" min="0">
+                    </div>
+                  </div>
+                  <div class="form-check form-switch mt-3">
+                    <input class="form-check-input" type="checkbox" id="customStatusActive" checked>
+                    <label class="form-check-label" for="customStatusActive">Active — agents can pick this status</label>
+                  </div>
+                </form>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary" id="saveCustomStatusBtn">Save</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {% endif %}
 
       <!-- Canned Responses -->
@@ -1489,7 +1602,7 @@ var _settingsPaneIds = [
   {% if is_admin_or_manager %}'workflowPane',{% endif %}
   'notificationsPane',
   'themePane', 'languagePane',
-  {% if is_admin_or_manager %}'categoriesPane', 'queuesPane',{% endif %}
+  {% if is_admin_or_manager %}'categoriesPane', 'queuesPane', 'customStatusesPane',{% endif %}
   'cannedResponsesPane',
   'knowledgeBasePane',
   'signaturePane', 'passwordPane'
@@ -1512,6 +1625,7 @@ var settingsHub = (function() {
     workflowPane: { title: 'Workflow', icon: 'ti-arrows-transfer-down', category: 'Support Operations' },
     categoriesPane: { title: 'Ticket Categories', icon: 'ti-tag', category: 'Support Operations' },
     queuesPane: { title: 'Queues', icon: 'ti-inbox', category: 'Support Operations' },
+    customStatusesPane: { title: 'Custom Statuses', icon: 'ti-circle-dot', category: 'Support Operations' },
     cannedResponsesPane: { title: 'Canned Responses', icon: 'ti-message-chatbot', category: 'Productivity' },
     knowledgeBasePane: { title: 'Knowledge Base', icon: 'ti-book', category: 'Support Operations' },
     signaturePane: { title: 'Email Signature', icon: 'ti-signature', category: 'Channels' },
@@ -1718,6 +1832,15 @@ var settingsHub = (function() {
     });
     renderRecent();
     initSearch();
+
+    // Deep-link: /settings/?pane=customStatusesPane jumps straight to a pane
+    try {
+      var params = new URLSearchParams(window.location.search);
+      var targetPane = params.get('pane');
+      if (targetPane && paneLabels[targetPane]) {
+        openPane(targetPane);
+      }
+    } catch (_) { /* ignore malformed URLs */ }
   }
 
   document.addEventListener('DOMContentLoaded', init);
@@ -1985,14 +2108,102 @@ function switchSettingsTab(targetId) {
     try { await Api.patch('/api/v1/tenants/settings/', payload); Toast.success('Authentication settings saved'); }
     catch (e) { Toast.error(e.detail || 'Failed to save auth settings'); } finally { sp.classList.add('d-none'); }
   }
+  // Derive the full --crm-primary*/--crm-accent* palette so the change
+  // applies everywhere without waiting for a page reload. The math mirrors
+  // ``apps/tenants/colors.derive_palette`` — keep them in sync if you tweak
+  // one side.
+  function _hexToRgb(hex) {
+    var h = (hex || '').replace('#', '');
+    return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+  }
+  function _rgbToHls(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    var max = Math.max(r, g, b), min = Math.min(r, g, b);
+    var h, s, l = (max + min) / 2;
+    if (max === min) { h = 0; s = 0; }
+    else {
+      var d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)); break;
+        case g: h = ((b - r) / d + 2); break;
+        case b: h = ((r - g) / d + 4); break;
+      }
+      h /= 6;
+    }
+    return [h, l, s];
+  }
+  function _hlsToHex(h, l, s) {
+    l = Math.max(0, Math.min(1, l)); s = Math.max(0, Math.min(1, s));
+    var r, g, b;
+    if (s === 0) { r = g = b = l; }
+    else {
+      var hue2rgb = function(p, q, t) {
+        if (t < 0) t += 1; if (t > 1) t -= 1;
+        if (t < 1/6) return p + (q - p) * 6 * t;
+        if (t < 1/2) return q;
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+      };
+      var q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+      var p = 2 * l - q;
+      r = hue2rgb(p, q, h + 1/3); g = hue2rgb(p, q, h); b = hue2rgb(p, q, h - 1/3);
+    }
+    var toHex = function(x) { var v = Math.round(x * 255).toString(16); return v.length === 1 ? '0' + v : v; };
+    return '#' + (toHex(r) + toHex(g) + toHex(b)).toUpperCase();
+  }
+  function derivePalette(primary, accent) {
+    var pRgb = _hexToRgb(primary);
+    var pHls = _rgbToHls(pRgb[0], pRgb[1], pRgb[2]);
+    var pH = pHls[0], pL = pHls[1], pS = pHls[2];
+    var aRgb = _hexToRgb(accent);
+    var shade = function(pct) { return _hlsToHex(pH, pct / 100, pS); };
+    return {
+      '--crm-primary': primary,
+      '--crm-primary-50': shade(97),
+      '--crm-primary-100': shade(92),
+      '--crm-primary-200': shade(84),
+      '--crm-primary-300': shade(74),
+      '--crm-primary-400': shade(58),
+      '--crm-primary-500': primary,
+      '--crm-primary-600': shade(Math.max(pL * 100 - 5, 32)),
+      '--crm-primary-700': shade(Math.max(pL * 100 - 12, 25)),
+      '--crm-primary-800': shade(Math.max(pL * 100 - 18, 18)),
+      '--crm-primary-900': shade(Math.max(pL * 100 - 24, 12)),
+      '--crm-primary-hover': shade(Math.min(pL * 100 + 6, 68)),
+      '--crm-primary-active': shade(Math.max(pL * 100 - 6, 14)),
+      '--crm-primary-dark': shade(Math.max(pL * 100 - 18, 10)),
+      '--crm-primary-light': 'rgba(' + pRgb.join(', ') + ', 0.10)',
+      '--crm-primary-subtle': 'rgba(' + pRgb.join(', ') + ', 0.06)',
+      '--crm-primary-ring': 'rgba(' + pRgb.join(', ') + ', 0.22)',
+      '--crm-primary-rgb': pRgb.join(', '),
+      '--crm-accent': accent,
+      '--crm-accent-500': accent,
+      '--crm-accent-hover': primary,
+      '--crm-accent-light': 'rgba(' + aRgb.join(', ') + ', 0.10)',
+      '--crm-accent-rgb': aRgb.join(', '),
+      '--bs-primary': primary,
+      '--bs-primary-rgb': pRgb.join(', '),
+      '--bs-link-color': primary,
+      '--bs-link-hover-color': shade(Math.min(pL * 100 + 6, 68)),
+      // Semantic reds retheme with the primary (kept in sync with base.html).
+      '--crm-priority-urgent': primary,
+      '--crm-priority-high': primary,
+      '--crm-danger': primary,
+      '--crm-chat-sent-bg': primary,
+      '--crm-focus-ring': 'rgba(' + pRgb.join(', ') + ', 0.28)',
+      '--crm-glow-primary': '0 0 0 1px rgba(' + pRgb.join(', ') + ', 0.24), 0 0 20px rgba(' + pRgb.join(', ') + ', 0.18)',
+      '--crm-gradient': 'linear-gradient(135deg, ' + primary + ' 0%, ' + accent + ' 100%)',
+      '--status-danger-text': primary,
+      '--status-danger-dot': primary,
+      '--status-danger-bg': 'rgba(' + pRgb.join(', ') + ', 0.08)',
+      '--status-danger-border': 'rgba(' + pRgb.join(', ') + ', 0.22)',
+    };
+  }
   function applyBrandColors(primary, accent) {
     var root = document.documentElement;
-    root.style.setProperty('--crm-primary', primary);
-    root.style.setProperty('--crm-primary-600', primary);
-    root.style.setProperty('--crm-primary-700', primary);
-    root.style.setProperty('--crm-primary-500', primary);
-    root.style.setProperty('--crm-accent', accent);
-    root.style.setProperty('--crm-accent-500', accent);
+    var palette = derivePalette(primary, accent);
+    Object.keys(palette).forEach(function(k) { root.style.setProperty(k, palette[k]); });
   }
   async function saveBranding(e) {
     e.preventDefault(); var sp = document.getElementById('brandingSpinner'); sp.classList.remove('d-none');
@@ -2542,6 +2753,251 @@ function switchSettingsTab(targetId) {
   window.switchSettingsTab = function(targetId) {
     origSwitchQ(targetId);
     if (targetId === 'queuesPane' && !queues.length) loadQueues();
+  };
+})();
+
+/* ─── Custom Agent Statuses ─────────────────────────────── */
+(function() {
+  'use strict';
+  var statuses = [];
+  var modal = null;
+  var selectedColor = 'blue';
+  var loaded = false;
+
+  var COLOR_PALETTE = [
+    { key: 'green',  hex: '#22C55E' },
+    { key: 'yellow', hex: '#F59E0B' },
+    { key: 'red',    hex: '#EF4444' },
+    { key: 'blue',   hex: '#3B82F6' },
+    { key: 'purple', hex: '#8B5CF6' },
+    { key: 'orange', hex: '#F97316' },
+    { key: 'pink',   hex: '#EC4899' },
+    { key: 'gray',   hex: '#6B7280' }
+  ];
+
+  function slugify(str) {
+    return (str || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
+  }
+
+  function renderPalette() {
+    var palette = document.getElementById('customStatusColorPalette');
+    if (!palette) return;
+    palette.textContent = '';
+    COLOR_PALETTE.forEach(function(c) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'cs-color-swatch';
+      btn.dataset.color = c.key;
+      btn.title = c.key.charAt(0).toUpperCase() + c.key.slice(1);
+      btn.style.cssText = 'width:28px;height:28px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:' + c.hex + ';padding:0;';
+      btn.addEventListener('click', function() { selectColor(c.key); });
+      palette.appendChild(btn);
+    });
+    selectColor(selectedColor);
+  }
+
+  function selectColor(key) {
+    selectedColor = key;
+    var palette = document.getElementById('customStatusColorPalette');
+    if (!palette) return;
+    palette.querySelectorAll('.cs-color-swatch').forEach(function(b) {
+      b.style.borderColor = (b.dataset.color === key) ? 'var(--crm-text)' : 'transparent';
+      b.style.transform = (b.dataset.color === key) ? 'scale(1.1)' : 'scale(1)';
+    });
+  }
+
+  async function loadStatuses() {
+    try {
+      var data = await Api.get('/api/v1/agents/custom-statuses/?all=true');
+      statuses = data.results || data || [];
+      render();
+    } catch(e) {
+      console.error('Error loading custom statuses:', e);
+    } finally {
+      var loading = document.getElementById('customStatusesLoading');
+      if (loading) loading.classList.add('d-none');
+      loaded = true;
+    }
+  }
+
+  function render() {
+    var list = document.getElementById('customStatusesList');
+    var empty = document.getElementById('customStatusesEmpty');
+    if (!list) return;
+    list.textContent = '';
+    if (!statuses.length) { empty.classList.remove('d-none'); return; }
+    empty.classList.add('d-none');
+
+    statuses.forEach(function(s) {
+      var row = document.createElement('div');
+      row.className = 'd-flex align-items-center gap-3 py-2 px-2 rounded mb-1';
+      row.style.cssText = 'border:1px solid var(--crm-border-light);transition:background 0.1s;';
+      row.addEventListener('mouseenter', function() { this.style.background = 'var(--crm-bg)'; });
+      row.addEventListener('mouseleave', function() { this.style.background = 'transparent'; });
+
+      var info = document.createElement('div');
+      info.className = 'd-flex align-items-center gap-2 flex-grow-1';
+
+      var dot = document.createElement('span');
+      dot.style.cssText = 'width:12px;height:12px;border-radius:50%;flex-shrink:0;background:' + (s.color_hex || '#3B82F6');
+      info.appendChild(dot);
+
+      var labelWrap = document.createElement('div');
+      labelWrap.className = 'd-flex flex-column';
+      var nameSpan = document.createElement('span');
+      nameSpan.className = 'fw-medium';
+      nameSpan.style.fontSize = '0.875rem';
+      nameSpan.textContent = s.label;
+      labelWrap.appendChild(nameSpan);
+      if (s.description) {
+        var descSpan = document.createElement('span');
+        descSpan.className = 'text-muted';
+        descSpan.style.fontSize = '0.75rem';
+        descSpan.textContent = s.description;
+        labelWrap.appendChild(descSpan);
+      }
+      info.appendChild(labelWrap);
+
+      var slugSpan = document.createElement('span');
+      slugSpan.className = 'text-muted';
+      slugSpan.style.fontSize = '0.75rem';
+      slugSpan.textContent = '(' + s.slug + ')';
+      info.appendChild(slugSpan);
+
+      var badge = document.createElement('span');
+      badge.className = s.is_active ? 'badge bg-success-subtle text-success' : 'badge bg-secondary-subtle text-secondary';
+      badge.textContent = s.is_active ? 'Active' : 'Inactive';
+
+      var btns = document.createElement('div');
+      btns.className = 'd-flex gap-1';
+      var editBtn = document.createElement('button');
+      editBtn.className = 'btn btn-sm btn-outline-secondary py-0 px-2';
+      editBtn.style.fontSize = '0.75rem';
+      editBtn.dataset.id = s.id;
+      var editIcon = document.createElement('i');
+      editIcon.className = 'ti ti-pencil';
+      editBtn.appendChild(editIcon);
+      editBtn.addEventListener('click', function() { openEdit(this.dataset.id); });
+      var delBtn = document.createElement('button');
+      delBtn.className = 'btn btn-sm btn-outline-danger py-0 px-2';
+      delBtn.style.fontSize = '0.75rem';
+      delBtn.dataset.id = s.id;
+      delBtn.dataset.label = s.label;
+      var delIcon = document.createElement('i');
+      delIcon.className = 'ti ti-trash';
+      delBtn.appendChild(delIcon);
+      delBtn.addEventListener('click', function() { remove(this.dataset.id, this.dataset.label); });
+      btns.appendChild(editBtn);
+      btns.appendChild(delBtn);
+
+      row.appendChild(info);
+      row.appendChild(badge);
+      row.appendChild(btns);
+      list.appendChild(row);
+    });
+  }
+
+  function openAdd() {
+    document.getElementById('customStatusModalTitle').textContent = 'Add Custom Status';
+    document.getElementById('customStatusEditId').value = '';
+    document.getElementById('customStatusLabel').value = '';
+    document.getElementById('customStatusSlug').value = '';
+    document.getElementById('customStatusDescription').value = '';
+    document.getElementById('customStatusOrder').value = statuses.length;
+    document.getElementById('customStatusActive').checked = true;
+    selectColor('blue');
+    if (!modal) modal = new bootstrap.Modal(document.getElementById('customStatusModal'));
+    modal.show();
+  }
+
+  function openEdit(id) {
+    var s = statuses.find(function(x) { return x.id === id; });
+    if (!s) return;
+    document.getElementById('customStatusModalTitle').textContent = 'Edit Custom Status';
+    document.getElementById('customStatusEditId').value = s.id;
+    document.getElementById('customStatusLabel').value = s.label;
+    document.getElementById('customStatusSlug').value = s.slug;
+    document.getElementById('customStatusDescription').value = s.description || '';
+    document.getElementById('customStatusOrder').value = s.order;
+    document.getElementById('customStatusActive').checked = !!s.is_active;
+    selectColor(s.color || 'blue');
+    if (!modal) modal = new bootstrap.Modal(document.getElementById('customStatusModal'));
+    modal.show();
+  }
+
+  async function save() {
+    var label = document.getElementById('customStatusLabel').value.trim();
+    if (!label) { Toast.error('Label is required'); return; }
+    var slug = document.getElementById('customStatusSlug').value.trim() || slugify(label);
+    var payload = {
+      label: label,
+      slug: slug,
+      description: document.getElementById('customStatusDescription').value.trim(),
+      color: selectedColor,
+      order: parseInt(document.getElementById('customStatusOrder').value) || 0,
+      is_active: document.getElementById('customStatusActive').checked
+    };
+    var editId = document.getElementById('customStatusEditId').value;
+    try {
+      if (editId) {
+        await Api.patch('/api/v1/agents/custom-statuses/' + editId + '/', payload);
+        Toast.success('Custom status updated');
+      } else {
+        await Api.post('/api/v1/agents/custom-statuses/', payload);
+        Toast.success('Custom status created');
+      }
+      modal.hide();
+      loadStatuses();
+    } catch(e) {
+      console.error('Custom status save failed:', e);
+      var msg = 'Failed to save custom status';
+      if (e && typeof e === 'object') {
+        if (e.detail) msg = String(e.detail);
+        else if (e.slug) msg = 'Slug: ' + (Array.isArray(e.slug) ? e.slug.join(' ') : e.slug);
+        else if (e.label) msg = 'Label: ' + (Array.isArray(e.label) ? e.label.join(' ') : e.label);
+        else if (e.color) msg = 'Color: ' + (Array.isArray(e.color) ? e.color.join(' ') : e.color);
+        else if (e.description) msg = 'Description: ' + (Array.isArray(e.description) ? e.description.join(' ') : e.description);
+        else if (e.non_field_errors) msg = (Array.isArray(e.non_field_errors) ? e.non_field_errors.join(' ') : e.non_field_errors);
+        else {
+          // Surface any other field error from DRF
+          var firstKey = Object.keys(e).find(function(k) { return k !== '_status'; });
+          if (firstKey) msg = firstKey + ': ' + (Array.isArray(e[firstKey]) ? e[firstKey].join(' ') : e[firstKey]);
+        }
+      }
+      Toast.error(msg);
+    }
+  }
+
+  async function remove(id, label) {
+    if (!confirm('Delete status "' + label + '"? Anyone currently using it will fall back to Offline.')) return;
+    try {
+      await Api.delete('/api/v1/agents/custom-statuses/' + id + '/');
+      Toast.success('Custom status deleted');
+      loadStatuses();
+    } catch(e) {
+      Toast.error('Failed to delete custom status');
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', function() {
+    var addBtn = document.getElementById('addCustomStatusBtn');
+    var saveBtn = document.getElementById('saveCustomStatusBtn');
+    var labelInput = document.getElementById('customStatusLabel');
+    if (!addBtn) return;  // pane not rendered (non-admin)
+    addBtn.addEventListener('click', openAdd);
+    saveBtn.addEventListener('click', save);
+    labelInput.addEventListener('input', function() {
+      if (!document.getElementById('customStatusEditId').value) {
+        document.getElementById('customStatusSlug').value = slugify(this.value);
+      }
+    });
+    renderPalette();
+  });
+
+  var origSwitchCS = window.switchSettingsTab;
+  window.switchSettingsTab = function(targetId) {
+    origSwitchCS(targetId);
+    if (targetId === 'customStatusesPane' && !loaded) loadStatuses();
   };
 })();
 </script>

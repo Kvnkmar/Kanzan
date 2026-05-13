@@ -7,6 +7,7 @@ from apps.accounts.views import (
     ProfileViewSet,
     RoleViewSet,
     TenantMembershipViewSet,
+    UserGroupViewSet,
     UserViewSet,
 )
 
@@ -16,6 +17,7 @@ router.register(r"profiles", ProfileViewSet, basename="profile")
 router.register(r"roles", RoleViewSet, basename="role")
 router.register(r"invitations", InvitationViewSet, basename="invitation")
 router.register(r"memberships", TenantMembershipViewSet, basename="membership")
+router.register(r"groups", UserGroupViewSet, basename="group")
 
 # Auth routes are registered manually for cleaner URL structure
 auth_urlpatterns = [

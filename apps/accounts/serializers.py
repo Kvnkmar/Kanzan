@@ -10,6 +10,7 @@ from apps.accounts.models import (
     Profile,
     Role,
     TenantMembership,
+    UserGroup,
 )
 
 User = get_user_model()
@@ -246,6 +247,53 @@ class InvitationSerializer(serializers.ModelSerializer):
                 )
 
         return attrs
+
+
+# ---------------------------------------------------------------------------
+# UserGroup
+# ---------------------------------------------------------------------------
+
+
+class UserGroupSerializer(serializers.ModelSerializer):
+    members = UserSerializer(many=True, read_only=True)
+    member_ids = serializers.PrimaryKeyRelatedField(
+        queryset=User.objects.none(),
+        many=True,
+        write_only=True,
+        required=False,
+        source="members",
+    )
+    member_count = serializers.SerializerMethodField()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None) if request else None
+        if tenant:
+            member_ids = TenantMembership.objects.filter(
+                tenant=tenant, is_active=True
+            ).values_list("user_id", flat=True)
+            self.fields["member_ids"].child_relation.queryset = User.objects.filter(
+                id__in=member_ids
+            )
+
+    class Meta:
+        model = UserGroup
+        fields = [
+            "id",
+            "tenant",
+            "name",
+            "description",
+            "members",
+            "member_ids",
+            "member_count",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "tenant", "created_at", "updated_at"]
+
+    def get_member_count(self, obj):
+        return obj.members.count()
 
 
 # ---------------------------------------------------------------------------

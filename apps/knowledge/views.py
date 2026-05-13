@@ -61,7 +61,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
             return Article.objects.none()
-        qs = Article.objects.select_related("category", "author").all()
+        qs = (
+            Article.objects.select_related("category", "author")
+            .prefetch_related("allowed_groups")
+            .all()
+        )
         # Non-admin/manager users only see published articles (or their own drafts)
         user = self.request.user
         if not user.is_superuser:
@@ -69,8 +73,22 @@ class ArticleViewSet(viewsets.ModelViewSet):
 
             tenant = getattr(self.request, "tenant", None)
             membership = _get_membership(self.request, tenant) if tenant else None
-            if membership is None or membership.role.hierarchy_level > 20:
+            is_admin_or_manager = (
+                membership is not None and membership.role.hierarchy_level <= 20
+            )
+            if not is_admin_or_manager:
                 qs = qs.filter(Q(status="published") | Q(author=user))
+
+            # Group-restriction gate: only applies to non-admin/non-manager
+            # viewers, since admins/managers always have full visibility (they
+            # need to be able to review and moderate). The author also stays
+            # able to see their own restricted article so they can edit it.
+            if not is_admin_or_manager:
+                qs = qs.filter(
+                    Q(allowed_groups__isnull=True)
+                    | Q(allowed_groups__members=user)
+                    | Q(author=user)
+                ).distinct()
 
         # Filter by slug if provided
         slug = self.request.query_params.get("slug")
@@ -448,5 +466,6 @@ class KBSearchView(APIView):
             query_str=q,
             visibility_filter=AGENT_VISIBILITY,
             source=source,
+            user=request.user,
         )
         return Response(KBArticleSearchSerializer(results, many=True).data)

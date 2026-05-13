@@ -298,23 +298,25 @@ span.flatpickr-weekday {
 
     <div class="td-header">
       <div class="td-header-row">
+        <span class="td-number-pill td-number-pill--lg">#{{ ticket_number }}</span>
         <h1 class="td-subject" id="ticketSubject" contenteditable="true" spellcheck="false" role="textbox" aria-label="Ticket subject (click to edit)"></h1>
         <div class="td-header-actions">
+          {% comment %} Split ticket — hidden for now
           {% if is_admin_or_manager %}
           <button type="button" id="splitTicketBtn" class="td-btn-icon" title="Split ticket" aria-label="Split ticket into new ticket">
             <i class="ti ti-arrows-split-2" aria-hidden="true"></i>
           </button>
           {% endif %}
+          {% endcomment %}
           <button type="button" id="deleteTicketBtn" class="td-btn-icon td-btn-danger" title="Delete ticket" aria-label="Delete ticket">
             <i class="ti ti-trash" aria-hidden="true"></i>
           </button>
         </div>
       </div>
       <div class="td-meta">
-        <span class="td-number-pill">#{{ ticket_number }}</span>
         <span id="ticketPriorityBadge"></span>
         <span id="ticketStatusBadge" class="td-status-pill">
-          <span class="td-dot" id="statusDot"></span>
+          <span class="td-dot" id="ticketStatusDot"></span>
           <span id="ticketStatusText">--</span>
         </span>
         <span class="td-meta-divider" aria-hidden="true"></span>
@@ -340,10 +342,16 @@ span.flatpickr-weekday {
         </div>
         <div id="ticketDescriptionView" class="td-description text-muted">No description provided.</div>
         <div id="ticketDescriptionEdit" class="d-none">
-          <div id="ticketDescriptionInputEditor"></div>
-          <div class="d-flex gap-2 mt-2">
+          <div class="position-relative">
+            <div id="descCannedPickerDropdown" class="canned-picker-dropdown d-none"></div>
+            <div id="ticketDescriptionInputEditor"></div>
+          </div>
+          <div class="d-flex gap-2 mt-2 align-items-center">
             <button type="button" id="saveDescriptionBtn" class="td-post-btn td-post-btn--sm">Save</button>
             <button type="button" id="cancelDescriptionBtn" class="btn btn-sm btn-outline-secondary td-cancel-btn--sm">Cancel</button>
+            <button type="button" id="descCannedResponseBtn" class="btn btn-sm btn-outline-secondary ms-auto" title="Insert canned response">
+              <i class="ti ti-message-chatbot me-1" aria-hidden="true"></i>Canned response
+            </button>
           </div>
         </div>
       </div>
@@ -610,8 +618,14 @@ span.flatpickr-weekday {
           </select>
         </div>
         <div class="td-prop-row">
-          <label class="td-prop-row-label" for="ticketQueueSelect"><i class="ti ti-inbox td-prop-icon" aria-hidden="true"></i> Queue</label>
+          <label class="td-prop-row-label" for="ticketQueueSelect"><i class="ti ti-inbox td-prop-icon" aria-hidden="true"></i> Category</label>
           <select id="ticketQueueSelect" class="td-prop-select">
+            <option value="">None</option>
+          </select>
+        </div>
+        <div class="td-prop-row">
+          <label class="td-prop-row-label" for="ticketCategorySelect"><i class="ti ti-tag-filled td-prop-icon" aria-hidden="true"></i> Sub Category</label>
+          <select id="ticketCategorySelect" class="td-prop-select">
             <option value="">None</option>
           </select>
         </div>
@@ -688,12 +702,6 @@ span.flatpickr-weekday {
         <div class="td-sb-label">
           <div class="td-sb-icon td-sb-icon--slate"><i class="ti ti-info-circle" aria-hidden="true"></i></div>
           Details
-        </div>
-        <div class="td-prop-row">
-          <label class="td-prop-row-label" for="ticketCategorySelect"><i class="ti ti-tag-filled td-prop-icon" aria-hidden="true"></i> Category</label>
-          <select id="ticketCategorySelect" class="td-prop-select">
-            <option value="">None</option>
-          </select>
         </div>
         <div class="td-prop-row">
           <label class="td-prop-row-label" for="ticketCompanySelect"><i class="ti ti-building td-prop-icon" aria-hidden="true"></i> Company</label>
@@ -1024,7 +1032,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
     errorMessage: document.getElementById('ticketErrorMessage'),
     subject: document.getElementById('ticketSubject'),
     statusText: document.getElementById('ticketStatusText'),
-    statusDot: document.getElementById('statusDot'),
+    statusDot: document.getElementById('ticketStatusDot'),
     statusSelect: document.getElementById('ticketStatus'),
     priorityBadge: document.getElementById('ticketPriorityBadge'),
     prioritySelect: document.getElementById('ticketPrioritySelect'),
@@ -1070,6 +1078,16 @@ window.dispatchEvent(new Event('tiptap-ready'));
     emailCannedDropdown: document.getElementById('emailCannedPickerDropdown'),
     emailCannedToggleBtn: document.getElementById('emailCannedResponseBtn')
   };
+
+  /* Paint the status pill (background tint, border, dot) from the status's
+     own color so the badge visually reflects the workflow state. */
+  function applyStatusColor(color) {
+    var pill = document.getElementById('ticketStatusBadge');
+    if (!pill) return;
+    var safe = color || '#94A3B8';
+    pill.style.setProperty('--td-status-color', safe);
+    if (dom.statusDot) dom.statusDot.style.background = safe;
+  }
 
   /* ── Rich Text Editors ── */
   function initRichEditors() {
@@ -1157,7 +1175,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
             var statusObj = typeof ticket.status === 'object' ? ticket.status : null;
             if (statusObj) {
               dom.statusText.textContent = statusObj.name || '--';
-              dom.statusDot.style.background = statusObj.color || '#94A3B8';
+              applyStatusColor(statusObj.color || '#94A3B8');
             }
           }
           if (field === 'priority') {
@@ -1453,7 +1471,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
     }
     window._currentTicketStatus = statusId;
     dom.statusText.textContent = statusName;
-    dom.statusDot.style.background = statusColor;
+    applyStatusColor(statusColor);
     if (statusesLoaded && statusId) dom.statusSelect.value = statusId;
 
     var prLabel = ticket.priority ? ticket.priority.charAt(0).toUpperCase() + ticket.priority.slice(1) : 'None';
@@ -2217,6 +2235,120 @@ window.dispatchEvent(new Event('tiptap-ready'));
 
     document.addEventListener('click', function(e) {
       if (visible && !dom.cannedDropdown.contains(e.target) && e.target !== dom.cannedToggleBtn && !dom.cannedToggleBtn.contains(e.target)) {
+        hide();
+      }
+    });
+  })();
+
+  /* ── Canned Response Picker (Description editor) ── */
+  (function() {
+    var dropdown = document.getElementById('descCannedPickerDropdown');
+    var toggleBtn = document.getElementById('descCannedResponseBtn');
+    if (!dropdown || !toggleBtn) return;
+    var allCanned = [];
+    var selectedIdx = -1;
+    var visible = false;
+
+    function show() { dropdown.classList.remove('d-none'); dropdown.style.display = 'block'; visible = true; }
+    function hide() { dropdown.classList.add('d-none'); dropdown.style.display = ''; visible = false; selectedIdx = -1; }
+
+    function fetchCanned() {
+      return Api.get('/api/v1/tickets/canned-responses/').then(function(data) {
+        allCanned = data.results || data;
+      }).catch(function() { allCanned = []; });
+    }
+
+    function highlightItem() {
+      dropdown.querySelectorAll('.canned-picker-item').forEach(function(el, i) {
+        el.classList.toggle('active', i === selectedIdx);
+      });
+    }
+
+    function renderDropdown(items) {
+      dropdown.textContent = '';
+      if (!items || !items.length) {
+        var empty = document.createElement('div');
+        empty.className = 'canned-picker-item';
+        empty.style.textAlign = 'center';
+        empty.style.color = 'var(--crm-text-muted)';
+        empty.style.cursor = 'default';
+        empty.textContent = 'No canned responses yet. Create one in Settings.';
+        dropdown.appendChild(empty);
+        show();
+        return;
+      }
+      items.forEach(function(cr, idx) {
+        var el = document.createElement('div');
+        el.className = 'canned-picker-item' + (idx === selectedIdx ? ' active' : '');
+        var titleDiv = document.createElement('div');
+        titleDiv.className = 'canned-picker-title';
+        titleDiv.textContent = cr.title;
+        if (cr.shortcut) {
+          var code = document.createElement('code');
+          code.textContent = ' ' + cr.shortcut;
+          titleDiv.appendChild(code);
+        }
+        var previewDiv = document.createElement('div');
+        previewDiv.className = 'canned-picker-preview';
+        previewDiv.textContent = (cr.content || '').replace(/<[^>]+>/g, '').substring(0, 80);
+        el.appendChild(titleDiv);
+        el.appendChild(previewDiv);
+        el.addEventListener('click', function() { selectCanned(cr); });
+        el.addEventListener('mouseenter', function() { selectedIdx = idx; highlightItem(); });
+        dropdown.appendChild(el);
+      });
+      show();
+    }
+
+    function renderContent(content) {
+      var contactName = dom.contactCard ? (dom.contactCard.querySelector('.fw-medium') || {}).textContent || '' : '';
+      content = content.replace(/\{\{ticket\.number\}\}/g, ticketNumber || '');
+      content = content.replace(/\{\{ticket\.subject\}\}/g, currentSubject || '');
+      content = content.replace(/\{\{contact\.name\}\}/g, contactName);
+      content = content.replace(/\{\{contact\.first_name\}\}/g, contactName.split(' ')[0] || '');
+      content = content.replace(/\{\{contact\.email\}\}/g, '');
+      content = content.replace(/\{\{agent\.name\}\}/g, '{{ request.user.get_full_name|escapejs }}');
+      content = content.replace(/\{\{agent\.first_name\}\}/g, '{{ request.user.first_name|escapejs }}');
+      content = content.replace(/\{\{agent\.email\}\}/g, '{{ request.user.email|escapejs }}');
+      return content;
+    }
+
+    function selectCanned(cr) {
+      hide();
+      if (!descriptionEditor) return;
+      var content = renderContent(cr.content || '');
+      var inner = descriptionEditor.editor || descriptionEditor;
+      if (inner && inner.commands) {
+        inner.chain().focus().insertContent(content).run();
+      } else if (descriptionEditor.setContent) {
+        descriptionEditor.setContent(content);
+      }
+      Toast.info('Canned response inserted');
+      if (ticketId) {
+        Api.post('/api/v1/tickets/canned-responses/' + cr.id + '/render/', { ticket_id: ticketId }).catch(function() {});
+      }
+    }
+
+    toggleBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (visible) { hide(); return; }
+      fetchCanned().then(function() { selectedIdx = -1; renderDropdown(allCanned); });
+    });
+
+    var editorContainer = document.getElementById('ticketDescriptionInputEditor');
+    if (editorContainer) {
+      editorContainer.addEventListener('keydown', function(e) {
+        if (!visible) return;
+        var items = dropdown.querySelectorAll('.canned-picker-item');
+        if (e.key === 'ArrowDown') { e.preventDefault(); selectedIdx = Math.min(selectedIdx + 1, items.length - 1); highlightItem(); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); selectedIdx = Math.max(selectedIdx - 1, 0); highlightItem(); }
+        else if (e.key === 'Enter' && selectedIdx >= 0) { e.preventDefault(); if (allCanned[selectedIdx]) selectCanned(allCanned[selectedIdx]); }
+        else if (e.key === 'Escape') { e.preventDefault(); hide(); }
+      });
+    }
+
+    document.addEventListener('click', function(e) {
+      if (visible && !dropdown.contains(e.target) && e.target !== toggleBtn && !toggleBtn.contains(e.target)) {
         hide();
       }
     });

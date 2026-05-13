@@ -16,6 +16,7 @@ from apps.accounts.models import (
     Profile,
     Role,
     TenantMembership,
+    UserGroup,
 )
 from apps.accounts.permissions import (
     HasTenantPermission,
@@ -29,6 +30,7 @@ from apps.accounts.serializers import (
     TenantMembershipSerializer,
     TokenObtainSerializer,
     UserCreateSerializer,
+    UserGroupSerializer,
     UserSerializer,
 )
 
@@ -387,6 +389,72 @@ class InvitationViewSet(
         logger.info("Invitation resent to %s for tenant %s", invitation.email, invitation.tenant)
         return Response(
             InvitationSerializer(invitation).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+# ---------------------------------------------------------------------------
+# UserGroup ViewSet
+# ---------------------------------------------------------------------------
+
+
+class UserGroupViewSet(viewsets.ModelViewSet):
+    """
+    Tenant-scoped user groups. Admins and Managers can manage groups;
+    all members may list/retrieve.
+    """
+
+    serializer_class = UserGroupSerializer
+    search_fields = ["name", "description"]
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [IsAuthenticated()]
+        return [IsAuthenticated(), IsTenantAdminOrManager()]
+
+    def get_queryset(self):
+        tenant = getattr(self.request, "tenant", None)
+        if tenant is None:
+            return UserGroup.objects.none()
+        return UserGroup.objects.filter(tenant=tenant).prefetch_related("members")
+
+    def perform_create(self, serializer):
+        serializer.save(tenant=self.request.tenant)
+
+    @action(detail=True, methods=["post"], url_path="add-members")
+    def add_members(self, request, pk=None):
+        """Add one or more users to the group. Body: {user_ids: [uuid, ...]}."""
+        group = self.get_object()
+        user_ids = request.data.get("user_ids") or []
+        if not isinstance(user_ids, list) or not user_ids:
+            return Response(
+                {"detail": "user_ids must be a non-empty list."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        eligible = User.objects.filter(
+            id__in=user_ids,
+            memberships__tenant=request.tenant,
+            memberships__is_active=True,
+        ).distinct()
+        group.members.add(*eligible)
+        return Response(
+            UserGroupSerializer(group, context={"request": request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["post"], url_path="remove-members")
+    def remove_members(self, request, pk=None):
+        """Remove one or more users from the group. Body: {user_ids: [uuid, ...]}."""
+        group = self.get_object()
+        user_ids = request.data.get("user_ids") or []
+        if not isinstance(user_ids, list) or not user_ids:
+            return Response(
+                {"detail": "user_ids must be a non-empty list."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        group.members.remove(*user_ids)
+        return Response(
+            UserGroupSerializer(group, context={"request": request}).data,
             status=status.HTTP_200_OK,
         )
 

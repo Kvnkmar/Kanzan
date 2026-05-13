@@ -155,6 +155,18 @@
         </div>
       </div>
 
+      <!-- Address -->
+      <div class="cpanel-section" id="panelAddressSection" style="display:none;">
+        <div class="cpanel-section-label">Address</div>
+        <div class="cpanel-notes" id="panelAddress"></div>
+      </div>
+
+      <!-- Birthday -->
+      <div class="cpanel-section" id="panelBirthdaySection" style="display:none;">
+        <div class="cpanel-section-label">Birthday</div>
+        <div class="cpanel-notes" id="panelBirthday"></div>
+      </div>
+
       <!-- Notes -->
       <div class="cpanel-section" id="panelNotesSection" style="display:none;">
         <div class="cpanel-section-label">Notes</div>
@@ -496,29 +508,68 @@
     overlay: document.getElementById('contactDetailOverlay'),
     currentId: null,
 
+    _resetLoadingSpinner: function() {
+      var loadEl = document.getElementById('panelLoading');
+      loadEl.textContent = '';
+      var spinner = document.createElement('div');
+      spinner.className = 'spinner-border spinner-border-sm text-primary';
+      spinner.setAttribute('role', 'status');
+      var label = document.createElement('span');
+      label.className = 'loading-text ms-2';
+      label.textContent = 'Loading...';
+      loadEl.appendChild(spinner);
+      loadEl.appendChild(label);
+      return loadEl;
+    },
+
+    _showLoadingError: function(msg) {
+      var loadEl = document.getElementById('panelLoading');
+      loadEl.textContent = '';
+      var errDiv = document.createElement('div');
+      errDiv.className = 'text-danger text-center';
+      var errIcon = document.createElement('i');
+      errIcon.className = 'ti ti-alert-triangle me-1';
+      errDiv.appendChild(errIcon);
+      errDiv.appendChild(document.createTextNode(msg));
+      loadEl.appendChild(errDiv);
+    },
+
     open: function(contactId) {
       this.currentId = contactId;
-      document.getElementById('panelLoading').classList.remove('d-none');
+      this._resetLoadingSpinner().classList.remove('d-none');
       document.getElementById('panelContent').classList.add('d-none');
       this.panel.classList.add('open');
       this.overlay.classList.add('active');
       document.body.style.overflow = 'hidden';
 
       var self = this;
+      var token = ++this._reqToken;
+      var settled = false;
+      var timer = setTimeout(function() {
+        if (settled || token !== self._reqToken) return;
+        settled = true;
+        self._showLoadingError('Request timed out');
+      }, 15000);
+
       Api.get('/api/v1/contacts/contacts/' + contactId + '/').then(function(c) {
-        self.render(c);
-      }).catch(function() {
-        var loadEl = document.getElementById('panelLoading');
-        loadEl.textContent = '';
-        var errDiv = document.createElement('div');
-        errDiv.className = 'text-danger text-center';
-        var errIcon = document.createElement('i');
-        errIcon.className = 'ti ti-alert-triangle me-1';
-        errDiv.appendChild(errIcon);
-        errDiv.appendChild(document.createTextNode('Failed to load contact'));
-        loadEl.appendChild(errDiv);
+        if (token !== self._reqToken || settled) return;
+        settled = true; clearTimeout(timer);
+        try { self.render(c); }
+        catch (err) {
+          console.error('ContactPanel.render failed', err);
+          self._showLoadingError('Could not display contact');
+        }
+      }).catch(function(err) {
+        if (token !== self._reqToken || settled) return;
+        settled = true; clearTimeout(timer);
+        console.error('ContactPanel fetch failed', err);
+        var msg = (err && (err.detail || err.error)) || 'Failed to load contact';
+        if (err && err._status === 404) msg = 'Contact not found';
+        if (err && err._status === 403) msg = 'You don’t have access to this contact';
+        self._showLoadingError(msg);
       });
     },
+    _reqToken: 0,
 
     render: function(c) {
       var fn = ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || 'Unnamed';
@@ -552,6 +603,26 @@
       var badge = document.getElementById('panelStatusBadge');
       if (c.is_active !== false) { badge.textContent = 'Active'; badge.classList.remove('inactive'); }
       else { badge.textContent = 'Inactive'; badge.classList.add('inactive'); }
+
+      // Address (from custom_data)
+      var cd = c.custom_data || {};
+      var addressSection = document.getElementById('panelAddressSection');
+      var addrParts = [];
+      if (cd.address_street) addrParts.push(cd.address_street);
+      var cityLine = [cd.address_city, cd.address_state, cd.address_postal].filter(Boolean).join(', ');
+      if (cityLine) addrParts.push(cityLine);
+      if (cd.address_country) addrParts.push(cd.address_country);
+      if (addrParts.length) {
+        addressSection.style.display = '';
+        document.getElementById('panelAddress').textContent = addrParts.join('\n');
+      } else { addressSection.style.display = 'none'; }
+
+      // Birthday (from custom_data)
+      var birthdaySection = document.getElementById('panelBirthdaySection');
+      if (cd.birthday) {
+        birthdaySection.style.display = '';
+        document.getElementById('panelBirthday').textContent = Kanzan.formatDate(cd.birthday);
+      } else { birthdaySection.style.display = 'none'; }
 
       // Notes
       var notesSection = document.getElementById('panelNotesSection');

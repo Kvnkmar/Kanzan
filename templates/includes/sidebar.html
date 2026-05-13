@@ -1,8 +1,12 @@
 <aside class="crm-sidebar" id="crmSidebar">
   <!-- Brand/Logo Area -->
   <a href="{% url 'frontend:dashboard' %}" class="sidebar-brand">
-    <div class="brand-icon">
-      <i class="ti ti-radar"></i>
+    <div class="brand-icon{% if tenant.logo %} brand-icon--has-logo{% endif %}">
+      {% if tenant.logo %}
+        <img src="{{ tenant.logo.url }}" alt="{{ tenant.name }}" class="brand-logo-img">
+      {% else %}
+        <i class="ti ti-radar"></i>
+      {% endif %}
     </div>
     <span class="brand-name">{{ tenant.name|default:"Kanzen Suite" }}</span>
   </a>
@@ -30,11 +34,13 @@
         <span class="sidebar-link-text">Tickets</span>
         <span class="badge sidebar-badge" id="sidebarBadgeTickets" style="display:none;"></span>
       </a>
+      {% comment %} Emails tab hidden — preserved for future re-enable
       <a href="{% url 'frontend:emails' %}" class="sidebar-link {% if request.resolver_match.url_name == 'emails' %}active{% endif %}" data-sidebar-tooltip="Emails">
         <i class="ti ti-mail"></i>
         <span class="sidebar-link-text">Emails</span>
         <span class="badge sidebar-badge" id="sidebarBadgeEmails" style="display:none;"></span>
       </a>
+      {% endcomment %}
       <a href="{% url 'frontend:messaging' %}" class="sidebar-link {% if request.resolver_match.url_name == 'messaging' %}active{% endif %}" data-sidebar-tooltip="Messages">
         <i class="ti ti-message"></i>
         <span class="sidebar-link-text">Messages</span>
@@ -83,8 +89,8 @@
 
     <!-- Management -->
     <div class="nav-section">
-      <span class="nav-section-label">Management</span>
       {% if is_admin_or_manager %}
+      <span class="nav-section-label">Management</span>
       <a href="{% url 'frontend:analytics' %}" class="sidebar-link {% if request.resolver_match.url_name == 'analytics' %}active{% endif %}" data-sidebar-tooltip="Analytics">
         <i class="ti ti-chart-bar"></i>
         <span class="sidebar-link-text">Analytics</span>

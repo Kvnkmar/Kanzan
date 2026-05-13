@@ -1,0 +1,652 @@
+{% extends "base.html" %}
+{% block title %}Groups - Kanzen Suite{% endblock %}
+
+{% block extra_css %}
+<style>
+  .group-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+  }
+  .group-icon i { font-size: 1.15rem; }
+  .group-row-cell { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+  .group-name { font-weight: 600; font-size: 0.9375rem; line-height: 1.25; color: var(--crm-text-primary, inherit); }
+  .group-description {
+    font-size: 0.8125rem;
+    color: var(--crm-text-secondary, #6b7280);
+    margin-top: 2px;
+    line-height: 1.3;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    max-width: 420px;
+  }
+  .group-action-btn {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+  }
+  .group-action-btn i { font-size: 1rem; }
+  .group-no-members {
+    font-size: 0.8125rem;
+    color: var(--crm-text-secondary, #9ca3af);
+    font-style: italic;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h1 class="page-title">Groups</h1>
+    <p class="page-subtitle">Organise team members into named groups</p>
+  </div>
+  <div class="header-actions">
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#groupModal" id="newGroupBtn">
+      <i class="ti ti-users-plus me-1"></i>New Group
+    </button>
+  </div>
+</div>
+
+<div id="groupsAlert"></div>
+
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <h6 class="mb-0">All Groups <span class="badge badge-soft-primary ms-1" id="groupCount">0</span></h6>
+    <div class="input-group input-group-sm" style="max-width: 280px;">
+      <span class="input-group-text bg-transparent border-end-0"><i class="ti ti-search"></i></span>
+      <input type="text" class="form-control border-start-0" id="groupSearchInput" placeholder="Search groups...">
+    </div>
+  </div>
+  <div class="card-body p-0">
+    <div id="groupsTableWrap" class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th class="ps-3" style="min-width: 280px;">Group</th>
+            <th style="min-width: 200px;">Members</th>
+            <th style="width: 160px;">Created</th>
+            <th class="text-end pe-3" style="width: 120px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="groupsTableBody">
+          <tr>
+            <td colspan="4" class="text-center py-5">
+              <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
+              <span class="text-muted">Loading groups...</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div id="groupsEmptyState" class="empty-state d-none">
+      <div class="empty-icon"><i class="ti ti-users-group"></i></div>
+      <p class="empty-title">No groups yet</p>
+      <p class="empty-text">Create your first group to organise team members.</p>
+      <button class="btn btn-primary btn-sm mt-3" data-bs-toggle="modal" data-bs-target="#groupModal">
+        <i class="ti ti-users-plus me-1"></i>New Group
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Preview Group Modal (read-only) -->
+<div class="modal fade" id="groupPreviewModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div class="d-flex align-items-center gap-3 flex-grow-1">
+          <div id="previewGroupIcon"></div>
+          <div class="flex-grow-1 min-w-0">
+            <h5 class="modal-title mb-0" id="previewGroupName">Group</h5>
+            <div class="text-muted small" id="previewGroupMeta"></div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-4" id="previewDescriptionWrap">
+          <div class="text-muted small fw-medium mb-1">Description</div>
+          <div id="previewDescription"></div>
+        </div>
+        <div>
+          <div class="d-flex align-items-center justify-content-between mb-2">
+            <div class="text-muted small fw-medium">Members <span class="badge badge-soft-primary ms-1" id="previewMemberCount">0</span></div>
+          </div>
+          <ul class="list-group list-group-flush border rounded" id="previewMemberList" style="max-height: 360px; overflow-y: auto;"></ul>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary btn-sm" id="previewEditBtn">
+          <i class="ti ti-edit me-1"></i>Edit Group
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Create / Edit Group Modal -->
+<div class="modal fade" id="groupModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="groupModalTitle">New Group</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="groupModalAlert"></div>
+        <form id="groupForm">
+          <input type="hidden" id="groupId" value="">
+          <div class="mb-3">
+            <label for="groupName" class="form-label">Name</label>
+            <input type="text" class="form-control" id="groupName" placeholder="e.g. Tier 2 Support" maxlength="100" required>
+          </div>
+          <div class="mb-3">
+            <label for="groupDescription" class="form-label">Description <span class="text-muted small">(optional)</span></label>
+            <textarea class="form-control" id="groupDescription" rows="2" placeholder="Short description for your team..."></textarea>
+          </div>
+          <div class="mb-2">
+            <label class="form-label d-flex align-items-center justify-content-between">
+              <span>Members <span class="badge badge-soft-primary ms-1" id="selectedMemberCount">0</span></span>
+              <input type="text" class="form-control form-control-sm" id="memberSearchInput" placeholder="Search by name or email..." style="max-width: 240px;">
+            </label>
+            <div class="border rounded" style="max-height: 320px; overflow-y: auto;">
+              <ul class="list-group list-group-flush" id="memberPickerList">
+                <li class="list-group-item text-center text-muted py-4">
+                  <div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading users...
+                </li>
+              </ul>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary btn-sm" id="groupSubmitBtn">
+          <span class="spinner-border spinner-border-sm d-none me-1" id="groupSpinner" role="status"></span><span id="groupSubmitLabel">Create Group</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  'use strict';
+
+  var groups = [];
+  var users = [];
+  var usersLoaded = false;
+  var selectedUserIds = new Set();
+  var editingGroupId = '';
+
+  function escapeHtml(s) { if (s === null || s === undefined) return ''; var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
+  function formatDate(d) { return Kanzan.formatDate(d); }
+  function getInitials(n) { if (!n) return '?'; return n.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase(); }
+  var AVATAR_COLORS = ['#C1121F','#9A0E18','#C1121F','#9A0E18','#A8A8AC','#C1121F','#F03040','#E11C2B','#F08891','#A8A8AC'];
+  function avatarColor(name) { if (!name) return AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
+  function setHtml(el, html) {
+    // All template strings here pass user input through escapeHtml first,
+    // but we also funnel everything through DOMPurify as defence in depth.
+    el.innerHTML = (window.DOMPurify ? DOMPurify.sanitize(html) : html);
+  }
+
+  function showAlert(id, msg, type) {
+    setHtml(
+      document.getElementById(id),
+      '<div class="alert alert-' + (type || 'info') + ' alert-dismissible fade show py-2 small" role="alert">' + msg + '<button type="button" class="btn-close btn-close-sm" data-bs-dismiss="alert"></button></div>'
+    );
+  }
+
+  // Build a circular user avatar at the size used in the member stack.
+  function makeUserAvatar(name) {
+    var span = document.createElement('span');
+    span.className = 'user-avatar user-avatar-sm';
+    span.title = name;
+    span.style.background = avatarColor(name);
+    span.textContent = getInitials(name);
+    return span;
+  }
+
+  // Build a square rounded "group" tile — distinguishes a group row from a
+  // user row at a glance and provides the column's leading visual.
+  function makeGroupIcon(group) {
+    var tile = document.createElement('div');
+    tile.className = 'group-icon';
+    tile.style.background = avatarColor(group.name || '');
+    // Two-letter initials match the user-avatar treatment so groups read
+    // as "first-class entities" in mixed contexts (Kanban cards etc.)
+    tile.textContent = getInitials(group.name || 'Group');
+    return tile;
+  }
+
+  function makeGroupCell(g) {
+    var td = document.createElement('td');
+    td.className = 'ps-3 group-row-cell';
+
+    var wrap = document.createElement('div');
+    wrap.className = 'd-flex align-items-center gap-3';
+    wrap.appendChild(makeGroupIcon(g));
+
+    var text = document.createElement('div');
+    text.className = 'flex-grow-1 min-w-0';
+
+    var name = document.createElement('div');
+    name.className = 'group-name';
+    name.textContent = g.name || 'Untitled group';
+    text.appendChild(name);
+
+    if (g.description) {
+      var desc = document.createElement('div');
+      desc.className = 'group-description';
+      desc.textContent = g.description;
+      desc.title = g.description;
+      text.appendChild(desc);
+    }
+
+    wrap.appendChild(text);
+    td.appendChild(wrap);
+    return td;
+  }
+
+  function makeMembersCell(g) {
+    var td = document.createElement('td');
+    td.className = 'group-row-cell';
+
+    var memberCount = (g.member_count !== undefined ? g.member_count : (g.members ? g.members.length : 0));
+
+    if (!memberCount) {
+      var none = document.createElement('span');
+      none.className = 'group-no-members';
+      none.textContent = 'No members yet';
+      td.appendChild(none);
+      return td;
+    }
+
+    var label = document.createElement('span');
+    label.className = 'text-muted small';
+    label.textContent = memberCount + (memberCount === 1 ? ' member' : ' members');
+    td.appendChild(label);
+    return td;
+  }
+
+  function makeCreatedCell(g) {
+    var td = document.createElement('td');
+    td.className = 'group-row-cell text-muted small';
+    td.textContent = formatDate(g.created_at);
+    return td;
+  }
+
+  function makeActionsCell(g) {
+    var td = document.createElement('td');
+    td.className = 'text-end pe-3 group-row-cell';
+    var wrap = document.createElement('div');
+    wrap.className = 'd-flex gap-1 justify-content-end';
+
+    var edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'btn btn-ghost group-action-btn edit-group-btn';
+    edit.title = 'Edit group';
+    edit.dataset.groupId = g.id;
+    edit.innerHTML = '<i class="ti ti-edit"></i>';
+    edit.addEventListener('click', function(e) { e.stopPropagation(); openEditModal(g.id); });
+
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'btn btn-ghost group-action-btn text-danger delete-group-btn';
+    del.title = 'Delete group';
+    del.dataset.groupId = g.id;
+    del.innerHTML = '<i class="ti ti-trash"></i>';
+    del.addEventListener('click', function(e) { e.stopPropagation(); deleteGroup(g.id); });
+
+    wrap.appendChild(edit);
+    wrap.appendChild(del);
+    td.appendChild(wrap);
+    return td;
+  }
+
+  function renderGroups() {
+    var q = (document.getElementById('groupSearchInput').value || '').toLowerCase().trim();
+    var filtered = q ? groups.filter(function(g) {
+      return (g.name || '').toLowerCase().indexOf(q) !== -1 || (g.description || '').toLowerCase().indexOf(q) !== -1;
+    }) : groups;
+
+    var tbody = document.getElementById('groupsTableBody');
+    document.getElementById('groupCount').textContent = groups.length;
+    tbody.textContent = '';
+
+    if (!filtered.length) {
+      if (!groups.length) {
+        document.getElementById('groupsTableWrap').classList.add('d-none');
+        document.getElementById('groupsEmptyState').classList.remove('d-none');
+      } else {
+        document.getElementById('groupsTableWrap').classList.remove('d-none');
+        document.getElementById('groupsEmptyState').classList.add('d-none');
+        var emptyTr = document.createElement('tr');
+        var emptyTd = document.createElement('td');
+        emptyTd.colSpan = 4;
+        emptyTd.className = 'text-center py-4 text-muted small';
+        emptyTd.textContent = 'No groups match your search.';
+        emptyTr.appendChild(emptyTd);
+        tbody.appendChild(emptyTr);
+      }
+      return;
+    }
+
+    document.getElementById('groupsTableWrap').classList.remove('d-none');
+    document.getElementById('groupsEmptyState').classList.add('d-none');
+
+    filtered.forEach(function(g) {
+      var tr = document.createElement('tr');
+      tr.style.cursor = 'pointer';
+      tr.addEventListener('click', function() { openPreviewModal(g.id); });
+      tr.appendChild(makeGroupCell(g));
+      tr.appendChild(makeMembersCell(g));
+      tr.appendChild(makeCreatedCell(g));
+      tr.appendChild(makeActionsCell(g));
+      tbody.appendChild(tr);
+    });
+  }
+
+  function renderMemberPicker() {
+    var list = document.getElementById('memberPickerList');
+    if (!usersLoaded) {
+      setHtml(list, '<li class="list-group-item text-center text-muted small py-3"><div class="spinner-border spinner-border-sm me-2" role="status"></div>Loading users...</li>');
+      return;
+    }
+    var q = (document.getElementById('memberSearchInput').value || '').toLowerCase().trim();
+    var filtered = q ? users.filter(function(u) {
+      var name = ((u.first_name || '') + ' ' + (u.last_name || '')).toLowerCase();
+      return name.indexOf(q) !== -1 || (u.email || '').toLowerCase().indexOf(q) !== -1;
+    }) : users.slice();
+
+    if (!filtered.length) {
+      setHtml(list, '<li class="list-group-item text-center text-muted small py-3">' + (users.length ? 'No users match.' : 'No users in this workspace yet.') + '</li>');
+      return;
+    }
+
+    // Sort: selected first, then alphabetical by name.
+    filtered.sort(function(a, b) {
+      var aSel = selectedUserIds.has(a.id) ? 0 : 1;
+      var bSel = selectedUserIds.has(b.id) ? 0 : 1;
+      if (aSel !== bSel) return aSel - bSel;
+      var na = ((a.first_name || '') + ' ' + (a.last_name || '')).trim().toLowerCase();
+      var nb = ((b.first_name || '') + ' ' + (b.last_name || '')).trim().toLowerCase();
+      return na < nb ? -1 : (na > nb ? 1 : 0);
+    });
+
+    var html = '';
+    filtered.forEach(function(u) {
+      var fn = ((u.first_name || '') + ' ' + (u.last_name || '')).trim() || u.email;
+      var checked = selectedUserIds.has(u.id);
+      html += '<li class="list-group-item d-flex align-items-center gap-2" style="cursor:pointer;" data-user-id="' + escapeHtml(u.id) + '">' +
+        '<input type="checkbox" class="form-check-input m-0 member-checkbox" data-user-id="' + escapeHtml(u.id) + '"' + (checked ? ' checked' : '') + '>' +
+        '<div class="user-avatar user-avatar-sm" style="background:' + avatarColor(fn) + ';">' + escapeHtml(getInitials(fn)) + '</div>' +
+        '<div class="flex-grow-1"><div class="fw-medium small">' + escapeHtml(fn) + '</div><div class="text-muted" style="font-size:0.75rem;">' + escapeHtml(u.email) + '</div></div>' +
+        '</li>';
+    });
+    setHtml(list, html);
+    updateSelectedCount();
+
+    list.querySelectorAll('.list-group-item').forEach(function(row) {
+      row.addEventListener('click', function(e) {
+        if (e.target.tagName === 'INPUT') return;
+        var cb = row.querySelector('.member-checkbox');
+        cb.checked = !cb.checked;
+        toggleMember(cb.dataset.userId, cb.checked);
+      });
+    });
+    list.querySelectorAll('.member-checkbox').forEach(function(cb) {
+      cb.addEventListener('change', function() { toggleMember(this.dataset.userId, this.checked); });
+    });
+  }
+
+  function toggleMember(userId, checked) {
+    if (checked) selectedUserIds.add(userId);
+    else selectedUserIds.delete(userId);
+    updateSelectedCount();
+  }
+
+  function updateSelectedCount() {
+    document.getElementById('selectedMemberCount').textContent = selectedUserIds.size;
+  }
+
+  function loadGroups() {
+    return Api.get('/api/v1/accounts/groups/').then(function(data) {
+      groups = data.results || data;
+      renderGroups();
+    }).catch(function() {
+      var tbody = document.getElementById('groupsTableBody');
+      tbody.textContent = '';
+      var tr = document.createElement('tr');
+      var td = document.createElement('td');
+      td.colSpan = 4;
+      td.className = 'text-center py-5 text-danger';
+      td.textContent = 'Failed to load groups.';
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    });
+  }
+
+  function loadUsers() {
+    return Api.get('/api/v1/accounts/users/').then(function(data) {
+      users = data.results || data;
+      usersLoaded = true;
+      // If the modal is already open (user clicked New Group before users
+      // finished loading), refresh the picker now.
+      var modalEl = document.getElementById('groupModal');
+      if (modalEl && modalEl.classList.contains('show')) {
+        renderMemberPicker();
+      }
+    });
+  }
+
+  var previewedGroupId = '';
+
+  function openPreviewModal(groupId) {
+    var group = groups.find(function(g) { return g.id === groupId; });
+    if (!group) return;
+    previewedGroupId = groupId;
+
+    // Header: icon + name + meta line
+    var iconHolder = document.getElementById('previewGroupIcon');
+    iconHolder.textContent = '';
+    iconHolder.appendChild(makeGroupIcon(group));
+
+    document.getElementById('previewGroupName').textContent = group.name || 'Untitled group';
+    var memberCount = (group.member_count !== undefined ? group.member_count : (group.members ? group.members.length : 0));
+    document.getElementById('previewGroupMeta').textContent =
+      memberCount + (memberCount === 1 ? ' member' : ' members') + ' · Created ' + formatDate(group.created_at);
+
+    // Description
+    var descWrap = document.getElementById('previewDescriptionWrap');
+    var desc = document.getElementById('previewDescription');
+    if (group.description) {
+      desc.textContent = group.description;
+      descWrap.classList.remove('d-none');
+    } else {
+      desc.textContent = '';
+      descWrap.classList.add('d-none');
+    }
+
+    // Member list
+    document.getElementById('previewMemberCount').textContent = memberCount;
+    var list = document.getElementById('previewMemberList');
+    list.textContent = '';
+    if (!group.members || !group.members.length) {
+      var li = document.createElement('li');
+      li.className = 'list-group-item text-center text-muted small py-3';
+      li.textContent = 'No members in this group yet.';
+      list.appendChild(li);
+    } else {
+      // Sorted alphabetically for predictable preview output.
+      var sorted = group.members.slice().sort(function(a, b) {
+        var na = (a.full_name || a.email || '').toLowerCase();
+        var nb = (b.full_name || b.email || '').toLowerCase();
+        return na < nb ? -1 : (na > nb ? 1 : 0);
+      });
+      sorted.forEach(function(m) {
+        var name = m.full_name || m.email;
+        var li = document.createElement('li');
+        li.className = 'list-group-item d-flex align-items-center gap-2';
+        li.appendChild(makeUserAvatar(name));
+        var info = document.createElement('div');
+        info.className = 'flex-grow-1 min-w-0';
+        var n = document.createElement('div');
+        n.className = 'fw-medium small';
+        n.textContent = name;
+        info.appendChild(n);
+        if (m.email && m.email !== name) {
+          var e = document.createElement('div');
+          e.className = 'text-muted';
+          e.style.fontSize = '0.75rem';
+          e.textContent = m.email;
+          info.appendChild(e);
+        }
+        li.appendChild(info);
+        list.appendChild(li);
+      });
+    }
+
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('groupPreviewModal')).show();
+  }
+
+  function openCreateModal() {
+    editingGroupId = '';
+    selectedUserIds = new Set();
+    document.getElementById('groupModalTitle').textContent = 'New Group';
+    document.getElementById('groupSubmitLabel').textContent = 'Create Group';
+    document.getElementById('groupId').value = '';
+    document.getElementById('groupName').value = '';
+    document.getElementById('groupDescription').value = '';
+    document.getElementById('memberSearchInput').value = '';
+    document.getElementById('groupModalAlert').innerHTML = '';
+    renderMemberPicker();
+  }
+
+  function openEditModal(groupId) {
+    var group = groups.find(function(g) { return g.id === groupId; });
+    if (!group) return;
+    editingGroupId = groupId;
+    selectedUserIds = new Set((group.members || []).map(function(m) { return m.id; }));
+    document.getElementById('groupModalTitle').textContent = 'Edit Group';
+    document.getElementById('groupSubmitLabel').textContent = 'Save Changes';
+    document.getElementById('groupId').value = groupId;
+    document.getElementById('groupName').value = group.name || '';
+    document.getElementById('groupDescription').value = group.description || '';
+    document.getElementById('memberSearchInput').value = '';
+    document.getElementById('groupModalAlert').innerHTML = '';
+    renderMemberPicker();
+    var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('groupModal'));
+    modal.show();
+  }
+
+  function submitGroup() {
+    var name = document.getElementById('groupName').value.trim();
+    var description = document.getElementById('groupDescription').value.trim();
+    if (!name) {
+      showAlert('groupModalAlert', 'Group name is required.', 'warning');
+      return;
+    }
+    var btn = document.getElementById('groupSubmitBtn');
+    var sp = document.getElementById('groupSpinner');
+    btn.disabled = true; sp.classList.remove('d-none');
+
+    var payload = {
+      name: name,
+      description: description,
+      member_ids: Array.from(selectedUserIds),
+    };
+    var promise = editingGroupId
+      ? Api.patch('/api/v1/accounts/groups/' + editingGroupId + '/', payload)
+      : Api.post('/api/v1/accounts/groups/', payload);
+
+    promise.then(function() {
+      bootstrap.Modal.getInstance(document.getElementById('groupModal')).hide();
+      Toast.success(editingGroupId ? 'Group updated' : 'Group created');
+      loadGroups();
+    }).catch(function(err) {
+      var msg = 'Failed to save group.';
+      if (err && typeof err === 'object') {
+        if (err.detail) msg = err.detail;
+        else if (err.name) msg = Array.isArray(err.name) ? err.name.join(', ') : err.name;
+        else { var parts = []; for (var k in err) { if (Array.isArray(err[k])) parts.push(err[k].join(', ')); } if (parts.length) msg = parts.join('; '); }
+      }
+      showAlert('groupModalAlert', escapeHtml(msg), 'danger');
+      Toast.error(msg);
+    }).finally(function() {
+      btn.disabled = false; sp.classList.add('d-none');
+    });
+  }
+
+  function deleteGroup(groupId) {
+    var group = groups.find(function(g) { return g.id === groupId; });
+    if (!group) return;
+    if (!confirm('Delete group "' + group.name + '"? This cannot be undone.')) return;
+    Api.delete('/api/v1/accounts/groups/' + groupId + '/').then(function() {
+      Toast.success('Group deleted');
+      loadGroups();
+    }).catch(function(err) {
+      Toast.error((err && err.detail) || 'Failed to delete group.');
+    });
+  }
+
+  document.getElementById('newGroupBtn').addEventListener('click', openCreateModal);
+  document.getElementById('groupSubmitBtn').addEventListener('click', submitGroup);
+  document.getElementById('groupSearchInput').addEventListener('input', renderGroups);
+  document.getElementById('memberSearchInput').addEventListener('input', renderMemberPicker);
+
+  // "Edit Group" inside the preview modal: close preview, then open edit.
+  // Wait for hidden.bs.modal so Bootstrap finishes its backdrop teardown
+  // before the next modal opens (otherwise the backdrop sticks).
+  document.getElementById('previewEditBtn').addEventListener('click', function() {
+    var idToEdit = previewedGroupId;
+    var previewEl = document.getElementById('groupPreviewModal');
+    var previewModal = bootstrap.Modal.getInstance(previewEl);
+    previewEl.addEventListener('hidden.bs.modal', function handler() {
+      previewEl.removeEventListener('hidden.bs.modal', handler);
+      if (idToEdit) openEditModal(idToEdit);
+    });
+    if (previewModal) previewModal.hide();
+  });
+
+  // Any modal open triggered by a data-bs-toggle button (toolbar OR empty
+  // state) sets relatedTarget. Programmatic .show() from edit buttons does
+  // not — so this reliably distinguishes "create" from "edit" opens.
+  document.getElementById('groupModal').addEventListener('show.bs.modal', function(e) {
+    if (e.relatedTarget) {
+      openCreateModal();
+    }
+  });
+
+  Promise.all([
+    loadUsers().catch(function() {
+      // Still mark as "loaded" so the picker stops spinning and surfaces
+      // the empty-state copy instead of hanging on a stale spinner.
+      usersLoaded = true;
+      var modalEl = document.getElementById('groupModal');
+      if (modalEl && modalEl.classList.contains('show')) renderMemberPicker();
+      showAlert('groupsAlert', 'Failed to load users.', 'danger');
+    }),
+    loadGroups()
+  ]);
+})();
+</script>
+{% endblock %}

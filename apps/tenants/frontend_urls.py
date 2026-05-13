@@ -36,6 +36,7 @@ urlpatterns = [
     path("settings/", views.settings_page, name="settings"),
     path("billing/", views.billing_page, name="billing"),
     path("agents/", views.agents_page, name="agents"),
+    path("groups/", views.groups_page, name="groups"),
     path("emails/", views.emails_page, name="emails"),
     path("knowledge/", views.knowledge_list_page, name="knowledge-list"),
     path("knowledge/<str:article_slug>/", views.knowledge_article_page, name="knowledge-article"),

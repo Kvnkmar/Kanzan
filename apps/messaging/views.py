@@ -88,7 +88,7 @@ class ConversationViewSet(viewsets.ModelViewSet):
         return (
             Conversation.objects.filter(participants=user)
             .annotate(_participant_count=Subquery(participant_count_sq))
-            .select_related("ticket")
+            .select_related("ticket", "source_group")
             .prefetch_related(
                 Prefetch(
                     "participant_details",

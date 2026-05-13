@@ -56,6 +56,8 @@
           </div>
           <i class="ti ti-check status-dropdown-check"></i>
         </button>
+        <div class="status-dropdown-divider" id="statusDropdownCustomDivider" style="display:none"></div>
+        <div id="statusDropdownCustomList"></div>
         <div class="status-dropdown-divider"></div>
         <button class="status-dropdown-item" data-status="offline">
           <span class="status-dropdown-item-dot status-dropdown-item-dot--offline"></span>
@@ -65,6 +67,17 @@
           </div>
           <i class="ti ti-check status-dropdown-check"></i>
         </button>
+        {% if is_admin_or_manager %}
+        <div class="status-dropdown-divider"></div>
+        <a href="/settings/?pane=customStatusesPane" class="status-dropdown-item status-dropdown-item--manage" title="Manage custom statuses">
+          <span class="status-dropdown-item-dot" style="background: transparent; border: 1px dashed var(--crm-text-muted);"></span>
+          <div class="status-dropdown-item-text">
+            <span class="status-dropdown-item-label">Manage custom statuses</span>
+            <span class="status-dropdown-item-desc">Add or edit custom statuses</span>
+          </div>
+          <i class="ti ti-arrow-up-right status-dropdown-check" style="opacity:0.6"></i>
+        </a>
+        {% endif %}
       </div>
     </div>
     {% endif %}

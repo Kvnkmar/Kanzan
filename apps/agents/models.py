@@ -2,7 +2,8 @@
 Models for the agents app.
 
 Provides AgentAvailability for tracking agent online status, workload
-capacity, and current ticket counts within each tenant.
+capacity, and current ticket counts within each tenant, plus
+CustomAgentStatus for tenant-curated extra status options.
 """
 
 from django.conf import settings
@@ -18,6 +19,86 @@ class AgentStatus(models.TextChoices):
     AWAY = "away", "Away"
     BUSY = "busy", "Busy"
     OFFLINE = "offline", "Offline"
+
+
+BUILTIN_STATUS_SLUGS = frozenset(AgentStatus.values)
+
+
+class StatusColor(models.TextChoices):
+    """Fixed palette of dot colors available for custom statuses."""
+
+    GREEN = "green", "Green"
+    YELLOW = "yellow", "Yellow"
+    RED = "red", "Red"
+    BLUE = "blue", "Blue"
+    PURPLE = "purple", "Purple"
+    ORANGE = "orange", "Orange"
+    PINK = "pink", "Pink"
+    GRAY = "gray", "Gray"
+
+
+STATUS_COLOR_HEX = {
+    StatusColor.GREEN: "#22C55E",
+    StatusColor.YELLOW: "#F59E0B",
+    StatusColor.RED: "#EF4444",
+    StatusColor.BLUE: "#3B82F6",
+    StatusColor.PURPLE: "#8B5CF6",
+    StatusColor.ORANGE: "#F97316",
+    StatusColor.PINK: "#EC4899",
+    StatusColor.GRAY: "#6B7280",
+}
+
+
+class CustomAgentStatus(TenantScopedModel):
+    """
+    Tenant-curated custom availability status (e.g. 'In Meeting', 'Lunch').
+
+    Created and managed by admins/managers; selectable by any agent in the
+    tenant via the navbar status dropdown alongside the four built-in
+    statuses (online/away/busy/offline).
+    """
+
+    slug = models.SlugField(
+        max_length=40,
+        help_text="Stable identifier used by the API and dropdown.",
+    )
+    label = models.CharField(
+        max_length=50,
+        help_text="Display name shown in the dropdown (e.g. 'In Meeting').",
+    )
+    description = models.CharField(
+        max_length=100,
+        blank=True,
+        default="",
+        help_text="Short helper text shown under the label.",
+    )
+    color = models.CharField(
+        max_length=20,
+        choices=StatusColor.choices,
+        default=StatusColor.BLUE,
+    )
+    is_active = models.BooleanField(default=True)
+    order = models.PositiveIntegerField(default=0)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="custom_agent_statuses_created",
+    )
+
+    class Meta:
+        verbose_name = "custom agent status"
+        verbose_name_plural = "custom agent statuses"
+        unique_together = [("tenant", "slug")]
+        ordering = ["order", "label"]
+
+    def __str__(self):
+        return self.label
+
+    @property
+    def color_hex(self):
+        return STATUS_COLOR_HEX.get(self.color, STATUS_COLOR_HEX[StatusColor.BLUE])
 
 
 class AgentAvailability(TenantScopedModel):
@@ -63,6 +144,17 @@ class AgentAvailability(TenantScopedModel):
     auto_away_outside_hours = models.BooleanField(
         default=False,
         help_text="Automatically set status to away outside working hours.",
+    )
+    custom_status = models.ForeignKey(
+        "agents.CustomAgentStatus",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="users",
+        help_text=(
+            "When set, takes precedence over the built-in status for display "
+            "purposes. Cleared when the agent picks a built-in status."
+        ),
     )
 
     class Meta:

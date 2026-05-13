@@ -27,15 +27,54 @@
     })();
   </script>
   <script src="{% static 'js/theme.js' %}"></script>
-  {% if tenant and tenant.settings %}
+  {% if tenant_palette %}
   <style>
-    :root {
-      --crm-primary: {{ tenant.settings.primary_color|default:"#C1121F" }};
-      --crm-primary-500: {{ tenant.settings.primary_color|default:"#C1121F" }};
-      --crm-primary-600: {{ tenant.settings.primary_color|default:"#C1121F" }};
-      --crm-primary-700: {{ tenant.settings.primary_color|default:"#C1121F" }};
-      --crm-accent: {{ tenant.settings.accent_color|default:"#E11D2D" }};
-      --crm-accent-500: {{ tenant.settings.accent_color|default:"#E11D2D" }};
+    :root,
+    [data-bs-theme="light"],
+    [data-bs-theme="dark"] {
+      --crm-primary: {{ tenant_palette.primary }};
+      --crm-primary-50: {{ tenant_palette.primary_50 }};
+      --crm-primary-100: {{ tenant_palette.primary_100 }};
+      --crm-primary-200: {{ tenant_palette.primary_200 }};
+      --crm-primary-300: {{ tenant_palette.primary_300 }};
+      --crm-primary-400: {{ tenant_palette.primary_400 }};
+      --crm-primary-500: {{ tenant_palette.primary_500 }};
+      --crm-primary-600: {{ tenant_palette.primary_600 }};
+      --crm-primary-700: {{ tenant_palette.primary_700 }};
+      --crm-primary-800: {{ tenant_palette.primary_800 }};
+      --crm-primary-900: {{ tenant_palette.primary_900 }};
+      --crm-primary-hover: {{ tenant_palette.primary_hover }};
+      --crm-primary-active: {{ tenant_palette.primary_active }};
+      --crm-primary-dark: {{ tenant_palette.primary_dark }};
+      --crm-primary-light: {{ tenant_palette.primary_light }};
+      --crm-primary-subtle: {{ tenant_palette.primary_subtle }};
+      --crm-primary-ring: {{ tenant_palette.primary_ring }};
+      --crm-primary-rgb: {{ tenant_palette.primary_rgb }};
+      --crm-accent: {{ tenant_palette.accent }};
+      --crm-accent-hover: {{ tenant_palette.accent_hover }};
+      --crm-accent-light: {{ tenant_palette.accent_light }};
+      --crm-accent-500: {{ tenant_palette.accent }};
+      --crm-accent-rgb: {{ tenant_palette.accent_rgb }};
+      /* Re-point Bootstrap's primary so .btn-primary/.bg-primary/.text-primary
+         and link colors track the tenant theme too. */
+      --bs-primary: {{ tenant_palette.primary }};
+      --bs-primary-rgb: {{ tenant_palette.primary_rgb }};
+      --bs-link-color: {{ tenant_palette.primary }};
+      --bs-link-hover-color: {{ tenant_palette.primary_hover }};
+      /* Semantic reds that used to be hardcoded to Crimson. The tenant
+         picked their palette deliberately, so retheme these alongside the
+         primary scale -- urgent/high priority badges, danger surfaces, etc. */
+      --crm-priority-urgent: {{ tenant_palette.primary }};
+      --crm-priority-high: {{ tenant_palette.primary }};
+      --crm-danger: {{ tenant_palette.primary }};
+      --crm-chat-sent-bg: {{ tenant_palette.primary }};
+      --crm-focus-ring: rgba({{ tenant_palette.primary_rgb }}, 0.28);
+      --crm-glow-primary: 0 0 0 1px rgba({{ tenant_palette.primary_rgb }}, 0.24), 0 0 20px rgba({{ tenant_palette.primary_rgb }}, 0.18);
+      --crm-gradient: linear-gradient(135deg, {{ tenant_palette.primary }} 0%, {{ tenant_palette.accent }} 100%);
+      --status-danger-text: {{ tenant_palette.primary }};
+      --status-danger-dot: {{ tenant_palette.primary }};
+      --status-danger-bg: rgba({{ tenant_palette.primary_rgb }}, 0.08);
+      --status-danger-border: rgba({{ tenant_palette.primary_rgb }}, 0.22);
     }
   </style>
   {% endif %}
@@ -160,6 +199,7 @@
           allowInput: true,
           disableMobile: true,
           position: 'auto',
+          monthSelectorType: 'static',
         });
         // Wrap the visible alt-input + the now-hidden original in a relative
         // span and stamp a Tabler calendar icon at the right edge. Skip if

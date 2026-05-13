@@ -1,27 +1,76 @@
 {% extends "base.html" %}
 {% block title %}Boards - Kanzen Suite{% endblock %}
 
+{% block extra_css %}
+<style>
+  .kanban-toolbar {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
+  .kanban-toolbar .kanban-toolbar-control {
+    height: 36px !important;
+    min-height: 36px !important;
+    padding-top: 0 !important;
+    padding-bottom: 0 !important;
+    line-height: 1 !important;
+    font-size: 0.8125rem !important;
+    box-sizing: border-box !important;
+    display: inline-flex !important;
+    align-items: center;
+    vertical-align: middle;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .kanban-toolbar button.kanban-toolbar-control {
+    padding-left: 0.875rem !important;
+    padding-right: 0.875rem !important;
+    justify-content: center;
+  }
+  .kanban-toolbar button.kanban-toolbar-control > i {
+    flex-shrink: 0;
+  }
+  .kanban-toolbar .kanban-toolbar-icon-btn {
+    width: 36px !important;
+    min-width: 36px !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+  /* Align the KanzenSelect-upgraded board picker with toolbar button height
+     and stop the wrapper from stretching to 100% of the wrapped row. */
+  .kanban-toolbar .td-cselect {
+    width: auto;
+    flex: 0 0 auto;
+  }
+  .kanban-toolbar .td-cselect-trigger {
+    height: 36px;
+    min-height: 36px;
+    font-size: 0.8125rem;
+    padding: 0 0.75rem;
+  }
+</style>
+{% endblock %}
+
 {% block content %}
 <!-- Page Header -->
 <div class="page-header">
   <div>
     <h1 class="page-title">Boards</h1>
-    <p class="page-subtitle">Drag and drop to update ticket status</p>
+    <p class="page-subtitle" id="boardSubtitle">Drag and drop to update ticket status</p>
   </div>
-  <div class="header-actions d-flex align-items-center gap-2">
-    <select id="boardSelector" class="form-select form-select-sm" style="width:auto;min-width:200px;">
+  <div class="header-actions kanban-toolbar d-flex align-items-center gap-2">
+    <select id="boardSelector" class="form-select form-select-sm" style="min-width:200px;">
       <option value="">Loading boards...</option>
     </select>
-    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#createBoardModal">
+    <button class="btn btn-primary btn-sm kanban-toolbar-control" data-bs-toggle="modal" data-bs-target="#createBoardModal">
       <i class="ti ti-plus me-1"></i>New Board
     </button>
-    <button class="btn btn-outline-secondary btn-sm d-none" id="addColumnBtn">
+    <button class="btn btn-outline-secondary btn-sm kanban-toolbar-control d-none" id="addColumnBtn">
       <i class="ti ti-plus me-1"></i>Add Column
     </button>
-    <button class="btn btn-outline-secondary btn-sm d-none" id="editBoardBtn" title="Edit board">
+    <button class="btn btn-outline-secondary btn-sm kanban-toolbar-control kanban-toolbar-icon-btn d-none" id="editBoardBtn" title="Edit board">
       <i class="ti ti-pencil"></i>
     </button>
-    <button class="btn btn-outline-danger btn-sm d-none" id="deleteBoardBtn" title="Delete board">
+    <button class="btn btn-outline-danger btn-sm kanban-toolbar-control kanban-toolbar-icon-btn d-none" id="deleteBoardBtn" title="Delete board">
       <i class="ti ti-trash"></i>
     </button>
   </div>
@@ -117,8 +166,10 @@
           </select>
         </div>
         <div class="form-check mb-3">
-          <input class="form-check-input" type="checkbox" id="boardIsDefault">
-          <label class="form-check-label small" for="boardIsDefault">Set as default board for this resource type</label>
+          <input class="form-check-input" type="checkbox" id="boardIsPersonal" checked>
+          <label class="form-check-label small" for="boardIsPersonal">
+            Personal board <span class="text-muted">(only visible to you; doesn't change ticket status when you drag cards)</span>
+          </label>
         </div>
         <div class="form-check mb-3" id="autoColumnsGroup">
           <input class="form-check-input" type="checkbox" id="boardAutoColumns" checked>
@@ -164,10 +215,6 @@
         <div class="mb-3">
           <label for="editBoardName" class="form-label">Board Name</label>
           <input type="text" class="form-control" id="editBoardName" required>
-        </div>
-        <div class="form-check mb-3">
-          <input class="form-check-input" type="checkbox" id="editBoardIsDefault">
-          <label class="form-check-label small" for="editBoardIsDefault">Set as default board for this resource type</label>
         </div>
       </div>
       <div class="modal-footer">
@@ -236,7 +283,7 @@
                    style="font-size:0.8125rem;padding:0.5rem 0.75rem;">
           </div>
 
-          <div class="mb-3">
+          <div class="mb-3" id="columnStatusGroup">
             <label for="columnStatus" class="form-label fw-medium" style="font-size:0.8125rem;color:var(--crm-text);margin-bottom:0.375rem;">
               Ticket Status
             </label>
@@ -288,6 +335,27 @@
     </div>
   </div>
 </div>
+<!-- Add Ticket to Personal Board Modal -->
+<div class="modal fade" id="addTicketModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-semibold">Add Ticket to <span id="addTicketColumnName">Column</span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div id="addTicketAlert"></div>
+        <div class="mb-2">
+          <input type="text" class="form-control" id="addTicketSearch" placeholder="Search tickets by number, subject, or description...">
+        </div>
+        <div id="addTicketResults" class="list-group" style="max-height: 360px; overflow-y: auto;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -324,15 +392,24 @@
   var manualColumnsSection = document.getElementById('manualColumnsSection');
   var autoColumnsGroup = document.getElementById('autoColumnsGroup');
   var resourceTypeSelect = document.getElementById('boardResourceType');
+  var isPersonalCheckbox = document.getElementById('boardIsPersonal');
 
   function updateAutoColumnsVisibility() {
     var isTicket = resourceTypeSelect.value === 'ticket';
-    autoColumnsGroup.style.display = isTicket ? '' : 'none';
-    if (!isTicket) autoColumnsCheckbox.checked = false;
-    manualColumnsSection.style.display = (isTicket && autoColumnsCheckbox.checked) ? 'none' : '';
+    var isPersonal = isPersonalCheckbox.checked;
+    // Personal boards never auto-map to ticket statuses.
+    autoColumnsGroup.style.display = (isTicket && !isPersonal) ? '' : 'none';
+    if (isPersonal) {
+      autoColumnsCheckbox.checked = false;
+    } else if (!isTicket) {
+      autoColumnsCheckbox.checked = false;
+    }
+    var showManual = !(isTicket && autoColumnsCheckbox.checked && !isPersonal);
+    manualColumnsSection.style.display = showManual ? '' : 'none';
   }
   autoColumnsCheckbox.addEventListener('change', updateAutoColumnsVisibility);
   resourceTypeSelect.addEventListener('change', updateAutoColumnsVisibility);
+  isPersonalCheckbox.addEventListener('change', updateAutoColumnsVisibility);
   updateAutoColumnsVisibility();
 
   var PRIORITY_COLORS = {urgent:'#E11C2B',high:'#C1121F',medium:'#E11C2B',low:'#6B6B70'};
@@ -615,13 +692,18 @@
     // "+" button in column header
     var addBtn = document.createElement('button');
     addBtn.className = 'kanban-col-add-btn';
-    addBtn.title = 'Create ticket';
+    var isPersonalBoard = !!(currentBoard && currentBoard.is_personal);
+    addBtn.title = isPersonalBoard ? 'Add ticket to this column' : 'Create ticket';
     var addIcon = document.createElement('i');
     addIcon.className = 'ti ti-plus';
     addBtn.appendChild(addIcon);
     addBtn.addEventListener('click', function(e) {
       e.stopPropagation();
-      window.location.href = '/tickets/new/';
+      if (isPersonalBoard) {
+        openTicketPicker(column);
+      } else {
+        window.location.href = '/tickets/new/';
+      }
     });
     headerDiv.appendChild(addBtn);
 
@@ -794,16 +876,43 @@
           return;
         }
 
-        boards.forEach(function(board) {
-          var option = document.createElement('option');
-          option.value = board.id;
-          option.textContent = board.name || board.title || 'Board #' + board.id;
-          selector.appendChild(option);
-        });
+        var teamBoards = boards.filter(function(b) { return !b.is_personal; });
+        var personalBoards = boards.filter(function(b) { return !!b.is_personal; });
+
+        // Default board first within each group, then alphabetical.
+        function sortBoards(list) {
+          list.sort(function(a, b) {
+            var ad = a.is_default ? 0 : 1;
+            var bd = b.is_default ? 0 : 1;
+            if (ad !== bd) return ad - bd;
+            return (a.name || '').localeCompare(b.name || '');
+          });
+        }
+        sortBoards(teamBoards);
+        sortBoards(personalBoards);
+
+        function appendBoardGroup(label, list) {
+          if (!list.length) return;
+          var group = document.createElement('optgroup');
+          group.label = label;
+          list.forEach(function(board) {
+            var option = document.createElement('option');
+            option.value = board.id;
+            var name = board.name || board.title || 'Board #' + board.id;
+            option.textContent = board.is_personal ? '👤 ' + name : name;
+            group.appendChild(option);
+          });
+          selector.appendChild(group);
+        }
+        appendBoardGroup('Team boards', teamBoards);
+        appendBoardGroup('My personal boards', personalBoards);
 
         if (boards.length > 0) {
-          selector.value = boards[0].id;
-          loadBoard(boards[0].id);
+          var defaultBoard = teamBoards.filter(function(b) { return !!b.is_default; })[0]
+                          || teamBoards[0]
+                          || boards[0];
+          selector.value = defaultBoard.id;
+          loadBoard(defaultBoard.id);
         }
       })
       .catch(function(err) {
@@ -853,7 +962,6 @@
   document.getElementById('createBoardSubmitBtn').addEventListener('click', function() {
     var name = document.getElementById('boardName').value.trim();
     var resourceType = document.getElementById('boardResourceType').value;
-    var isDefault = document.getElementById('boardIsDefault').checked;
 
     if (!name) {
       showBoardAlert('createBoardAlert', 'Board name is required.', 'warning');
@@ -872,12 +980,14 @@
       if (val) columnNames.push(val);
     });
 
-    var autoColumns = autoColumnsCheckbox.checked && resourceType === 'ticket';
+    var isPersonal = isPersonalCheckbox.checked;
+    var autoColumns = autoColumnsCheckbox.checked && resourceType === 'ticket' && !isPersonal;
 
     Api.post('/api/v1/kanban/boards/', {
       name: name,
       resource_type: resourceType,
-      is_default: isDefault,
+      is_default: false,
+      is_personal: isPersonal,
       auto_columns: autoColumns
     })
     .then(function(board) {
@@ -898,7 +1008,8 @@
     .then(function(board) {
       bootstrap.Modal.getInstance(document.getElementById('createBoardModal')).hide();
       document.getElementById('boardName').value = '';
-      document.getElementById('boardIsDefault').checked = false;
+      document.getElementById('boardIsPersonal').checked = true;
+      updateAutoColumnsVisibility();
       document.getElementById('initialColumns').innerHTML =
         '<div class="input-group input-group-sm mb-2 column-row">' +
           '<input type="text" class="form-control" placeholder="Column name (e.g. To Do)" name="col_name">' +
@@ -947,6 +1058,11 @@
     var hexLabel = document.querySelector('.add-col-color-hex');
     if (hexLabel) hexLabel.textContent = '#6c757d';
     populateStatusDropdown(document.getElementById('columnStatus'));
+    // Personal boards don't sync to ticket status — hide the mapping field.
+    var statusGroup = document.getElementById('columnStatusGroup');
+    if (statusGroup) {
+      statusGroup.style.display = currentBoard && currentBoard.is_personal ? 'none' : '';
+    }
     var modal = new bootstrap.Modal(document.getElementById('addColumnModal'));
     modal.show();
   });
@@ -1004,7 +1120,6 @@
   document.getElementById('editBoardBtn').addEventListener('click', function() {
     if (!currentBoard) return;
     document.getElementById('editBoardName').value = currentBoard.name || '';
-    document.getElementById('editBoardIsDefault').checked = !!currentBoard.is_default;
     var modal = new bootstrap.Modal(document.getElementById('editBoardModal'));
     modal.show();
   });
@@ -1022,8 +1137,7 @@
     spinner.classList.remove('d-none');
 
     Api.patch('/api/v1/kanban/boards/' + currentBoard.id + '/', {
-      name: name,
-      is_default: document.getElementById('editBoardIsDefault').checked
+      name: name
     })
     .then(function() {
       bootstrap.Modal.getInstance(document.getElementById('editBoardModal')).hide();
@@ -1084,12 +1198,113 @@
     }
   }
 
+  function updateBoardSubtitle() {
+    var subtitle = document.getElementById('boardSubtitle');
+    if (!subtitle) return;
+    if (currentBoard && currentBoard.is_personal) {
+      subtitle.textContent = 'Your personal view — drag cards freely; ticket status stays untouched';
+    } else {
+      subtitle.textContent = 'Drag and drop to update ticket status';
+    }
+  }
+
   var originalRenderBoard = renderBoard;
   renderBoard = function(board) {
     originalRenderBoard(board);
     updateAddColumnBtn();
     updateBoardActions();
+    updateBoardSubtitle();
   };
+
+  // --- Ticket picker (for personal boards) ---
+  var ticketPickerColumn = null;
+  var ticketPickerDebounce = null;
+
+  function setResultsPlaceholder(text) {
+    var container = document.getElementById('addTicketResults');
+    container.textContent = '';
+    var p = document.createElement('div');
+    p.className = 'text-center text-muted small py-3';
+    p.textContent = text;
+    container.appendChild(p);
+  }
+
+  function openTicketPicker(column) {
+    ticketPickerColumn = column;
+    var label = document.getElementById('addTicketColumnName');
+    if (label) label.textContent = column.name || 'Column';
+    document.getElementById('addTicketSearch').value = '';
+    setResultsPlaceholder('Start typing to search tickets…');
+    document.getElementById('addTicketAlert').textContent = '';
+    var modal = new bootstrap.Modal(document.getElementById('addTicketModal'));
+    modal.show();
+  }
+
+  function renderTicketResults(results) {
+    var container = document.getElementById('addTicketResults');
+    container.textContent = '';
+    if (!results || results.length === 0) {
+      setResultsPlaceholder('No matching tickets.');
+      return;
+    }
+    results.forEach(function(t) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'list-group-item list-group-item-action';
+
+      var topRow = document.createElement('div');
+      topRow.className = 'd-flex w-100 justify-content-between';
+      var heading = document.createElement('strong');
+      var number = t.number ? '#' + t.number + ' ' : '';
+      heading.textContent = number + (t.subject || 'Untitled');
+      topRow.appendChild(heading);
+      btn.appendChild(topRow);
+
+      var meta = document.createElement('small');
+      meta.className = 'text-muted';
+      var assignee = '';
+      if (t.assigned_to && (t.assigned_to.name || t.assigned_to.email)) {
+        assignee = ' · ' + (t.assigned_to.name || t.assigned_to.email);
+      }
+      meta.textContent = (t.status_display || t.status || '') +
+        (t.priority ? ' · ' + t.priority : '') + assignee;
+      btn.appendChild(meta);
+
+      btn.addEventListener('click', function() { addTicketToColumn(t.id); });
+      container.appendChild(btn);
+    });
+  }
+
+  function searchTickets(query) {
+    Api.get('/api/v1/tickets/tickets/?search=' + encodeURIComponent(query) + '&page_size=15')
+      .then(function(data) { renderTicketResults(data.results || data || []); })
+      .catch(function() { setResultsPlaceholder('Failed to search tickets.'); });
+  }
+
+  document.getElementById('addTicketSearch').addEventListener('input', function() {
+    var q = this.value.trim();
+    if (ticketPickerDebounce) clearTimeout(ticketPickerDebounce);
+    if (!q) {
+      setResultsPlaceholder('Start typing to search tickets…');
+      return;
+    }
+    ticketPickerDebounce = setTimeout(function() { searchTickets(q); }, 250);
+  });
+
+  function addTicketToColumn(ticketId) {
+    if (!currentBoard || !ticketPickerColumn) return;
+    Api.post('/api/v1/kanban/boards/' + currentBoard.id + '/cards/add-ticket/', {
+      column_id: ticketPickerColumn.id,
+      ticket_id: ticketId
+    }).then(function() {
+      bootstrap.Modal.getInstance(document.getElementById('addTicketModal')).hide();
+      Toast.success('Ticket added');
+      loadBoard(currentBoard.id);
+    }).catch(function(err) {
+      var msg = (err && err.detail) || 'Failed to add ticket.';
+      showBoardAlert('addTicketAlert', msg, 'danger');
+    });
+  }
 
   loadBoards();
 })();

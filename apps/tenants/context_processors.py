@@ -54,6 +54,17 @@ def tenant_context(request):
             tenant=tenant, is_active=True,
         ).exists()
 
+    # Derive the full theme palette from the tenant's primary + accent so
+    # every --crm-primary*/--crm-accent* variable picks up the choice, not
+    # just the handful explicitly listed in base.html.
+    from apps.tenants.colors import derive_palette
+
+    settings_obj = getattr(tenant, "settings", None) if tenant else None
+    tenant_palette = derive_palette(
+        getattr(settings_obj, "primary_color", None),
+        getattr(settings_obj, "accent_color", None),
+    )
+
     from django.conf import settings as django_settings
 
     return {
@@ -64,5 +75,6 @@ def tenant_context(request):
         "is_admin_or_manager": is_admin_or_manager,
         "is_agent_or_above": is_agent_or_above,
         "voip_enabled": voip_enabled,
+        "tenant_palette": tenant_palette,
         "BASE_URL": django_settings.BASE_URL,
     }

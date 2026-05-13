@@ -105,6 +105,17 @@ class Article(TenantScopedModel):
         choices=Visibility,
         default=Visibility.INTERNAL,
     )
+    # Group-level audience gate. Empty = visible to every tenant member
+    # (default behaviour). Non-empty = visible only to users in at least
+    # one of these groups, plus the article's author and admins/managers.
+    # Independent of `visibility` (which is the public-portal/agent-only
+    # axis); together they let an admin write, say, an internal note for
+    # the Finance team only.
+    allowed_groups = models.ManyToManyField(
+        "accounts.UserGroup",
+        blank=True,
+        related_name="kb_articles",
+    )
     review_at = models.DateField(null=True, blank=True)
     search_vector = SearchVectorField(null=True)
 

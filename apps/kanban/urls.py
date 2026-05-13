@@ -53,6 +53,11 @@ board_nested_patterns = [
         name="board-cards-move",
     ),
     path(
+        "cards/add-ticket/",
+        CardPositionViewSet.as_view({"post": "add_ticket"}),
+        name="board-cards-add-ticket",
+    ),
+    path(
         "cards/reorder/",
         CardPositionViewSet.as_view({"post": "reorder"}),
         name="board-cards-reorder",

@@ -4,11 +4,16 @@
  */
 const Api = {
   /**
-   * Get the CSRF token from the cookie.
+   * Get the CSRF token. Reads the cookie first; falls back to the
+   * <meta name="csrf-token"> tag rendered by base.html so requests still
+   * authenticate when the cookie is absent (cleared cookies, third-party
+   * cookie blocking, fresh subdomain visit before the cookie propagates).
    */
   getCsrfToken() {
     const match = document.cookie.match(/csrftoken=([^;]+)/);
-    return match ? match[1] : '';
+    if (match) return match[1];
+    const meta = document.querySelector('meta[name="csrf-token"]');
+    return meta ? (meta.getAttribute('content') || '') : '';
   },
 
   /**

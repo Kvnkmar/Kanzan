@@ -15,12 +15,18 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import HasTenantPermission, _get_membership
-from apps.agents.models import AgentAvailability, AgentStatus
+from apps.accounts.permissions import (
+    HasTenantPermission,
+    IsTenantAdminOrManager,
+    IsTenantMember,
+    _get_membership,
+)
+from apps.agents.models import AgentAvailability, AgentStatus, CustomAgentStatus
 from apps.agents.serializers import (
     AgentAvailabilitySerializer,
     AgentStatusUpdateSerializer,
     AgentWorkloadSerializer,
+    CustomAgentStatusSerializer,
 )
 from apps.agents.services import update_ticket_count
 from apps.notifications.models import NotificationType
@@ -49,7 +55,7 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
     ordering = ["-last_activity"]
 
     def get_queryset(self):
-        return AgentAvailability.objects.select_related("user").all()
+        return AgentAvailability.objects.select_related("user", "custom_status").all()
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
@@ -57,6 +63,59 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _status_display(tenant, key):
+        """Resolve a status key (built-in slug or custom slug) to a human label."""
+        builtin = dict(AgentStatus.choices).get(key)
+        if builtin:
+            return builtin
+        if tenant is not None and key:
+            cs = CustomAgentStatus.objects.filter(tenant=tenant, slug=key).first()
+            if cs:
+                return cs.label
+        return key
+
+    def _apply_status_payload(self, agent, request):
+        """Apply a status-change request to an AgentAvailability instance.
+
+        Mutates ``agent`` (status, custom_status, last_activity, optionally
+        status_message). Returns the OLD status key (built-in slug or
+        custom slug) so callers can notify peers about the transition.
+        """
+        serializer = AgentStatusUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+
+        old_key = agent.custom_status.slug if agent.custom_status_id and agent.custom_status else agent.status
+
+        update_fields = ["last_activity", "updated_at"]
+        if "custom_status_id" in validated:
+            new_custom_id = validated["custom_status_id"]
+            if new_custom_id is None:
+                agent.custom_status = None
+                update_fields.append("custom_status")
+            else:
+                try:
+                    cs = CustomAgentStatus.objects.get(
+                        pk=new_custom_id, tenant=request.tenant, is_active=True,
+                    )
+                except CustomAgentStatus.DoesNotExist:
+                    raise ValidationError({"custom_status_id": "Status not found or inactive."})
+                agent.custom_status = cs
+                update_fields.append("custom_status")
+        if "status" in validated:
+            agent.status = validated["status"]
+            update_fields.append("status")
+            # Picking a built-in always clears any active custom status
+            if agent.custom_status_id:
+                agent.custom_status = None
+                if "custom_status" not in update_fields:
+                    update_fields.append("custom_status")
+
+        agent.last_activity = timezone.now()
+        agent.save(update_fields=update_fields)
+        return old_key
 
     def _notify_status_change(self, user, tenant, old_status, new_status):
         """Notify all other tenant members when an agent changes status."""
@@ -66,8 +125,8 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
         from apps.accounts.models import TenantMembership
 
         display_name = user.get_full_name() or user.email
-        old_display = dict(AgentStatus.choices).get(old_status, old_status)
-        new_display = dict(AgentStatus.choices).get(new_status, new_status)
+        old_display = self._status_display(tenant, old_status)
+        new_display = self._status_display(tenant, new_status)
 
         members = TenantMembership.objects.filter(
             tenant=tenant, is_active=True,
@@ -98,29 +157,24 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
         Update the agent's availability status.
 
         POST /agents/{id}/set-status/
-        {"status": "online"|"offline"}
+        {"status": "online"|"offline"|...}  OR  {"custom_status_id": "<uuid>"}
         """
         agent = self.get_object()
-        serializer = AgentStatusUpdateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        new_status = serializer.validated_data["status"]
-        old_status = agent.status
-
-        agent.status = new_status
-        agent.last_activity = timezone.now()
-        agent.save(update_fields=["status", "last_activity", "updated_at"])
+        old_key = self._apply_status_payload(agent, request)
+        new_key = (
+            agent.custom_status.slug
+            if agent.custom_status_id and agent.custom_status
+            else agent.status
+        )
 
         logger.info(
             "Agent %s status changed: %s -> %s",
             agent.user.email,
-            old_status,
-            new_status,
+            old_key,
+            new_key,
         )
 
-        self._notify_status_change(
-            agent.user, request.tenant, old_status, new_status,
-        )
+        self._notify_status_change(agent.user, request.tenant, old_key, new_key)
 
         return Response(
             AgentAvailabilitySerializer(agent, context={"request": request}).data,
@@ -147,30 +201,31 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
         )
 
         if request.method == "POST":
-            serializer = AgentStatusUpdateSerializer(data=request.data)
-            serializer.is_valid(raise_exception=True)
-
-            new_status = serializer.validated_data["status"]
-            old_status = agent.status
-
-            agent.status = new_status
-            agent.last_activity = timezone.now()
-            agent.save(update_fields=["status", "last_activity", "updated_at"])
+            old_key = self._apply_status_payload(agent, request)
+            new_key = (
+                agent.custom_status.slug
+                if agent.custom_status_id and agent.custom_status
+                else agent.status
+            )
 
             logger.info(
                 "Agent %s toggled status: %s -> %s",
                 agent.user.email,
-                old_status,
-                new_status,
+                old_key,
+                new_key,
             )
 
             self._notify_status_change(
-                request.user, request.tenant, old_status, new_status,
+                request.user, request.tenant, old_key, new_key,
             )
 
         elif request.method == "PATCH":
             update_fields = ["updated_at"]
-            old_status = agent.status
+            old_key = (
+                agent.custom_status.slug
+                if agent.custom_status_id and agent.custom_status
+                else agent.status
+            )
             if "max_concurrent_tickets" in request.data:
                 val = int(request.data["max_concurrent_tickets"])
                 agent.max_concurrent_tickets = max(1, min(val, 50))
@@ -179,6 +234,27 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
                 agent.status = request.data["status"]
                 agent.last_activity = timezone.now()
                 update_fields.extend(["status", "last_activity"])
+                # Built-in pick clears any custom status
+                if agent.custom_status_id:
+                    agent.custom_status = None
+                    update_fields.append("custom_status")
+            if "custom_status_id" in request.data:
+                raw = request.data["custom_status_id"]
+                if raw in (None, "", "null"):
+                    agent.custom_status = None
+                else:
+                    try:
+                        cs = CustomAgentStatus.objects.get(
+                            pk=raw, tenant=request.tenant, is_active=True,
+                        )
+                    except CustomAgentStatus.DoesNotExist:
+                        raise ValidationError({"custom_status_id": "Status not found or inactive."})
+                    agent.custom_status = cs
+                agent.last_activity = timezone.now()
+                if "custom_status" not in update_fields:
+                    update_fields.append("custom_status")
+                if "last_activity" not in update_fields:
+                    update_fields.append("last_activity")
             if "status_message" in request.data:
                 agent.status_message = request.data["status_message"] or ""
                 update_fields.append("status_message")
@@ -190,9 +266,14 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
                 update_fields.append("auto_away_outside_hours")
             agent.save(update_fields=update_fields)
 
-            if "status" in request.data:
+            if "status" in request.data or "custom_status_id" in request.data:
+                new_key = (
+                    agent.custom_status.slug
+                    if agent.custom_status_id and agent.custom_status
+                    else agent.status
+                )
                 self._notify_status_change(
-                    request.user, request.tenant, old_status, agent.status,
+                    request.user, request.tenant, old_key, new_key,
                 )
 
         return Response(
@@ -234,7 +315,7 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
             membership_qs = membership_qs.filter(is_active=True)
         memberships = membership_qs.select_related(
             "user", "role", "temporary_role", "temporary_role_granted_by",
-        )
+        ).prefetch_related("temporary_permissions")
 
         # Build a lookup of existing availability records
         availability_map = {}
@@ -246,12 +327,23 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
             agent = availability_map.get(m.user_id)
             temp_active = m.has_active_temporary_role
             granter = m.temporary_role_granted_by
+            custom_status_payload = None
             # Deactivated members surface as "deactivated" regardless of
             # any cached availability status, since they no longer receive
             # work assignments.
             if not m.is_active:
                 row_status = "deactivated"
                 row_status_display = "Deactivated"
+            elif agent and agent.custom_status_id and agent.custom_status:
+                row_status = agent.custom_status.slug
+                row_status_display = agent.custom_status.label
+                custom_status_payload = {
+                    "id": str(agent.custom_status.id),
+                    "slug": agent.custom_status.slug,
+                    "label": agent.custom_status.label,
+                    "color": agent.custom_status.color,
+                    "color_hex": agent.custom_status.color_hex,
+                }
             elif agent:
                 row_status = agent.status
                 row_status_display = agent.get_status_display()
@@ -279,8 +371,13 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
                     (granter.get_full_name() or granter.email)
                     if temp_active and granter else None
                 ),
+                "temporary_permission_ids": (
+                    [str(p.id) for p in m.temporary_permissions.all()]
+                    if temp_active else []
+                ),
                 "status": row_status,
                 "status_display": row_status_display,
+                "custom_status": custom_status_payload,
                 "current_ticket_count": agent.current_ticket_count if agent else 0,
                 "max_concurrent_tickets": agent.max_concurrent_tickets if agent else 10,
                 "last_activity": agent.last_activity.isoformat() if agent and agent.last_activity else None,
@@ -326,6 +423,67 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
 
     @action(
         detail=False,
+        methods=["get"],
+        url_path=r"role-permissions/(?P<role_id>[0-9a-f-]+)",
+        permission_classes=[IsAuthenticated],
+    )
+    def role_permissions(self, request, role_id=None):
+        """
+        Permissions attached to a specific role, grouped by resource.
+
+        Admin-only. Used by the grant-temp-role modal to render the
+        per-grant access checklist. Returns an ordered list of resource
+        groups, each with its permissions.
+
+        GET /agents/role-permissions/{role_id}/
+        """
+        tenant = getattr(request, "tenant", None)
+        if not tenant:
+            raise PermissionDenied("Tenant required.")
+
+        membership = _get_membership(request, tenant)
+        if membership is None or membership.effective_role.hierarchy_level > 10:
+            raise PermissionDenied("Only admins can inspect role permissions.")
+
+        from apps.accounts.models import Role
+
+        try:
+            role = Role.objects.prefetch_related("permissions").get(
+                id=role_id, tenant=tenant,
+            )
+        except Role.DoesNotExist:
+            raise ValidationError("Role not found in this tenant.")
+
+        # Group permissions by resource for nicer rendering. Preserve
+        # resource order by first-seen for determinism.
+        groups = {}
+        order = []
+        for perm in role.permissions.all().order_by("resource", "action"):
+            if perm.resource not in groups:
+                groups[perm.resource] = []
+                order.append(perm.resource)
+            groups[perm.resource].append({
+                "id": str(perm.id),
+                "codename": perm.codename,
+                "name": perm.name,
+                "action": perm.action,
+            })
+
+        data = {
+            "role": {
+                "id": str(role.id),
+                "name": role.name,
+                "slug": role.slug,
+                "hierarchy_level": role.hierarchy_level,
+            },
+            "groups": [
+                {"resource": r, "permissions": groups[r]} for r in order
+            ],
+        }
+        return Response(data, status=status.HTTP_200_OK)
+
+    @action(
+        detail=False,
         methods=["post"],
         url_path="grant-temp-role",
         permission_classes=[IsAuthenticated],
@@ -338,8 +496,14 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
         {
             "user_id": "<uuid>",
             "role_id": "<uuid>",
-            "duration_hours": 8           # OR "expires_at": ISO datetime
+            "duration_hours": 8,          # OR "expires_at": ISO datetime
+            "permission_ids": ["<uuid>", ...]   # optional access subset
         }
+
+        When `permission_ids` is omitted or empty, the temporary role's
+        full permission set applies. When provided, only the supplied
+        permissions (intersected with the role's perms) take effect
+        during the grant window.
         """
         tenant = getattr(request, "tenant", None)
         if not tenant:
@@ -349,7 +513,7 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
         if admin_membership is None or admin_membership.effective_role.hierarchy_level > 10:
             raise PermissionDenied("Only admins can grant temporary roles.")
 
-        from apps.accounts.models import Role, TenantMembership
+        from apps.accounts.models import Permission, Role, TenantMembership
 
         user_id = request.data.get("user_id")
         role_id = request.data.get("role_id")
@@ -367,9 +531,29 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
             raise ValidationError("You cannot grant a temporary role to yourself.")
 
         try:
-            role = Role.objects.get(id=role_id, tenant=tenant)
+            role = Role.objects.prefetch_related("permissions").get(
+                id=role_id, tenant=tenant,
+            )
         except Role.DoesNotExist:
             raise ValidationError("Role not found in this tenant.")
+
+        # Resolve optional permission subset. Silently drop ids that
+        # aren't in the role — the admin's checklist should already
+        # restrict to role perms, but be defensive against tampering.
+        permission_ids = request.data.get("permission_ids") or []
+        if not isinstance(permission_ids, list):
+            raise ValidationError("permission_ids must be a list of UUIDs.")
+        permission_objs = []
+        if permission_ids:
+            role_perm_ids = set(
+                str(pid) for pid in role.permissions.values_list("id", flat=True)
+            )
+            filtered_ids = [pid for pid in permission_ids if str(pid) in role_perm_ids]
+            if not filtered_ids:
+                raise ValidationError(
+                    "None of the supplied permissions belong to the chosen role."
+                )
+            permission_objs = list(Permission.objects.filter(id__in=filtered_ids))
 
         # Resolve expiry
         expires_at_raw = request.data.get("expires_at")
@@ -406,10 +590,18 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
             "temporary_role_granted_by",
             "temporary_role_granted_at",
         ])
+        # Apply the optional access subset. set() replaces the M2M
+        # atomically; passing [] clears it so the role's full perm set
+        # applies (current behaviour for backwards-compatible grants).
+        target.temporary_permissions.set(permission_objs)
 
         logger.info(
-            "Temp role granted: %s -> %s (until %s) by %s",
-            target.user.email, role.name, expires_at.isoformat(), request.user.email,
+            "Temp role granted: %s -> %s (until %s, %d perm subset) by %s",
+            target.user.email,
+            role.name,
+            expires_at.isoformat(),
+            len(permission_objs),
+            request.user.email,
         )
 
         # Notify the recipient so they know about the elevation
@@ -435,6 +627,7 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
             "temporary_role": role.name,
             "temporary_role_id": str(role.id),
             "expires_at": expires_at.isoformat(),
+            "temporary_permission_ids": [str(p.id) for p in permission_objs],
         }, status=status.HTTP_200_OK)
 
     @action(
@@ -485,6 +678,7 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
             "temporary_role_granted_by",
             "temporary_role_granted_at",
         ])
+        target.temporary_permissions.clear()
 
         logger.info(
             "Temp role revoked: %s (was %s) by %s",
@@ -603,3 +797,34 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
 
         serializer = AgentWorkloadSerializer(data, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class CustomAgentStatusViewSet(viewsets.ModelViewSet):
+    """
+    CRUD for tenant-curated custom availability statuses.
+
+    - List/retrieve: any authenticated tenant member (so the navbar
+      dropdown can render the curated list).
+    - Create/update/delete: Admin or Manager (hierarchy_level <= 20).
+    """
+
+    serializer_class = CustomAgentStatusSerializer
+    ordering_fields = ["order", "label", "created_at"]
+    ordering = ["order", "label"]
+    pagination_class = None
+
+    def get_queryset(self):
+        qs = CustomAgentStatus.objects.all()
+        # Non-admins only see active statuses (they're the only ones selectable)
+        params = self.request.query_params
+        if params.get("all", "").lower() not in ("1", "true", "yes"):
+            qs = qs.filter(is_active=True)
+        return qs
+
+    def get_permissions(self):
+        if self.action in ("list", "retrieve"):
+            return [IsAuthenticated(), IsTenantMember()]
+        return [IsAuthenticated(), IsTenantAdminOrManager()]
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)

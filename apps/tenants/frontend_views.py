@@ -24,6 +24,7 @@ from django.shortcuts import redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
+from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
 EMAIL_VERIFICATION_TOKEN_TTL = timedelta(hours=24)
@@ -745,6 +746,7 @@ def knowledge_article_page(request, article_slug):
 # Admin-only pages (hierarchy_level <= 10)
 # ---------------------------------------------------------------------------
 
+@ensure_csrf_cookie
 @_membership_required
 def settings_page(request):
     return render(request, "pages/settings/tenant.html")
@@ -767,6 +769,11 @@ def users_page(request):
 @_role_required(20)
 def agents_page(request):
     return render(request, "pages/agents/list.html")
+
+
+@_role_required(20)
+def groups_page(request):
+    return render(request, "pages/groups/list.html")
 
 
 @_role_required(30)

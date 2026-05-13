@@ -95,12 +95,13 @@ class BoardSerializer(serializers.ModelSerializer):
             "name",
             "resource_type",
             "is_default",
+            "is_personal",
             "created_by",
             "columns",
             "created_at",
             "updated_at",
         ]
-        read_only_fields = ["id", "created_by", "created_at", "updated_at"]
+        read_only_fields = ["id", "is_personal", "created_by", "created_at", "updated_at"]
 
 
 class BoardDetailSerializer(serializers.ModelSerializer):
@@ -121,6 +122,7 @@ class BoardDetailSerializer(serializers.ModelSerializer):
             "name",
             "resource_type",
             "is_default",
+            "is_personal",
             "created_by",
             "columns",
             "created_at",

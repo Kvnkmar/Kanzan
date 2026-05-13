@@ -91,6 +91,32 @@
           <input type="number" min="1" max="720" step="1" class="form-control mt-2 d-none" id="tempRoleCustomHours" placeholder="Hours (max 720)">
           <div class="form-text">Expires at: <span id="tempRoleExpiryPreview" class="fw-semibold">—</span></div>
         </div>
+        <div class="mb-3">
+          <div class="form-check form-switch d-flex align-items-center justify-content-between">
+            <div>
+              <input class="form-check-input" type="checkbox" role="switch" id="tempRoleRestrictToggle">
+              <label class="form-check-label ms-2 fw-semibold" for="tempRoleRestrictToggle">
+                Restrict access during this grant
+              </label>
+            </div>
+            <span class="text-muted small" id="tempRolePermSummary">All role permissions</span>
+          </div>
+          <div class="form-text mb-2">
+            Uncheck individual permissions below to limit what this user can do while the temporary role is active. Leave the switch off to grant the role's full access.
+          </div>
+          <div id="tempRolePermsPanel" class="ae-perm-panel d-none">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-secondary" id="tempRolePermsSelectAll">Select all</button>
+                <button type="button" class="btn btn-outline-secondary" id="tempRolePermsClearAll">Clear all</button>
+              </div>
+              <span class="text-muted small" id="tempRolePermsCount">0 / 0 selected</span>
+            </div>
+            <div id="tempRolePermsList" class="ae-perm-list">
+              <div class="text-muted small py-2 text-center">Pick a role to see its permissions.</div>
+            </div>
+          </div>
+        </div>
         <div id="tempRoleError" class="alert alert-danger d-none small py-2 mb-0"></div>
       </div>
       <div class="modal-footer">
@@ -415,7 +441,9 @@
      ════════════════════════════════════════ */
 
   var rolesCache = null;
+  var rolePermsCache = {};       // role_id -> {role, groups}
   var tempRoleTargetUserId = null;
+  var tempRolePreselectIds = []; // permission ids preselected from existing grant
 
   function loadAssignableRoles() {
     if (!IS_ADMIN) return Promise.resolve([]);
@@ -424,6 +452,15 @@
       rolesCache = data || [];
       return rolesCache;
     }).catch(function() { return []; });
+  }
+
+  function loadRolePermissions(roleId) {
+    if (!roleId) return Promise.resolve(null);
+    if (rolePermsCache[roleId]) return Promise.resolve(rolePermsCache[roleId]);
+    return Api.get(AGENTS_API + '/role-permissions/' + roleId + '/').then(function(data) {
+      rolePermsCache[roleId] = data || null;
+      return rolePermsCache[roleId];
+    }).catch(function() { return null; });
   }
 
   function getSelectedDurationHours() {
@@ -471,6 +508,22 @@
     document.getElementById('tempRoleCustomHours').classList.add('d-none');
     document.getElementById('tempRoleCustomHours').value = '';
 
+    // Reset access picker. If an existing grant has a curated subset,
+    // turn restrict mode on and preselect those permission ids.
+    tempRolePreselectIds = Array.isArray(member.temporary_permission_ids)
+      ? member.temporary_permission_ids.slice()
+      : [];
+    var restrict = document.getElementById('tempRoleRestrictToggle');
+    restrict.checked = tempRolePreselectIds.length > 0;
+    document.getElementById('tempRolePermsPanel').classList.toggle('d-none', !restrict.checked);
+    var permList = document.getElementById('tempRolePermsList');
+    permList.textContent = '';
+    var hint = document.createElement('div');
+    hint.className = 'text-muted small py-2 text-center';
+    hint.textContent = 'Pick a role to see its permissions.';
+    permList.appendChild(hint);
+    updatePermSummary();
+
     // Populate role dropdown
     var sel = document.getElementById('tempRoleSelect');
     sel.textContent = '';
@@ -496,11 +549,105 @@
         if (preselect && r.id === preselect) opt.selected = true;
         sel.appendChild(opt);
       });
+      // If a role is preselected (changing an existing grant), populate
+      // its perm checklist so the admin sees what's currently allowed.
+      if (sel.value) renderRolePermissions(sel.value);
     });
 
     refreshExpiryPreview();
     var modal = bootstrap.Modal.getOrCreateInstance(modalEl);
     modal.show();
+  }
+
+  function renderRolePermissions(roleId) {
+    var permList = document.getElementById('tempRolePermsList');
+    permList.textContent = '';
+    if (!roleId) {
+      var hint = document.createElement('div');
+      hint.className = 'text-muted small py-2 text-center';
+      hint.textContent = 'Pick a role to see its permissions.';
+      permList.appendChild(hint);
+      updatePermSummary();
+      return;
+    }
+    var loading = document.createElement('div');
+    loading.className = 'text-muted small py-2 text-center';
+    loading.textContent = 'Loading permissions…';
+    permList.appendChild(loading);
+
+    loadRolePermissions(roleId).then(function(data) {
+      permList.textContent = '';
+      if (!data || !data.groups || !data.groups.length) {
+        var empty = document.createElement('div');
+        empty.className = 'text-muted small py-2 text-center';
+        empty.textContent = 'This role has no explicit permissions — restricting it has no effect.';
+        permList.appendChild(empty);
+        updatePermSummary();
+        return;
+      }
+      // Default: check everything. If we're editing an existing grant,
+      // preselect only the ids previously curated.
+      var preselectSet = tempRolePreselectIds.length
+        ? new Set(tempRolePreselectIds.map(String))
+        : null;
+      data.groups.forEach(function(group) {
+        var groupWrap = document.createElement('div');
+        groupWrap.className = 'ae-perm-group';
+        var title = document.createElement('p');
+        title.className = 'ae-perm-group-title';
+        title.textContent = group.resource.replace(/_/g, ' ');
+        groupWrap.appendChild(title);
+        var row = document.createElement('div');
+        row.className = 'ae-perm-row';
+        group.permissions.forEach(function(perm) {
+          var wrap = document.createElement('div');
+          wrap.className = 'form-check';
+          var input = document.createElement('input');
+          input.type = 'checkbox';
+          input.className = 'form-check-input ae-perm-checkbox';
+          input.id = 'perm-' + perm.id;
+          input.value = perm.id;
+          input.dataset.codename = perm.codename;
+          input.checked = preselectSet ? preselectSet.has(String(perm.id)) : true;
+          input.addEventListener('change', updatePermSummary);
+          var label = document.createElement('label');
+          label.className = 'form-check-label';
+          label.htmlFor = input.id;
+          label.textContent = perm.name;
+          label.title = perm.codename;
+          wrap.appendChild(input);
+          wrap.appendChild(label);
+          row.appendChild(wrap);
+        });
+        groupWrap.appendChild(row);
+        permList.appendChild(groupWrap);
+      });
+      // Only keep preselect ids for the very first render after open.
+      tempRolePreselectIds = [];
+      updatePermSummary();
+    });
+  }
+
+  function updatePermSummary() {
+    var boxes = document.querySelectorAll('.ae-perm-checkbox');
+    var checked = 0;
+    boxes.forEach(function(b) { if (b.checked) checked++; });
+    var total = boxes.length;
+    var countEl = document.getElementById('tempRolePermsCount');
+    if (countEl) countEl.textContent = checked + ' / ' + total + ' selected';
+    var summary = document.getElementById('tempRolePermSummary');
+    var restrict = document.getElementById('tempRoleRestrictToggle').checked;
+    if (!restrict) {
+      summary.textContent = 'All role permissions';
+    } else if (total === 0) {
+      summary.textContent = 'Pick a role';
+    } else if (checked === total) {
+      summary.textContent = 'All ' + total + ' permissions';
+    } else if (checked === 0) {
+      summary.textContent = 'No permissions';
+    } else {
+      summary.textContent = checked + ' of ' + total + ' permissions';
+    }
   }
 
   function showTempRoleError(msg) {
@@ -519,15 +666,31 @@
       return;
     }
 
+    // Collect permission subset when restrict mode is on. When off, omit
+    // the field so the server keeps the role's full permission set.
+    var payload = {
+      user_id: tempRoleTargetUserId,
+      role_id: roleId,
+      duration_hours: hours,
+    };
+    var restrict = document.getElementById('tempRoleRestrictToggle').checked;
+    if (restrict) {
+      var ids = [];
+      document.querySelectorAll('.ae-perm-checkbox').forEach(function(cb) {
+        if (cb.checked) ids.push(cb.value);
+      });
+      if (!ids.length) {
+        showTempRoleError('Pick at least one permission, or turn off "Restrict access".');
+        return;
+      }
+      payload.permission_ids = ids;
+    }
+
     var btn = document.getElementById('tempRoleConfirmBtn');
     btn.disabled = true;
     document.getElementById('tempRoleConfirmLabel').textContent = 'Granting…';
 
-    Api.post(AGENTS_API + '/grant-temp-role/', {
-      user_id: tempRoleTargetUserId,
-      role_id: roleId,
-      duration_hours: hours,
-    }).then(function() {
+    Api.post(AGENTS_API + '/grant-temp-role/', payload).then(function() {
       var modalEl = document.getElementById('tempRoleModal');
       bootstrap.Modal.getInstance(modalEl).hide();
       Toast.success('Temporary role granted.');
@@ -696,6 +859,51 @@
     if (customInput) customInput.addEventListener('input', refreshExpiryPreview);
     var confirmBtn = document.getElementById('tempRoleConfirmBtn');
     if (confirmBtn) confirmBtn.addEventListener('click', submitGrantTempRole);
+
+    // When the admin picks a different role, refresh the perm checklist
+    // so it reflects the new role's permissions.
+    var roleSel = document.getElementById('tempRoleSelect');
+    if (roleSel) {
+      roleSel.addEventListener('change', function() {
+        // Switching roles always resets to fresh defaults — drop any
+        // preselect carried over from a prior grant.
+        tempRolePreselectIds = [];
+        renderRolePermissions(roleSel.value);
+      });
+    }
+
+    // Restrict toggle: show/hide the picker. When turning it on for the
+    // first time, populate the checklist for the currently picked role.
+    var restrictToggle = document.getElementById('tempRoleRestrictToggle');
+    if (restrictToggle) {
+      restrictToggle.addEventListener('change', function() {
+        var panel = document.getElementById('tempRolePermsPanel');
+        panel.classList.toggle('d-none', !restrictToggle.checked);
+        if (restrictToggle.checked) {
+          var currentRole = document.getElementById('tempRoleSelect').value;
+          // Only render if the list is empty (avoid clobbering current state)
+          var hasItems = document.querySelectorAll('.ae-perm-checkbox').length > 0;
+          if (currentRole && !hasItems) renderRolePermissions(currentRole);
+        }
+        updatePermSummary();
+      });
+    }
+
+    var selectAllBtn = document.getElementById('tempRolePermsSelectAll');
+    if (selectAllBtn) {
+      selectAllBtn.addEventListener('click', function() {
+        document.querySelectorAll('.ae-perm-checkbox').forEach(function(cb) { cb.checked = true; });
+        updatePermSummary();
+      });
+    }
+    var clearAllBtn = document.getElementById('tempRolePermsClearAll');
+    if (clearAllBtn) {
+      clearAllBtn.addEventListener('click', function() {
+        document.querySelectorAll('.ae-perm-checkbox').forEach(function(cb) { cb.checked = false; });
+        updatePermSummary();
+      });
+    }
+
     var changeRoleConfirm = document.getElementById('changeRoleConfirmBtn');
     if (changeRoleConfirm) changeRoleConfirm.addEventListener('click', submitChangeRole);
   }

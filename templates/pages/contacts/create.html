@@ -71,11 +71,16 @@
 
           <!-- Company -->
           <div class="contact-field-row">
-            <label class="contact-field-label">Account</label>
+            <label class="contact-field-label">Company</label>
             <div class="contact-field-value">
-              <select id="contactCompany" name="company" class="form-select">
-                <option value="">Select account...</option>
-              </select>
+              <div class="d-flex gap-2 align-items-center">
+                <select id="contactCompany" name="company" class="form-select flex-grow-1">
+                  <option value="">Select company...</option>
+                </select>
+                <button type="button" id="newCompanyBtn" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#newCompanyModal">
+                  <i class="ti ti-plus"></i> New
+                </button>
+              </div>
               <div class="invalid-feedback" id="companyError"></div>
             </div>
           </div>
@@ -117,7 +122,8 @@
                     <option value="Fax">Fax</option>
                     <option value="Other">Other</option>
                   </select>
-                  <input type="tel" id="contactPhone" name="phone" class="form-control" placeholder="+1 (555) 000-0000" maxlength="30">
+                  <select class="form-select contact-phone-country"></select>
+                  <input type="tel" id="contactPhone" name="phone" class="form-control" placeholder="12345678" maxlength="30">
                   <div class="contact-field-icons">
                     <button type="button" class="contact-icon-btn" title="Opt-out" data-action="optout-phone">
                       <i class="ti ti-phone-off"></i>
@@ -295,12 +301,105 @@
     </div>
   </form>
 </div>
+
+<!-- New Company Modal -->
+<div class="modal fade" id="newCompanyModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title fw-semibold">New Company</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="newCompanyForm" novalidate>
+        <div class="modal-body">
+          <div id="newCompanyAlert" class="alert alert-danger d-none" role="alert"></div>
+          <div class="mb-3">
+            <label for="newCompanyName" class="form-label">Name <span class="text-danger">*</span></label>
+            <input type="text" id="newCompanyName" class="form-control" required maxlength="200">
+          </div>
+          <div class="mb-3">
+            <label for="newCompanyIndustry" class="form-label">Industry</label>
+            <input type="text" id="newCompanyIndustry" class="form-control" maxlength="100">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" id="newCompanySubmit" class="btn btn-primary">
+            <span id="newCompanyText"><i class="ti ti-check me-1"></i>Create</span>
+            <span id="newCompanySpinner" class="d-none"><span class="spinner-border spinner-border-sm me-1" role="status"></span>Creating...</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function() {
   'use strict';
+
+  // --- Country dial codes (shared with phone rows) ---
+  var COUNTRY_CODES = [
+    { code: 'MY', dial: '+60', label: 'Malaysia' },
+    { code: 'SG', dial: '+65', label: 'Singapore' },
+    { code: 'ID', dial: '+62', label: 'Indonesia' },
+    { code: 'TH', dial: '+66', label: 'Thailand' },
+    { code: 'PH', dial: '+63', label: 'Philippines' },
+    { code: 'VN', dial: '+84', label: 'Vietnam' },
+    { code: 'IN', dial: '+91', label: 'India' },
+    { code: 'CN', dial: '+86', label: 'China' },
+    { code: 'JP', dial: '+81', label: 'Japan' },
+    { code: 'KR', dial: '+82', label: 'South Korea' },
+    { code: 'HK', dial: '+852', label: 'Hong Kong' },
+    { code: 'TW', dial: '+886', label: 'Taiwan' },
+    { code: 'AU', dial: '+61', label: 'Australia' },
+    { code: 'NZ', dial: '+64', label: 'New Zealand' },
+    { code: 'US', dial: '+1', label: 'United States' },
+    { code: 'CA', dial: '+1', label: 'Canada' },
+    { code: 'GB', dial: '+44', label: 'United Kingdom' },
+    { code: 'IE', dial: '+353', label: 'Ireland' },
+    { code: 'DE', dial: '+49', label: 'Germany' },
+    { code: 'FR', dial: '+33', label: 'France' },
+    { code: 'NL', dial: '+31', label: 'Netherlands' },
+    { code: 'ES', dial: '+34', label: 'Spain' },
+    { code: 'IT', dial: '+39', label: 'Italy' },
+    { code: 'AE', dial: '+971', label: 'UAE' },
+    { code: 'SA', dial: '+966', label: 'Saudi Arabia' },
+    { code: 'ZA', dial: '+27', label: 'South Africa' },
+    { code: 'BR', dial: '+55', label: 'Brazil' },
+    { code: 'MX', dial: '+52', label: 'Mexico' }
+  ];
+  var DEFAULT_DIAL = '+60';
+
+  function populateCountrySelect(selectEl, currentDial) {
+    while (selectEl.firstChild) selectEl.removeChild(selectEl.firstChild);
+    COUNTRY_CODES.forEach(function(c) {
+      var opt = document.createElement('option');
+      opt.value = c.dial;
+      opt.dataset.country = c.code;
+      opt.textContent = c.dial + ' ' + c.code;
+      selectEl.appendChild(opt);
+    });
+    selectEl.value = currentDial || DEFAULT_DIAL;
+  }
+
+  function wirePhoneRow(row) {
+    var country = row.querySelector('.contact-phone-country');
+    var input = row.querySelector('input[type="tel"]');
+    if (!country || !input) return;
+    if (!country.options.length) populateCountrySelect(country, DEFAULT_DIAL);
+    country.addEventListener('change', function() {
+      var newDial = country.value;
+      var raw = input.value.trim();
+      var stripped = raw.replace(/^\+\d{1,4}\s*/, '');
+      input.value = (newDial + ' ' + stripped).trim();
+      input.focus();
+    });
+  }
+
+  document.querySelectorAll('#phoneFieldsContainer .contact-input-with-actions').forEach(wirePhoneRow);
 
   // --- Load companies ---
   Api.get('/api/v1/contacts/companies/').then(function(data) {
@@ -312,6 +411,56 @@
       select.appendChild(opt);
     });
   }).catch(function() {});
+
+  // --- New Company modal ---
+  document.getElementById('newCompanyForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    var nameEl = document.getElementById('newCompanyName');
+    var industryEl = document.getElementById('newCompanyIndustry');
+    var alertEl = document.getElementById('newCompanyAlert');
+    var btn = document.getElementById('newCompanySubmit');
+    alertEl.classList.add('d-none');
+    var name = nameEl.value.trim();
+    if (!name) {
+      alertEl.textContent = 'Company name is required.';
+      alertEl.classList.remove('d-none');
+      return;
+    }
+    var payload = { name: name };
+    var industry = industryEl.value.trim();
+    if (industry) payload.industry = industry;
+    btn.disabled = true;
+    document.getElementById('newCompanyText').classList.add('d-none');
+    document.getElementById('newCompanySpinner').classList.remove('d-none');
+    Api.post('/api/v1/contacts/companies/', payload).then(function(c) {
+      var select = document.getElementById('contactCompany');
+      var opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      select.appendChild(opt);
+      select.value = c.id;
+      bootstrap.Modal.getInstance(document.getElementById('newCompanyModal')).hide();
+      document.getElementById('newCompanyForm').reset();
+      Toast.success('Company created');
+    }).catch(function(err) {
+      var msg = 'Failed to create company';
+      if (err && typeof err === 'object') {
+        var parts = [];
+        Object.keys(err).forEach(function(k) {
+          var v = err[k];
+          if (Array.isArray(v)) parts.push(k + ': ' + v.join(' '));
+          else if (typeof v === 'string') parts.push(k + ': ' + v);
+        });
+        if (parts.length) msg = parts.join(' | ');
+      }
+      alertEl.textContent = msg;
+      alertEl.classList.remove('d-none');
+    }).finally(function() {
+      btn.disabled = false;
+      document.getElementById('newCompanyText').classList.remove('d-none');
+      document.getElementById('newCompanySpinner').classList.add('d-none');
+    });
+  });
 
   // --- Load users for assignment ---
   Api.get('/api/v1/accounts/users/').then(function(data) {
@@ -380,6 +529,8 @@
     div.className = 'contact-input-with-actions mt-2';
     div.innerHTML = '<input type="email" class="form-control extra-email" placeholder="email@example.com">' +
       '<div class="contact-field-icons">' +
+        '<button type="button" class="contact-icon-btn" title="Opt-out" data-action="optout-email"><i class="ti ti-mail-off"></i></button>' +
+        '<button type="button" class="contact-icon-btn" title="Block" data-action="block-email"><i class="ti ti-shield-x"></i></button>' +
         '<button type="button" class="contact-icon-btn text-danger" title="Remove" onclick="this.closest(\'.contact-input-with-actions\').remove()"><i class="ti ti-trash"></i></button>' +
       '</div>';
     container.appendChild(div);
@@ -393,11 +544,16 @@
     var div = document.createElement('div');
     div.className = 'contact-input-with-actions mt-2';
     div.innerHTML = '<select class="form-select contact-phone-type"><option value="Mobile">Mobile</option><option value="Office">Office</option><option value="Home">Home</option><option value="Fax">Fax</option><option value="Other">Other</option></select>' +
-      '<input type="tel" class="form-control extra-phone" placeholder="+1 (555) 000-0000" maxlength="30">' +
+      '<select class="form-select contact-phone-country"></select>' +
+      '<input type="tel" class="form-control extra-phone" placeholder="12345678" maxlength="30">' +
       '<div class="contact-field-icons">' +
         '<button type="button" class="contact-icon-btn text-danger" title="Remove" onclick="this.closest(\'.contact-input-with-actions\').remove()"><i class="ti ti-trash"></i></button>' +
       '</div>';
     container.appendChild(div);
+    wirePhoneRow(div);
+    if (window.KanzenSelect) {
+      div.querySelectorAll('select.form-select').forEach(function(s) { KanzenSelect.upgrade(s); });
+    }
   });
 
   // --- Reset form ---
@@ -447,11 +603,20 @@
     document.getElementById('saveSpinner').classList.toggle('d-none', !loading);
   }
 
+  function combineDialAndPhone(dial, raw) {
+    var v = (raw || '').trim();
+    if (!v) return '';
+    if (v.charAt(0) === '+') return v;
+    return ((dial || '') + ' ' + v).trim();
+  }
+
   function buildPayload() {
     var firstName = document.getElementById('contactFirstName').value.trim();
     var lastName = document.getElementById('contactLastName').value.trim();
     var email = document.getElementById('contactEmail').value.trim();
-    var phone = document.getElementById('contactPhone').value.trim();
+    var primaryCountrySel = document.querySelector('#phoneFieldsContainer .contact-phone-country');
+    var primaryDial = primaryCountrySel ? primaryCountrySel.value : DEFAULT_DIAL;
+    var phone = combineDialAndPhone(primaryDial, document.getElementById('contactPhone').value);
     var company = document.getElementById('contactCompany').value;
     var jobTitle = document.getElementById('contactJobTitle').value.trim();
     var source = document.getElementById('contactSource').value;
@@ -494,9 +659,14 @@
     var extraPhones = [];
     document.querySelectorAll('#phoneFieldsContainer .mt-2').forEach(function(row) {
       var type = row.querySelector('.contact-phone-type');
+      var ctry = row.querySelector('.contact-phone-country');
       var ph = row.querySelector('.extra-phone');
       if (ph && ph.value.trim()) {
-        extraPhones.push({ type: type ? type.value : 'Other', number: ph.value.trim() });
+        extraPhones.push({
+          type: type ? type.value : 'Other',
+          country: ctry ? ctry.value : DEFAULT_DIAL,
+          number: combineDialAndPhone(ctry ? ctry.value : DEFAULT_DIAL, ph.value)
+        });
       }
     });
     if (extraPhones.length > 0) customData.additional_phones = extraPhones;

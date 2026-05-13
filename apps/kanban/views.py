@@ -8,6 +8,7 @@ DRF ViewSets for the kanban app.
 
 import logging
 
+from django.db.models import Q
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -24,6 +25,11 @@ from apps.kanban.serializers import (
 from apps.kanban.services import move_card, populate_board_from_tickets, sync_board_with_statuses
 
 logger = logging.getLogger(__name__)
+
+
+def _accessible_boards_q(user):
+    """Return a Q filter that hides personal boards owned by other users."""
+    return Q(is_personal=False) | Q(is_personal=True, created_by=user)
 
 
 # ---------------------------------------------------------------------------
@@ -50,7 +56,14 @@ class BoardViewSet(viewsets.ModelViewSet):
     lookup_field = "pk"
 
     def get_queryset(self):
-        return Board.objects.prefetch_related("columns").all()
+        # Order: team boards before personal, default within each group first,
+        # then alphabetical. Keeps "Support Pipeline" et al ahead of any
+        # personal board in the picker.
+        return (
+            Board.objects.prefetch_related("columns")
+            .filter(_accessible_boards_q(self.request.user))
+            .order_by("is_personal", "-is_default", "name", "-created_at")
+        )
 
     def get_serializer_class(self):
         if self.action == "detail_with_cards":
@@ -58,7 +71,19 @@ class BoardViewSet(viewsets.ModelViewSet):
         return BoardSerializer
 
     def perform_create(self, serializer):
-        board = serializer.save(created_by=self.request.user, tenant=self.request.tenant)
+        is_personal = bool(self.request.data.get("is_personal", False))
+        board = serializer.save(
+            created_by=self.request.user,
+            tenant=self.request.tenant,
+            is_personal=is_personal,
+            # Personal boards can't be the team default.
+            is_default=False if is_personal else serializer.validated_data.get("is_default", False),
+        )
+
+        # Personal boards stay empty — user adds tickets manually — so skip
+        # auto-column generation and ticket auto-population.
+        if is_personal:
+            return
 
         if board.resource_type == Board.ResourceType.TICKET:
             # Auto-create columns from ticket statuses when requested
@@ -119,8 +144,13 @@ class ColumnViewSet(viewsets.ModelViewSet):
         from django.db.models import Count
 
         board_pk = self.kwargs.get("board_pk")
+        user = self.request.user
         return (
             Column.objects.filter(board_id=board_pk)
+            .filter(
+                Q(board__is_personal=False)
+                | Q(board__is_personal=True, board__created_by=user)
+            )
             .select_related("board")
             .annotate(card_count=Count("cards"))
             .order_by("order")
@@ -134,7 +164,18 @@ class ColumnViewSet(viewsets.ModelViewSet):
             from rest_framework.exceptions import NotFound
 
             raise NotFound("Board not found.")
-        column = serializer.save(board=board)
+
+        # Block creating columns on another user's personal board.
+        if board.is_personal and board.created_by_id != self.request.user.id:
+            from rest_framework.exceptions import NotFound
+
+            raise NotFound("Board not found.")
+
+        # Personal boards don't sync to ticket statuses — strip the mapping.
+        if board.is_personal:
+            column = serializer.save(board=board, status=None)
+        else:
+            column = serializer.save(board=board)
 
         # Auto-populate this column with matching tickets if it has a status mapping
         if column.status_id and board.resource_type == Board.ResourceType.TICKET:
@@ -182,10 +223,103 @@ class CardPositionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         board_pk = self.kwargs.get("board_pk")
+        user = self.request.user
         return (
             CardPosition.objects.filter(column__board_id=board_pk)
+            .filter(
+                Q(column__board__is_personal=False)
+                | Q(column__board__is_personal=True, column__board__created_by=user)
+            )
             .select_related("column", "content_type")
             .order_by("column__order", "order")
+        )
+
+    @action(detail=False, methods=["post"], url_path="add-ticket")
+    def add_ticket(self, request, board_pk=None):
+        """
+        Add an existing ticket as a card at the bottom of a column.
+
+        Used by personal boards (which start empty) but works for any board.
+
+        Body:
+            {
+                "column_id": "<uuid>",
+                "ticket_id": "<uuid>"
+            }
+        """
+        from django.contrib.contenttypes.models import ContentType
+        from apps.tickets.models import Ticket
+
+        column_id = request.data.get("column_id")
+        ticket_id = request.data.get("ticket_id")
+        if not column_id or not ticket_id:
+            return Response(
+                {"detail": "column_id and ticket_id are required."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            column = (
+                Column.objects.select_related("board")
+                .filter(board_id=board_pk, id=column_id)
+                .first()
+            )
+        except (ValueError, TypeError):
+            column = None
+        if column is None:
+            return Response(
+                {"detail": "Column not found on this board."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        board = column.board
+        if board.is_personal and board.created_by_id != request.user.id:
+            return Response(
+                {"detail": "Board not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        ticket = Ticket.objects.filter(id=ticket_id).first()
+        if ticket is None:
+            return Response(
+                {"detail": "Ticket not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        ticket_ct = ContentType.objects.get_for_model(Ticket)
+
+        # Prevent duplicates anywhere on the board.
+        already = CardPosition.objects.filter(
+            column__board_id=board_pk,
+            content_type=ticket_ct,
+            object_id=ticket.id,
+        ).first()
+        if already is not None:
+            return Response(
+                {"detail": "Ticket is already on this board.",
+                 "card_id": str(already.id),
+                 "column_id": str(already.column_id)},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Respect WIP limits.
+        if column.wip_limit and column.cards.count() >= column.wip_limit:
+            return Response(
+                {"detail": f"Column '{column.name}' has reached its WIP limit "
+                           f"of {column.wip_limit}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order = column.cards.count()
+        card = CardPosition.objects.create(
+            column=column,
+            content_type=ticket_ct,
+            object_id=ticket.id,
+            order=order,
+        )
+        return Response(
+            CardPositionSerializer(card).data,
+            status=status.HTTP_201_CREATED,
         )
 
     @action(detail=False, methods=["post"], url_path="move")

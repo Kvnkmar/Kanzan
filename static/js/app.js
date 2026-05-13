@@ -430,12 +430,42 @@ function initSidebarBadges() {
   });
   if (!hasAnyBadge) return;
 
-  Api.get('/api/v1/nav/badge-counts/').then(function(data) {
-    if (!data) return;
-    Object.keys(badgeMap).forEach(function(key) {
-      setBadge(badgeMap[key], data[key] || 0);
-    });
-  }).catch(function() {});
+  function fetchAndApply() {
+    return Api.get('/api/v1/nav/badge-counts/').then(function(data) {
+      if (!data) return;
+      Object.keys(badgeMap).forEach(function(key) {
+        setBadge(badgeMap[key], data[key] || 0);
+      });
+    }).catch(function() {});
+  }
+
+  fetchAndApply();
+
+  // Live updates: when a new in-app notification arrives over the
+  // notifications WebSocket, the type tells us which badge to bump. We
+  // re-fetch the unified endpoint rather than incrementing locally so
+  // the count stays in sync with the server's tenant-scoped truth
+  // (handles mark-as-read elsewhere, multi-tab sessions, etc.)
+  var NOTIF_TO_BADGE = {
+    message: 'sidebarBadgeMessages',
+    ticket_assigned: 'sidebarBadgeTickets',
+    ticket_updated: 'sidebarBadgeTickets',
+    ticket_overdue: 'sidebarBadgeTickets',
+    reminder_overdue: 'sidebarBadgeReminders',
+    kb_review_requested: 'sidebarBadgeKnowledge',
+    kb_article_reviewed: 'sidebarBadgeKnowledge',
+  };
+  document.addEventListener('kanzan:notification', function(e) {
+    var type = e && e.detail && e.detail.type;
+    if (type && NOTIF_TO_BADGE[type]) {
+      fetchAndApply();
+    }
+  });
+
+  // Also refresh when the user opens the Messages page or sends one
+  // (chat code dispatches this event after read/send actions so the
+  // sidebar updates without waiting for the next notification.)
+  document.addEventListener('kanzan:messages-changed', fetchAndApply);
 }
 
 /**

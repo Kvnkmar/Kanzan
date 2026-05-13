@@ -79,7 +79,7 @@ class Company(TenantScopedModel):
         null=True,
         blank=True,
     )
-    phone = models.CharField(max_length=20, null=True, blank=True)
+    phone = models.CharField(max_length=30, null=True, blank=True)
     email = models.EmailField(null=True, blank=True)
     address = models.TextField(blank=True, default="")
     website = models.URLField(null=True, blank=True)
@@ -119,7 +119,7 @@ class Contact(TenantScopedModel):
     first_name = models.CharField(max_length=150)
     last_name = models.CharField(max_length=150)
     email = models.EmailField()
-    phone = models.CharField(max_length=20, null=True, blank=True)
+    phone = models.CharField(max_length=30, null=True, blank=True)
     company = models.ForeignKey(
         Company,
         on_delete=models.SET_NULL,

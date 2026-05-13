@@ -243,6 +243,17 @@ class TenantMembership(models.Model):
         related_name="temporary_grants_made",
     )
     temporary_role_granted_at = models.DateTimeField(null=True, blank=True)
+    temporary_permissions = models.ManyToManyField(
+        "accounts.Permission",
+        blank=True,
+        related_name="temporary_grants",
+        help_text=(
+            "Optional allow-list applied while a temporary role is active. "
+            "When non-empty, the effective permission set is the intersection "
+            "of the temporary role's permissions and this set. When empty, "
+            "the temporary role's full permission set applies."
+        ),
+    )
 
     class Meta:
         verbose_name = "tenant membership"
@@ -270,6 +281,24 @@ class TenantMembership(models.Model):
         if self.has_active_temporary_role:
             return self.temporary_role
         return self.role
+
+    def get_effective_permissions_qs(self):
+        """Return the Permission queryset that's currently in effect.
+
+        When a temporary role is active AND `temporary_permissions` is
+        non-empty, the result is the intersection of the temporary role's
+        permissions and `temporary_permissions` — i.e. the admin-curated
+        subset. Otherwise the effective role's full permission set applies.
+        """
+        if self.has_active_temporary_role and self.temporary_permissions.exists():
+            return self.temporary_role.permissions.filter(
+                id__in=self.temporary_permissions.values_list("id", flat=True)
+            )
+        return self.effective_role.permissions.all()
+
+    def has_effective_permission(self, codename):
+        """True iff the given codename is granted by the current role state."""
+        return self.get_effective_permissions_qs().filter(codename=codename).exists()
 
 
 class Invitation(TenantScopedModel):
@@ -310,6 +339,31 @@ class Invitation(TenantScopedModel):
     @property
     def is_accepted(self):
         return self.accepted_at is not None
+
+
+class UserGroup(TenantScopedModel):
+    """
+    Tenant-scoped named group of users. Organisational grouping only —
+    does not grant permissions or route work. Use for team/department
+    labels that admins maintain from Settings.
+    """
+
+    name = models.CharField(max_length=100)
+    description = models.TextField(blank=True, default="")
+    members = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        blank=True,
+        related_name="user_groups",
+    )
+
+    class Meta:
+        verbose_name = "user group"
+        verbose_name_plural = "user groups"
+        ordering = ["name"]
+        unique_together = [("tenant", "name")]
+
+    def __str__(self):
+        return self.name
 
 
 class EmailVerificationToken(models.Model):

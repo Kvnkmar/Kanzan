@@ -232,8 +232,10 @@ def move_card(card_position, target_column, position):
 
     card_position.refresh_from_db()
 
-    # Sync ticket status if the target column is mapped to a TicketStatus
-    if target_column.status_id is not None:
+    # Sync ticket status if the target column is mapped to a TicketStatus.
+    # Personal boards are independent views — never write back to ticket state.
+    board_is_personal = getattr(target_column.board, "is_personal", False)
+    if target_column.status_id is not None and not board_is_personal:
         content_obj = card_position.content_object
         if content_obj is not None and hasattr(content_obj, 'status_id'):
             if content_obj.status_id != target_column.status_id:

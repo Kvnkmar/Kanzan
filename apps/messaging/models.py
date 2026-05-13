@@ -47,6 +47,18 @@ class Conversation(TenantScopedModel):
         related_name="conversations",
         help_text="Associated ticket for ticket-type conversations.",
     )
+    source_group = models.ForeignKey(
+        "accounts.UserGroup",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="conversations",
+        help_text=(
+            "The UserGroup this conversation was seeded from. Used to "
+            "deduplicate per-creator group conversations and to surface "
+            "the group's name in the messaging UI."
+        ),
+    )
     participants = models.ManyToManyField(
         settings.AUTH_USER_MODEL,
         through="ConversationParticipant",

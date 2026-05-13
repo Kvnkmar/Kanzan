@@ -1,8 +1,10 @@
 # Kanzen — Project Intelligence
 
+> Last refreshed: 2026-05-11. Verified against current branch `main` @ `bb36325`. For deeper inventory + per-domain reference, see `/docs/reference/` (`codebase-inventory.md`, `api-surface.md`, `frontend-surface.md`, `infra-surface.md`) and `/docs/README.md`.
+
 ## Project Overview
 
-Multi-tenant CRM, Ticketing, Knowledge Base, and VoIP SaaS. **Django 6.0.2 + DRF 3.16 + Channels 4.2 + Celery 5.4** with Bootstrap 5.3.3 + vanilla JS frontend (SIP.js for softphone, TipTap for rich editor, DOMPurify for sanitization). Row-level multi-tenancy via subdomain routing and **contextvars-based** tenant binding (async-safe). PM2 process management.
+Multi-tenant CRM, Ticketing, Knowledge Base, and VoIP SaaS. **Django 6.0.2 + DRF 3.16+ + Channels 4.2+ + Celery 5.4+** with Bootstrap 5.3.3 + vanilla JS frontend (SIP.js for softphone, TipTap for rich editor, DOMPurify for sanitization). Row-level multi-tenancy via subdomain routing and **contextvars-based** tenant binding (async-safe). PM2 process management.
 
 **Port:** 8001 (ASGI via Gunicorn + Uvicorn worker) | **Dev DB:** SQLite | **Prod DB:** PostgreSQL
 **Redis:** db3 (cache + cached_db sessions, prefix `kanzan`), db4 (Celery broker + django-db result backend), db5 (Channels layer, prefix `kanzan:channels`)
@@ -29,17 +31,17 @@ API Docs:       http://dpap.localhost:8001/api/docs/
 
 ```
 /home/kavin/Kanzen/
-├── apps/                          # 20 Django apps (incl. apps.nav URL-only helper, no AppConfig)
-│   ├── accounts/                  # Users, RBAC, permissions, invitations, profiles, middleware
+├── apps/                          # 20 Django apps (apps.nav is URL-only — no AppConfig)
+│   ├── accounts/                  # Users, RBAC + temporary-role overrides, invitations, profiles, middleware
 │   ├── agents/                    # AgentAvailability + load-fairness email agent picker
 │   ├── analytics/                 # Reports, dashboard widgets, exports, calendar events
 │   ├── attachments/               # File uploads (polymorphic GenericFK)
 │   ├── billing/                   # Stripe billing, plans, subscriptions, webhooks, decorators
-│   ├── comments/                  # Comments + Mention + CommentRead + ActivityLog (audit)
+│   ├── comments/                  # Comments + Mention + CommentRead + ActivityLog (audit, 23 actions)
 │   ├── contacts/                  # Contacts, Companies, Accounts, Groups, ContactEvent (360°)
-│   ├── crm/                       # Activity + Reminder, lead/account scoring, pipeline forecast
+│   ├── crm/                       # Activity + Reminder (M2M contacts/tickets), lead/account scoring, pipeline forecast
 │   ├── custom_fields/             # EAV custom fields per tenant
-│   ├── inbound_email/             # SMTP+IMAP ingestion → tickets; agent inbox workflow
+│   ├── inbound_email/             # SMTP+IMAP ingestion → tickets; agent inbox workflow; auto-assign
 │   ├── kanban/                    # Visual boards, columns, polymorphic CardPosition
 │   ├── knowledge/                 # KB articles, categories, search, stale alerts, gap digest
 │   ├── messaging/                 # Real-time conversations (WebSocket)
@@ -57,18 +59,18 @@ API Docs:       http://dpap.localhost:8001/api/docs/
 │   ├── context.py                 # contextvars-based tenant context (async-safe)
 │   ├── models.py                  # TimestampedModel, TenantScopedModel
 │   ├── managers.py                # TenantQuerySet, TenantAwareManager, SoftDeleteTenantManager
-│   └── urls.py                    # /api/v1/ router + /api/docs/ + frontend URL include
+│   └── urls.py                    # /api/v1/ router (22 includes) + /api/docs/ + frontend URL include
 ├── templates/
-│   ├── base.html                  # Layout, toast container, notes panel, softphone (conditional)
+│   ├── base.html                  # Layout, toast container, notes panel, softphone (conditional). Loads custom-v15.css.
 │   ├── includes/                  # navbar, sidebar, softphone, messages, kb_sidebar_widget
-│   ├── pages/                     # 21 page folders (see Frontend Routes)
+│   ├── pages/                     # 18 page folders + 7 root-level html files
 │   ├── auth/email/                # verify_email.{html,txt}
 │   ├── knowledge/email/           # article_rejected.{html,txt}
 │   ├── notifications/email/       # notification.{html,txt}
 │   └── tickets/email/             # ticket_created, reply_notification, csat_survey (html+txt)
 ├── static/
-│   ├── css/custom.css             # 20,394 lines (Crimson Black v9 design system)
-│   ├── css/custom-v15.css         # Versioned copy referenced by base.html (uncommitted)
+│   ├── css/custom.css             # 20,431 lines (Crimson Black v9 design system — committed copy)
+│   ├── css/custom-v15.css         # 20,849 lines (live file referenced by base.html — uncommitted)
 │   └── js/                        # 11 vanilla-JS modules (api, app, ticket-feed, voip-softphone, …)
 ├── tests/                         # 54 pytest modules at project root + tests/base.py
 ├── conftest.py                    # 16 factories + 20+ fixtures
@@ -77,10 +79,11 @@ API Docs:       http://dpap.localhost:8001/api/docs/
 ├── ecosystem.config.js            # PM2: 5 production processes
 ├── ecosystem.dev.config.js        # PM2 dev (4 processes; no SMTP, watch-mode reloads)
 ├── Makefile                       # 22 targets — dev/start/stop/restart/migrate/test/smoke/lint
-├── docs/architecture.md           # Long-form architecture doc (953 lines, 12 sections + 5 appendices)
+├── docs/architecture.md           # Long-form architecture doc (953 lines, Version 1.0 — pre-dates 2026-04 changes)
 ├── tmp/emails/                    # Dev email capture (filebased EmailBackend)
 ├── logs/                          # PM2 log files (one per process, error+out)
 ├── media/                         # User-uploaded files: tenants/{id}/… and inbound_emails/{id}/…
+├── scripts/                       # Empty (placeholder)
 ├── db.sqlite3                     # Dev database
 ├── celerybeat-schedule            # Celery Beat shelve file (built-in scheduler — django-celery-beat removed for Django 6 compat)
 └── .env                           # Environment variables (not committed)
@@ -106,7 +109,9 @@ with tenant_context(tenant):   # Context-manager form (preferred for tasks)
 ```
 Uses `contextvars.ContextVar` — safe across asyncio tasks and Channels consumers.
 
-## Models (~95 classes across 20 apps)
+## Models (80 model classes across 20 apps)
+
+> Counted as `class X(<…>Model)` in `apps/*/models.py` — excludes `TextChoices`, `Manager`, `QuerySet` definitions. Per-app counts: tickets 22, accounts 7, knowledge 6, contacts 5, voip 5, analytics 4, billing 4, comments 4, kanban 3, inbound_email 3, messaging 3, newsfeed 3, crm 2, custom_fields 2, notifications 2, tenants 2, agents 1, attachments 1, notes 1, nav 0 (URL-only stub — no `models.py`).
 
 ### Base Models (Abstract)
 - **TimestampedModel**: UUID PK + `created_at` + `updated_at`; default ordering `["-created_at"]`
@@ -118,12 +123,12 @@ Uses `contextvars.ContextVar` — safe across asyncio tasks and Channels consume
 - `Tenant` — name, slug (unique), domain (unique, custom domain, nullable), is_active, logo
 - `TenantSettings` (1:1) — auth_method, SSO config, timezone, date_format, branding (`primary_color`, `accent_color`), `inbound_email_address`, business_hours_start/end, business_days (JSON), `auto_close_days` (5), `csat_delay_minutes` (60), `auto_transition_on_assign`, `auto_send_ticket_created_email`, **`auto_assign_inbound_email_tickets`** (migration 0008 — load-fairness agent picker)
 
-**accounts** (6 models):
+**accounts** (7 models):
 - `User` — email-based, UUID PK, includes `auth_version` for global logout
 - `Permission` — global codenames (`{resource}.{action}`)
-- `Role` — tenant-scoped, M2M permissions, `hierarchy_level` (10=Admin, 20=Manager, 30=Agent; **Viewer=40 exists in code but is removed from default seeding**)
+- `Role` — tenant-scoped, M2M permissions, `hierarchy_level` (10=Admin, 20=Manager, 30=Agent; **Viewer=40 exists in code/tests but is NOT seeded by default**)
 - `Profile` — tenant-specific UI/agent prefs (theme, density, signature, DND, language, date/time format, sidebar_collapsed)
-- `TenantMembership` — links User↔Tenant↔Role with is_active flag
+- `TenantMembership` — links User↔Tenant↔Role with is_active flag + **temporary role override** (migration 0007, 2026-05-07): `temporary_role`, `temporary_role_expires_at`, `temporary_role_granted_by`, `temporary_role_granted_at`. Properties: `has_active_temporary_role`, `effective_role` (returns temporary if active else permanent).
 - `Invitation` — token + expires_at
 - `EmailVerificationToken` — pre-membership signup verification
 
@@ -133,7 +138,7 @@ Uses `contextvars.ContextVar` — safe across asyncio tasks and Channels consume
 - `Ticket` (~64 fields) — soft-delete (`is_deleted`/`deleted_at`/`deleted_by`); CSAT (`csat_rating`/`csat_comment`/`csat_submitted_at`); deal fields (`ticket_type`/`deal_value`/`expected_close_date`/`probability`/`pipeline_stage`/`account`/`won_at`/`lost_at`/`won_reason`/`lost_reason`); `merged_into`; `auto_close_task_id`; `pre_wait_status` (snapshot before pause); `tags` + `custom_data` JSONFields
 - `TicketStatus` — `pauses_sla` flag, `is_closed`, `is_default`
 - `TicketCategory`, `Queue` (with `default_assignee` + `auto_assign`), `TicketCounter` (per-tenant atomic sequencer using SELECT FOR UPDATE)
-- `TicketActivity` — human-readable timeline with 26 event choices
+- `TicketActivity` — human-readable timeline with **27 event choices** (latest migration 0026 added inbound_call/inbound_call_completed)
 - `TicketAssignment` — immutable audit log
 - `TicketWatcher` — reasons (manual/mentioned/commented/cc), `is_muted`
 - `TicketLink` — directed (duplicate_of/related_to/blocks/blocked_by) + circular-dependency guard
@@ -150,7 +155,7 @@ Uses `contextvars.ContextVar` — safe across asyncio tasks and Channels consume
 
 ### Contacts (5 models)
 
-- `Contact` — email unique per tenant, company FK, account FK, groups M2M, `email_bouncing` flag (set by BounceLog), `last_activity_at`, `lead_score` (0-100, calculated nightly)
+- `Contact` — email unique per tenant, company FK, account FK, groups M2M, `email_bouncing` flag (set by BounceLog), `last_activity_at`, `lead_score` (0-100, calculated nightly, migration 0004)
 - `Company` — name unique per tenant, size enum, `contact_count` annotated
 - `Account` — CRM account; `mrr`, `health_score` (0-100, calculated nightly)
 - `ContactGroup` — M2M contacts
@@ -160,7 +165,7 @@ Uses `contextvars.ContextVar` — safe across asyncio tasks and Channels consume
 
 - `InboundEmail` — extends `TimestampedModel` (NOT TenantScopedModel — tenant nullable, resolved post-parse). Unified inbound + outbound (`direction` field). Status: `pending/processing/ticket_created/reply_added/sent/rejected/bounced/failed`. **Inbox workflow:** `inbox_status` (`pending/linked/actioned/ignored`), `linked_ticket`, `linked_at/by`, `actioned_at/by`, `action_taken` (OPEN/ASSIGN/CLOSE). Threading: `message_id`, `in_reply_to`, `references` (angle brackets stripped). Idempotency: `idempotency_key = "in:{tenant_id}:{message_id}"` (inbound) or `"out:{tenant_id}:{ticket_id}:{message_id}"` (outbound). Sanitized subject (strip `\r`/`\n`). `save()` enforces immutability of linked_at/by + actioned_at/by once set.
 - `BounceLog` — hard-bounce records linked to InboundEmail + sender + reason + optional ticket
-- `IMAPPollState` — host/user/mailbox + `uid_validity` + `last_uid` watermark (UIDNEXT-1, never backfill)
+- `IMAPPollState` (migration 0008) — host/user/mailbox + `uid_validity` + `last_uid` watermark (UIDNEXT-1, never backfill). Unique together `(host, user, mailbox)`.
 
 ### VoIP (5 models)
 
@@ -173,7 +178,7 @@ Uses `contextvars.ContextVar` — safe across asyncio tasks and Channels consume
 ### CRM (2 models — deal fields live on Ticket)
 
 - `Activity` — type (call/email/meeting/task), subject, notes, due_at, completed_at, outcome; FKs ticket, contact, created_by, assigned_to
-- `Reminder` (formerly `Recall` — renamed in migration 0003) — priority (low/medium/high/urgent); scheduled_at, completed_at, cancelled_at; **status is a derived property** (not stored); custom QuerySet: `.overdue()`/`.pending()`/`.for_user()`; methods: `mark_completed()`, `mark_cancelled()`, `reschedule(new_at, note)`
+- `Reminder` (formerly `Recall` — renamed in crm migration 0003; **migration 0004 converted `contact`/`ticket` FKs to `contacts`/`tickets` ManyToMany**) — priority (low/medium/high/urgent); subject, notes, scheduled_at, completed_at, cancelled_at, assigned_to, created_by; **status is a derived property** (not stored); custom QuerySet: `.overdue()`/`.pending()`/`.for_user()`; methods: `mark_completed()`, `mark_cancelled()`, `reschedule(new_at, note)`. Has `unscoped` manager for cross-tenant queries.
 
 ### Newsfeed (3 models)
 
@@ -181,11 +186,11 @@ Uses `contextvars.ContextVar` — safe across asyncio tasks and Channels consume
 - `NewsPostReaction` — 6 emoji choices (thumbs_up/celebration/heart/rocket/eyes/hundred); one per user per post
 - `NewsPostRead` — read tracking; row-existence = read flag; **NOT tenant-scoped**
 
-### Knowledge Base
+### Knowledge Base (6 models)
 
 - `Category` — slug, ordering, icon
 - `Article` — status (draft/pending_review/published/rejected/flagged); visibility (internal/public); review workflow fields (`reviewer`, `reviewed_at`, `submitted_at`, `rejection_reason`, `review_at`); `search_vector` (Postgres SearchVectorField, GIN-indexed); `view_count`, `is_pinned`, file/file_name (PDF/DOCX support via mammoth)
-- Plus KBSearchGap / KBNotification / KBVote / KBFeedback used by gap-digest and stale-alert tasks
+- Plus `KBRevision` (revision history), `KBSearchGap` (failed searches → gap digest), `KBVote` (up/down), `KBTicketLink` (article ↔ ticket audit). KBNotification / KBFeedback referenced in tasks too.
 
 ### Kanban (3 models)
 
@@ -195,7 +200,7 @@ Uses `contextvars.ContextVar` — safe across asyncio tasks and Channels consume
 
 ### Comments / Activity / Messaging / Notifications
 
-**comments** (4 models): `Comment` (polymorphic GenericFK, threaded via parent, `is_internal` flag), `Mention`, `CommentRead` (row-existence = read), `ActivityLog` (immutable polymorphic audit trail with diffs + IP)
+**comments** (4 models): `Comment` (polymorphic GenericFK, threaded via parent, `is_internal` flag), `Mention`, `CommentRead` (row-existence = read), `ActivityLog` (immutable polymorphic audit trail with diffs + IP). Latest migration 0008 expanded action choices to **23**: created/updated/assigned/status_changed/commented/deleted/field_changed/imported/exported/closed/reopened/attachment_added/attachment_removed/sla_updated/pipeline_stage_changed/email_linked/email_actioned/reminder_created/reminder_completed/reminder_cancelled/reminder_rescheduled/outbound_call_logged/outbound_call_completed.
 
 **messaging** (3 models): `Conversation` (DIRECT/GROUP/TICKET), `ConversationParticipant` (last_read_at, is_muted), `Message` (threaded via parent, mentions M2M)
 
@@ -207,7 +212,7 @@ Uses `contextvars.ContextVar` — safe across asyncio tasks and Channels consume
 
 **analytics**: `ReportDefinition`, `DashboardWidget`, `ExportJob` (Celery-backed CSV/XLSX/PDF; openpyxl optional with CSV fallback), `CalendarEvent`
 
-**agents**: `AgentAvailability` (online/away/busy/offline, `max_concurrent_tickets`, `current_ticket_count`, `working_hours` JSON, `auto_away_outside_hours`)
+**agents**: `AgentAvailability` (online/away/busy/offline, `max_concurrent_tickets`, `current_ticket_count`, `working_hours` JSON, `auto_away_outside_hours` — migration 0005)
 
 **custom_fields**: `CustomFieldDefinition` (8 types × 3 modules: TICKET/CONTACT/COMPANY; role visibility), `CustomFieldValue` (EAV: value_text/number/date/bool)
 
@@ -216,24 +221,25 @@ Uses `contextvars.ContextVar` — safe across asyncio tasks and Channels consume
 **notes**: `QuickNote` (6 colors: yellow/blue/green/pink/purple/orange; pinning, position)
 
 ## Polymorphic (GenericForeignKey) Models
-`Comment`, `ActivityLog`, `Attachment`, `CustomFieldValue`, `CardPosition` — all use `content_type` FK + `object_id` UUID.
+`Comment`, `ActivityLog`, `Attachment`, `CustomFieldValue`, `CardPosition`, `Notification` — all use `content_type` FK + `object_id` UUID.
 
 ## Role-Based Access Control
 
-**Hierarchy:** Admin(10) ≤ Manager(20) ≤ Agent(30) *(Viewer=40 exists in code; removed from default role seeding)*
+**Hierarchy:** Admin(10) ≤ Manager(20) ≤ Agent(30) *(Viewer=40 exists in tests/code; not seeded)*
 
 - `is_admin`: `hierarchy_level ≤ 10`
 - `is_admin_or_manager`: `≤ 20` (context processor injects into every template)
 - `is_agent_or_above`: `≤ 30`
 - Agent restriction (`level > 20`): sees only own/assigned tickets, linked contacts, filtered kanban cards, own reminders/activities
-- **Permission classes** (`accounts/permissions.py`): `HasTenantPermission` (codename-based with ACTION_MAP + fallback hierarchy defaults), `IsTicketAccessible` (object-level), `IsTenantMember`, `IsTenantAdmin`, `IsTenantAdminOrManager`
+- **Temporary role overrides** (`TenantMembership`): admin grants a higher (or different) role for a bounded period via `temporary_role` + `temporary_role_expires_at`. `effective_role` property returns temporary if `has_active_temporary_role` else permanent. Use this anywhere role checks happen.
+- **Permission classes** (`apps/accounts/permissions.py`): `HasTenantPermission` (codename-based with ACTION_MAP + fallback hierarchy defaults — `apply_macro` mapped to `update`), `IsTicketAccessible` (object-level), `IsTenantMember`, `IsTenantAdmin`, `IsTenantAdminOrManager`
 - `_role_required(20)` decorator gates admin/manager frontend pages (settings, users, billing, agents, audit_log)
 - Row-level filtering in: `TicketViewSet`, `ContactViewSet`, `ReminderViewSet`, `ActivityViewSet`, `BoardDetailSerializer`, analytics services
 
 ## Signals
 
 ### Tenant (`apps/tenants/signals.py`)
-- `Tenant.post_save` → `create_tenant_settings`, `create_default_roles` (Admin/Manager/Agent with hierarchy_level + permissions from ROLE_DEFINITIONS)
+- `Tenant.post_save` → `create_tenant_settings`, `create_default_roles` (Admin/Manager/Agent with hierarchy_level + permissions from ROLE_DEFINITIONS — Viewer not seeded)
 
 ### Accounts (`apps/accounts/signals.py`)
 - `TenantMembership.post_save` → `create_profile_on_membership`
@@ -252,6 +258,7 @@ Uses `contextvars.ContextVar` — safe across asyncio tasks and Channels consume
 
 ### Knowledge (`apps/knowledge/signals.py`)
 - Article review status transitions → audit log + email notifications
+- `Article.post_save` → `update_search_vector` (Postgres FTS indexing)
 
 ### VoIP (`apps/voip/signals.py`)
 - `CallLog.post_save` on terminal status (COMPLETED/MISSED/FAILED/BUSY/NO_ANSWER/VOICEMAIL) → writes `TicketActivity` + `comments.ActivityLog` + queues `process_call_recording` when enabled. Uses `_timeline_logged` dedup flag.
@@ -259,8 +266,8 @@ Uses `contextvars.ContextVar` — safe across asyncio tasks and Channels consume
 ## Dual-Write Logging
 
 **Two parallel log systems:**
-1. **TicketActivity** (human-readable timeline) — endpoint: `/api/v1/tickets/tickets/{id}/timeline/`
-2. **ActivityLog** (polymorphic audit trail with diffs+IP) — endpoint: `/api/v1/tickets/tickets/{id}/activity/`
+1. **TicketActivity** (human-readable timeline, 27 event choices) — endpoint: `/api/v1/tickets/tickets/{id}/timeline/`
+2. **ActivityLog** (polymorphic audit trail with diffs+IP, 23 action choices) — endpoint: `/api/v1/tickets/tickets/{id}/activity/`
 
 **Dedup:** ViewSet sets `instance._skip_signal_logging = True` before save; signal checks flag. Use `serializer.instance` (not `self.get_object()`) in `perform_update` so the flag persists. 2-sec window in signal.
 
@@ -284,7 +291,7 @@ Business-hours-aware calculator — single breach-detection entry point `get_eff
 
 ### Inbound (`apps/inbound_email/`)
 - **In-process SMTP server** (`smtp_server.py`) via `aiosmtpd`, launched by `run_smtp_server` management command (PM2 process `kanzan-smtp`). Not an open relay — validates RCPT against active tenants, rejects unknown with 550. Optional STARTTLS and LOGIN/PLAIN AUTH.
-- **IMAP poller** (`imap_poller.py`) — shared Gmail-style mailbox; `poll_once()` fetches by UID > watermark (NOT UNSEEN — Gmail marks seen instantly). Driven by `fetch_inbound_emails_task` (Celery Beat, every 60s). Disabled when `IMAP_HOST` is blank. **Safety guarantee:** never backfills — aborts the poll if UIDVALIDITY/UIDNEXT can't be parsed (recent fix: regex extracts bare integers from bracketed `OK` response or untagged_responses dict, with `select_resp` fallback).
+- **IMAP poller** (`imap_poller.py`) — shared Gmail-style mailbox; `poll_once()` fetches by UID > watermark (NOT UNSEEN — Gmail marks seen instantly). Driven by `fetch_inbound_emails_task` (Celery Beat, every 60s). Disabled when `IMAP_HOST` is blank. **Safety guarantee:** never backfills — aborts the poll if UIDVALIDITY/UIDNEXT can't be parsed (regex extracts bare integers from bracketed `OK` response or untagged_responses dict, with `select_resp` fallback).
 - **Tenant resolution** — 3 patterns via `resolve_tenant_from_address`: plus-addressing (`support+{slug}@...`), subdomain routing, custom `TenantSettings.inbound_email_address`. Fallback to `IMAP_DEFAULT_TENANT_SLUG` if configured.
 - **Filters** (`filters.py`) run BEFORE tenant resolution (cheap): loop detection (sender == `DEFAULT_FROM_EMAIL`), noreply senders, RFC 3834 Auto-Submitted / Precedence: bulk/junk/list, subject patterns. `classify_email()` returns `bounce` / `auto_reply` / `loop` / `legitimate`. Bounces write `BounceLog` and flip `Contact.email_bouncing=True`.
 - **Threading** (`threading.py`) — `find_existing_ticket` uses 3-tier priority: In-Reply-To → References (reversed, most-recent first) → subject `[#N]` regex. All queries tenant-scoped. Outbound: `build_thread_headers(tenant, ticket, new_message_id)` reads last 10 related InboundEmails for Message-ID chain.
@@ -328,7 +335,7 @@ Business-hours-aware calculator — single breach-detection entry point `get_eff
 - **SSO:** django-allauth (Google, Microsoft, OpenID Connect) — `ACCOUNT_LOGIN_METHODS = {"email"}`
 - **Global logout:** `User.auth_version` bumped invalidates all prior sessions; `SessionVersionMiddleware` enforces
 
-### `/api/v1/` Endpoint Map (from `main/urls.py`, 22 router includes)
+### `/api/v1/` Endpoint Map (from `main/urls.py`, 21 router includes — `inbound-email/` is dual-mounted at `emails/` with namespace `emails_api`)
 ```
 /tenants/            TenantViewSet, TenantSettingsViewSet (singleton)
 /accounts/           AuthViewSet (throttle_scope="auth"), UserViewSet, RoleViewSet, ProfileViewSet, InvitationViewSet, MembershipViewSet
@@ -357,15 +364,24 @@ Business-hours-aware calculator — single breach-detection entry point `get_eff
 
 **Docs:** `/api/docs/` (Swagger UI), `/api/schema/` (OpenAPI 3.0 JSON).
 
-### TicketViewSet — Custom @action Map (30+)
+### TicketViewSet — Custom @action Map (31 actions)
 - **Mutations:** `assign`, `close`, `change_status`, `change_stage`, `escalate`, `restore`, `merge`, `split`
 - **Timeline & comments:** `comments`, `activity`, `timeline`, `mark_all_read`
 - **Email:** `emails`, `send_email`, `send_creation_email`, `link_email`, `unlinked_emails`
 - **Linking:** `links`, `delete_link`
-- **Macros & bulk:** `apply_macro`, `bulk_action`
+- **Macros & bulk:** `apply_macro` (mapped to `update` permission), `bulk_action`
 - **Watchers:** `watchers`, `watch`, `remove_watcher`
-- **Time:** `time_entries`, `time_summary`
+- **Time:** `time_entries`, `time_summary`, `time_entry_detail`
 - **Search:** `lookup` (number-only, ignores soft-delete), `search`, `teammates`, `team_progress`
+
+### Other notable @action surfaces
+- **`AgentAvailabilityViewSet`** (apps/agents/views.py) exposes 9 actions: `set_status`, `my_status`, `all_members`, `assignable_roles`, `grant_temp_role`, `revoke_temp_role`, `reactivate`, `online`, `workload`. The `grant/revoke_temp_role` actions drive the `TenantMembership.temporary_role` overrides.
+- **`ReminderViewSet`** (apps/crm/views.py) — 6 actions: `overdue`, `stats`, `complete`, `cancel`, `reschedule`, `bulk_action`.
+- **`InboxViewSet`** (apps/inbound_email/api_views.py) — 3 actions: `link`, `take_action` (url_path=`action`), `ignore`. This is the agent inbox workflow used by `/inbound-email/` page.
+- **`NewsPostViewSet`** — 4 actions: `react`, `mark_read`, `mark_all_read`, `unread_count`.
+- **`ArticleViewSet`** (knowledge) — 7 actions: `submit_for_review`, `approve`, `reject`, `record_view`, `remove_file`, `preview_file`, `vote`.
+- **`WebhookViewSet`** (tickets) — `test`, `reset_failures`.
+- **`ConversationViewSet`** — `add_participant`, `leave`, `search_participants`, `remove_participant`.
 
 ### REST Framework Config
 - Pagination: PageNumberPagination, PAGE_SIZE=50
@@ -373,7 +389,7 @@ Business-hours-aware calculator — single breach-detection entry point `get_eff
 - Throttle rates: `auth=10/min`, `api_default=200/min`, `api_heavy=30/min`, `webhook=60/min` (ScopedRateThrottle)
 - Renderers: JSON + BrowsableAPI
 
-### Frontend Routes (`apps/tenants/frontend_urls.py`) — 28 paths
+### Frontend Routes (`apps/tenants/frontend_urls.py`) — 32 paths
 ```
 /                             landing_page
 /login/                       login_page
@@ -382,12 +398,12 @@ Business-hours-aware calculator — single breach-detection entry point `get_eff
 /auth/handoff/                auth_handoff
 /verify-email/                verify_email_page
 /verify-email-sent/           verify_email_sent_page
-/setup-company/               setup_company_page
-/workspaces/                  workspaces_page
+/setup-company/               setup_company_page    @login_required
+/workspaces/                  workspaces_page       @login_required
 /dashboard/                   dashboard_page
 /tickets/                     ticket_list_page
 /tickets/new/                 ticket_create_page
-/tickets/<number>/            ticket_detail_page
+/tickets/<ticket_number>/     ticket_detail_page
 /contacts/                    contact_list_page
 /contacts/create/             contact_create_page
 /contacts/<contact_id>/       contact_detail_page
@@ -398,10 +414,10 @@ Business-hours-aware calculator — single breach-detection entry point `get_eff
 /users/                       users_page            @_role_required(20)
 /settings/                    settings_page         @_role_required(20)
 /billing/                     billing_page          @_role_required(20)
-/agents/                      agents_page
+/agents/                      agents_page           @_role_required(20)
 /emails/                      emails_page           (outbound email log)
 /knowledge/                   knowledge_list_page
-/knowledge/<slug>/            knowledge_article_page
+/knowledge/<article_slug>/    knowledge_article_page
 /profile/                     profile_page
 /inbound-email/               inbound_email_page    (agent inbox)
 /reminders/                   reminders_page
@@ -435,27 +451,31 @@ apps.voip.tasks.*                                 → kanzan_voip
 ```
 
 ### Beat Schedule (9 tasks — `main/settings/base.py` CELERY_BEAT_SCHEDULE)
-| Task | Interval |
-|------|----------|
-| `apps.tickets.tasks.check_sla_breaches` | 120s |
-| `apps.notifications.tasks.cleanup_old_notifications` | 86400s (daily) |
-| `apps.tickets.tasks.check_overdue_tickets` | 900s (15m) |
-| `apps.crm.tasks.calculate_lead_scores` | 86400s (daily) |
-| `apps.crm.tasks.calculate_account_health_scores` | 86400s (daily) |
-| `knowledge_base.alert_stale_articles` | crontab daily 08:00 |
-| `knowledge_base.send_gap_digest` | crontab Monday 09:00 |
-| `apps.voip.tasks.cleanup_stale_calls` | 3600s (hourly) |
-| `apps.inbound_email.tasks.fetch_inbound_emails_task` | 60s |
+| Task name (registered) | Module | Interval |
+|------------------------|--------|----------|
+| `apps.tickets.tasks.check_sla_breaches` | apps.tickets | 120s |
+| `apps.notifications.tasks.cleanup_old_notifications` | apps.notifications | 86400s (daily) |
+| `apps.tickets.tasks.check_overdue_tickets` | apps.tickets | 900s (15m) |
+| `apps.crm.tasks.calculate_lead_scores` | apps.crm | 86400s (daily) |
+| `apps.crm.tasks.calculate_account_health_scores` | apps.crm | 86400s (daily) |
+| `knowledge_base.alert_stale_articles` | apps.knowledge.tasks (registered name override) | crontab daily 08:00 |
+| `knowledge_base.send_gap_digest` | apps.knowledge.tasks (registered name override) | crontab Monday 09:00 |
+| `apps.voip.tasks.cleanup_stale_calls` | apps.voip | 3600s (hourly) |
+| `apps.inbound_email.tasks.fetch_inbound_emails_task` | apps.inbound_email | 60s |
+
+> Knowledge-base tasks register with `name="knowledge_base.alert_stale_articles"` / `name="knowledge_base.send_gap_digest"` (not the module path); both live in `apps/knowledge/tasks.py`.
 
 > Celery Beat uses the **built-in shelve scheduler** (`celerybeat-schedule` file at repo root). `django-celery-beat` was removed — incompatible with Django 6.0.
 
+> `apps.crm.tasks.check_overdue_reminders` exists in code but is **NOT in the Beat schedule** — it runs implicitly when triggered by other code paths. If you need it scheduled, add it to `CELERY_BEAT_SCHEDULE`.
+
 ### Celery Task Inventory
 - **notifications**: `send_notification_email` (retries=3, default_retry_delay=60s, acks_late), `cleanup_old_notifications` (batch 1000)
-- **analytics**: `process_export_job` (retries=3, default_retry_delay=60s; CSV/XLSX; openpyxl optional with CSV fallback)
+- **analytics**: `process_export_job` (retries=3, default_retry_delay=60s; CSV/XLSX; openpyxl optional with CSV fallback) — routes to `kanzan_default` (no explicit override)
 - **inbound_email**: `fetch_inbound_emails_task` (calls IMAP `poll_once()`), `process_inbound_email_task` (retries=3, default_retry_delay=30s, acks_late)
 - **tickets**: `check_sla_breaches` (iterator chunk_size=200, dedup escalation rules, persists breach flag before notify), `check_overdue_tickets` (daily dedup per ticket), `send_ticket_reply_email_task`, `send_ticket_created_email_task`, `send_ticket_email_task`, `auto_close_ticket`, `send_csat_survey_email`, `deliver_webhook_task`, `check_sla_breach_warnings`, `propagate_sla_policy_change_task`
 - **voip**: `process_call_recording` (retries=3, default_retry_delay=60s), `cleanup_stale_calls`, `sync_call_state` (retries=3, default_retry_delay=30s)
-- **crm**: `check_overdue_reminders` (every 15 min — note: not currently in Beat schedule; runs implicitly when called), `calculate_lead_scores`, `calculate_account_health_scores`
+- **crm**: `check_overdue_reminders` (max_retries=1, acks_late — NOT in Beat schedule), `calculate_lead_scores`, `calculate_account_health_scores`
 
 ## PM2 Processes (`ecosystem.config.js`) — 5 total
 
@@ -469,35 +489,35 @@ apps.voip.tasks.*                                 → kanzan_voip
 
 > **Note:** the worker's `-Q` list is `kanzan_default,kanzan_email,kanzan_webhooks`. The `kanzan_voip` queue is defined in `main/celery.py` routes, but VoIP tasks only run when `kanzan_voip` is added to `-Q` or a dedicated VoIP worker is started. `run_ari_listener` is **not in PM2** by default — start separately if VoIP is live.
 
-**Dev (`ecosystem.dev.config.js`):** 4 processes (no SMTP), Django uses `runserver` for auto-reload, worker watches `apps/*/tasks.py`, `apps/*/services.py`, `main/celery.py` (delay 2s). Lower memory caps.
+**Dev (`ecosystem.dev.config.js`):** 4 processes (no SMTP), Django uses `runserver` for auto-reload, worker watches `apps/*/tasks.py`, `apps/*/services.py`, `main/celery.py` (delay 2s). Lower memory caps. Note: dev config uses `env/` venv path, prod uses `.venv/`.
 
 ## Frontend Architecture
 
 ### JavaScript (`static/js/`, 11 modules — vanilla, no React/Vue)
-- **api.js** — Central API client (CSRF from cookie, session credentials, JSON + multipart). Methods: `get/post/patch/put/delete/upload`.
-- **app.js** — Global init: auto-dismiss alerts (5s), notification WebSocket, `Toast.{success,error,warning,info}`, cross-page toasts via sessionStorage, `Kanzan.formatDate()`/`formatDateTime()`/`timeAgo()` localization per user prefs, sidebar badge polling, density preference (comfortable/compact via `data-density`).
-- **ticket-feed.js** — WebSocket `ws/tickets/feed/`. Auto-connects via `data-ticket-feed` attribute or URL match. Toasts + "new tickets" banner + row pulse. Reconnect with exponential backoff (max 10 attempts, 30s cap).
-- **voip-softphone.js** — SIP.js 0.21.2 (CDN: `cdn.jsdelivr.net/npm/sip.js@0.21.2/lib/platform/web/sip.js`) + `CallEventConsumer`. Dial pad, DTMF, mute/hold/transfer/hangup, incoming-call modal.
-- **notes-panel.js** — Quick notes CRUD (6 colors, pinning, localStorage).
-- **theme.js** — light/dark/system (default: dark). Persists to localStorage `kanzan_theme`. Listens to `prefers-color-scheme: dark` matchMedia changes (recently enhanced).
-- **agent-availability.js** — Status toggle + persistence.
-- **command-palette.js** — Cmd+K modal: 12 static pages, 2 quick actions, dynamic search.
-- **custom-select.js** — `KanzenSelect` global with portal rendering + searchable when >8 options.
-- **rich-editor.js** — TipTap wrapper for comments/articles.
-- **keyboard-shortcuts.js** — Global hotkeys: j/k navigate, Enter open, Esc deselect; a/s/x row actions; Ctrl+K palette; c new ticket; ? help; g d/t/c/b go-to. `.keyboard-selected` class. Disabled inside inputs.
+- **api.js** (85 lines) — Central API client (CSRF from cookie, session credentials, JSON + multipart). Methods: `get/post/patch/put/delete/upload`.
+- **app.js** (522 lines) — Global init: auto-dismiss alerts (5s), notification WebSocket, `Toast.{success,error,warning,info}`, cross-page toasts via sessionStorage, `Kanzan.formatDate()`/`formatDateTime()`/`timeAgo()` localization per user prefs, sidebar badge polling, density preference (comfortable/compact via `data-density`).
+- **ticket-feed.js** (201 lines) — WebSocket `ws/tickets/feed/`. Auto-connects via `data-ticket-feed` attribute or URL match. Toasts + "new tickets" banner + row pulse. Reconnect with exponential backoff (max 10 attempts, 30s cap).
+- **voip-softphone.js** (710 lines) — SIP.js 0.21.2 (CDN: `cdn.jsdelivr.net/npm/sip.js@0.21.2/lib/platform/web/sip.js`) + `CallEventConsumer`. Dial pad, DTMF, mute/hold/transfer/hangup, incoming-call modal.
+- **notes-panel.js** (238 lines) — Quick notes CRUD (6 colors, pinning, localStorage).
+- **theme.js** (77 lines) — light/dark/system (default: dark). Persists to localStorage `kanzan_theme`. Listens to `prefers-color-scheme: dark` matchMedia changes.
+- **agent-availability.js** (121 lines) — Status toggle + persistence.
+- **command-palette.js** (337 lines) — Cmd+K modal: 12 static pages, 2 quick actions, dynamic search.
+- **custom-select.js** (371 lines) — `KanzenSelect` global with portal rendering + searchable when >8 options.
+- **rich-editor.js** (191 lines) — TipTap wrapper for comments/articles.
+- **keyboard-shortcuts.js** (318 lines) — Global hotkeys: j/k navigate, Enter open, Esc deselect; a/s/x row actions; Ctrl+K palette; c new ticket; ? help; g d/t/c/b go-to. `.keyboard-selected` class. Disabled inside inputs.
 
-### CSS (`static/css/custom.css` — 20,394 lines; **`custom-v15.css`** is uncommitted versioned copy referenced by `base.html`)
-- **Design system: "Crimson Black v9"** — deep red (`#C1121F`) primary, brighter red (`#E11D2D`) accent, light grays for surfaces, high-contrast text. Sidebar 252px white with 3px red ::before bar (active only). Strict dark-mode-first (default theme = dark).
-- CSS custom properties under `:root`: `--crm-primary*` 9-step scale, `--crm-bg-*`, `--crm-text-*`, `--crm-sidebar-*`, `--crm-status-{success,warning,danger,info}`, `--crm-priority-{urgent,high,medium,low}`, `--crm-chat-*`, `--crm-kanban-*`, `--crm-radius-{sm,}` (8px/10px), `--crm-font-family` (Inter)
-- Components: stat cards with left accent, soft badges, kanban drag-and-drop, chat bubbles, timeline dots, toast notifications, notes panel, knowledge base, calendar, **softphone widget (~L18984)**, **audit log tabs/stats (~L18054)**, command palette (~L13612), quick notes (~L17040)
-- **Disabled tenant primary_color override** in `base.html` (lines 29-30 commented out) — design system enforces strict red/black/white palette
+### CSS (`static/css/custom-v15.css` — 21,208 lines is the live file referenced by `base.html`; `custom.css` 20,431 lines is the committed copy)
+- **Design system: "Crimson Black v9"** — deep red (`#C1121F`) primary, brighter red (`#E11D2D`) accent, light grays for surfaces, high-contrast text. Sidebar 252px (white in light mode, near-black in dark) with 3px red ::before bar (active only). Strict dark-mode-first (default theme = dark).
+- CSS custom properties under `:root` and `[data-bs-theme="dark"]` (~160 total): `--crm-primary*` 50–900 scale, `--crm-bg-*`, `--crm-text-*`, `--crm-sidebar-*`, `--crm-status-{success,warning,danger,info}`, `--crm-priority-{urgent,high,medium,low}`, `--crm-chat-*`, `--crm-kanban-*`, `--crm-shadow-{xs,sm,lg,card-hover}`, `--crm-duration-*`, `--crm-ease*`, `--crm-radius-{sm,lg,pill}` (8px/14px/9999px), `--crm-font-family` (Inter)
+- Components: stat cards with left accent, soft badges, kanban drag-and-drop, chat bubbles, timeline dots, toast notifications, notes panel, knowledge base, calendar, softphone widget, audit log tabs/stats, command palette, quick notes
+- **Per-tenant primary_color override is RE-ENABLED** in `base.html` (lines 30–41, restored in commit `bb36325` on 2026-05-07). Sets `--crm-primary*` and `--crm-accent*` from `tenant.settings.primary_color` / `accent_color`, with `#C1121F` / `#E11D2D` as defaults. The earlier "disabled — strict palette" comment block was removed; theming is back, but defaults remain Crimson Black.
 - Font: Inter (Google Fonts), 0.875rem fluid base; mobile collapses sidebar <992px
 
 ### Templates
-- `templates/base.html` — layout + toast container + quick-notes panel + **softphone include (conditional on `voip_enabled`)** + DOMPurify v3.2.4 CDN + SIP.js 0.21.2 CDN (conditional). Mobile detection script adds `is-mobile` / `is-mobile-sm` body classes. Default theme: dark.
-- `templates/includes/` — `navbar.html`, `sidebar.html`, `softphone.html`, `messages.html`, `kb_sidebar_widget.html`
-- `templates/pages/` — 21 folders: agents, analytics, audit_log, auth (4 pages), billing, calendar.html, contacts, dashboard.html, emails, inbound_email, kanban, knowledge, landing.html, login.html, messaging, profile.html, register.html, reminders, settings, tickets, users, voip
-- Email templates: `auth/email/verify_email.{html,txt}`, `tickets/email/{ticket_created,reply_notification,csat_survey}.{html,txt}`, `notifications/email/notification.{html,txt}`, `knowledge/email/article_rejected.{html,txt}`
+- `templates/base.html` — layout + toast container + quick-notes panel + softphone include (conditional on `voip_enabled`) + DOMPurify v3.2.4 CDN + SIP.js 0.21.2 CDN (conditional) + Flatpickr global loader with three CDN fallbacks (jsdelivr → cdnjs → unpkg). Mobile detection script adds `is-mobile` / `is-mobile-sm` body classes. Default theme: dark. Loads `static/css/custom-v15.css`.
+- `templates/includes/` (5 files) — `navbar.html`, `sidebar.html`, `softphone.html`, `messages.html`, `kb_sidebar_widget.html`
+- `templates/pages/` — 17 subfolders + 7 root html files: agents/, analytics/, audit_log/, auth/, billing/, contacts/, emails/, inbound_email/, kanban/, knowledge/, messaging/, reminders/, settings/, tickets/, users/, voip/ (plus 403.html, calendar.html, dashboard.html, landing.html, login.html, profile.html, register.html)
+- Email templates (12 files / 6 pairs): `auth/email/verify_email.{html,txt}`, `tickets/email/{ticket_created,reply_notification,csat_survey}.{html,txt}`, `notifications/email/notification.{html,txt}`, `knowledge/email/article_rejected.{html,txt}`
 
 ### Context Processor (`apps/tenants/context_processors.py`)
 Injects into every template: `tenant`, `membership`, `user_role`, `is_admin`, `is_admin_or_manager`, `is_agent_or_above`, **`voip_enabled`** (controls softphone inclusion), `BASE_URL`.
@@ -615,9 +635,18 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 - **Other:** test_kanban, test_billing, test_billing_limits, test_api_plan_enforcement, test_plan_limits, test_comments, test_notifications, test_contacts, test_custom_fields, test_kb, test_knowledge_base, test_audit, test_edge_cases, test_crm
 - **App-level:** `apps/tickets/tests/{test_creation,test_escalation}.py`, `apps/knowledge/tests/test_kb_gap_fill.py`
 
-### Recent Test Additions (uncommitted)
-- **`tests/test_email_auto_assign.py`** — covers `pick_email_agent` selection policy (load + fairness), atomic auto-assign + audit, end-to-end pipeline respects tenant toggle.
-- **`tests/test_imap_poller_safety.py`** — regression suite for "never backfill" guarantee. Verifies poll aborts when UIDVALIDITY/UIDNEXT unreadable; happy path anchors watermark at UIDNEXT-1; ambient digits in human-readable text don't fool the parser.
+## Recent Migration Highlights (verify dates against `git log`)
+
+| App | Latest | What it adds |
+|-----|--------|--------------|
+| accounts | 0007_add_temporary_role | TenantMembership.temporary_role + expires_at + granted_at + granted_by — admin-driven temporary role elevation |
+| agents | 0005_…_auto_away_outside_hours_… | working_hours JSON + auto_away_outside_hours boolean |
+| comments | 0008_alter_activitylog_action | Expands ActivityLog.action to 23 choices (adds reminder_*, outbound_call_*, email_linked/actioned, etc.) |
+| contacts | 0004_contact_lead_score | lead_score 0–100 (calculated nightly) |
+| crm | 0004_reminder_m2m_contacts_tickets | **Reminder.contact/ticket FK → contacts/tickets ManyToMany** with data-preserving copy |
+| inbound_email | 0008_…_imappollstate | IMAPPollState model (uid_validity + last_uid watermark) |
+| tenants | 0008_…_auto_assign_inbound_email_tickets | Boolean toggle for load-fairness email auto-assignment |
+| tickets | 0026_alter_ticketactivity_event | TicketActivity event choices grow to 27 (adds inbound_call/inbound_call_completed) |
 
 ## Performance Optimizations
 
@@ -632,7 +661,7 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 - **First-response race** — atomic UPDATE + WHERE filter (no `save()`).
 - **Bulk ops** — `bulk_update_tickets` handles failures independently per operation.
 - **Lead/health scoring** — pre-fetches signal sets (ContactEvent, Activity, Ticket, CSAT), iterates contacts via `.iterator(chunk_size={500,200})`, bulk-updates by score bucket.
-- **Reminder overdue task** — Reminder.unscoped + iterator(chunk_size=200), 1-per-day dedup via Notification filter on data__reminder_id.
+- **Reminder overdue task** — Reminder.unscoped + iterator(chunk_size=200), 1-per-day dedup via Notification filter on `data__reminder_id`.
 
 ## Security Hardening
 
@@ -668,11 +697,12 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 - **Ticket templates:** `usage_count` via POST `use/`; active-only in list.
 - **Circular ticket link prevention:** `_creates_circular_dependency` check — e.g. A→B→A blocked.
 - **SLA filters:** `?sla_approaching=true` (≤30m), `?has_sla=true/false`, `?sla_response_breached`, `?sla_resolution_breached`.
-- **Reminder status derivation:** computed property from completed_at/cancelled_at/scheduled_at.
+- **Reminder model:** `subject`/`notes`/`scheduled_at`/`completed_at`/`cancelled_at`/`priority`/`assigned_to`/`created_by` plus M2M `contacts` and `tickets`. `status` is a derived property from completed_at/cancelled_at/scheduled_at. Has `unscoped` manager.
 - **Pipeline default race:** `is_default=True` setter atomically demotes prior default.
 - **Macro application:** renders `{{ticket.*}}`, `{{contact.*}}`, `{{agent.*}}`, `{{ticket.queue}}` variables + executes actions atomically.
 - **BusinessHours schedule default:** Mon–Fri 09:00–17:00, Sat–Sun off.
-- **Reminder renamed from Recall** in crm migration 0003 (data-preserving).
+- **Reminder renamed from Recall** in crm migration 0003 (data-preserving). Migration 0004 then converted single FKs to M2Ms.
+- **Temporary role override:** `TenantMembership.effective_role` returns `temporary_role` when active (`temporary_role_expires_at > now()`), else `role`. Use this property whenever the active role matters for a request.
 
 ## Common Pitfalls & Fixes Applied
 
@@ -684,7 +714,7 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 6. Role creation signal must include `hierarchy_level` (10/20/30)
 7. Ticket stats JS reads `data.ticket_stats` (not `data.ticket_summary`)
 8. Flower package added to requirements/base.txt
-9. **Viewer role removed** from default seeding — hierarchy is Admin/Manager/Agent only
+9. **Viewer role removed** from default seeding — hierarchy is Admin/Manager/Agent only (Viewer fixtures still exist for tests)
 10. `swagger_fake_view` check in `get_queryset()` to survive OpenAPI schema generation
 11. Use `get_user_model()` (not direct import) in async consumers
 12. Test fixtures: `UserFactory` uses `_after_postgeneration` with `skip_postgeneration_save = True`
@@ -692,11 +722,25 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 14. **`django-celery-beat` removed** — not Django 6 compatible; Celery built-in shelve scheduler (`celerybeat-schedule`) used instead
 15. **VoIP queue note** — `kanzan_voip` is defined in `celery.py` routes but the default worker's `-Q` list does not include it; add `kanzan_voip` to `ecosystem.config.js` or start a dedicated VoIP worker before enabling VoIP tasks
 16. **PM2 process count** — 5 processes (django, celery-worker, celery-beat, flower, **smtp**), not 4
-17. **9 Beat tasks** including `fetch-inbound-emails` (60s), `calculate-lead-scores` (daily), `calculate-account-health-scores` (daily), `cleanup-stale-calls` (hourly), `kb-stale-alert`/`kb-gap-digest`
-18. **CSS versioning** — `static/css/custom-v15.css` is the live file referenced by `base.html` (uncommitted; identical to `custom.css` content); the older `?v=redtheme-1` query param was replaced.
+17. **9 Beat tasks** including `fetch-inbound-emails` (60s), `calculate-lead-scores` (daily), `calculate-account-health-scores` (daily), `cleanup-stale-calls` (hourly), `kb-stale-alert`/`kb-gap-digest`. `check_overdue_reminders` exists in code but is NOT scheduled.
+18. **CSS versioning** — `static/css/custom-v15.css` is the live file referenced by `base.html` (uncommitted working copy; 21,208 lines vs `custom.css` 20,431). Per-tenant `primary_color` + `accent_color` override is **re-enabled** in `base.html` (restored in commit `bb36325`, 2026-05-07).
 19. **IMAP "never backfill" safety** — UIDVALIDITY/UIDNEXT must be parseable to bare integers; the poller aborts (returns 0) on first run rather than match `1:*`. See `tests/test_imap_poller_safety.py`.
-20. **Tenant primary_color override disabled** in `templates/base.html` (lines ~29-30) — the design system enforces a strict red/black/white palette; per-tenant theming now happens via logo/accent only.
+20. **Tenant primary_color / accent_color override is BACK** in `templates/base.html` (lines 30–41). Defaults to Crimson Black (`#C1121F` / `#E11D2D`) when unset. The earlier "strict palette enforced" comment block was removed; per-tenant theming is supported again. Validate any color string server-side if accepting user input.
+21. **Reminder M2M migration** — `contacts` and `tickets` are M2Ms (crm migration 0004), not single FKs. Older code referencing `reminder.contact` or `reminder.ticket` will break.
+22. **Knowledge-base task names** — `alert_stale_articles` and `send_gap_digest` register under the `knowledge_base.*` namespace (not `apps.knowledge.tasks.*`). The Beat schedule references the registered name; the module path is `apps/knowledge/tasks.py`.
+23. **TicketActivity events** — 27 choices total after migration 0026 (added `inbound_call`, `inbound_call_completed`).
+24. **ActivityLog actions** — 23 choices total after comments migration 0008 (adds reminder_*, outbound_call_*, email_*, etc.).
+25. **Temporary role overrides** (accounts migration 0007, 2026-05-07) — `TenantMembership.effective_role` returns the temporary role when `temporary_role_expires_at > now()`. Don't forget to use this property instead of `role` directly when checking active permissions. The `AgentAvailabilityViewSet` exposes `grant_temp_role` / `revoke_temp_role` actions for admin grant/revoke flows.
+26. **API router include count is 21, not 22** — `main/urls.py` has 21 `path("api/v1/...", include(...))` lines; `inbound_email.api_urls` is dual-mounted at both `/api/v1/inbound-email/` and `/api/v1/emails/` (the second uses `namespace="emails_api"`). The two mounts share a URLConf but route through different namespaces.
+27. **Frontend URL count is 32, not 28** — `apps/tenants/frontend_urls.py` includes paths the older docs missed: `/auth/handoff/`, `/workspaces/`, `/inbound-email/`, `/calls/`. `setup-company/` and `workspaces/` are gated by `@login_required`; `agents/` is gated by `@_role_required(20)` (matches `users/`/`settings/`/`billing/`/`audit-log/`).
+28. **Total model class count is 80**, not "~95". The earlier number over-counted `TextChoices`, `Manager`, `QuerySet` definitions. Tickets app holds 22 models; `nav` has 0 (URL-only stub with no `models.py`).
 
 ## Documentation
-- `docs/architecture.md` — 953-line authoritative architecture doc (12 sections + 5 appendices: API map, WS endpoints, Celery queues, env vars, default credentials)
-- `README.md` — minimal stub (1 line); rely on this CLAUDE.md and `docs/architecture.md` for context
+- `/CLAUDE.md` (this file) — day-to-day source of truth, kept current with refactors.
+- `/docs/README.md` — index for the docs folder.
+- `/docs/architecture.md` — 953-line architecture doc (Version 1.0, dated 2026-02-06; predates auto-assign, IMAPPollState, temporary-role, Reminder M2M, ActivityLog action expansion, `kanzan-smtp` PM2 process, `fetch-inbound-emails` Beat task). Use as broad design rationale; trust this CLAUDE.md and the verified `/docs/reference/` files for current shape.
+- `/docs/reference/codebase-inventory.md` — verified per-app model/migration/task/signal inventory.
+- `/docs/reference/api-surface.md` — every REST endpoint, custom action, WebSocket consumer, permission class.
+- `/docs/reference/frontend-surface.md` — every template, JS module, CSS file, frontend URL.
+- `/docs/reference/infra-surface.md` — settings, middleware, ASGI, Celery, PM2, requirements, env, scripts, tests.
+- `README.md` — minimal stub (1 line: `# Kanzen`); rely on the documents above for context.

@@ -157,6 +157,8 @@ class ConversationSerializer(serializers.ModelSerializer):
     participants = serializers.SerializerMethodField()
     last_message = serializers.SerializerMethodField()
     unread_count = serializers.SerializerMethodField()
+    source_group_id = serializers.SerializerMethodField()
+    source_group_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Conversation
@@ -166,6 +168,8 @@ class ConversationSerializer(serializers.ModelSerializer):
             "name",
             "title",
             "ticket",
+            "source_group_id",
+            "source_group_name",
             "participant_count",
             "participants",
             "last_message",
@@ -174,6 +178,14 @@ class ConversationSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+    def get_source_group_id(self, obj):
+        return str(obj.source_group_id) if obj.source_group_id else None
+
+    def get_source_group_name(self, obj):
+        if obj.source_group_id and obj.source_group:
+            return obj.source_group.name
+        return None
 
     def get_title(self, obj):
         """Compute a display-friendly title based on conversation type."""
@@ -270,7 +282,8 @@ class ConversationCreateSerializer(serializers.Serializer):
     Write serializer for creating a new conversation.
 
     For **direct** messages supply ``user_id`` (the other participant).
-    For **group** conversations supply ``name`` and ``user_ids``.
+    For **group** conversations supply EITHER ``group_id`` (auto-fills the
+    name + participants from a UserGroup) OR ``name`` + ``user_ids``.
     For **ticket** conversations supply ``ticket_id`` and optionally ``user_ids``.
     """
 
@@ -285,6 +298,13 @@ class ConversationCreateSerializer(serializers.Serializer):
         required=False,
         default=list,
         help_text="Participant user IDs for group or ticket conversations.",
+    )
+    group_id = serializers.UUIDField(
+        required=False,
+        help_text=(
+            "UserGroup ID to seed a group conversation from. When provided, "
+            "name and participants are populated from the group."
+        ),
     )
     ticket_id = serializers.UUIDField(
         required=False,
@@ -306,14 +326,19 @@ class ConversationCreateSerializer(serializers.Serializer):
                 )
 
         elif conv_type == ConversationType.GROUP:
-            if not attrs.get("name", "").strip():
-                raise serializers.ValidationError(
-                    {"name": "A name is required for group conversations."}
-                )
-            if not attrs.get("user_ids"):
-                raise serializers.ValidationError(
-                    {"user_ids": "At least one other participant is required."}
-                )
+            # Either group_id (auto-seed) OR manual (name + user_ids).
+            if attrs.get("group_id"):
+                # Manual fields are optional when seeding from a UserGroup.
+                pass
+            else:
+                if not attrs.get("name", "").strip():
+                    raise serializers.ValidationError(
+                        {"name": "A name is required for group conversations."}
+                    )
+                if not attrs.get("user_ids"):
+                    raise serializers.ValidationError(
+                        {"user_ids": "At least one other participant is required."}
+                    )
 
         elif conv_type == ConversationType.TICKET:
             if not attrs.get("ticket_id"):
@@ -377,16 +402,76 @@ class ConversationCreateSerializer(serializers.Serializer):
         return conversation
 
     def _create_group(self, data, current_user, tenant):
-        """Create a named group conversation with multiple participants."""
+        """
+        Create a named group conversation.
+
+        Two modes:
+
+        - **Seeded from a UserGroup** (``group_id`` supplied): the conversation
+          inherits the group's name and members. If the requesting user has
+          already started a conversation for this same UserGroup, it is
+          returned instead of creating a duplicate — this keeps the
+          messaging sidebar tidy and lets the user re-open the thread by
+          tapping the group again.
+        - **Manual** (``name`` + ``user_ids``): a one-off ad-hoc group.
+        """
+        from apps.accounts.models import UserGroup
+
+        source_group = None
+        group_id = data.get("group_id")
+        if group_id:
+            try:
+                source_group = UserGroup.objects.get(pk=group_id, tenant=tenant)
+            except UserGroup.DoesNotExist:
+                raise serializers.ValidationError(
+                    {"group_id": "Group not found in this tenant."}
+                )
+
+            existing = (
+                Conversation.unscoped.filter(
+                    tenant=tenant,
+                    type=ConversationType.GROUP,
+                    source_group=source_group,
+                    participants=current_user,
+                )
+                .first()
+            )
+            if existing:
+                # Refresh membership against current group roster so newly
+                # added group members can see the thread immediately.
+                current_user_ids = set(
+                    existing.participant_details.values_list("user_id", flat=True)
+                )
+                group_member_ids = set(
+                    source_group.members.values_list("id", flat=True)
+                )
+                group_member_ids.add(current_user.pk)
+                to_add = group_member_ids - current_user_ids
+                if to_add:
+                    ConversationParticipant.objects.bulk_create([
+                        ConversationParticipant(
+                            conversation=existing, user_id=uid,
+                        ) for uid in to_add
+                    ])
+                return existing
+
+            name = source_group.name
+            participant_ids = set(
+                source_group.members.values_list("id", flat=True)
+            )
+        else:
+            name = data["name"].strip()
+            participant_ids = set(data.get("user_ids", []))
+
         conversation = Conversation(
             tenant=tenant,
             type=ConversationType.GROUP,
-            name=data["name"].strip(),
+            name=name,
+            source_group=source_group,
         )
         conversation.save()
 
         # Always include the creator as a participant
-        participant_ids = set(data.get("user_ids", []))
         participant_ids.add(current_user.pk)
 
         ConversationParticipant.objects.bulk_create([

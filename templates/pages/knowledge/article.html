@@ -101,6 +101,39 @@
             </div>
             {% endif %}
           </div>
+
+          <!-- Visibility / group restriction. Inline styles so the block is
+               always visible regardless of theme variable availability. -->
+          <div class="mb-3 kb-audience-block"
+               style="display:block !important; padding:12px 14px; background:rgba(193,18,31,0.04); border:1px solid rgba(193,18,31,0.25); border-radius:10px;">
+            <label class="form-label d-flex align-items-center gap-2" style="color:inherit; margin-bottom:0.5rem;">
+              <i class="ti ti-lock-access"></i>
+              <strong>Who can view this article?</strong>
+            </label>
+            <div class="kb-audience-cards" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
+              <label class="kb-audience-card"
+                     style="display:flex; align-items:flex-start; gap:0.25rem; padding:0.625rem 0.75rem; border:1px solid var(--crm-border-light,#F2F2F4); border-radius:8px; cursor:pointer; margin:0;">
+                <input class="form-check-input me-2" type="radio" name="editAudience" id="editAudienceAll" value="all" checked>
+                <div>
+                  <div style="font-weight:600; font-size:0.875rem; line-height:1.25;"><i class="ti ti-world me-1"></i>Everyone</div>
+                  <div style="font-size:0.75rem; color:var(--crm-text-secondary,#4A4A4F); margin-top:2px;">All workspace members can view</div>
+                </div>
+              </label>
+              <label class="kb-audience-card"
+                     style="display:flex; align-items:flex-start; gap:0.25rem; padding:0.625rem 0.75rem; border:1px solid var(--crm-border-light,#F2F2F4); border-radius:8px; cursor:pointer; margin:0;">
+                <input class="form-check-input me-2" type="radio" name="editAudience" id="editAudienceGroups" value="groups">
+                <div>
+                  <div style="font-weight:600; font-size:0.875rem; line-height:1.25;"><i class="ti ti-users-group me-1"></i>Only specific groups</div>
+                  <div style="font-size:0.75rem; color:var(--crm-text-secondary,#4A4A4F); margin-top:2px;">Restrict to members of selected groups</div>
+                </div>
+              </label>
+            </div>
+            <div class="mt-2 d-none" id="editGroupsPickerWrap">
+              <select id="editGroupsPicker" class="form-select" multiple size="5"></select>
+              <div class="form-text small">Hold Ctrl/Cmd to select multiple. Admins and managers always see all articles.</div>
+            </div>
+          </div>
+
           <div class="mb-3">
             <label class="form-label">Excerpt</label>
             <textarea id="editArticleExcerpt" class="form-control" rows="2"></textarea>
@@ -371,6 +404,48 @@
     } catch(e) {}
   }
 
+  // Lazy-loaded UserGroups cache for the audience picker.
+  var __editGroupsCache = null;
+  async function loadEditGroupsIntoPicker(selectedIds) {
+    var picker = document.getElementById('editGroupsPicker');
+    if (!picker) return;
+    if (!__editGroupsCache) {
+      try {
+        var data = await Api.get('/api/v1/accounts/groups/?page_size=100');
+        __editGroupsCache = data.results || data || [];
+      } catch (e) { __editGroupsCache = []; }
+    }
+    picker.textContent = '';
+    if (!__editGroupsCache.length) {
+      var opt = document.createElement('option');
+      opt.disabled = true;
+      opt.textContent = 'No groups yet — create one in Settings → Team → Groups';
+      picker.appendChild(opt);
+    } else {
+      var selectedSet = new Set((selectedIds || []).map(String));
+      __editGroupsCache.forEach(function(g) {
+        var o = document.createElement('option');
+        o.value = g.id;
+        var count = (g.member_count !== undefined ? g.member_count : (g.members ? g.members.length : 0));
+        o.textContent = g.name + ' (' + count + ')';
+        if (selectedSet.has(String(g.id))) o.selected = true;
+        picker.appendChild(o);
+      });
+    }
+  }
+  function setEditAudienceUI(mode, selectedIds) {
+    var isGroups = (mode === 'groups');
+    document.getElementById('editAudienceAll').checked = !isGroups;
+    document.getElementById('editAudienceGroups').checked = isGroups;
+    document.getElementById('editGroupsPickerWrap').classList.toggle('d-none', !isGroups);
+    loadEditGroupsIntoPicker(selectedIds || []);
+  }
+  document.addEventListener('change', function(e) {
+    if (e.target && (e.target.id === 'editAudienceAll' || e.target.id === 'editAudienceGroups')) {
+      setEditAudienceUI(e.target.value, []);
+    }
+  });
+
   window.editArticle = function() {
     if (!article) return;
     document.getElementById('editArticleId').value = article.id;
@@ -384,6 +459,8 @@
     var pinnedEl = document.getElementById('editArticlePinned');
     if (pinnedEl) pinnedEl.checked = article.is_pinned;
     document.getElementById('editArticleFile').value = '';
+    var ag = article.allowed_groups || [];
+    setEditAudienceUI(ag.length ? 'groups' : 'all', ag);
 
     var rejAlert = document.getElementById('editRejectionAlert');
     if (rejAlert && article.status === 'rejected' && article.rejection_reason) {
@@ -419,6 +496,17 @@
     var statusEl = document.getElementById('editArticleStatus');
     var pinnedEl = document.getElementById('editArticlePinned');
 
+    // Audience selection: "all" sends []; "groups" sends the picker's IDs.
+    var audience = document.querySelector('input[name="editAudience"]:checked');
+    var audienceMode = audience ? audience.value : 'all';
+    var allowedGroups = [];
+    if (audienceMode === 'groups') {
+      var picker = document.getElementById('editGroupsPicker');
+      if (picker) {
+        allowedGroups = Array.from(picker.selectedOptions).map(function(o) { return o.value; });
+      }
+    }
+
     try {
       if (hasFile) {
         var fd = new FormData();
@@ -431,6 +519,7 @@
         var cat = document.getElementById('editArticleCategory').value;
         if (cat) fd.append('category', cat);
         tags.forEach(function(t) { fd.append('tags', t); });
+        allowedGroups.forEach(function(g) { fd.append('allowed_groups', g); });
         fd.append('file', fileInput.files[0]);
         fd.append('file_name', fileInput.files[0].name);
         await Api.upload(API + '/articles/' + id + '/', fd, 'PATCH');
@@ -442,6 +531,7 @@
           excerpt: document.getElementById('editArticleExcerpt').value,
           content: document.getElementById('editArticleContent').value,
           tags: tags,
+          allowed_groups: allowedGroups,
         };
         if (pinnedEl) data.is_pinned = pinnedEl.checked;
         await Api.patch(API + '/articles/' + id + '/', data);
