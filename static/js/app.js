@@ -198,21 +198,24 @@ function initNavbarScroll() {
 
 // -----------------------------------------------------------------------
 // Notification type config: icons, colors, friendly labels
+// Colour values use CSS var() strings so they retheme automatically when
+// element.style.color = cfg.color is assigned (browser resolves var()
+// at CSS-resolution time).
 // -----------------------------------------------------------------------
 var NOTIF_TYPE_CONFIG = {
-  ticket_assigned:      { icon: 'ti ti-user-check',           color: '#DC2626', label: 'Assigned' },
-  ticket_updated:       { icon: 'ti ti-edit',                 color: '#EF4444', label: 'Updated' },
-  ticket_comment:       { icon: 'ti ti-message',              color: '#DC2626', label: 'Comment' },
-  mention:              { icon: 'ti ti-at',                   color: '#EF4444', label: 'Mention' },
-  message:              { icon: 'ti ti-message',              color: '#06B6D4', label: 'Message' },
-  sla_breach:           { icon: 'ti ti-alert-triangle',       color: '#EF4444', label: 'SLA Alert' },
-  payment_failed:       { icon: 'ti ti-credit-card',          color: '#F59E0B', label: 'Payment' },
-  subscription_change:  { icon: 'ti ti-crown',                color: '#10B981', label: 'Billing' },
-  invitation:           { icon: 'ti ti-mail-forward',         color: '#EC4899', label: 'Invite' },
+  ticket_assigned:      { icon: 'ti ti-user-check',           color: 'var(--crm-primary)',        label: 'Assigned' },
+  ticket_updated:       { icon: 'ti ti-edit',                 color: 'var(--status-danger-text)', label: 'Updated' },
+  ticket_comment:       { icon: 'ti ti-message',              color: 'var(--crm-primary)',        label: 'Comment' },
+  mention:              { icon: 'ti ti-at',                   color: 'var(--status-danger-text)', label: 'Mention' },
+  message:              { icon: 'ti ti-message',              color: 'var(--status-info-text)',   label: 'Message' },
+  sla_breach:           { icon: 'ti ti-alert-triangle',       color: 'var(--status-danger-text)', label: 'SLA Alert' },
+  payment_failed:       { icon: 'ti ti-credit-card',          color: 'var(--status-warning-text)', label: 'Payment' },
+  subscription_change:  { icon: 'ti ti-crown',                color: 'var(--status-success-text)', label: 'Billing' },
+  invitation:           { icon: 'ti ti-mail-forward',         color: 'var(--status-info-text)',   label: 'Invite' },
 };
 
 function getNotifConfig(type) {
-  return NOTIF_TYPE_CONFIG[type] || { icon: 'ti ti-bell', color: '#94A3B8', label: 'Notification' };
+  return NOTIF_TYPE_CONFIG[type] || { icon: 'ti ti-bell', color: 'var(--status-neutral-dot)', label: 'Notification' };
 }
 
 function timeAgo(dateStr) {
@@ -487,10 +490,10 @@ const Toast = {
   },
 
   _colors: {
-    success: '#10B981',
-    danger:  '#EF4444',
-    warning: '#F59E0B',
-    info:    '#DC2626',
+    success: 'var(--status-success-text)',
+    danger:  'var(--status-danger-text)',
+    warning: 'var(--status-warning-text)',
+    info:    'var(--crm-primary)',
   },
 
   show(message, type = 'success', duration = 4500) {

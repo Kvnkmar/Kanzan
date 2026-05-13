@@ -110,7 +110,7 @@
 
       var dotEl = document.createElement('span');
       dotEl.className = 'status-dropdown-item-dot';
-      dotEl.style.background = cs.color_hex || '#3B82F6';
+      dotEl.style.background = cs.color_hex || 'var(--status-info-dot)';
       btn.appendChild(dotEl);
 
       var textWrap = document.createElement('div');
@@ -192,7 +192,7 @@
       if (currentCustomId) {
         var row = state.customRow || customStatuses.find(function (c) { return c.id === currentCustomId; });
         dot.className = 'status-dropdown-dot';
-        dot.style.background = (row && row.color_hex) || '#3B82F6';
+        dot.style.background = (row && row.color_hex) || 'var(--status-info-dot)';
         dot.style.boxShadow = 'none';
       } else {
         dot.className = 'status-dropdown-dot dot-' + currentKey;
