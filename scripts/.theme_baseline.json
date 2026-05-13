@@ -1,0 +1,14 @@
+{
+  "static/css/custom-v15.css": 144,
+  "static/css/custom.css": 783,
+  "templates/landing/landing_crm.html": 25,
+  "templates/pages/auth/verify_email_error.html": 1,
+  "templates/pages/auth/verify_email_sent.html": 3,
+  "templates/pages/calendar.html": 2,
+  "templates/pages/kanban/board.html": 1,
+  "templates/pages/landing.html": 15,
+  "templates/pages/reminders/list.html": 7,
+  "templates/pages/tickets/create.html": 1,
+  "templates/pages/tickets/detail.html": 13,
+  "templates/pages/tickets/list.html": 1
+}

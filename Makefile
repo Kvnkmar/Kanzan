@@ -144,6 +144,15 @@ lint-fix: ## Lint + auto-fix with ruff
 format: ## Format with ruff
 	$(VENV)/ruff format apps/ main/ tests/
 
+theme-check: ## Check for new hardcoded hex colours outside the design-system tokens
+	$(PYTHON) $(PROJECT)/scripts/check_theme.py
+
+theme-check-strict: ## Strict theme check — any hex outside allowlist fails (CI-style)
+	$(PYTHON) $(PROJECT)/scripts/check_theme.py --strict
+
+theme-baseline: ## Refresh the theme-leakage baseline after intentional changes
+	$(PYTHON) $(PROJECT)/scripts/check_theme.py --baseline
+
 # ─── Logs ───────────────────────────────────────────────────────────────────────
 
 logs: ## Tail Django logs
