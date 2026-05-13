@@ -162,6 +162,40 @@
   --status-neutral-bg:      rgba(107, 114, 128, 0.10);
   --status-neutral-border:  rgba(107, 114, 128, 0.20);
   --status-neutral-dot:     #6B7280;
+
+  /* ----------------------------------------------------------
+     FOUNDATION TOKENS (Phase 1.A — light)
+     "On-color" foregrounds, form surfaces, scrollbars, skeleton
+     shimmer, modal overlay. Every rule body that previously
+     hardcoded these hex values now resolves via var().
+     The tenant palette block in base.html OVERRIDES
+     --crm-text-on-primary / --crm-text-on-accent at runtime.
+     ---------------------------------------------------------- */
+  /* On-color foregrounds (default — overridden per-tenant) */
+  --crm-text-on-primary: #FFFFFF;
+  --crm-text-on-accent:  #FFFFFF;
+  --crm-text-on-dark:    #FFFFFF;
+
+  /* Card surface alias (referenced by 3 callsites that were resolving
+     to `unset` because the token was never defined). */
+  --crm-card-bg: var(--crm-surface);
+
+  /* Form input surfaces (distinct from card so inputs can lift on focus) */
+  --crm-input-bg:        #FFFFFF;
+  --crm-input-bg-focus:  #FFFFFF;
+  --crm-input-border:    var(--crm-border);
+
+  /* Scrollbar */
+  --crm-scrollbar-track:        var(--crm-bg);
+  --crm-scrollbar-thumb:        var(--crm-border);
+  --crm-scrollbar-thumb-hover:  #C8C8CC;
+
+  /* Skeleton shimmer */
+  --crm-skeleton-base:       #E4E4E7;
+  --crm-skeleton-highlight:  #F0F0F2;
+
+  /* Modal / dropdown backdrop */
+  --crm-overlay: rgba(11, 11, 11, 0.45);
 }
 
 /* ============================================================
@@ -318,6 +352,37 @@
   --status-neutral-bg:      rgba(245, 245, 245, 0.06);
   --status-neutral-border:  rgba(245, 245, 245, 0.12);
   --status-neutral-dot:     #71717A;
+
+  /* ----------------------------------------------------------
+     FOUNDATION TOKENS (Phase 1.A — dark)
+     Mirror of the light-mode foundation block above. The tenant
+     palette block in base.html overrides --crm-text-on-primary /
+     --crm-text-on-accent for both modes at runtime.
+     ---------------------------------------------------------- */
+  /* On-color foregrounds (default — overridden per-tenant) */
+  --crm-text-on-primary: #FFFFFF;
+  --crm-text-on-accent:  #FFFFFF;
+  --crm-text-on-dark:    #FFFFFF;
+
+  /* Card surface alias */
+  --crm-card-bg: var(--crm-surface);
+
+  /* Form input surfaces — slightly lifted off card so inputs read as inputs */
+  --crm-input-bg:        #1A1A1D;
+  --crm-input-bg-focus:  #181818;
+  --crm-input-border:    var(--crm-border);
+
+  /* Scrollbar — track matches page bg, thumb matches border */
+  --crm-scrollbar-track:        var(--crm-bg);
+  --crm-scrollbar-thumb:        var(--crm-border);
+  --crm-scrollbar-thumb-hover:  #3A3A3F;
+
+  /* Skeleton shimmer — keep neutral, never tenant-coloured */
+  --crm-skeleton-base:       #2A2A2E;
+  --crm-skeleton-highlight:  #3D3D42;
+
+  /* Modal / dropdown backdrop */
+  --crm-overlay: rgba(0, 0, 0, 0.6);
 }
 
 /* Dark mode — cards, form controls, modals, dropdowns, tables */

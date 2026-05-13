@@ -55,6 +55,10 @@
       --crm-accent-light: {{ tenant_palette.accent_light }};
       --crm-accent-500: {{ tenant_palette.accent }};
       --crm-accent-rgb: {{ tenant_palette.accent_rgb }};
+      /* WCAG-derived foreground: white or near-black, whichever
+         contrasts better against the tenant primary/accent. */
+      --crm-text-on-primary: {{ tenant_palette.text_on_primary }};
+      --crm-text-on-accent: {{ tenant_palette.text_on_accent }};
       /* Re-point Bootstrap's primary so .btn-primary/.bg-primary/.text-primary
          and link colors track the tenant theme too. */
       --bs-primary: {{ tenant_palette.primary }};

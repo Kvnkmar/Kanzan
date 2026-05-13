@@ -6,16 +6,30 @@ subtle/ring) and 3 accent variables. When a tenant picks a custom colour
 through the Branding settings, every variable in that set needs to be
 re-derived -- otherwise only the few that are explicitly overridden change
 and the rest of the UI remains the original red.
+
+WCAG accessibility:
+    ``derive_palette`` also picks a readable foreground colour (white or
+    near-black) for text that sits directly on the tenant primary. The
+    chosen foreground is exposed as ``text_on_primary`` and emitted as
+    ``--crm-text-on-primary`` by ``base.html``. If neither foreground hits
+    a 4.5:1 contrast ratio against the primary, a warning is logged so the
+    operator can be alerted to an unreadable colour pick.
 """
 
 from __future__ import annotations
 
 import colorsys
+import logging
 import re
+
+logger = logging.getLogger(__name__)
 
 _HEX_RE = re.compile(r"^#?([0-9a-fA-F]{6})$")
 DEFAULT_PRIMARY = "#C1121F"
 DEFAULT_ACCENT = "#E11D2D"
+WHITE = "#FFFFFF"
+NEAR_BLACK = "#0B0B0B"
+WCAG_AA_NORMAL = 4.5
 
 
 def _normalize(hex_str: str | None, fallback: str) -> str:
@@ -44,6 +58,40 @@ def _hls_to_hex(h: float, l: float, s: float) -> str:
     return "#{:02X}{:02X}{:02X}".format(round(r * 255), round(g * 255), round(b * 255))
 
 
+def _relative_luminance(r: int, g: int, b: int) -> float:
+    """WCAG 2.x relative luminance for an sRGB colour."""
+
+    def _channel(c: int) -> float:
+        c_lin = c / 255.0
+        return c_lin / 12.92 if c_lin <= 0.03928 else ((c_lin + 0.055) / 1.055) ** 2.4
+
+    return 0.2126 * _channel(r) + 0.7152 * _channel(g) + 0.0722 * _channel(b)
+
+
+def _contrast_ratio(l1: float, l2: float) -> float:
+    """WCAG contrast ratio between two relative luminances."""
+    if l1 < l2:
+        l1, l2 = l2, l1
+    return (l1 + 0.05) / (l2 + 0.05)
+
+
+def pick_on_color(bg_hex: str) -> tuple[str, float]:
+    """Return ``(foreground_hex, contrast_ratio)`` for text on ``bg_hex``.
+
+    Picks whichever of WHITE / NEAR_BLACK gives the higher contrast ratio
+    against the background. The returned ratio is the winning ratio.
+    """
+    r, g, b = _hex_to_rgb(bg_hex)
+    bg_l = _relative_luminance(r, g, b)
+    wr, wg, wb = _hex_to_rgb(WHITE)
+    nr, ng, nb = _hex_to_rgb(NEAR_BLACK)
+    white_ratio = _contrast_ratio(_relative_luminance(wr, wg, wb), bg_l)
+    black_ratio = _contrast_ratio(_relative_luminance(nr, ng, nb), bg_l)
+    if white_ratio >= black_ratio:
+        return WHITE, white_ratio
+    return NEAR_BLACK, black_ratio
+
+
 def derive_palette(primary: str | None, accent: str | None) -> dict[str, str]:
     """Return every CSS custom-property value used by the theme.
 
@@ -61,6 +109,19 @@ def derive_palette(primary: str | None, accent: str | None) -> dict[str, str]:
         return _hls_to_hex(p_h, lightness_pct / 100.0, p_s)
 
     a_r, a_g, a_b = _hex_to_rgb(accent_hex)
+
+    text_on_primary, on_primary_contrast = pick_on_color(primary_hex)
+    text_on_accent, on_accent_contrast = pick_on_color(accent_hex)
+    if on_primary_contrast < WCAG_AA_NORMAL:
+        logger.warning(
+            "Tenant primary colour %s fails WCAG AA contrast against both "
+            "white and near-black (best ratio %.2f:1, needs %.1f:1). "
+            "Text-on-primary will use %s but may be hard to read.",
+            primary_hex,
+            on_primary_contrast,
+            WCAG_AA_NORMAL,
+            text_on_primary,
+        )
 
     return {
         # Primary scale (Tailwind-style lightness anchors)
@@ -88,4 +149,10 @@ def derive_palette(primary: str | None, accent: str | None) -> dict[str, str]:
         "accent_hover": primary_hex,
         "accent_light": f"rgba({a_r}, {a_g}, {a_b}, 0.10)",
         "accent_rgb": f"{a_r}, {a_g}, {a_b}",
+        # Readable foreground for text/icons sitting directly on the
+        # tenant primary or accent. Emitted as --crm-text-on-primary
+        # / --crm-text-on-accent so component rules can stop hardcoding
+        # `color: #FFFFFF` on primary-coloured surfaces.
+        "text_on_primary": text_on_primary,
+        "text_on_accent": text_on_accent,
     }
