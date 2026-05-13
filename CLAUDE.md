@@ -1,6 +1,6 @@
 # Kanzen — Project Intelligence
 
-> Last refreshed: 2026-05-11. Verified against current branch `main` @ `bb36325`. For deeper inventory + per-domain reference, see `/docs/reference/` (`codebase-inventory.md`, `api-surface.md`, `frontend-surface.md`, `infra-surface.md`) and `/docs/README.md`.
+> Last refreshed: 2026-05-13. Verified against branch `theming-refactor` @ `ec4d2db` (5-commit theming foundation on top of `land-inflight-work` @ `91fba10`). For deeper inventory + per-domain reference, see `/docs/reference/` (`codebase-inventory.md`, `api-surface.md`, `frontend-surface.md`, `infra-surface.md`) and `/docs/README.md`.
 
 ## Project Overview
 
@@ -506,12 +506,22 @@ apps.voip.tasks.*                                 → kanzan_voip
 - **rich-editor.js** (191 lines) — TipTap wrapper for comments/articles.
 - **keyboard-shortcuts.js** (318 lines) — Global hotkeys: j/k navigate, Enter open, Esc deselect; a/s/x row actions; Ctrl+K palette; c new ticket; ? help; g d/t/c/b go-to. `.keyboard-selected` class. Disabled inside inputs.
 
-### CSS (`static/css/custom-v15.css` — 21,208 lines is the live file referenced by `base.html`; `custom.css` 20,431 lines is the committed copy)
+### CSS (`static/css/custom-v15.css` — 21,500+ lines is the live file referenced by `base.html`)
 - **Design system: "Crimson Black v9"** — deep red (`#C1121F`) primary, brighter red (`#E11D2D`) accent, light grays for surfaces, high-contrast text. Sidebar 252px (white in light mode, near-black in dark) with 3px red ::before bar (active only). Strict dark-mode-first (default theme = dark).
-- CSS custom properties under `:root` and `[data-bs-theme="dark"]` (~160 total): `--crm-primary*` 50–900 scale, `--crm-bg-*`, `--crm-text-*`, `--crm-sidebar-*`, `--crm-status-{success,warning,danger,info}`, `--crm-priority-{urgent,high,medium,low}`, `--crm-chat-*`, `--crm-kanban-*`, `--crm-shadow-{xs,sm,lg,card-hover}`, `--crm-duration-*`, `--crm-ease*`, `--crm-radius-{sm,lg,pill}` (8px/14px/9999px), `--crm-font-family` (Inter)
+- CSS custom properties under `:root` and `[data-bs-theme="dark"]` (~175 total): `--crm-primary*` 50–900 scale, `--crm-bg-*`, `--crm-text-*`, `--crm-sidebar-*`, `--crm-status-{success,warning,danger,info}`, `--crm-priority-{urgent,high,medium,low}`, `--crm-chat-*`, `--crm-kanban-*`, `--crm-shadow-{xs,sm,lg,card-hover}`, `--crm-duration-*`, `--crm-ease*`, `--crm-radius-{sm,lg,pill}` (8px/14px/9999px), `--crm-font-family` (Inter)
 - Components: stat cards with left accent, soft badges, kanban drag-and-drop, chat bubbles, timeline dots, toast notifications, notes panel, knowledge base, calendar, softphone widget, audit log tabs/stats, command palette, quick notes
-- **Per-tenant primary_color override is RE-ENABLED** in `base.html` (lines 30–41, restored in commit `bb36325` on 2026-05-07). Sets `--crm-primary*` and `--crm-accent*` from `tenant.settings.primary_color` / `accent_color`, with `#C1121F` / `#E11D2D` as defaults. The earlier "disabled — strict palette" comment block was removed; theming is back, but defaults remain Crimson Black.
 - Font: Inter (Google Fonts), 0.875rem fluid base; mobile collapses sidebar <992px
+
+### Theming Architecture (refactored 2026-05-13)
+Per-tenant runtime theming flows: **`TenantSettings.primary_color/accent_color`** → `apps/tenants/colors.py::derive_palette()` → `tenant_palette` context var → inline `<style>` block in `templates/base.html` → CSS custom properties resolved by every rule body.
+
+- **`apps/tenants/colors.py`** derives ~30 palette values from the tenant's primary + accent hex inputs: 50–900 scale (`primary_50` … `primary_900`), `primary_{hover,active,dark,light,subtle,ring,rgb}`, accent variants, and **`text_on_primary` / `text_on_accent`** picked by WCAG 2.x relative luminance (white vs near-black, whichever wins ≥ 4.5:1). A `logger.warning` fires when the winning contrast is below WCAG AA so admins are alerted to unreadable picks.
+- **`base.html` palette block** (lines 30–84) emits the per-tenant CSS variables. Selector is `:root, [data-bs-theme="light"], [data-bs-theme="dark"]` so the override wins over `custom-v15.css`'s defaults by source order. Variables rethemed per-tenant include: `--bs-primary`, `--bs-link-color`, `--crm-primary*` scale, `--crm-accent*`, `--crm-text-on-primary`, `--crm-text-on-accent`, `--crm-priority-urgent/high`, `--crm-danger`, `--crm-chat-sent-bg`, `--crm-focus-ring`, `--crm-glow-primary`, `--crm-gradient`, `--status-danger-*`.
+- **Foundation tokens added 2026-05-13** (in both `:root` and `[data-bs-theme="dark"]`): `--crm-text-on-primary/accent/dark`, `--crm-card-bg` (alias), `--crm-input-bg{,-focus,-border}`, `--crm-scrollbar-{track,thumb,thumb-hover}`, `--crm-skeleton-{base,highlight}`, `--crm-overlay`. These eliminate ~559 off-token hex literals that used to bypass the tenant override in CSS rule bodies.
+- **No hex literal in rule bodies.** Every brand red (`#C1121F` etc.) is routed through `var(--crm-primary*)`. Every white (`#FFF`) used as `color:` is `var(--crm-text-on-primary)` — flips to near-black automatically for light tenant primaries. Every neutral gray is property-aware (`color:` → `--crm-text-*`, `background:` → `--crm-surface*`, `border:` → `--crm-border*`). Status semantic colours (success green, warning amber, danger red, info blue) route through the `--status-*` ramp and stay fixed regardless of tenant brand.
+- **JS color dicts** (`static/js/app.js` `NOTIF_TYPE_CONFIG`, `Toast._colors`; `static/js/keyboard-shortcuts.js`; `static/js/agent-availability.js`) use `'var(--crm-*)'` / `'var(--status-*)'` string literals. Browsers resolve `var()` at CSS-value time when assigned via `element.style.X = '<var()>'`.
+- **Regression guard:** `scripts/check_theme.py` (run via `make theme-check`) scans static/templates for new off-token hex literals against a baseline (`scripts/.theme_baseline.json`). Strict mode (`make theme-check-strict`) fails on any hex outside the allowlist. Allowlist: email templates (need inline hex for email clients), settings/tenant.html color picker UI, `apps/tenants/colors.py`, `:root` / `[data-bs-theme]` token blocks, CSS comments, `<input type="color">` defaults, `data-*` hex attrs.
+- **Email templates excluded from sweep** — email clients strip `<style>` and require inline hex. Brand-coloured email tokens (`#C1121F` etc.) are left as literals; the right fix is to render them from `tenant_palette` at send time (separate refactor).
 
 ### Templates
 - `templates/base.html` — layout + toast container + quick-notes panel + softphone include (conditional on `voip_enabled`) + DOMPurify v3.2.4 CDN + SIP.js 0.21.2 CDN (conditional) + Flatpickr global loader with three CDN fallbacks (jsdelivr → cdnjs → unpkg). Mobile detection script adds `is-mobile` / `is-mobile-sm` body classes. Default theme: dark. Loads `static/css/custom-v15.css`.
@@ -734,6 +744,9 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 26. **API router include count is 21, not 22** — `main/urls.py` has 21 `path("api/v1/...", include(...))` lines; `inbound_email.api_urls` is dual-mounted at both `/api/v1/inbound-email/` and `/api/v1/emails/` (the second uses `namespace="emails_api"`). The two mounts share a URLConf but route through different namespaces.
 27. **Frontend URL count is 32, not 28** — `apps/tenants/frontend_urls.py` includes paths the older docs missed: `/auth/handoff/`, `/workspaces/`, `/inbound-email/`, `/calls/`. `setup-company/` and `workspaces/` are gated by `@login_required`; `agents/` is gated by `@_role_required(20)` (matches `users/`/`settings/`/`billing/`/`audit-log/`).
 28. **Total model class count is 80**, not "~95". The earlier number over-counted `TextChoices`, `Manager`, `QuerySet` definitions. Tickets app holds 22 models; `nav` has 0 (URL-only stub with no `models.py`).
+29. **No new hex colour literals in CSS/JS/template rule bodies** (post-theming refactor, 2026-05-13). Use semantic tokens: `var(--crm-primary*)`, `var(--crm-accent*)`, `var(--crm-text-*)`, `var(--crm-bg*)`, `var(--crm-surface*)`, `var(--crm-border*)`, `var(--status-{success,warning,danger,info,neutral}-{text,dot,bg,border})`, `var(--crm-input-bg*)`, `var(--crm-skeleton-*)`, `var(--crm-overlay)`. Token blocks (`:root`, `[data-bs-theme]`) are the ONLY place where new hex values are permitted. `make theme-check` enforces this against the baseline in `scripts/.theme_baseline.json`.
+30. **Use `var(--crm-text-on-primary)` (not `#FFFFFF`) for text/icon foregrounds on tenant-themed surfaces** (`.btn-primary`, `.bg-primary`, `.chat-sent`, `.bg-danger`, etc.). The value is computed per-tenant by WCAG luminance — falls to near-black automatically for light tenant primaries. Hardcoding `#FFFFFF` would silently break light-tenant readability.
+31. **JS color strings use var() too** — `element.style.backgroundColor = 'var(--crm-primary)'` works because the browser resolves var() at CSS-value time. `NOTIF_TYPE_CONFIG` (app.js), `Toast._colors`, `agent-availability.js` status-dot fallbacks all use var() strings, not hex.
 
 ## Documentation
 - `/CLAUDE.md` (this file) — day-to-day source of truth, kept current with refactors.
@@ -743,4 +756,5 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 - `/docs/reference/api-surface.md` — every REST endpoint, custom action, WebSocket consumer, permission class.
 - `/docs/reference/frontend-surface.md` — every template, JS module, CSS file, frontend URL.
 - `/docs/reference/infra-surface.md` — settings, middleware, ASGI, Celery, PM2, requirements, env, scripts, tests.
+- `/scripts/check_theme.py` — regression guard for theme leakage. Run via `make theme-check` (delta vs baseline) / `make theme-check-strict` (zero-tolerance) / `make theme-baseline` (refresh after intentional changes).
 - `README.md` — minimal stub (1 line: `# Kanzen`); rely on the documents above for context.
