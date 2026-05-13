@@ -10,7 +10,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #fff;
+    color: var(--crm-text-on-primary);
     font-weight: 600;
     font-size: 0.9rem;
     letter-spacing: 0.02em;
@@ -21,7 +21,7 @@
   .group-name { font-weight: 600; font-size: 0.9375rem; line-height: 1.25; color: var(--crm-text-primary, inherit); }
   .group-description {
     font-size: 0.8125rem;
-    color: var(--crm-text-secondary, #6b7280);
+    color: var(--crm-text-secondary, var(--crm-text-muted));
     margin-top: 2px;
     line-height: 1.3;
     display: -webkit-box;
@@ -42,7 +42,7 @@
   .group-action-btn i { font-size: 1rem; }
   .group-no-members {
     font-size: 0.8125rem;
-    color: var(--crm-text-secondary, #9ca3af);
+    color: var(--crm-text-secondary, var(--crm-text-muted));
     font-style: italic;
   }
 </style>
@@ -200,7 +200,7 @@
   function escapeHtml(s) { if (s === null || s === undefined) return ''; var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
   function formatDate(d) { return Kanzan.formatDate(d); }
   function getInitials(n) { if (!n) return '?'; return n.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase(); }
-  var AVATAR_COLORS = ['#C1121F','#9A0E18','#C1121F','#9A0E18','#A8A8AC','#C1121F','#F03040','#E11C2B','#F08891','#A8A8AC'];
+  var AVATAR_COLORS = ['var(--crm-primary)','var(--crm-primary-active)','var(--crm-primary)','var(--crm-primary-active)','var(--status-neutral-dot)','var(--crm-primary)','var(--crm-accent)','var(--crm-accent)','var(--crm-primary-300)','var(--status-neutral-dot)'];
   function avatarColor(name) { if (!name) return AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
   function setHtml(el, html) {
     // All template strings here pass user input through escapeHtml first,

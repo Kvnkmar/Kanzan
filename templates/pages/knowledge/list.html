@@ -19,13 +19,13 @@
     transition: border-color 0.15s ease, background 0.15s ease;
     margin: 0;
   }
-  .kb-audience-card:hover { border-color: var(--crm-primary, #C1121F); }
+  .kb-audience-card:hover { border-color: var(--crm-primary, var(--crm-primary)); }
   .kb-audience-card:has(input:checked) {
-    border-color: var(--crm-primary, #C1121F);
-    background: rgba(193, 18, 31, 0.06);
+    border-color: var(--crm-primary, var(--crm-primary));
+    background: rgba(var(--crm-primary-rgb), 0.06);
   }
   .kb-audience-card-title { font-weight: 600; font-size: 0.875rem; line-height: 1.25; }
-  .kb-audience-card-desc { font-size: 0.75rem; color: var(--crm-text-secondary, #9ca3af); margin-top: 2px; }
+  .kb-audience-card-desc { font-size: 0.75rem; color: var(--crm-text-secondary, var(--crm-text-muted)); margin-top: 2px; }
 </style>
 {% endblock %}
 
@@ -135,7 +135,7 @@
     <span class="kb-stat-sep"></span>
     <span class="kb-stat-chip"><span class="kb-stat-dot kb-stat-dot--draft"></span><strong id="statDrafts">0</strong> drafts</span>
     <span class="kb-stat-sep"></span>
-    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#C1121F;"></span><strong id="statPending">0</strong> pending</span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:var(--crm-primary);"></span><strong id="statPending">0</strong> pending</span>
     <span class="kb-stat-sep"></span>
     <span class="kb-stat-chip"><i class="ti ti-folders me-1" style="font-size:0.75rem;opacity:0.5;"></i><strong id="statCategories">0</strong> categories</span>
   </div>
@@ -197,26 +197,26 @@
                are intentional so the block always renders even if cached or
                theme CSS misses a variable. -->
           <div class="mb-3 kb-audience-block"
-               style="display:block !important; padding:12px 14px; background:rgba(193,18,31,0.04); border:1px solid rgba(193,18,31,0.25); border-radius:10px;">
+               style="display:block !important; padding:12px 14px; background:rgba(var(--crm-primary-rgb), 0.04); border:1px solid rgba(var(--crm-primary-rgb), 0.25); border-radius:10px;">
             <label class="form-label d-flex align-items-center gap-2" style="color:inherit; margin-bottom:0.5rem;">
               <i class="ti ti-lock-access"></i>
               <strong>Who can view this article?</strong>
             </label>
             <div class="kb-audience-cards" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
               <label class="kb-audience-card" id="kbAudienceAllCard"
-                     style="display:flex; align-items:flex-start; gap:0.25rem; padding:0.625rem 0.75rem; border:1px solid var(--crm-border-light,#F2F2F4); border-radius:8px; cursor:pointer; margin:0;">
+                     style="display:flex; align-items:flex-start; gap:0.25rem; padding:0.625rem 0.75rem; border:1px solid var(--crm-border-light,var(--crm-border-light)); border-radius:8px; cursor:pointer; margin:0;">
                 <input class="form-check-input me-2" type="radio" name="kbAudience" id="kbAudienceAll" value="all" checked>
                 <div>
                   <div class="kb-audience-card-title" style="font-weight:600; font-size:0.875rem; line-height:1.25;"><i class="ti ti-world me-1"></i>Everyone</div>
-                  <div class="kb-audience-card-desc" style="font-size:0.75rem; color:var(--crm-text-secondary,#4A4A4F); margin-top:2px;">All workspace members can view</div>
+                  <div class="kb-audience-card-desc" style="font-size:0.75rem; color:var(--crm-text-secondary,var(--crm-text-secondary)); margin-top:2px;">All workspace members can view</div>
                 </div>
               </label>
               <label class="kb-audience-card" id="kbAudienceGroupsCard"
-                     style="display:flex; align-items:flex-start; gap:0.25rem; padding:0.625rem 0.75rem; border:1px solid var(--crm-border-light,#F2F2F4); border-radius:8px; cursor:pointer; margin:0;">
+                     style="display:flex; align-items:flex-start; gap:0.25rem; padding:0.625rem 0.75rem; border:1px solid var(--crm-border-light,var(--crm-border-light)); border-radius:8px; cursor:pointer; margin:0;">
                 <input class="form-check-input me-2" type="radio" name="kbAudience" id="kbAudienceGroups" value="groups">
                 <div>
                   <div class="kb-audience-card-title" style="font-weight:600; font-size:0.875rem; line-height:1.25;"><i class="ti ti-users-group me-1"></i>Only specific groups</div>
-                  <div class="kb-audience-card-desc" style="font-size:0.75rem; color:var(--crm-text-secondary,#4A4A4F); margin-top:2px;">Restrict to members of selected groups</div>
+                  <div class="kb-audience-card-desc" style="font-size:0.75rem; color:var(--crm-text-secondary,var(--crm-text-secondary)); margin-top:2px;">Restrict to members of selected groups</div>
                 </div>
               </label>
             </div>
@@ -438,13 +438,13 @@
   <div class="kb-admin-stats-bar" id="myStatsBar">
     <span class="kb-stat-chip"><strong id="myStatTotal">0</strong> articles</span>
     <span class="kb-stat-sep"></span>
-    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#9CA3AF;"></span><strong id="myStatDraft">0</strong> drafts</span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:var(--status-neutral-dot);"></span><strong id="myStatDraft">0</strong> drafts</span>
     <span class="kb-stat-sep"></span>
-    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#C1121F;"></span><strong id="myStatPending">0</strong> pending</span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:var(--crm-primary);"></span><strong id="myStatPending">0</strong> pending</span>
     <span class="kb-stat-sep"></span>
     <span class="kb-stat-chip"><span class="kb-stat-dot kb-stat-dot--published"></span><strong id="myStatPublished">0</strong> published</span>
     <span class="kb-stat-sep"></span>
-    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:#E11C2B;"></span><strong id="myStatRejected">0</strong> rejected</span>
+    <span class="kb-stat-chip"><span class="kb-stat-dot" style="background:var(--crm-accent);"></span><strong id="myStatRejected">0</strong> rejected</span>
   </div>
 
   <!-- My Articles List -->
@@ -688,8 +688,8 @@
 
     var actions = '<button class="kb-action-btn" title="' + pinTitle + '" onclick="KBAdmin.togglePin(\'' + a.id + '\', ' + a.is_pinned + ')"><i class="ti ' + pinIcon + '"></i></button>';
     if (isPending) {
-      actions += '<button class="kb-action-btn" title="Approve" style="color:#A8A8AC;" onclick="KBAdmin.approveArticle(\'' + a.id + '\')"><i class="ti ti-check"></i></button>';
-      actions += '<button class="kb-action-btn" title="Reject" style="color:#E11C2B;" onclick="KBAdmin.showReject(\'' + a.id + '\', \'' + safeTitle + '\')"><i class="ti ti-x"></i></button>';
+      actions += '<button class="kb-action-btn" title="Approve" style="color:var(--crm-text-secondary);" onclick="KBAdmin.approveArticle(\'' + a.id + '\')"><i class="ti ti-check"></i></button>';
+      actions += '<button class="kb-action-btn" title="Reject" style="color:var(--crm-accent);" onclick="KBAdmin.showReject(\'' + a.id + '\', \'' + safeTitle + '\')"><i class="ti ti-x"></i></button>';
     }
     actions += '<button class="kb-action-btn" title="Edit" onclick="KBAdmin.editArticle(\'' + a.id + '\')"><i class="ti ti-pencil"></i></button>';
     actions += '<button class="kb-action-btn kb-action-btn--danger" title="Delete" onclick="KBAdmin.showDelete(\'' + a.id + '\', \'' + safeTitle + '\')"><i class="ti ti-trash"></i></button>';
@@ -699,7 +699,7 @@
       metaExtra = '<span class="kb-row-dot"></span><span><i class="ti ti-send me-1"></i>Submitted ' + relDate(a.submitted_at) + '</span>';
     }
     if (a.status === 'rejected' && a.reviewer_name) {
-      metaExtra = '<span class="kb-row-dot"></span><span style="color:#E11C2B;"><i class="ti ti-x me-1"></i>Rejected by ' + esc(a.reviewer_name) + '</span>';
+      metaExtra = '<span class="kb-row-dot"></span><span style="color:var(--crm-accent);"><i class="ti ti-x me-1"></i>Rejected by ' + esc(a.reviewer_name) + '</span>';
     }
 
     var rejectionRow = '';
@@ -1265,7 +1265,7 @@
 
     var statusExtra = '';
     if (a.status === 'pending_review') {
-      statusExtra = '<span class="kb-row-dot"></span><span style="color:#C1121F;"><i class="ti ti-clock me-1"></i>Awaiting review</span>';
+      statusExtra = '<span class="kb-row-dot"></span><span style="color:var(--crm-primary);"><i class="ti ti-clock me-1"></i>Awaiting review</span>';
     }
 
     return '<div class="kb-admin-row" data-id="' + a.id + '">' +

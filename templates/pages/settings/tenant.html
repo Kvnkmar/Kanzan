@@ -9,7 +9,7 @@
     gap: 0.5rem;
     padding: 0.5rem 0.75rem;
     margin-bottom: 0.75rem;
-    color: var(--crm-text-secondary, #6b7280);
+    color: var(--crm-text-secondary, var(--crm-text-muted));
     background: transparent;
     border: 1px solid var(--crm-border-light, rgba(255,255,255,0.08));
     border-radius: 8px;
@@ -20,8 +20,8 @@
   }
   .st-back-link:hover {
     background: var(--crm-bg-hover, rgba(255,255,255,0.04));
-    color: var(--crm-primary, #C1121F);
-    border-color: var(--crm-primary, #C1121F);
+    color: var(--crm-primary, var(--crm-primary));
+    border-color: var(--crm-primary, var(--crm-primary));
   }
   .st-back-link i { font-size: 1rem; }
 </style>
@@ -636,23 +636,23 @@
               <label class="st-label">Quick Presets</label>
               <div class="branding-presets" id="colorPresets">
                 <button type="button" class="branding-preset-btn" data-primary="#C1121F" data-accent="#E11D2D" title="Crimson Black (default)">
-                  <span class="preset-swatch" style="background:#C1121F;"></span>
-                  <span class="preset-swatch" style="background:#E11D2D;"></span>
+                  <span class="preset-swatch" style="background:var(--crm-primary);"></span>
+                  <span class="preset-swatch" style="background:var(--crm-accent);"></span>
                 </button>
                 <button type="button" class="branding-preset-btn" data-primary="#2563EB" data-accent="#F59E0B" title="Royal Blue & Amber">
                   <span class="preset-swatch" style="background:#2563EB;"></span>
-                  <span class="preset-swatch" style="background:#F59E0B;"></span>
+                  <span class="preset-swatch" style="background:var(--status-warning-dot);"></span>
                 </button>
                 <button type="button" class="branding-preset-btn" data-primary="#0EA5E9" data-accent="#10B981" title="Sky & Emerald">
                   <span class="preset-swatch" style="background:#0EA5E9;"></span>
-                  <span class="preset-swatch" style="background:#10B981;"></span>
+                  <span class="preset-swatch" style="background:var(--status-success-dot);"></span>
                 </button>
                 <button type="button" class="branding-preset-btn" data-primary="#7C3AED" data-accent="#EC4899" title="Violet & Pink">
                   <span class="preset-swatch" style="background:#7C3AED;"></span>
                   <span class="preset-swatch" style="background:#EC4899;"></span>
                 </button>
                 <button type="button" class="branding-preset-btn" data-primary="#DC2626" data-accent="#F97316" title="Red & Orange">
-                  <span class="preset-swatch" style="background:#DC2626;"></span>
+                  <span class="preset-swatch" style="background:var(--crm-primary);"></span>
                   <span class="preset-swatch" style="background:#F97316;"></span>
                 </button>
                 <button type="button" class="branding-preset-btn" data-primary="#059669" data-accent="#0EA5E9" title="Emerald & Sky">
@@ -664,8 +664,8 @@
                   <span class="preset-swatch" style="background:#14B8A6;"></span>
                 </button>
                 <button type="button" class="branding-preset-btn" data-primary="#1E293B" data-accent="#3B82F6" title="Slate & Blue">
-                  <span class="preset-swatch" style="background:#1E293B;"></span>
-                  <span class="preset-swatch" style="background:#3B82F6;"></span>
+                  <span class="preset-swatch" style="background:var(--crm-surface);"></span>
+                  <span class="preset-swatch" style="background:var(--status-info-dot);"></span>
                 </button>
               </div>
             </div>
@@ -1882,10 +1882,10 @@ function switchSettingsTab(targetId) {
     document.getElementById('ssoClientId').value = s.sso_client_id || '';
     document.getElementById('ssoDomain').value = s.sso_authority_url || s.sso_domain || '';
     document.getElementById('ssoScopes').value = s.sso_scopes || 'openid email profile';
-    var color = s.primary_color || '#C1121F';
+    var color = s.primary_color || 'var(--crm-primary)';
     document.getElementById('primaryColor').value = color;
     document.getElementById('primaryColorHex').value = color;
-    var accent = s.accent_color || '#C1121F';
+    var accent = s.accent_color || 'var(--crm-primary)';
     document.getElementById('accentColor').value = accent;
     document.getElementById('accentColorHex').value = accent;
     updateColorPreview(color, accent);
@@ -2275,7 +2275,7 @@ function switchSettingsTab(targetId) {
       });
     });
     document.getElementById('resetColorsBtn').addEventListener('click', function() {
-      var p = '#C1121F', a = '#E11D2D';
+      var p = 'var(--crm-primary)', a = 'var(--crm-accent)';
       document.getElementById('primaryColor').value = p;
       document.getElementById('primaryColorHex').value = p;
       document.getElementById('accentColor').value = a;
@@ -2765,10 +2765,10 @@ function switchSettingsTab(targetId) {
   var loaded = false;
 
   var COLOR_PALETTE = [
-    { key: 'green',  hex: '#22C55E' },
-    { key: 'yellow', hex: '#F59E0B' },
-    { key: 'red',    hex: '#EF4444' },
-    { key: 'blue',   hex: '#3B82F6' },
+    { key: 'green',  hex: 'var(--status-success-dot)' },
+    { key: 'yellow', hex: 'var(--status-warning-dot)' },
+    { key: 'red',    hex: 'var(--status-danger-dot)' },
+    { key: 'blue',   hex: 'var(--status-info-dot)' },
     { key: 'purple', hex: '#8B5CF6' },
     { key: 'orange', hex: '#F97316' },
     { key: 'pink',   hex: '#EC4899' },
@@ -2839,7 +2839,7 @@ function switchSettingsTab(targetId) {
       info.className = 'd-flex align-items-center gap-2 flex-grow-1';
 
       var dot = document.createElement('span');
-      dot.style.cssText = 'width:12px;height:12px;border-radius:50%;flex-shrink:0;background:' + (s.color_hex || '#3B82F6');
+      dot.style.cssText = 'width:12px;height:12px;border-radius:50%;flex-shrink:0;background:' + (s.color_hex || 'var(--status-info-dot)');
       info.appendChild(dot);
 
       var labelWrap = document.createElement('div');
@@ -4171,6 +4171,54 @@ function switchSettingsTab(targetId) {
   {% if not is_admin %}
   notifLoaded = true; loadNotifPrefs(); loadDndPrefs();
   {% endif %}
+})();
+</script>
+
+<script>
+/* ─── Auto-reload after any settings mutation ──────────────────────────
+ *
+ * Every save on this page changes server-side state that drives the
+ * sidebar, navbar, theme palette, custom statuses dropdown, etc. Rather
+ * than mirror each derived bit in JS, refresh the page once a settings
+ * mutation completes so the rest of the UI re-renders from the new state.
+ *
+ * Mutations that are *actions* (not config changes) are blacklisted
+ * below so the user can still see their result toast.
+ */
+(function() {
+  'use strict';
+  if (!window.Api) return;
+
+  var NO_RELOAD_PREFIXES = [
+    '/api/v1/tenants/settings/test-email',
+    '/api/v1/notifications/notifications/cleanup',
+    '/api/v1/analytics/export-jobs',
+  ];
+  function shouldSuppress(url) {
+    if (typeof url !== 'string') return true;
+    return NO_RELOAD_PREFIXES.some(function(p) { return url.indexOf(p) === 0; });
+  }
+
+  var reloadScheduled = false;
+  function scheduleReload() {
+    if (reloadScheduled) return;
+    reloadScheduled = true;
+    // Delay so the success toast is briefly visible before the refresh.
+    setTimeout(function() { window.location.reload(); }, 800);
+  }
+
+  ['patch', 'post', 'put', 'delete', 'upload'].forEach(function(method) {
+    var orig = Api[method];
+    if (typeof orig !== 'function') return;
+    Api[method] = function(url) {
+      var args = arguments;
+      var promise = orig.apply(Api, args);
+      return promise.then(function(result) {
+        if (!shouldSuppress(url)) scheduleReload();
+        return result;
+      });
+    };
+  });
 })();
 </script>
 {% endblock %}

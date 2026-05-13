@@ -66,19 +66,19 @@
         All <span class="tl-tab-count" id="emailCountAll">0</span>
       </button>
       <button class="tl-stat-tab" data-filter="reply_added">
-        <span class="tl-tab-dot" style="background:#E11C2B"></span>
+        <span class="tl-tab-dot" style="background:var(--crm-accent)"></span>
         Replies <span class="tl-tab-count" id="emailCountReplies">0</span>
       </button>
       <button class="tl-stat-tab" data-filter="ticket_created">
-        <span class="tl-tab-dot" style="background:#A8A8AC"></span>
+        <span class="tl-tab-dot" style="background:var(--status-neutral-dot)"></span>
         Created <span class="tl-tab-count" id="emailCountCreated">0</span>
       </button>
       <button class="tl-stat-tab" data-filter="pending">
-        <span class="tl-tab-dot" style="background:#C1121F"></span>
+        <span class="tl-tab-dot" style="background:var(--crm-primary)"></span>
         Pending <span class="tl-tab-count" id="emailCountPending">0</span>
       </button>
       <button class="tl-stat-tab" data-filter="failed">
-        <span class="tl-tab-dot" style="background:#E11C2B"></span>
+        <span class="tl-tab-dot" style="background:var(--crm-accent)"></span>
         Failed <span class="tl-tab-count" id="emailCountFailed">0</span>
       </button>
     </div>
@@ -358,7 +358,7 @@
     return Kanzan.formatDateTime(d);
   }
 
-  var COLORS = ['#C1121F','#9A0E18','#C1121F','#9A0E18','#A8A8AC','#C1121F','#F03040','#E11C2B','#F08891','#A8A8AC'];
+  var COLORS = ['var(--crm-primary)','var(--crm-primary-active)','var(--crm-primary)','var(--crm-primary-active)','var(--status-neutral-dot)','var(--crm-primary)','var(--crm-accent)','var(--crm-accent)','var(--crm-primary-300)','var(--status-neutral-dot)'];
   function avatarColor(name) {
     if (!name) return COLORS[0];
     for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);

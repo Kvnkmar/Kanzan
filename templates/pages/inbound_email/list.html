@@ -32,7 +32,7 @@
         <div class="stat-card-label">Tickets Created</div>
         <div class="stat-card-value" id="statCreated">--</div>
       </div>
-      <div class="stat-card-accent" style="background: #A8A8AC;"></div>
+      <div class="stat-card-accent" style="background: var(--status-neutral-dot);"></div>
     </div>
   </div>
   <div class="col-6 col-md-2">
@@ -41,7 +41,7 @@
         <div class="stat-card-label">Replies Added</div>
         <div class="stat-card-value" id="statReplies">--</div>
       </div>
-      <div class="stat-card-accent" style="background: #E11C2B;"></div>
+      <div class="stat-card-accent" style="background: var(--crm-accent);"></div>
     </div>
   </div>
   <div class="col-6 col-md-2">
@@ -50,7 +50,7 @@
         <div class="stat-card-label">Sent</div>
         <div class="stat-card-value" id="statSent">--</div>
       </div>
-      <div class="stat-card-accent" style="background: #C1121F;"></div>
+      <div class="stat-card-accent" style="background: var(--crm-primary);"></div>
     </div>
   </div>
   <div class="col-6 col-md-2">
@@ -59,7 +59,7 @@
         <div class="stat-card-label">Failed / Rejected</div>
         <div class="stat-card-value" id="statFailed">--</div>
       </div>
-      <div class="stat-card-accent" style="background: #E11C2B;"></div>
+      <div class="stat-card-accent" style="background: var(--crm-accent);"></div>
     </div>
   </div>
 </div>
@@ -165,14 +165,14 @@
   var totalCount = 0;
 
   var STATUS_STYLES = {
-    pending:        { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', label: 'Pending' },
-    processing:     { bg: '#E11C2B1A', color: '#E11C2B', border: '#E11C2B33', label: 'Processing' },
-    ticket_created: { bg: '#A8A8AC1A', color: '#A8A8AC', border: '#A8A8AC33', label: 'Ticket Created' },
-    reply_added:    { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', label: 'Reply Added' },
-    sent:           { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', label: 'Sent' },
-    rejected:       { bg: '#E11C2B1A', color: '#E11C2B', border: '#E11C2B33', label: 'Rejected' },
-    bounced:        { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', label: 'Bounced' },
-    failed:         { bg: '#C1121F1A', color: '#C1121F', border: '#C1121F33', label: 'Failed' }
+    pending:        { bg: 'var(--crm-primary-light)', color: 'var(--crm-primary)', border: 'var(--crm-primary-light)', label: 'Pending' },
+    processing:     { bg: 'rgba(var(--crm-accent-rgb), 0.10)', color: 'var(--crm-accent)', border: 'rgba(var(--crm-accent-rgb), 0.10)', label: 'Processing' },
+    ticket_created: { bg: 'var(--status-neutral-bg)', color: 'var(--status-neutral-dot)', border: 'var(--status-neutral-bg)', label: 'Ticket Created' },
+    reply_added:    { bg: 'var(--crm-primary-light)', color: 'var(--crm-primary)', border: 'var(--crm-primary-light)', label: 'Reply Added' },
+    sent:           { bg: 'var(--crm-primary-light)', color: 'var(--crm-primary)', border: 'var(--crm-primary-light)', label: 'Sent' },
+    rejected:       { bg: 'rgba(var(--crm-accent-rgb), 0.10)', color: 'var(--crm-accent)', border: 'rgba(var(--crm-accent-rgb), 0.10)', label: 'Rejected' },
+    bounced:        { bg: 'var(--crm-primary-light)', color: 'var(--crm-primary)', border: 'var(--crm-primary-light)', label: 'Bounced' },
+    failed:         { bg: 'var(--crm-primary-light)', color: 'var(--crm-primary)', border: 'var(--crm-primary-light)', label: 'Failed' }
   };
 
   var dom = {
@@ -266,11 +266,11 @@
       var dirIcon = document.createElement('i');
       if (isOutbound) {
         dirIcon.className = 'ti ti-arrow-up-right';
-        dirIcon.style.color = '#C1121F';
+        dirIcon.style.color = 'var(--crm-primary)';
         dirIcon.title = 'Outbound (sent)';
       } else {
         dirIcon.className = 'ti ti-arrow-down-left';
-        dirIcon.style.color = '#A8A8AC';
+        dirIcon.style.color = 'var(--status-neutral-dot)';
         dirIcon.title = 'Inbound (received)';
       }
       colDir.appendChild(dirIcon);
@@ -465,13 +465,13 @@
       dirBadge.className = 'badge me-2';
       if (e.direction === 'outbound') {
         dirBadge.textContent = 'Outbound';
-        dirBadge.style.background = '#C1121F1A';
-        dirBadge.style.color = '#C1121F';
+        dirBadge.style.background = 'var(--crm-primary-light)';
+        dirBadge.style.color = 'var(--crm-primary)';
         dirBadge.style.border = '1px solid #C1121F33';
       } else {
         dirBadge.textContent = 'Inbound';
-        dirBadge.style.background = '#A8A8AC1A';
-        dirBadge.style.color = '#A8A8AC';
+        dirBadge.style.background = 'var(--status-neutral-bg)';
+        dirBadge.style.color = 'var(--status-neutral-dot)';
         dirBadge.style.border = '1px solid #A8A8AC33';
       }
       senderDiv.appendChild(dirBadge);

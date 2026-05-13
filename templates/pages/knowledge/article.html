@@ -105,26 +105,26 @@
           <!-- Visibility / group restriction. Inline styles so the block is
                always visible regardless of theme variable availability. -->
           <div class="mb-3 kb-audience-block"
-               style="display:block !important; padding:12px 14px; background:rgba(193,18,31,0.04); border:1px solid rgba(193,18,31,0.25); border-radius:10px;">
+               style="display:block !important; padding:12px 14px; background:rgba(var(--crm-primary-rgb), 0.04); border:1px solid rgba(var(--crm-primary-rgb), 0.25); border-radius:10px;">
             <label class="form-label d-flex align-items-center gap-2" style="color:inherit; margin-bottom:0.5rem;">
               <i class="ti ti-lock-access"></i>
               <strong>Who can view this article?</strong>
             </label>
             <div class="kb-audience-cards" style="display:grid; grid-template-columns:1fr 1fr; gap:0.5rem;">
               <label class="kb-audience-card"
-                     style="display:flex; align-items:flex-start; gap:0.25rem; padding:0.625rem 0.75rem; border:1px solid var(--crm-border-light,#F2F2F4); border-radius:8px; cursor:pointer; margin:0;">
+                     style="display:flex; align-items:flex-start; gap:0.25rem; padding:0.625rem 0.75rem; border:1px solid var(--crm-border-light,var(--crm-border-light)); border-radius:8px; cursor:pointer; margin:0;">
                 <input class="form-check-input me-2" type="radio" name="editAudience" id="editAudienceAll" value="all" checked>
                 <div>
                   <div style="font-weight:600; font-size:0.875rem; line-height:1.25;"><i class="ti ti-world me-1"></i>Everyone</div>
-                  <div style="font-size:0.75rem; color:var(--crm-text-secondary,#4A4A4F); margin-top:2px;">All workspace members can view</div>
+                  <div style="font-size:0.75rem; color:var(--crm-text-secondary,var(--crm-text-secondary)); margin-top:2px;">All workspace members can view</div>
                 </div>
               </label>
               <label class="kb-audience-card"
-                     style="display:flex; align-items:flex-start; gap:0.25rem; padding:0.625rem 0.75rem; border:1px solid var(--crm-border-light,#F2F2F4); border-radius:8px; cursor:pointer; margin:0;">
+                     style="display:flex; align-items:flex-start; gap:0.25rem; padding:0.625rem 0.75rem; border:1px solid var(--crm-border-light,var(--crm-border-light)); border-radius:8px; cursor:pointer; margin:0;">
                 <input class="form-check-input me-2" type="radio" name="editAudience" id="editAudienceGroups" value="groups">
                 <div>
                   <div style="font-weight:600; font-size:0.875rem; line-height:1.25;"><i class="ti ti-users-group me-1"></i>Only specific groups</div>
-                  <div style="font-size:0.75rem; color:var(--crm-text-secondary,#4A4A4F); margin-top:2px;">Restrict to members of selected groups</div>
+                  <div style="font-size:0.75rem; color:var(--crm-text-secondary,var(--crm-text-secondary)); margin-top:2px;">Restrict to members of selected groups</div>
                 </div>
               </label>
             </div>

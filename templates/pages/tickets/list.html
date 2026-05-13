@@ -122,7 +122,7 @@
     <span class="tl-tab-count" id="statTotal">--</span>
   </button>
   <button class="tl-stat-tab" data-filter="open" role="tab" aria-selected="false">
-    <span class="tl-tab-dot" style="background:#E11C2B;"></span>
+    <span class="tl-tab-dot" style="background:var(--crm-accent);"></span>
     <span class="tl-tab-label">Open</span>
     <span class="tl-tab-count" id="statOpen">--</span>
   </button>
@@ -132,7 +132,7 @@
     <span class="tl-tab-count" id="statProgress">--</span>
   </button>
   <button class="tl-stat-tab" data-filter="urgent" role="tab" aria-selected="false">
-    <span class="tl-tab-dot" style="background:#E11C2B;"></span>
+    <span class="tl-tab-dot" style="background:var(--crm-accent);"></span>
     <span class="tl-tab-label">Urgent</span>
     <span class="tl-tab-count" id="statUrgent">--</span>
   </button>
@@ -312,10 +312,10 @@
   /* ── Constants ── */
   var PAGE_SIZE = 25;
   var SEARCH_DEBOUNCE_MS = 400;
-  var PRIORITY_COLORS = { urgent: '#E11C2B', high: '#C1121F', medium: '#C1121F', low: '#A8A8AC' };
-  var PRIORITY_BG_LIGHT = { urgent: '#1A1A1D', high: '#FFF7ED', medium: '#FFFBEB', low: '#ECFDF5' };
+  var PRIORITY_COLORS = { urgent: 'var(--crm-accent)', high: 'var(--crm-primary)', medium: 'var(--crm-primary)', low: 'var(--status-neutral-dot)' };
+  var PRIORITY_BG_LIGHT = { urgent: 'var(--crm-input-bg)', high: '#FFF7ED', medium: '#FFFBEB', low: '#ECFDF5' };
   var PRIORITY_BG_DARK = { urgent: 'rgba(239,68,68,0.12)', high: 'rgba(249,115,22,0.12)', medium: 'rgba(245,158,11,0.12)', low: 'rgba(16,185,129,0.12)' };
-  var PRIORITY_TEXT_DARK = { urgent: '#F08891', high: '#FDBA74', medium: '#F03040', low: '#A8A8AC' };
+  var PRIORITY_TEXT_DARK = { urgent: 'var(--crm-primary-300)', high: '#FDBA74', medium: 'var(--crm-accent)', low: 'var(--status-neutral-dot)' };
 
   /* ── State ── */
   var currentPage = 1;

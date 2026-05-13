@@ -146,7 +146,7 @@
 (function() {
   'use strict';
 
-  const PRIORITY_COLORS = { urgent: '#E11C2B', high: '#C1121F', medium: '#E11C2B', low: '#A8A8AC' };
+  const PRIORITY_COLORS = { urgent: 'var(--crm-accent)', high: 'var(--crm-primary)', medium: 'var(--crm-accent)', low: 'var(--status-neutral-dot)' };
 
   async function loadAnalytics() {
     const days = document.getElementById('dateRange').value;

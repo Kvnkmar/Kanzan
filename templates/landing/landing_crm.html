@@ -99,19 +99,19 @@
     }
     .btn-ghost:hover {
       background: var(--kz-surface);
-      border-color: #D1D5DB;
+      border-color: var(--crm-border);
       color: var(--kz-text);
     }
 
     .btn-light-on-dark {
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.18);
-      color: #fff;
+      color: var(--crm-text-on-primary);
       font-weight: 600;
     }
     .btn-light-on-dark:hover {
       background: rgba(255,255,255,0.14);
-      color: #fff;
+      color: var(--crm-text-on-primary);
     }
 
     /* Soft eyebrow tag */
@@ -157,7 +157,7 @@
       height: 28px;
       border-radius: 8px;
       background: var(--kz-primary);
-      color: #fff;
+      color: var(--crm-text-on-primary);
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -179,7 +179,7 @@
     .kz-hero {
       padding-top: 140px;
       padding-bottom: 80px;
-      background: #FFFFFF;
+      background: var(--crm-surface);
     }
     .kz-hero-h1 {
       font-size: clamp(36px, 5vw, 56px);
@@ -200,7 +200,7 @@
 
     /* Hero mockup ------------------------------------------------- */
     .kz-mockup {
-      background: #FFFFFF;
+      background: var(--crm-surface);
       border: 1px solid var(--kz-border);
       border-radius: 16px;
       box-shadow: 0 24px 60px -28px rgba(31, 36, 90, 0.18),
@@ -217,9 +217,9 @@
     }
     .kz-mockup-bar .dot {
       width: 10px; height: 10px; border-radius: 50%;
-      background: #E5E7EB;
+      background: var(--crm-border);
     }
-    .kz-mockup-bar .dot.r { background: #FCA5A5; }
+    .kz-mockup-bar .dot.r { background: var(--crm-primary-300); }
     .kz-mockup-bar .dot.y { background: #FCD34D; }
     .kz-mockup-bar .dot.g { background: #86EFAC; }
     .kz-mockup-bar .url {
@@ -275,18 +275,18 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      color: #fff;
+      color: var(--crm-text-on-primary);
       font-size: 12px;
       font-weight: 600;
       flex-shrink: 0;
     }
     /* Avatar swatches (kept out of inline styles) */
     /* Monochrome avatar swatches — class names kept for stability, values now red/black/grey */
-    .av-indigo { background: #C1121F; }
+    .av-indigo { background: var(--crm-primary); }
     .av-cyan   { background: #1F2937; }
     .av-orange { background: #4B5563; }
     .av-green  { background: #6B7280; }
-    .av-pink   { background: #9A0E18; }
+    .av-pink   { background: var(--crm-primary-active); }
     .kz-mock-contact-meta {
       min-width: 0;
       display: flex;
@@ -394,7 +394,7 @@
     .kz-badge.badge-sla-ok::before {
       content: '';
       width: 6px; height: 6px; border-radius: 50%;
-      background: #22C55E;
+      background: var(--status-success-dot);
     }
 
     .kz-mock-sla {
@@ -448,7 +448,7 @@
        ============================================================ */
     .kz-logos {
       padding: 48px 0;
-      background: #FFFFFF;
+      background: var(--crm-surface);
       border-top: 1px solid var(--kz-border);
       border-bottom: 1px solid var(--kz-border);
     }
@@ -472,7 +472,7 @@
       font-family: 'Plus Jakarta Sans', sans-serif;
       font-weight: 700;
       font-size: 17px;
-      color: #9CA3AF;
+      color: var(--crm-text-muted);
       letter-spacing: -0.01em;
       display: inline-flex;
       align-items: center;
@@ -503,7 +503,7 @@
        Feature highlights
        ============================================================ */
     .kz-feature-card {
-      background: #FFFFFF;
+      background: var(--crm-surface);
       border: 1px solid var(--kz-border);
       border-radius: 14px;
       padding: 28px;
@@ -511,9 +511,9 @@
       transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
     }
     .kz-feature-card:hover {
-      border-color: #FECACA;
+      border-color: var(--crm-primary-200);
       transform: translateY(-2px);
-      box-shadow: 0 14px 40px -18px rgba(193, 18, 31, 0.18);
+      box-shadow: 0 14px 40px -18px rgba(var(--crm-primary-rgb), 0.18);
     }
     .kz-feature-icon {
       width: 44px; height: 44px;
@@ -606,7 +606,7 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      color: #fff;
+      color: var(--crm-text-on-primary);
       font-weight: 600;
       font-size: 14px;
       flex-shrink: 0;
@@ -620,7 +620,7 @@
        Pricing
        ============================================================ */
     .kz-price-card {
-      background: #FFFFFF;
+      background: var(--crm-surface);
       border: 1px solid var(--kz-border);
       border-radius: 16px;
       padding: 32px 28px;
@@ -631,7 +631,7 @@
     }
     .kz-price-card.featured {
       border-color: var(--kz-primary);
-      box-shadow: 0 0 0 1px var(--kz-primary), 0 24px 60px -24px rgba(193, 18, 31, 0.25);
+      box-shadow: 0 0 0 1px var(--kz-primary), 0 24px 60px -24px rgba(var(--crm-primary-rgb), 0.25);
     }
     .kz-price-badge {
       position: absolute;
@@ -639,7 +639,7 @@
       left: 50%;
       transform: translateX(-50%);
       background: var(--kz-primary);
-      color: #fff;
+      color: var(--crm-text-on-primary);
       font-size: 11px;
       font-weight: 700;
       letter-spacing: 0.06em;
@@ -705,7 +705,7 @@
        ============================================================ */
     .kz-final-cta {
       background: var(--kz-dark);
-      color: #fff;
+      color: var(--crm-text-on-primary);
       padding: 88px 0;
       position: relative;
       overflow: hidden;
@@ -716,13 +716,13 @@
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       width: 600px; height: 600px;
-      background: radial-gradient(circle, rgba(193, 18, 31, 0.30) 0%, transparent 65%);
+      background: radial-gradient(circle, rgba(var(--crm-primary-rgb), 0.30) 0%, transparent 65%);
       filter: blur(40px);
       pointer-events: none;
     }
     .kz-final-cta .container { position: relative; z-index: 1; }
     .kz-final-cta h2 {
-      color: #fff;
+      color: var(--crm-text-on-primary);
       font-size: clamp(28px, 3.4vw, 40px);
       font-weight: 800;
       letter-spacing: -0.03em;
@@ -743,7 +743,7 @@
       flex: 1;
       background: rgba(255,255,255,0.08);
       border: 1px solid rgba(255,255,255,0.16);
-      color: #fff;
+      color: var(--crm-text-on-primary);
       padding: 12px 16px;
       border-radius: 10px;
       font-size: 14px;
@@ -757,7 +757,7 @@
     }
     .kz-cta-form button {
       background: var(--kz-primary);
-      color: #fff;
+      color: var(--crm-text-on-primary);
       border: none;
       padding: 12px 18px;
       border-radius: 10px;
@@ -779,7 +779,7 @@
        Footer
        ============================================================ */
     .kz-footer {
-      background: #FFFFFF;
+      background: var(--crm-surface);
       padding: 64px 0 32px;
       border-top: 1px solid var(--kz-border);
     }
