@@ -41,6 +41,7 @@ urlpatterns = [
     path("knowledge/", views.knowledge_list_page, name="knowledge-list"),
     path("knowledge/<str:article_slug>/", views.knowledge_article_page, name="knowledge-article"),
     path("profile/", views.profile_page, name="profile"),
+    path("api/quickstart/", views.api_quickstart_page, name="api-quickstart"),
     path("inbound-email/", views.inbound_email_page, name="inbound-email"),
     path("reminders/", views.reminders_page, name="reminders"),
     path("audit-log/", views.audit_log_page, name="audit-log"),

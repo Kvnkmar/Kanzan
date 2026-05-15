@@ -673,6 +673,12 @@ def profile_page(request):
 
 
 @_membership_required
+def api_quickstart_page(request):
+    """Developer-facing API quickstart guide. Any tenant member can view."""
+    return render(request, "pages/api_quickstart.html")
+
+
+@_membership_required
 def dashboard_page(request):
     return render(request, "pages/dashboard.html")
 

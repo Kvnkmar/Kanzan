@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+{% block title %}API Quickstart - Kanzen Suite{% endblock %}
+
+{% block content %}
+<article class="settings-content api-quickstart" style="max-width: 880px;">
+
+  <header class="mb-4">
+    <h1 class="h2 mb-2">API Quickstart</h1>
+    <p class="text-secondary mb-0">
+      A guided tour of the Kanzen REST API for tenant admins, integrators, and curious developers.
+    </p>
+  </header>
+
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <!-- What is the Kanzen API?                                              -->
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <section class="mb-5" id="what-is-the-api">
+    <h2 class="h4 mb-3">What is the Kanzen API?</h2>
+    <p>
+      Kanzen exposes a versioned <strong>REST API</strong> under <code>/api/v1/</code> that mirrors
+      everything you can do in the web UI: create and update tickets, manage contacts and companies,
+      search the knowledge base, upload attachments, place VoIP calls, subscribe to webhooks, and
+      more. Every endpoint is multi-tenant aware — your API key is scoped to a single tenant and
+      inherits the permissions of a role you pick when minting it.
+    </p>
+    <p>
+      The full machine-readable contract is published as an <strong>OpenAPI 3.0</strong> spec at
+      <a href="/api/schema/"><code>/api/schema/</code></a>, and an interactive Swagger UI is hosted
+      at <a href="/api/docs/"><code>/api/docs/</code></a>. This page is a curated walkthrough; the
+      Swagger UI is the authoritative endpoint list.
+    </p>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <!-- Get an API key                                                       -->
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <section class="mb-5" id="get-an-api-key">
+    <h2 class="h4 mb-3">Get an API key</h2>
+    <p>
+      Ask your tenant admin to mint one at <strong>Settings &rarr; Developer &amp; Integrations
+      &rarr; API Keys</strong> (admin-only). If you are an admin,
+      <a href="/settings/#apiKeysPane">open API Keys settings</a>.
+    </p>
+    <p class="text-secondary mb-0">
+      Keys look like <code>kz_live_&lt;your-tenant&gt;_&lt;random&gt;</code>. The full secret is
+      shown <strong>once</strong> at creation — save it immediately to a password manager or your
+      integration's secret store.
+    </p>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <!-- Make your first call                                                 -->
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <section class="mb-5" id="first-call">
+    <h2 class="h4 mb-3">Make your first call</h2>
+    <p>
+      Here's the same request — list the first page of tickets — in three flavours. Replace
+      <code>kz_live_&lt;your-tenant&gt;_...</code> with your actual key.
+    </p>
+
+    <ul class="nav nav-tabs mb-3" id="firstCallTabs" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="curl-tab" data-bs-toggle="tab"
+                data-bs-target="#curl-example" type="button" role="tab"
+                aria-controls="curl-example" aria-selected="true">
+          <i class="ti ti-terminal-2 me-1"></i>cURL
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="python-tab" data-bs-toggle="tab"
+                data-bs-target="#python-example" type="button" role="tab"
+                aria-controls="python-example" aria-selected="false">
+          <i class="ti ti-brand-python me-1"></i>Python
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button class="nav-link" id="javascript-tab" data-bs-toggle="tab"
+                data-bs-target="#javascript-example" type="button" role="tab"
+                aria-controls="javascript-example" aria-selected="false">
+          <i class="ti ti-brand-javascript me-1"></i>JavaScript
+        </button>
+      </li>
+    </ul>
+
+    <div class="tab-content" id="firstCallTabContent">
+      <div class="tab-pane fade show active" id="curl-example" role="tabpanel" aria-labelledby="curl-tab">
+<pre><code class="language-bash">curl -H "Authorization: Api-Key kz_live_&lt;your-tenant&gt;_..." \
+     -H "Accept: application/json" \
+     {{ request.scheme }}://{{ request.get_host }}/api/v1/tickets/tickets/?page=1</code></pre>
+      </div>
+
+      <div class="tab-pane fade" id="python-example" role="tabpanel" aria-labelledby="python-tab">
+<pre><code class="language-python">import requests
+
+BASE = "{{ request.scheme }}://{{ request.get_host }}"
+API_KEY = "kz_live_&lt;your-tenant&gt;_..."
+
+resp = requests.get(
+    f"{BASE}/api/v1/tickets/tickets/",
+    headers={"Authorization": f"Api-Key {API_KEY}"},
+    params={"page": 1},
+)
+resp.raise_for_status()
+print(resp.json()["results"][0])</code></pre>
+      </div>
+
+      <div class="tab-pane fade" id="javascript-example" role="tabpanel" aria-labelledby="javascript-tab">
+<pre><code class="language-javascript">const BASE = "{{ request.scheme }}://{{ request.get_host }}";
+const API_KEY = "kz_live_&lt;your-tenant&gt;_...";
+
+const resp = await fetch(`${BASE}/api/v1/tickets/tickets/?page=1`, {
+  headers: { "Authorization": `Api-Key ${API_KEY}` },
+});
+const data = await resp.json();
+console.log(data.results[0]);</code></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <!-- Common workflows                                                     -->
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <section class="mb-5" id="common-workflows">
+    <h2 class="h4 mb-3">Common workflows</h2>
+
+    <h3 class="h5 mt-4 mb-2">1. List open tickets assigned to a specific agent</h3>
+    <p>Filter the tickets endpoint by <code>assignee</code> (UUID) and sort newest first.</p>
+<pre><code class="language-bash">curl -H "Authorization: Api-Key kz_live_&lt;your-tenant&gt;_..." \
+     "{{ request.scheme }}://{{ request.get_host }}/api/v1/tickets/tickets/?assignee=&lt;agent-uuid&gt;&amp;ordering=-created_at"</code></pre>
+
+    <h3 class="h5 mt-4 mb-2">2. Create a ticket</h3>
+    <p>POST a JSON body with the required fields. The response is HTTP <code>201 Created</code> with the new ticket's <code>id</code>.</p>
+<pre><code class="language-python">import requests
+
+BASE = "{{ request.scheme }}://{{ request.get_host }}"
+API_KEY = "kz_live_&lt;your-tenant&gt;_..."
+
+resp = requests.post(
+    f"{BASE}/api/v1/tickets/tickets/",
+    headers={
+        "Authorization": f"Api-Key {API_KEY}",
+        "Content-Type": "application/json",
+    },
+    json={
+        "subject": "Printer is offline on floor 3",
+        "description": "User reports the HP LaserJet won't respond.",
+        "priority": "high",
+    },
+)
+assert resp.status_code == 201
+print("Created ticket:", resp.json()["id"])</code></pre>
+
+    <h3 class="h5 mt-4 mb-2">3. Add a comment to a ticket</h3>
+    <p>
+      Comments are polymorphic (a <code>GenericForeignKey</code> in Django), so you must specify
+      both the <code>content_type</code> (as <code>app_label.model</code>) and the
+      <code>object_id</code>. Send JSON — explicit <code>Content-Type</code> header required.
+    </p>
+<pre><code class="language-bash">curl -X POST \
+     -H "Authorization: Api-Key kz_live_&lt;your-tenant&gt;_..." \
+     -H "Content-Type: application/json" \
+     -d '{
+       "content_type": "tickets.ticket",
+       "object_id": "&lt;ticket-uuid&gt;",
+       "body": "Replaced the toner cartridge — please retry.",
+       "is_internal": false
+     }' \
+     {{ request.scheme }}://{{ request.get_host }}/api/v1/comments/comments/</code></pre>
+
+    <h3 class="h5 mt-4 mb-2">4. Upload an attachment</h3>
+    <p>
+      Attachments are also polymorphic. Send <code>multipart/form-data</code> with the file plus
+      the target's <code>content_type</code> and <code>object_id</code>. Maximum upload size is
+      <strong>25&nbsp;MB</strong>.
+    </p>
+<pre><code class="language-bash">curl -X POST \
+     -H "Authorization: Api-Key kz_live_&lt;your-tenant&gt;_..." \
+     -F "file=@path/to/file.pdf" \
+     -F "content_type=tickets.ticket" \
+     -F "object_id=&lt;ticket-uuid&gt;" \
+     {{ request.scheme }}://{{ request.get_host }}/api/v1/attachments/</code></pre>
+
+    <h3 class="h5 mt-4 mb-2">5. Search the knowledge base</h3>
+    <p>Full-text search across published knowledge-base articles.</p>
+<pre><code class="language-javascript">const BASE = "{{ request.scheme }}://{{ request.get_host }}";
+const API_KEY = "kz_live_&lt;your-tenant&gt;_...";
+
+const url = new URL(`${BASE}/api/v1/knowledge/search/`);
+url.searchParams.set("q", "vpn troubleshooting");
+
+const resp = await fetch(url, {
+  headers: { "Authorization": `Api-Key ${API_KEY}` },
+});
+const data = await resp.json();
+console.log(`Found ${data.results.length} articles`);</code></pre>
+
+    <h3 class="h5 mt-4 mb-2">6. Subscribe to webhooks</h3>
+    <p>
+      Register a webhook that Kanzen will POST to whenever the listed events fire. Pick a
+      <code>secret</code> known only to you and Kanzen — it's used to sign every payload.
+    </p>
+<pre><code class="language-python">import requests
+
+BASE = "{{ request.scheme }}://{{ request.get_host }}"
+API_KEY = "kz_live_&lt;your-tenant&gt;_..."
+
+resp = requests.post(
+    f"{BASE}/api/v1/tickets/webhooks/",
+    headers={
+        "Authorization": f"Api-Key {API_KEY}",
+        "Content-Type": "application/json",
+    },
+    json={
+        "name": "Zapier ticket sync",
+        "url": "https://hooks.example.com/kanzen/tickets",
+        "events": ["ticket.created", "ticket.updated"],
+        "secret": "a-long-random-string-known-only-to-you",
+        "is_active": True,
+    },
+)
+resp.raise_for_status()
+print("Webhook id:", resp.json()["id"])</code></pre>
+
+    <p class="mt-3">
+      <strong>Verify the HMAC signature</strong> on your receiver. Kanzen signs every payload
+      with HMAC-SHA256 of the raw body, sent in the <code>X-Webhook-Signature</code> header as
+      <code>sha256=&lt;hex&gt;</code>:
+    </p>
+<pre><code class="language-python">import hmac
+import hashlib
+
+def verify_webhook(raw_body: bytes, signature_header: str, secret: str) -> bool:
+    """Return True if the X-Webhook-Signature header matches the expected HMAC."""
+    if not signature_header.startswith("sha256="):
+        return False
+    received = signature_header.split("=", 1)[1]
+    expected = hmac.new(
+        secret.encode("utf-8"),
+        raw_body,
+        hashlib.sha256,
+    ).hexdigest()
+    return hmac.compare_digest(received, expected)</code></pre>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <!-- Rate limits                                                          -->
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <section class="mb-5" id="rate-limits">
+    <h2 class="h4 mb-3">Rate limits</h2>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Scope</th>
+            <th>Rate</th>
+            <th>Header</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>api_key</code></td>
+            <td>1000 / hour</td>
+            <td>
+              All API-key responses include <code>X-RateLimit-Limit</code>,
+              <code>X-RateLimit-Remaining</code>, and <code>X-RateLimit-Reset</code>.
+            </td>
+          </tr>
+          <tr>
+            <td><code>auth</code></td>
+            <td>10 / min</td>
+            <td>login / register / accept-invitation throttle (per-IP).</td>
+          </tr>
+          <tr>
+            <td><code>api_default</code></td>
+            <td>200 / min</td>
+            <td>Reserved (not currently applied — for future scoping).</td>
+          </tr>
+          <tr>
+            <td><code>api_heavy</code></td>
+            <td>30 / min</td>
+            <td>Reserved (not currently applied — for future scoping).</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>
+      When a request exceeds the per-key bucket, Kanzen returns HTTP
+      <code>429 Too Many Requests</code> with a <code>Retry-After</code> header. The recommended
+      strategy is <strong>exponential backoff with jitter</strong>:
+    </p>
+<pre><code class="language-python">import time
+import requests
+
+def call_with_backoff(url, headers, max_retries=5):
+    for attempt in range(max_retries):
+        r = requests.get(url, headers=headers)
+        if r.status_code != 429:
+            return r
+        retry_after = int(r.headers.get("Retry-After", 2 ** attempt))
+        time.sleep(retry_after)
+    raise RuntimeError("Rate limit exceeded after retries")</code></pre>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <!-- Error codes                                                          -->
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <section class="mb-5" id="error-codes">
+    <h2 class="h4 mb-3">Error codes</h2>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>Status</th>
+            <th>Meaning</th>
+            <th>What to do</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>200 OK</code></td>
+            <td>Success.</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><code>201 Created</code></td>
+            <td>Resource created.</td>
+            <td>Read the response body for the new object.</td>
+          </tr>
+          <tr>
+            <td><code>204 No Content</code></td>
+            <td>Success, no body.</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><code>400 Bad Request</code></td>
+            <td>Validation error.</td>
+            <td>Read the response body's <code>detail</code> or per-field errors.</td>
+          </tr>
+          <tr>
+            <td><code>401 Unauthorized</code></td>
+            <td>Missing or invalid API key.</td>
+            <td>Verify the <code>Authorization: Api-Key ...</code> header.</td>
+          </tr>
+          <tr>
+            <td><code>403 Forbidden</code></td>
+            <td>Insufficient role permissions.</td>
+            <td>Check the key's role; ask an admin for a higher role.</td>
+          </tr>
+          <tr>
+            <td><code>404 Not Found</code></td>
+            <td>Resource doesn't exist.</td>
+            <td>Verify the ID and that it belongs to your tenant.</td>
+          </tr>
+          <tr>
+            <td><code>409 Conflict</code></td>
+            <td>State conflict (e.g. duplicate name).</td>
+            <td>Read the response body for context.</td>
+          </tr>
+          <tr>
+            <td><code>422 Unprocessable Entity</code></td>
+            <td>Semantic validation failure.</td>
+            <td>Per-field errors in the response body.</td>
+          </tr>
+          <tr>
+            <td><code>429 Too Many Requests</code></td>
+            <td>Rate limited.</td>
+            <td>Sleep and retry per the <code>Retry-After</code> header.</td>
+          </tr>
+          <tr>
+            <td><code>500 Internal Server Error</code></td>
+            <td>Server-side issue.</td>
+            <td>Retry; if persistent, contact support.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <!-- Postman / Insomnia                                                   -->
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <section class="mb-5" id="postman-collection">
+    <h2 class="h4 mb-3">Postman / Insomnia collection</h2>
+    <p>
+      Kanzen publishes its OpenAPI 3.0 spec at <a href="/api/schema/"><code>/api/schema/</code></a>.
+      Import the URL into Postman or Insomnia and you'll get a pre-built collection with every
+      endpoint, ready to authorize with your API key.
+    </p>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <!-- Full reference                                                       -->
+  <!-- ────────────────────────────────────────────────────────────────── -->
+  <section class="mb-5" id="full-reference">
+    <h2 class="h4 mb-3">Full reference</h2>
+    <p>
+      For the complete interactive endpoint list, see <a href="/api/docs/"><code>/api/docs/</code></a>
+      (Swagger UI). Click the <strong>"Authorize"</strong> button there, pick the
+      <code>ApiKeyAuth</code> scheme, and paste an API key to make live calls right from the browser.
+    </p>
+  </section>
+
+</article>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  // Keep the cURL/Python/JavaScript tabs in sync with the URL hash so users
+  // can deep-link to e.g. #python-example and land on the right pane.
+  (function() {
+    var TAB_IDS = ['curl-example', 'python-example', 'javascript-example'];
+
+    function activateTabFromHash() {
+      var hash = (window.location.hash || '').replace(/^#/, '');
+      if (TAB_IDS.indexOf(hash) === -1) return;
+      var btn = document.querySelector('[data-bs-target="#' + hash + '"]');
+      if (btn && window.bootstrap && window.bootstrap.Tab) {
+        window.bootstrap.Tab.getOrCreateInstance(btn).show();
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      activateTabFromHash();
+
+      // Update the URL hash when the user clicks a tab (without reloading).
+      document.querySelectorAll('#firstCallTabs button[data-bs-toggle="tab"]').forEach(function(btn) {
+        btn.addEventListener('shown.bs.tab', function(e) {
+          var target = (e.target.getAttribute('data-bs-target') || '').replace(/^#/, '');
+          if (target && history && history.replaceState) {
+            history.replaceState(null, '', '#' + target);
+          }
+        });
+      });
+    });
+
+    // React to hashchange (browser back/forward, manual edit).
+    window.addEventListener('hashchange', activateTabFromHash);
+  })();
+</script>
+{% endblock %}
