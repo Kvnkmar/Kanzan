@@ -8,10 +8,13 @@ last-message previews.
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
 
+from apps.attachments.models import Attachment
+from apps.attachments.serializers import AttachmentSerializer
 from apps.messaging.models import (
     Conversation,
     ConversationParticipant,
@@ -73,6 +76,7 @@ class MessageSerializer(serializers.ModelSerializer):
 
     author = _UserBriefSerializer(read_only=True)
     reply_count = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
@@ -84,6 +88,7 @@ class MessageSerializer(serializers.ModelSerializer):
             "parent",
             "is_edited",
             "reply_count",
+            "attachments",
             "created_at",
             "updated_at",
         ]
@@ -96,13 +101,30 @@ class MessageSerializer(serializers.ModelSerializer):
             return obj._reply_count
         return obj.replies.count()
 
+    def get_attachments(self, obj):
+        if hasattr(obj, "_prefetched_attachments"):
+            return AttachmentSerializer(
+                obj._prefetched_attachments, many=True, context=self.context
+            ).data
+        ct = ContentType.objects.get_for_model(Message)
+        qs = Attachment.objects.filter(
+            content_type=ct, object_id=obj.pk
+        ).select_related("uploaded_by")
+        return AttachmentSerializer(qs, many=True, context=self.context).data
+
 
 class MessageCreateSerializer(serializers.ModelSerializer):
     """
     Write serializer for creating a new message.
 
     The ``author`` is set from the authenticated request user in the view.
+    Body may be empty when the caller intends to attach files immediately
+    after creation (see /messages/{id}/broadcast/ for the rebroadcast hook).
     """
+
+    # Allow attachment-only messages: empty body is valid here, but the
+    # frontend still blocks fully empty submits (no text AND no files).
+    body = serializers.CharField(allow_blank=True, required=False, default="")
 
     class Meta:
         model = Message
@@ -130,9 +152,7 @@ class MessageCreateSerializer(serializers.ModelSerializer):
         return value
 
     def validate_body(self, value):
-        if not value or not value.strip():
-            raise serializers.ValidationError("Message body cannot be empty.")
-        return value.strip()
+        return (value or "").strip()
 
 
 # ---------------------------------------------------------------------------

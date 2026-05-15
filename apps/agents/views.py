@@ -9,6 +9,7 @@ import logging
 from datetime import timedelta
 
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -35,6 +36,24 @@ from apps.notifications.services import send_notification
 logger = logging.getLogger(__name__)
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List agent availability", tags=["Agents"]),
+    create=extend_schema(summary="Create agent availability row", tags=["Agents"]),
+    retrieve=extend_schema(summary="Retrieve agent availability", tags=["Agents"]),
+    update=extend_schema(summary="Replace agent availability", tags=["Agents"]),
+    partial_update=extend_schema(summary="Patch agent availability", tags=["Agents"]),
+    destroy=extend_schema(summary="Delete agent availability", tags=["Agents"]),
+    set_status=extend_schema(summary="Set agent status", tags=["Agents"]),
+    my_status=extend_schema(summary="Current user's agent status", tags=["Agents"]),
+    all_members=extend_schema(summary="All tenant members with availability", tags=["Agents"]),
+    assignable_roles=extend_schema(summary="Roles assignable as temporary overrides", tags=["Agents"]),
+    role_permissions=extend_schema(summary="Permissions for a given role", tags=["Agents"]),
+    grant_temp_role=extend_schema(summary="Grant a temporary role override", tags=["Agents"]),
+    revoke_temp_role=extend_schema(summary="Revoke a temporary role override", tags=["Agents"]),
+    reactivate=extend_schema(summary="Reactivate a deactivated member", tags=["Agents"]),
+    online=extend_schema(summary="List online agents", tags=["Agents"]),
+    workload=extend_schema(summary="Agent workload stats", tags=["Agents"]),
+)
 class AgentAvailabilityViewSet(viewsets.ModelViewSet):
     """
     CRUD for agent availability records.
@@ -799,6 +818,14 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List custom agent statuses", tags=["Agents"]),
+    create=extend_schema(summary="Create a custom agent status (admin)", tags=["Agents"]),
+    retrieve=extend_schema(summary="Retrieve a custom agent status", tags=["Agents"]),
+    update=extend_schema(summary="Replace a custom agent status (admin)", tags=["Agents"]),
+    partial_update=extend_schema(summary="Patch a custom agent status (admin)", tags=["Agents"]),
+    destroy=extend_schema(summary="Delete a custom agent status (admin)", tags=["Agents"]),
+)
 class CustomAgentStatusViewSet(viewsets.ModelViewSet):
     """
     CRUD for tenant-curated custom availability statuses.

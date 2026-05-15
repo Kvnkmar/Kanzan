@@ -118,57 +118,6 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 [data-bs-theme="dark"] .numInputWrapper span:hover { background: rgba(255,255,255,0.08) !important; }
 [data-bs-theme="dark"] .flatpickr-footer { background: transparent; border-top: none; }
 
-/* Multi-pick chip field (Contacts / Tickets) */
-.reminder-multi {
-  display: flex; flex-direction: column; gap: 6px;
-  border: 1px solid var(--bs-border-color, var(--crm-border));
-  border-radius: 8px;
-  padding: 6px;
-  background: var(--bs-body-bg, var(--crm-surface));
-}
-.reminder-multi-chips {
-  display: flex; flex-wrap: wrap; gap: 4px;
-  min-height: 0;
-}
-.reminder-multi-chips:empty { display: none; }
-.reminder-multi-chip {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px 6px 3px 10px;
-  background: rgba(var(--crm-primary-rgb), 0.10);
-  color: var(--crm-primary, var(--crm-primary));
-  border-radius: 999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  line-height: 1.2;
-  max-width: 100%;
-}
-.reminder-multi-chip > span {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 180px;
-}
-.reminder-multi-chip > button {
-  background: none; border: none; padding: 0 2px;
-  color: var(--crm-primary, var(--crm-primary));
-  cursor: pointer;
-  font-size: 0.875rem;
-  line-height: 1;
-  display: inline-flex; align-items: center;
-  border-radius: 999px;
-  transition: background 0.12s;
-}
-.reminder-multi-chip > button:hover { background: rgba(var(--crm-primary-rgb), 0.18); }
-.reminder-multi-add {
-  border: 1px dashed var(--bs-border-color, var(--crm-border));
-  padding-right: 2rem !important;
-  background-position: right 0.625rem center !important;
-}
-[data-bs-theme="dark"] .reminder-multi { background: transparent; border-color: rgba(255,255,255,0.10); }
-[data-bs-theme="dark"] .reminder-multi-chip { background: rgba(var(--crm-accent-rgb), 0.18); color: var(--crm-primary-300); }
-[data-bs-theme="dark"] .reminder-multi-chip > button { color: var(--crm-primary-300); }
-[data-bs-theme="dark"] .reminder-multi-chip > button:hover { background: rgba(var(--crm-accent-rgb), 0.28); }
-
 /* Priority + status pills (soft, design-system aligned) */
 .reminder-pill {
   display: inline-flex; align-items: center;
@@ -223,28 +172,243 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 [data-bs-theme="dark"] .reminder-action-btn--complete:hover  { background: rgba(34,197,94,0.20);  color: var(--status-success-text); }
 [data-bs-theme="dark"] .reminder-action-btn--reschedule:hover{ background: rgba(245,158,11,0.22); color: var(--status-warning-text); }
 [data-bs-theme="dark"] .reminder-action-btn--cancel:hover    { background: rgba(var(--crm-accent-rgb), 0.20);  color: var(--crm-primary-300); }
+
+/* ── Polish pass ─────────────────────────────────────────────── */
+
+/* Stat cards laid out as icon + text */
+.reminder-stat-card { flex-direction: row; align-items: center; gap: 0.875rem; padding: 0.875rem 1rem 0.875rem 1.125rem; }
+.reminder-stat-card .reminder-stat-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.reminder-stat-card .reminder-stat-icon {
+  width: 38px; height: 38px; border-radius: 11px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.125rem; flex-shrink: 0;
+}
+.reminder-stat-icon--danger   { background: rgba(var(--crm-primary-rgb), 0.10); color: var(--crm-primary-active); }
+.reminder-stat-icon--warning  { background: rgba(245,158,11,0.14); color: var(--status-warning-text); }
+.reminder-stat-icon--info     { background: rgba(59,130,246,0.12); color: var(--status-info-text); }
+.reminder-stat-icon--purple   { background: rgba(var(--crm-accent-rgb), 0.14); color: var(--crm-primary-active); }
+.reminder-stat-icon--success  { background: rgba(34,197,94,0.13); color: var(--status-success-text); }
+[data-bs-theme="dark"] .reminder-stat-icon--danger   { background: rgba(var(--crm-accent-rgb), 0.20); color: var(--crm-primary-300); }
+[data-bs-theme="dark"] .reminder-stat-icon--warning  { background: rgba(245,158,11,0.20); color: var(--status-warning-text); }
+[data-bs-theme="dark"] .reminder-stat-icon--info     { background: rgba(96,165,250,0.20); color: var(--status-info-text); }
+[data-bs-theme="dark"] .reminder-stat-icon--purple   { background: rgba(var(--crm-accent-rgb), 0.22); color: var(--crm-primary-300); }
+[data-bs-theme="dark"] .reminder-stat-icon--success  { background: rgba(34,197,94,0.20); color: var(--status-success-text); }
+
+/* Toolbar (Mine/All segmented + filters + new) */
+.reminder-toolbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.reminder-segmented {
+  display: inline-flex;
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-radius: 9px;
+  padding: 2px;
+  background: var(--bs-body-bg, var(--crm-surface));
+  gap: 2px;
+}
+.reminder-segmented .btn {
+  border: none !important;
+  border-radius: 7px !important;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--crm-text-secondary);
+  background: transparent;
+  display: inline-flex; align-items: center; gap: 4px;
+  transition: background 0.12s, color 0.12s;
+}
+.reminder-segmented .btn:hover { background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2)); color: var(--crm-text); }
+.reminder-segmented .btn.active {
+  background: rgba(var(--crm-primary-rgb), 0.12);
+  color: var(--crm-primary-active);
+  box-shadow: 0 1px 2px rgba(var(--crm-primary-rgb), 0.10);
+}
+[data-bs-theme="dark"] .reminder-segmented { border-color: rgba(255,255,255,0.10); background: transparent; }
+[data-bs-theme="dark"] .reminder-segmented .btn:hover { background: rgba(255,255,255,0.06); color: var(--crm-text); }
+[data-bs-theme="dark"] .reminder-segmented .btn.active { background: rgba(var(--crm-accent-rgb), 0.22); color: var(--crm-primary-300); }
+
+/* Table rows ─ tighter, richer */
+.reminder-table tbody tr { transition: background-color 0.12s; }
+.reminder-table tbody td { vertical-align: middle; padding-top: 0.65rem; padding-bottom: 0.65rem; }
+.reminder-table tbody tr:hover .reminder-subject { color: var(--crm-primary); }
+
+/* Subject primary cell (subject + muted notes-preview) */
+.reminder-subject { font-weight: 600; color: var(--crm-text); line-height: 1.3; display: block; }
+.reminder-subject-meta {
+  display: block; font-size: 0.6875rem; color: var(--crm-text-muted);
+  margin-top: 2px; line-height: 1.3; max-width: 260px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/* Tiny initials avatar for assignee */
+.reminder-assignee { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.reminder-assignee-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reminder-avatar {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: rgba(var(--crm-primary-rgb), 0.12);
+  color: var(--crm-primary-active);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+.reminder-avatar--unassigned {
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  color: var(--crm-text-muted);
+}
+[data-bs-theme="dark"] .reminder-avatar { background: rgba(var(--crm-accent-rgb), 0.20); color: var(--crm-primary-300); }
+[data-bs-theme="dark"] .reminder-avatar--unassigned { background: rgba(255,255,255,0.06); color: var(--crm-text-muted); }
+
+/* Overdue row tint + accent bar */
+.reminder-table tr.is-overdue td { background: rgba(var(--crm-primary-rgb), 0.04); }
+.reminder-table tr.is-overdue td:first-child { box-shadow: inset 3px 0 0 var(--crm-primary, var(--crm-accent)); }
+[data-bs-theme="dark"] .reminder-table tr.is-overdue td { background: rgba(var(--crm-accent-rgb), 0.06); }
+
+/* Quiet done/cancel chip when row is not actionable */
+.reminder-done-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 0.6875rem;
+  color: var(--crm-text-muted);
+}
+.reminder-done-chip i { font-size: 0.875rem; opacity: 0.7; }
+
+/* Empty state row */
+.reminder-empty-cell { padding: 3rem 1rem !important; }
+
+/* Pagination footer bar */
+.reminder-pagination-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.75rem; padding: 0.75rem 0.25rem 0;
+}
+.reminder-pagination-bar .pagination { margin: 0; }
+.reminder-pagination-info { font-size: 0.75rem; color: var(--crm-text-muted); font-variant-numeric: tabular-nums; }
+
+/* Bulk-action bar */
+.reminder-bulk-bar {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  background: var(--bs-body-bg, var(--crm-surface));
+  border-radius: 10px;
+  margin-top: 0.5rem;
+  box-shadow: var(--crm-shadow-xs);
+}
+.reminder-bulk-bar .selected-count {
+  font-size: 0.75rem; font-weight: 600;
+  padding: 0.125rem 0.55rem; border-radius: 999px;
+  background: rgba(var(--crm-primary-rgb), 0.10); color: var(--crm-primary-active);
+  margin-right: auto;
+}
+[data-bs-theme="dark"] .reminder-bulk-bar { border-color: rgba(255,255,255,0.10); background: var(--crm-surface); }
+[data-bs-theme="dark"] .reminder-bulk-bar .selected-count { background: rgba(var(--crm-accent-rgb), 0.22); color: var(--crm-primary-300); }
+
+/* ── Modal polish ────────────────────────────────────────────── */
+
+/* Header w/ icon + subtitle */
+.reminder-modal-header { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
+.reminder-modal-header > div { min-width: 0; }
+.reminder-modal-icon {
+  width: 38px; height: 38px; border-radius: 11px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.125rem; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--crm-primary), var(--crm-primary-400));
+  color: var(--crm-text-on-primary);
+  box-shadow: 0 4px 14px rgba(var(--crm-primary-rgb), 0.25);
+}
+.reminder-modal-icon--warning {
+  background: rgba(245,158,11,0.16);
+  color: var(--status-warning-text);
+  box-shadow: none;
+}
+.reminder-modal-icon--neutral {
+  background: rgba(var(--crm-primary-rgb), 0.10);
+  color: var(--crm-primary-active);
+  box-shadow: none;
+}
+[data-bs-theme="dark"] .reminder-modal-icon--warning {
+  background: rgba(245,158,11,0.22); color: var(--status-warning-text);
+}
+[data-bs-theme="dark"] .reminder-modal-icon--neutral {
+  background: rgba(var(--crm-accent-rgb), 0.22); color: var(--crm-primary-300);
+}
+.reminder-modal-subtitle {
+  margin: 2px 0 0; font-size: 0.75rem; color: var(--crm-text-muted);
+}
+
+/* Subject input feels primary */
+.reminder-subject-input { font-size: 0.9375rem; font-weight: 500; padding: 0.6rem 0.85rem; }
+
+/* Input-group with left icon prefix (Scheduled at) */
+.reminder-input-group .input-group-text {
+  background: transparent;
+  border-right: none;
+  color: var(--crm-text-muted);
+  padding-right: 0.25rem;
+}
+.reminder-input-group .form-control,
+.reminder-input-group .flatpickr-input {
+  border-left: none;
+  padding-left: 0.4rem;
+}
+.reminder-input-group:focus-within .input-group-text { color: var(--crm-primary); }
+
+/* Priority dropdown — coloured leading dot reflects selected value */
+.reminder-priority-field { position: relative; }
+.reminder-priority-field::before {
+  content: '';
+  position: absolute;
+  left: 0.85rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--crm-text-muted);
+  pointer-events: none;
+  z-index: 2;
+  transition: background-color 0.15s ease;
+  box-shadow: 0 0 0 1px var(--crm-surface);
+}
+.reminder-priority-field[data-priority="low"]::before    { background: rgba(107,114,128,0.85); }
+.reminder-priority-field[data-priority="medium"]::before { background: rgba(59,130,246,0.95); }
+.reminder-priority-field[data-priority="high"]::before   { background: rgba(245,158,11,1); }
+.reminder-priority-field[data-priority="urgent"]::before { background: var(--crm-primary); }
+.reminder-priority-field > .form-select { padding-left: 2.25rem !important; }
+
+/* Ghost-style Cancel button */
+.reminder-modal-cancel {
+  color: var(--crm-text-muted) !important;
+  text-decoration: none;
+  font-weight: 500;
+  padding: 0.375rem 0.875rem;
+}
+.reminder-modal-cancel:hover {
+  color: var(--crm-text) !important;
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+}
+[data-bs-theme="dark"] .reminder-modal-cancel:hover {
+  background: rgba(255,255,255,0.06);
+}
 </style>
 {% endblock %}
 
 {% block content %}
 <!-- Page Header -->
-<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
-  <div style="display:flex;align-items:center;gap:0.75rem;">
+<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
+  <div style="display:flex;align-items:center;gap:0.875rem;">
     <div class="ae-page-icon">
       <i class="ti ti-bell"></i>
     </div>
     <div>
       <h1 class="page-title" style="margin:0;">Reminders</h1>
-      <p class="text-muted mb-0" style="font-size:0.8125rem;">Manage your scheduled reminders</p>
+      <p class="text-muted mb-0" style="font-size:0.8125rem;">Stay on top of follow-ups, callbacks, and due dates.</p>
     </div>
   </div>
-  <div style="display:flex;gap:0.5rem;">
-    <button class="btn btn-sm btn-outline-secondary" id="filterMineBtn" title="Show only my reminders">
-      <i class="ti ti-user"></i> Mine
-    </button>
-    <button class="btn btn-sm btn-outline-secondary" id="filterAllBtn" title="Show all reminders">
-      <i class="ti ti-users"></i> All
-    </button>
+  <div class="reminder-toolbar">
+    <div class="reminder-segmented" role="group" aria-label="Scope">
+      <button type="button" class="btn active" id="filterAllBtn" title="Show all reminders">
+        <i class="ti ti-users"></i> All
+      </button>
+      <button type="button" class="btn" id="filterMineBtn" title="Show only my reminders">
+        <i class="ti ti-user"></i> Mine
+      </button>
+    </div>
     <select class="form-select form-select-sm" id="statusFilter" style="width:auto;">
       <option value="" selected>All Statuses</option>
       <option value="overdue">Overdue</option>
@@ -267,25 +431,50 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 
 <!-- Stats Row -->
 <div class="fd-summary-row mb-3" id="reminderStats">
-  <div class="fd-summary-card fd-summary-card--danger">
-    <span class="fd-summary-label">Overdue</span>
-    <span class="fd-summary-value" id="statOverdue">-</span>
+  <div class="fd-summary-card reminder-stat-card fd-summary-card--danger">
+    <div class="reminder-stat-text">
+      <span class="fd-summary-label">Overdue</span>
+      <span class="fd-summary-value" id="statOverdue">-</span>
+    </div>
+    <span class="reminder-stat-icon reminder-stat-icon--danger" aria-hidden="true">
+      <i class="ti ti-alert-triangle"></i>
+    </span>
   </div>
-  <div class="fd-summary-card fd-summary-card--warning">
-    <span class="fd-summary-label">My Overdue</span>
-    <span class="fd-summary-value" id="statMyOverdue">-</span>
+  <div class="fd-summary-card reminder-stat-card fd-summary-card--warning">
+    <div class="reminder-stat-text">
+      <span class="fd-summary-label">My Overdue</span>
+      <span class="fd-summary-value" id="statMyOverdue">-</span>
+    </div>
+    <span class="reminder-stat-icon reminder-stat-icon--warning" aria-hidden="true">
+      <i class="ti ti-user-exclamation"></i>
+    </span>
   </div>
-  <div class="fd-summary-card fd-summary-card--info">
-    <span class="fd-summary-label">Pending</span>
-    <span class="fd-summary-value" id="statPending">-</span>
+  <div class="fd-summary-card reminder-stat-card fd-summary-card--info">
+    <div class="reminder-stat-text">
+      <span class="fd-summary-label">Pending</span>
+      <span class="fd-summary-value" id="statPending">-</span>
+    </div>
+    <span class="reminder-stat-icon reminder-stat-icon--info" aria-hidden="true">
+      <i class="ti ti-clock-hour-3"></i>
+    </span>
   </div>
-  <div class="fd-summary-card fd-summary-card--purple">
-    <span class="fd-summary-label">Due Today</span>
-    <span class="fd-summary-value" id="statDueToday">-</span>
+  <div class="fd-summary-card reminder-stat-card fd-summary-card--purple">
+    <div class="reminder-stat-text">
+      <span class="fd-summary-label">Due Today</span>
+      <span class="fd-summary-value" id="statDueToday">-</span>
+    </div>
+    <span class="reminder-stat-icon reminder-stat-icon--purple" aria-hidden="true">
+      <i class="ti ti-calendar-event"></i>
+    </span>
   </div>
-  <div class="fd-summary-card fd-summary-card--success">
-    <span class="fd-summary-label">Completed Today</span>
-    <span class="fd-summary-value" id="statCompletedToday">-</span>
+  <div class="fd-summary-card reminder-stat-card fd-summary-card--success">
+    <div class="reminder-stat-text">
+      <span class="fd-summary-label">Completed Today</span>
+      <span class="fd-summary-value" id="statCompletedToday">-</span>
+    </div>
+    <span class="reminder-stat-icon reminder-stat-icon--success" aria-hidden="true">
+      <i class="ti ti-circle-check"></i>
+    </span>
   </div>
 </div>
 
@@ -293,7 +482,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 <div class="card">
   <div class="card-body p-0">
     <div class="table-responsive">
-      <table class="table table-hover mb-0" style="font-size:0.8125rem;">
+      <table class="table table-hover reminder-table mb-0" style="font-size:0.8125rem;">
         <thead>
           <tr>
             <th style="padding-left:1rem;">
@@ -324,93 +513,104 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 </div>
 
 <!-- Bulk Actions Bar -->
-<div class="card mt-2" id="bulkBar" style="display:none;">
-  <div class="card-body py-2 d-flex align-items-center gap-2">
-    <span id="selectedCount" class="text-muted me-2">0 selected</span>
-    <button class="btn btn-sm btn-success" id="bulkCompleteBtn">
-      <i class="ti ti-check"></i> Complete
-    </button>
-    <button class="btn btn-sm btn-warning" id="bulkRescheduleBtn">
-      <i class="ti ti-calendar"></i> Reschedule
-    </button>
-    <button class="btn btn-sm btn-secondary" id="bulkCancelBtn">
-      <i class="ti ti-x"></i> Cancel
-    </button>
-  </div>
+<div class="reminder-bulk-bar" id="bulkBar" style="display:none;">
+  <span class="selected-count" id="selectedCount">0 selected</span>
+  <button class="btn btn-sm btn-success" id="bulkCompleteBtn">
+    <i class="ti ti-check"></i> Complete
+  </button>
+  <button class="btn btn-sm btn-warning" id="bulkRescheduleBtn">
+    <i class="ti ti-calendar"></i> Reschedule
+  </button>
+  <button class="btn btn-sm btn-secondary" id="bulkCancelBtn">
+    <i class="ti ti-x"></i> Cancel
+  </button>
 </div>
 
 <!-- Pagination -->
-<nav id="paginationNav" class="mt-3" style="display:none;">
-  <ul class="pagination pagination-sm justify-content-center">
+<div id="paginationNav" class="reminder-pagination-bar" style="display:none;">
+  <span class="reminder-pagination-info" id="paginationInfo">—</span>
+  <ul class="pagination pagination-sm mb-0">
     <li class="page-item" id="prevPage"><a class="page-link" href="#">Prev</a></li>
     <li class="page-item disabled"><span class="page-link" id="pageInfo">1 / 1</span></li>
     <li class="page-item" id="nextPage"><a class="page-link" href="#">Next</a></li>
   </ul>
-</nav>
+</div>
 
 <!-- New/Edit Reminder Modal -->
 <div class="modal fade" id="reminderModal" tabindex="-1">
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="reminderModalTitle">New Reminder</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="reminder-modal-header">
+          <span class="reminder-modal-icon" aria-hidden="true"><i class="ti ti-bell-plus"></i></span>
+          <div>
+            <h5 class="modal-title" id="reminderModalTitle">New Reminder</h5>
+            <p class="reminder-modal-subtitle" id="reminderModalSubtitle">Track a follow-up, callback, or due date.</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="reminderId">
+
         <div class="mb-3">
-          <label class="form-label">Subject</label>
-          <input type="text" class="form-control" id="reminderSubject" required>
+          <label class="form-label" for="reminderSubject">Subject</label>
+          <input type="text" class="form-control reminder-subject-input" id="reminderSubject" placeholder="What should we remind you about?" required>
         </div>
+
         <div class="mb-3">
-          <label class="form-label">Scheduled At</label>
-          <input type="text" class="form-control" id="reminderScheduledAt" placeholder="Select date & time" readonly required>
-        </div>
-        <div class="row mb-3">
-          <div class="col-6">
-            <label class="form-label">Priority</label>
-            <select class="form-select" id="reminderPriority">
-              <option value="low">Low</option>
-              <option value="medium" selected>Medium</option>
-              <option value="high">High</option>
-              <option value="urgent">Urgent</option>
-            </select>
+          <label class="form-label" for="reminderScheduledAt">Scheduled at</label>
+          <div class="input-group reminder-input-group">
+            <span class="input-group-text" aria-hidden="true"><i class="ti ti-calendar-event"></i></span>
+            <input type="text" class="form-control" id="reminderScheduledAt" placeholder="Select date & time" readonly required>
           </div>
-          <div class="col-6">
-            <label class="form-label">Assigned To</label>
+        </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-sm-6">
+            <label class="form-label" for="reminderPriority">Priority</label>
+            <div class="reminder-priority-field" data-priority="medium">
+              <select class="form-select" id="reminderPriority" style="padding-left: 2.25rem;">
+                <option value="low">Low</option>
+                <option value="medium" selected>Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-12 col-sm-6">
+            <label class="form-label" for="reminderAssignedTo">Assigned to</label>
             <select class="form-select" id="reminderAssignedTo">
               <option value="">Unassigned</option>
             </select>
           </div>
         </div>
-        <div class="row mb-3">
-          <div class="col-6">
-            <label class="form-label">Contacts</label>
-            <div class="reminder-multi" id="reminderContactsField">
-              <div class="reminder-multi-chips" id="reminderContactsChips"></div>
-              <select class="form-select form-select-sm reminder-multi-add" id="reminderContactsAdd">
-                <option value="">+ Add contact</option>
-              </select>
-            </div>
+
+        <div class="row g-3 mb-3">
+          <div class="col-12 col-sm-6">
+            <label class="form-label" for="reminderContact">Contact</label>
+            <select class="form-select" id="reminderContact">
+              <option value="">No contact</option>
+            </select>
           </div>
-          <div class="col-6">
-            <label class="form-label">Tickets</label>
-            <div class="reminder-multi" id="reminderTicketsField">
-              <div class="reminder-multi-chips" id="reminderTicketsChips"></div>
-              <select class="form-select form-select-sm reminder-multi-add" id="reminderTicketsAdd">
-                <option value="">+ Add ticket</option>
-              </select>
-            </div>
+          <div class="col-12 col-sm-6">
+            <label class="form-label" for="reminderTicket">Ticket</label>
+            <select class="form-select" id="reminderTicket">
+              <option value="">No ticket</option>
+            </select>
           </div>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Notes</label>
-          <textarea class="form-control" id="reminderNotes" rows="3"></textarea>
+
+        <div class="mb-0">
+          <label class="form-label" for="reminderNotes">Notes</label>
+          <textarea class="form-control" id="reminderNotes" rows="3" placeholder="Optional context, links, or details..."></textarea>
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="saveReminderBtn">Save</button>
+        <button type="button" class="btn btn-link reminder-modal-cancel" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="saveReminderBtn">
+          <i class="ti ti-check me-1"></i>Save Reminder
+        </button>
       </div>
     </div>
   </div>
@@ -421,23 +621,34 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   <div class="modal-dialog modal-sm">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Reschedule Reminder</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="reminder-modal-header">
+          <span class="reminder-modal-icon reminder-modal-icon--warning" aria-hidden="true"><i class="ti ti-calendar-time"></i></span>
+          <div>
+            <h5 class="modal-title">Reschedule</h5>
+            <p class="reminder-modal-subtitle">Pick a new date and time.</p>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body">
         <input type="hidden" id="rescheduleReminderId">
         <div class="mb-3">
-          <label class="form-label">New Date/Time</label>
-          <input type="text" class="form-control" id="rescheduleAt" placeholder="Select date & time" readonly required>
+          <label class="form-label" for="rescheduleAt">New date &amp; time</label>
+          <div class="input-group reminder-input-group">
+            <span class="input-group-text" aria-hidden="true"><i class="ti ti-calendar-event"></i></span>
+            <input type="text" class="form-control" id="rescheduleAt" placeholder="Select date & time" readonly required>
+          </div>
         </div>
-        <div class="mb-3">
-          <label class="form-label">Note (optional)</label>
-          <input type="text" class="form-control" id="rescheduleNote">
+        <div class="mb-0">
+          <label class="form-label" for="rescheduleNote">Note (optional)</label>
+          <input type="text" class="form-control" id="rescheduleNote" placeholder="Why are you rescheduling?">
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="confirmRescheduleBtn">Reschedule</button>
+        <button type="button" class="btn btn-link reminder-modal-cancel" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="confirmRescheduleBtn">
+          <i class="ti ti-calendar-time me-1"></i>Reschedule
+        </button>
       </div>
     </div>
   </div>
@@ -448,8 +659,11 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   <div class="modal-dialog">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Reminder Details</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        <div class="reminder-modal-header">
+          <span class="reminder-modal-icon reminder-modal-icon--neutral" aria-hidden="true"><i class="ti ti-bell"></i></span>
+          <h5 class="modal-title mb-0">Reminder Details</h5>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
       <div class="modal-body" id="detailModalBody">
         <div class="text-center py-4">
@@ -501,6 +715,15 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   }
   attachFlatpickr('#reminderScheduledAt', { minDate: 'today' });
   attachFlatpickr('#rescheduleAt', { minDate: 'today' });
+
+  // Sync coloured dot inside the Priority dropdown trigger.
+  function syncPriorityDot() {
+    var sel = document.getElementById('reminderPriority');
+    var field = sel && sel.closest('.reminder-priority-field');
+    if (field) field.dataset.priority = sel.value || 'medium';
+  }
+  var priorityEl = document.getElementById('reminderPriority');
+  if (priorityEl) priorityEl.addEventListener('change', syncPriorityDot);
   var currentPage = 1;
   var totalPages = 1;
   var mineOnly = false;
@@ -545,10 +768,23 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     return td;
   }
 
+  function initials(name) {
+    if (!name) return '?';
+    var parts = String(name).trim().split(/\s+/).slice(0, 2);
+    return parts.map(function(p) { return p[0]; }).join('').toUpperCase() || '?';
+  }
+
+  function formatScheduled(iso) {
+    if (!iso) return '-';
+    if (window.Kanzan && Kanzan.formatDateTime) return Kanzan.formatDateTime(iso);
+    return new Date(iso).toLocaleString();
+  }
+
   function buildReminderRow(r) {
     var tr = document.createElement('tr');
     tr.dataset.id = r.id;
     var isActionable = r.status === 'overdue' || r.status === 'pending';
+    if (r.status === 'overdue') tr.classList.add('is-overdue');
 
     // Checkbox
     var tdCheck = document.createElement('td');
@@ -569,11 +805,20 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
       .join(', ');
     tr.appendChild(createTextCell(contactsText || '-'));
 
-    // Subject (bold)
+    // Subject (bold) + muted notes preview when present
     var tdSubject = document.createElement('td');
-    var strong = document.createElement('strong');
-    strong.textContent = r.subject || '';
-    tdSubject.appendChild(strong);
+    var subjectEl = document.createElement('span');
+    subjectEl.className = 'reminder-subject';
+    subjectEl.textContent = r.subject || '';
+    tdSubject.appendChild(subjectEl);
+    if (r.notes) {
+      var metaEl = document.createElement('span');
+      metaEl.className = 'reminder-subject-meta';
+      var noteSnippet = String(r.notes).replace(/\s+/g, ' ').trim();
+      metaEl.textContent = noteSnippet;
+      metaEl.title = noteSnippet;
+      tdSubject.appendChild(metaEl);
+    }
     tr.appendChild(tdSubject);
 
     // Tickets (clickable links, comma-separated)
@@ -595,12 +840,28 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     }
     tr.appendChild(tdTicket);
 
-    // Assigned to
-    tr.appendChild(createTextCell(r.assigned_to_name || 'Unassigned'));
+    // Assigned to with initials avatar
+    var tdAssigned = document.createElement('td');
+    var assigneeWrap = document.createElement('span');
+    assigneeWrap.className = 'reminder-assignee';
+    var avatar = document.createElement('span');
+    if (r.assigned_to_name) {
+      avatar.className = 'reminder-avatar';
+      avatar.textContent = initials(r.assigned_to_name);
+    } else {
+      avatar.className = 'reminder-avatar reminder-avatar--unassigned';
+      avatar.textContent = '?';
+    }
+    var nameEl = document.createElement('span');
+    nameEl.className = 'reminder-assignee-name';
+    nameEl.textContent = r.assigned_to_name || 'Unassigned';
+    assigneeWrap.appendChild(avatar);
+    assigneeWrap.appendChild(nameEl);
+    tdAssigned.appendChild(assigneeWrap);
+    tr.appendChild(tdAssigned);
 
-    // Scheduled
-    var scheduledText = r.scheduled_at ? new Date(r.scheduled_at).toLocaleString() : '-';
-    tr.appendChild(createTextCell(scheduledText));
+    // Scheduled (locale-aware)
+    tr.appendChild(createTextCell(formatScheduled(r.scheduled_at)));
 
     // Overdue
     var tdOverdue = document.createElement('td');
@@ -652,6 +913,20 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
         function() { cancelReminder(r.id); }));
 
       tdActions.appendChild(btnGroup);
+    } else if (r.status === 'completed' || r.status === 'cancelled') {
+      var chip = document.createElement('span');
+      chip.className = 'reminder-done-chip';
+      var chipIcon = document.createElement('i');
+      chipIcon.className = r.status === 'completed' ? 'ti ti-check' : 'ti ti-x';
+      chip.appendChild(chipIcon);
+      var ts = r.completed_at || r.cancelled_at;
+      var label = r.status === 'completed' ? 'Done' : 'Cancelled';
+      if (ts && window.Kanzan && Kanzan.timeAgo) {
+        chip.appendChild(document.createTextNode(label + ' · ' + Kanzan.timeAgo(ts)));
+      } else {
+        chip.appendChild(document.createTextNode(label));
+      }
+      tdActions.appendChild(chip);
     }
     tr.appendChild(tdActions);
 
@@ -833,8 +1108,34 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
         var emptyRow = document.createElement('tr');
         var emptyCell = document.createElement('td');
         emptyCell.colSpan = 10;
-        emptyCell.className = 'text-center py-4 text-muted';
-        emptyCell.textContent = 'No reminders found.';
+        emptyCell.className = 'reminder-empty-cell';
+        var empty = document.createElement('div');
+        empty.className = 'empty-state';
+        var emptyIcon = document.createElement('div');
+        emptyIcon.className = 'empty-icon';
+        var emptyIconEl = document.createElement('i');
+        emptyIconEl.className = 'ti ti-bell-off';
+        emptyIcon.appendChild(emptyIconEl);
+        var emptyTitle = document.createElement('h5');
+        emptyTitle.className = 'empty-title';
+        emptyTitle.textContent = 'No reminders here yet';
+        var emptyText = document.createElement('p');
+        emptyText.className = 'empty-text';
+        emptyText.textContent = 'Try clearing filters, or create one to track a follow-up or callback.';
+        var newBtn = document.createElement('button');
+        newBtn.className = 'btn btn-sm btn-primary';
+        var newIcon = document.createElement('i');
+        newIcon.className = 'ti ti-plus me-1';
+        newBtn.appendChild(newIcon);
+        newBtn.appendChild(document.createTextNode('New Reminder'));
+        newBtn.addEventListener('click', function() {
+          document.getElementById('newReminderBtn').click();
+        });
+        empty.appendChild(emptyIcon);
+        empty.appendChild(emptyTitle);
+        empty.appendChild(emptyText);
+        empty.appendChild(newBtn);
+        emptyCell.appendChild(empty);
         emptyRow.appendChild(emptyCell);
         tbody.appendChild(emptyRow);
         document.getElementById('paginationNav').style.display = 'none';
@@ -850,6 +1151,11 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
         var pageSize = results.length || 50;
         totalPages = Math.ceil(data.count / pageSize) || 1;
         document.getElementById('pageInfo').textContent = currentPage + ' / ' + totalPages;
+        var infoEl = document.getElementById('paginationInfo');
+        if (infoEl) {
+          var label = data.count === 1 ? '1 reminder' : data.count + ' reminders';
+          infoEl.textContent = 'Showing ' + results.length + ' of ' + label;
+        }
         document.getElementById('paginationNav').style.display = '';
         document.getElementById('prevPage').classList.toggle('disabled', currentPage <= 1);
         document.getElementById('nextPage').classList.toggle('disabled', !data.next);
@@ -1046,99 +1352,6 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     });
   }
 
-  // ── Chip-style multi-pick fields ──────────────────────────────────────
-  // Each field maintains: a Map of selected (id → label), a pool of all
-  // available items, and the DOM nodes for chips + the "+ Add" select.
-  function createMultiPicker(opts) {
-    var selected = new Map(); // id -> label
-    var pool = [];            // [{ id, label }]
-
-    function rebuildAddSelect() {
-      var sel = opts.addSelect;
-      sel.textContent = '';
-      var def = document.createElement('option');
-      def.value = '';
-      def.textContent = opts.addPlaceholder;
-      sel.appendChild(def);
-      pool.forEach(function(item) {
-        if (selected.has(item.id)) return;
-        var o = document.createElement('option');
-        o.value = item.id;
-        o.textContent = item.label;
-        sel.appendChild(o);
-      });
-    }
-
-    function rebuildChips() {
-      var box = opts.chipsBox;
-      box.textContent = '';
-      selected.forEach(function(label, id) {
-        var chip = document.createElement('span');
-        chip.className = 'reminder-multi-chip';
-        var labelEl = document.createElement('span');
-        labelEl.textContent = label;
-        chip.appendChild(labelEl);
-        var btn = document.createElement('button');
-        btn.type = 'button';
-        btn.setAttribute('aria-label', 'Remove');
-        var icon = document.createElement('i');
-        icon.className = 'ti ti-x';
-        btn.appendChild(icon);
-        btn.addEventListener('click', function() {
-          selected.delete(id);
-          rebuildChips();
-          rebuildAddSelect();
-        });
-        chip.appendChild(btn);
-        box.appendChild(chip);
-      });
-    }
-
-    opts.addSelect.addEventListener('change', function() {
-      var id = this.value;
-      if (!id) return;
-      var item = pool.find(function(p) { return p.id === id; });
-      if (item) {
-        selected.set(id, item.label);
-        rebuildChips();
-        rebuildAddSelect();
-      }
-      this.value = '';
-    });
-
-    return {
-      setPool: function(items) {
-        pool = items.slice();
-        rebuildAddSelect();
-      },
-      reset: function() {
-        selected.clear();
-        rebuildChips();
-        rebuildAddSelect();
-      },
-      setSelected: function(items) {
-        selected.clear();
-        items.forEach(function(item) { selected.set(item.id, item.label); });
-        rebuildChips();
-        rebuildAddSelect();
-      },
-      getIds: function() {
-        return Array.from(selected.keys());
-      },
-    };
-  }
-
-  var contactPicker = createMultiPicker({
-    chipsBox: document.getElementById('reminderContactsChips'),
-    addSelect: document.getElementById('reminderContactsAdd'),
-    addPlaceholder: '+ Add contact',
-  });
-  var ticketPicker = createMultiPicker({
-    chipsBox: document.getElementById('reminderTicketsChips'),
-    addSelect: document.getElementById('reminderTicketsAdd'),
-    addPlaceholder: '+ Add ticket',
-  });
-
   // New reminder modal
   document.getElementById('newReminderBtn').addEventListener('click', function() {
     document.getElementById('reminderId').value = '';
@@ -1146,10 +1359,11 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     var sa = document.getElementById('reminderScheduledAt');
     if (sa._flatpickr) sa._flatpickr.clear(); else sa.value = '';
     document.getElementById('reminderPriority').value = 'medium';
+    syncPriorityDot();
     document.getElementById('reminderNotes').value = '';
     document.getElementById('reminderModalTitle').textContent = 'New Reminder';
-    contactPicker.reset();
-    ticketPicker.reset();
+    document.getElementById('reminderContact').value = '';
+    document.getElementById('reminderTicket').value = '';
 
     // Load users for assignment dropdown
     Api.get('/api/v1/agents/agents/all-members/').then(function(data) {
@@ -1162,26 +1376,28 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
       );
     }).catch(function() {});
 
-    // Load contacts for picker
+    // Load contacts for the Contact dropdown
     Api.get('/api/v1/contacts/contacts/?page_size=100').then(function(data) {
-      var items = (data.results || []).map(function(c) {
-        return {
-          id: String(c.id),
-          label: ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email || c.id,
-        };
-      });
-      contactPicker.setPool(items);
+      populateSelect(
+        document.getElementById('reminderContact'),
+        data.results || [],
+        'id',
+        function(c) {
+          return ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email || String(c.id);
+        },
+        'No contact'
+      );
     }).catch(function() {});
 
-    // Load tickets for picker
+    // Load tickets for the Ticket dropdown
     Api.get('/api/v1/tickets/tickets/?page_size=50&ordering=-created_at').then(function(data) {
-      var items = (data.results || []).map(function(t) {
-        return {
-          id: String(t.id),
-          label: '#' + t.number + ' — ' + (t.subject || '').substring(0, 50),
-        };
-      });
-      ticketPicker.setPool(items);
+      populateSelect(
+        document.getElementById('reminderTicket'),
+        data.results || [],
+        'id',
+        function(t) { return '#' + t.number + ' — ' + (t.subject || '').substring(0, 50); },
+        'No ticket'
+      );
     }).catch(function() {});
 
     new bootstrap.Modal(document.getElementById('reminderModal')).show();
@@ -1207,13 +1423,15 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
       return;
     }
 
+    var contactVal = document.getElementById('reminderContact').value;
+    var ticketVal = document.getElementById('reminderTicket').value;
     var payload = {
       subject: subject,
       scheduled_at: scheduledDate.toISOString(),
       priority: document.getElementById('reminderPriority').value,
       notes: document.getElementById('reminderNotes').value,
-      contacts: contactPicker.getIds(),
-      tickets: ticketPicker.getIds(),
+      contacts: contactVal ? [contactVal] : [],
+      tickets: ticketVal ? [ticketVal] : [],
     };
     var assignedTo = document.getElementById('reminderAssignedTo').value;
     if (assignedTo) payload.assigned_to = assignedTo;
@@ -1238,6 +1456,39 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   // Initial load
   loadReminders();
   loadStats();
+
+  /* ── LiveBus: keep reminders live without polling ────────────────
+   *
+   * Server signals (apps/crm/signals.py) broadcast reminder.created /
+   * .updated / .completed / .cancelled / .deleted whenever a reminder
+   * changes in this tenant. We refetch the visible page and the stat
+   * counters together so the overdue/pending/completed pills stay
+   * accurate. Burst-safe via debounce; visibility-aware to avoid
+   * burning requests on hidden tabs.
+   */
+  if (window.LiveBus) {
+    var refetchReminders = LiveBus.debounce(function () {
+      if (document.visibilityState === 'hidden') return;
+      loadReminders();
+      loadStats();
+    }, 500);
+
+    LiveBus.onMany(
+      [
+        'reminder.created', 'reminder.updated',
+        'reminder.completed', 'reminder.cancelled', 'reminder.deleted',
+      ],
+      function () { refetchReminders(); }
+    );
+
+    // Catch-up after a reconnect (the gap may have included a reminder
+    // marked complete by another user that we missed).
+    LiveBus.on('live.reconnected', function () { refetchReminders(); });
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') refetchReminders();
+    });
+  }
 })();
 </script>
 {% endblock %}

@@ -427,6 +427,29 @@
 (function () {
   "use strict";
 
+  // Chart.js paints on <canvas>, where the 2D context does NOT resolve
+  // CSS var(). Strings like 'var(--crm-primary)' silently fall back to
+  // Chart.js defaults (blue), so the chart looks unthemed. Resolve
+  // var(--name) -> computed hex via getComputedStyle at call sites.
+  function cssVar(name, fallback) {
+    var v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return v || fallback || '#000000';
+  }
+  function resolveColor(value) {
+    if (typeof value !== 'string') return value;
+    var m = value.match(/^var\((\-\-[^,\)]+)(?:,\s*([^\)]+))?\)$/);
+    return m ? cssVar(m[1].trim(), m[2] && m[2].trim()) : value;
+  }
+  // Hex-alpha concat (color + 'XX') silently breaks when the color is a CSS
+  // variable like 'var(--crm-accent)'. color-mix() works on any color
+  // expression, so use it whenever the input isn't a literal hex string.
+  function withAlpha(color, alphaHex) {
+    if (typeof color !== 'string' || !color) return color;
+    if (color.charAt(0) === '#') return color + alphaHex;
+    var pct = Math.round(parseInt(alphaHex, 16) / 255 * 100);
+    return 'color-mix(in srgb, ' + color + ' ' + pct + '%, transparent)';
+  }
+
   var STATUS_COLORS = {
     'Open':        'var(--crm-primary)',
     'In Progress': 'var(--crm-accent)',
@@ -675,7 +698,13 @@
     // For daily mode with many labels, skip some to avoid crowding
     var maxTicks = isDaily && labels.length > 15 ? 15 : undefined;
 
-    var textColor = getComputedStyle(document.documentElement).getPropertyValue('--crm-text-muted').trim() || 'var(--status-neutral-dot)';
+    var textColor = cssVar('--crm-text-muted', '#94A3B8');
+    var primary = cssVar('--crm-primary', '#C1121F');
+    var primaryRgb = cssVar('--crm-primary-rgb', '193, 18, 31');
+    var surface = cssVar('--crm-surface', '#FFFFFF');
+    var border = cssVar('--crm-border', '#E5E7EB');
+    var bgElev = cssVar('--crm-bg-elevated-2', '#F3F4F6');
+    var bodyTxt = cssVar('--status-neutral-dot', '#6B7280');
 
     trendsChartInstance = new Chart(canvas.getContext('2d'), {
       type: 'line',
@@ -685,17 +714,17 @@
           {
             label: currentLabel,
             data: currentData,
-            borderColor: 'var(--crm-primary)',
-            backgroundColor: 'rgba(220, 38, 38,0.08)',
+            borderColor: primary,
+            backgroundColor: 'rgba(' + primaryRgb + ', 0.08)',
             borderWidth: 2, fill: true, tension: 0.35,
             pointRadius: isDaily && labels.length > 30 ? 0 : 4,
-            pointBackgroundColor: 'var(--crm-surface)',
-            pointBorderColor: 'var(--crm-primary)', pointBorderWidth: 2, pointHoverRadius: 6
+            pointBackgroundColor: surface,
+            pointBorderColor: primary, pointBorderWidth: 2, pointHoverRadius: 6
           },
           {
             label: prevLabel,
             data: previousData,
-            borderColor: 'var(--crm-border)',
+            borderColor: border,
             backgroundColor: 'transparent',
             borderWidth: 1.5, fill: false, tension: 0.35,
             pointRadius: 0, pointHoverRadius: 4
@@ -708,7 +737,7 @@
         plugins: {
           legend: { display: false },
           tooltip: {
-            backgroundColor: 'var(--crm-surface)', titleColor: 'var(--crm-bg-elevated-2)', bodyColor: 'var(--status-neutral-dot)',
+            backgroundColor: surface, titleColor: bgElev, bodyColor: bodyTxt,
             padding: 10, cornerRadius: 8, displayColors: true, boxWidth: 8, boxHeight: 8
           }
         },
@@ -867,17 +896,23 @@
     body.appendChild(legend);
 
     if (overviewChartInstance) overviewChartInstance.destroy();
+    var resolvedColors = colors.map(resolveColor);
     overviewChartInstance = new Chart(canvas.getContext('2d'), {
       type: 'doughnut',
       data: {
         labels: labels,
-        datasets: [{ data: values, backgroundColor: colors, borderWidth: 0, spacing: 2 }]
+        datasets: [{ data: values, backgroundColor: resolvedColors, borderWidth: 0, spacing: 2 }]
       },
       options: {
         cutout: '72%', responsive: true, maintainAspectRatio: true,
         plugins: {
           legend: { display: false },
-          tooltip: { backgroundColor: 'var(--crm-surface)', titleColor: 'var(--crm-bg-elevated-2)', bodyColor: 'var(--status-neutral-dot)', padding: 10, cornerRadius: 8 }
+          tooltip: {
+            backgroundColor: cssVar('--crm-surface', '#FFFFFF'),
+            titleColor: cssVar('--crm-bg-elevated-2', '#F3F4F6'),
+            bodyColor: cssVar('--status-neutral-dot', '#6B7280'),
+            padding: 10, cornerRadius: 8
+          }
         },
         onClick: function(evt, elements) {
           if (elements.length > 0) {
@@ -1496,6 +1531,58 @@
     }
   });
 
+  /* ---- LiveBus subscriptions: keep the dashboard fresh without reloads.
+   *
+   * Strategy: a burst of ticket events (e.g. 5 tickets resolved in
+   * quick succession) should result in *one* refetch, not five.  We
+   * debounce 600ms — enough to coalesce a burst, short enough to feel
+   * instant to the operator.  We also pause refreshes while the tab is
+   * hidden and run one immediately when it becomes visible again, so
+   * we don't burn requests on a hidden tab.
+   */
+  if (window.LiveBus) {
+    var refreshDashboard = LiveBus.debounce(function () {
+      if (document.visibilityState === 'hidden') return;
+      fetchDashboardData();
+    }, 600);
+
+    var refreshActivity = LiveBus.debounce(function () {
+      if (document.visibilityState === 'hidden') return;
+      Api.get('/api/v1/tickets/tickets/?ordering=-updated_at&page_size=5')
+        .then(function (data) { renderRecentActivity(data.results || data); })
+        .catch(function () { /* non-fatal */ });
+    }, 600);
+
+    // Any ticket event invalidates the counters + recent activity.
+    LiveBus.on('ticket.event', function () {
+      refreshDashboard();
+      refreshActivity();
+    });
+
+    // Notifications can indicate state changes that aren't ticket events
+    // (SLA breaches, follow-up overdues, reminder overdues). Refetch
+    // counters for those too.
+    LiveBus.on('notification.received', function (data) {
+      if (!data) return;
+      var triggers = ['sla_breach', 'ticket_overdue', 'reminder_overdue',
+                      'ticket_followup_overdue', 'agent_status_change'];
+      if (triggers.indexOf(data.type) >= 0) {
+        if (data.type === 'agent_status_change') loadAgentStats();
+        else refreshDashboard();
+      }
+    });
+
+    // When the tab regains focus, fetch once to catch up after any
+    // events that fired while it was hidden.
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') {
+        refreshDashboard();
+        refreshActivity();
+        loadAgentStats();
+      }
+    });
+  }
+
 })();
 </script>
 
@@ -1503,6 +1590,15 @@
 <script>
 (function() {
   "use strict";
+
+  // Local copy of the alpha helper -- this IIFE is separate from the one
+  // above, so it can't see the version defined there.
+  function withAlpha(color, alphaHex) {
+    if (typeof color !== 'string' || !color) return color;
+    if (color.charAt(0) === '#') return color + alphaHex;
+    var pct = Math.round(parseInt(alphaHex, 16) / 255 * 100);
+    return 'color-mix(in srgb, ' + color + ' ' + pct + '%, transparent)';
+  }
 
   var CATEGORY_ICONS = {
     announcement: 'speakerphone', update: 'refresh',
@@ -1839,7 +1935,7 @@
     var iconEl = document.getElementById('nfDetailIcon');
     clearEl(iconEl);
     if (post.is_urgent) { iconEl.style.background = 'rgba(239, 68, 68, 0.12)'; iconEl.style.color = 'var(--crm-accent)'; }
-    else { iconEl.style.background = color + '20'; iconEl.style.color = color; }
+    else { iconEl.style.background = withAlpha(color, '20'); iconEl.style.color = color; }
     iconEl.appendChild(icon(iconName));
 
     // Title
@@ -1855,7 +1951,7 @@
     metaEl.appendChild(el('span', 'nf-post__time', timeAgo(post.created_at)));
     // Category badge
     var catBadge = el('span', 'nf-post__cat', label);
-    catBadge.style.color = color; catBadge.style.background = color + '14';
+    catBadge.style.color = color; catBadge.style.background = withAlpha(color, '14');
     metaEl.appendChild(catBadge);
     // Badges
     if (post.is_pinned) { var pin = el('span', 'nf-pin'); pin.appendChild(icon('pin-filled')); metaEl.appendChild(pin); }
@@ -1920,7 +2016,7 @@
     var topRow = el('div', 'nf-post__top');
     var iconWrap = el('div', 'nf-post__icon');
     if (post.is_urgent) { iconWrap.style.background = 'rgba(239, 68, 68, 0.12)'; iconWrap.style.color = 'var(--crm-accent)'; }
-    else { iconWrap.style.background = color + '20'; iconWrap.style.color = color; }
+    else { iconWrap.style.background = withAlpha(color, '20'); iconWrap.style.color = color; }
     iconWrap.appendChild(icon(iconName));
     topRow.appendChild(iconWrap);
 
@@ -1933,7 +2029,7 @@
     if (post.is_urgent) { var ub = el('span', 'nf-draft-badge'); ub.style.background = 'rgba(239, 68, 68, 0.12)'; ub.style.color = 'var(--crm-accent)'; ub.textContent = 'Urgent'; header.appendChild(ub); }
     if (!post.is_published && isAdmin) header.appendChild(el('span', 'nf-draft-badge', 'Draft'));
     var catBadge = el('span', 'nf-post__cat', label);
-    catBadge.style.color = color; catBadge.style.background = color + '14';
+    catBadge.style.color = color; catBadge.style.background = withAlpha(color, '14');
     header.appendChild(catBadge);
     bodyDiv.appendChild(header);
 
@@ -2201,6 +2297,31 @@
   // Init
   fetchPosts();
   startAutoPlay();
+
+  /* ── LiveBus: newsfeed widget stays current without polling ──────
+   *
+   * Server signals (apps/newsfeed/signals.py) broadcast newsfeed.*
+   * events whenever a post or reaction changes anywhere in the tenant.
+   * Refetch is debounced so a burst (admin publishes + 3 colleagues
+   * react in 200ms) collapses into one network call.
+   *
+   * Cross-tab BroadcastChannel in LiveBus also means tab A reacting
+   * to a post causes tab B's reaction counter to refresh.
+   */
+  if (window.LiveBus) {
+    var refetchNews = LiveBus.debounce(function () {
+      if (document.visibilityState === 'hidden') return;
+      fetchPosts();
+    }, 500);
+
+    LiveBus.onMany(
+      ['newsfeed.created', 'newsfeed.updated', 'newsfeed.deleted', 'newsfeed.reacted'],
+      function () { refetchNews(); }
+    );
+
+    // After a reconnect, the feed might have changed during the gap.
+    LiveBus.on('live.reconnected', function () { refetchNews(); });
+  }
 })();
 </script>
 {% endblock %}

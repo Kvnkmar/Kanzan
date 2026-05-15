@@ -15,7 +15,11 @@ from rest_framework.views import APIView
 
 from apps.accounts.models import TenantMembership
 from apps.accounts.permissions import HasTenantPermission, _get_membership
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import (
+    OpenApiExample,
+    extend_schema,
+    extend_schema_view,
+)
 
 from apps.knowledge.models import Article, Category, KBVote
 from apps.knowledge.serializers import (
@@ -30,6 +34,18 @@ from apps.notifications.models import NotificationType
 from apps.notifications.services import send_notification
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List KB categories",
+        description="Pass `?active_only=true` to hide inactive categories.",
+        tags=["Knowledge Base"],
+    ),
+    create=extend_schema(summary="Create a KB category", tags=["Knowledge Base"]),
+    retrieve=extend_schema(summary="Retrieve a KB category", tags=["Knowledge Base"]),
+    update=extend_schema(summary="Replace a KB category", tags=["Knowledge Base"]),
+    partial_update=extend_schema(summary="Patch a KB category", tags=["Knowledge Base"]),
+    destroy=extend_schema(summary="Delete a KB category", tags=["Knowledge Base"]),
+)
 class CategoryViewSet(viewsets.ModelViewSet):
     """Full CRUD for knowledge base categories."""
 
@@ -47,6 +63,31 @@ class CategoryViewSet(viewsets.ModelViewSet):
         return qs
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List KB articles",
+        description=(
+            "Returns KB articles visible to the caller. Non-admin users see only "
+            "`published` articles (plus their own drafts); Admin/Manager users see "
+            "every status. `allowed_groups` further restricts visibility for non-admins. "
+            "Filter by `slug=` / `tag=` / `status=` / `category=` / `is_pinned=` / `author=`."
+        ),
+        tags=["Knowledge Base"],
+    ),
+    create=extend_schema(
+        summary="Create a KB article",
+        description=(
+            "Create a draft article. Agents are forced into `draft` status regardless of "
+            "the body — they cannot directly publish. Supports `multipart/form-data` for "
+            "optional file attachments (PDF/DOCX rendered via mammoth on retrieve)."
+        ),
+        tags=["Knowledge Base"],
+    ),
+    retrieve=extend_schema(summary="Retrieve a KB article", tags=["Knowledge Base"]),
+    update=extend_schema(summary="Replace a KB article", tags=["Knowledge Base"]),
+    partial_update=extend_schema(summary="Patch a KB article", tags=["Knowledge Base"]),
+    destroy=extend_schema(summary="Delete a KB article", tags=["Knowledge Base"]),
+)
 class ArticleViewSet(viewsets.ModelViewSet):
     """Full CRUD for knowledge base articles."""
 
@@ -148,6 +189,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
                 extra["status"] = Article.Status.DRAFT
         serializer.save(**extra)
 
+    @extend_schema(
+        summary="Submit article for review",
+        description="Move a draft or rejected article into `pending_review` and notify Admin/Manager reviewers. Only the author or Manager+ may submit.",
+        tags=["Knowledge Base"],
+    )
     @action(detail=True, methods=["post"], url_path="submit-for-review")
     def submit_for_review(self, request, pk=None):
         article = self.get_object()
@@ -197,6 +243,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
         serializer = ArticleDetailSerializer(article)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        summary="Approve a KB article",
+        description="Manager+ only. Transitions a `pending_review` article to `published`, stamps `reviewer` + `reviewed_at`, and notifies the author.",
+        tags=["Knowledge Base"],
+    )
     @action(detail=True, methods=["post"], url_path="approve")
     def approve(self, request, pk=None):
         if not self._is_admin_or_manager():
@@ -234,6 +285,18 @@ class ArticleViewSet(viewsets.ModelViewSet):
         serializer = ArticleDetailSerializer(article)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        summary="Reject a KB article",
+        description="Manager+ only. Transitions the article to `rejected` with a required reason and emails the author.",
+        tags=["Knowledge Base"],
+        examples=[
+            OpenApiExample(
+                "Reject with reason",
+                value={"reason": "Code sample is outdated — please update to v2 SDK."},
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=True, methods=["post"], url_path="reject")
     def reject(self, request, pk=None):
         if not self._is_admin_or_manager():
@@ -288,6 +351,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
         serializer = ArticleDetailSerializer(article)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        summary="Record an article view",
+        description="Atomically increment `view_count`. Lightweight — does not write a full audit row.",
+        tags=["Knowledge Base"],
+    )
     @action(detail=True, methods=["post"], url_path="record-view")
     def record_view(self, request, pk=None):
         article = self.get_object()
@@ -295,6 +363,11 @@ class ArticleViewSet(viewsets.ModelViewSet):
         article.refresh_from_db()
         return Response({"view_count": article.view_count}, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        summary="Remove attached file",
+        description="Detach the file currently associated with this article (clears `file`, `file_name`).",
+        tags=["Knowledge Base"],
+    )
     @action(detail=True, methods=["post"], url_path="remove-file")
     def remove_file(self, request, pk=None):
         article = self.get_object()
@@ -304,6 +377,15 @@ class ArticleViewSet(viewsets.ModelViewSet):
         article.save(update_fields=["file", "file_name", "updated_at"])
         return Response({"status": "file removed"}, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        summary="Preview attached file (HTML)",
+        description=(
+            "NOT a JSON endpoint — returns rendered HTML or the raw file inline. PDFs are "
+            "served as-is; DOCX is rendered through `mammoth` and sanitised; other types "
+            "redirect to the file URL. Used by the in-app preview pane."
+        ),
+        tags=["Knowledge Base"],
+    )
     @action(detail=True, methods=["get"], url_path="preview-file")
     def preview_file(self, request, pk=None):
         """Serve a standalone preview page for the article's file.
@@ -431,7 +513,15 @@ body{{font-family:Inter,system-ui,-apple-system,sans-serif;background:#09090b;co
 </html>"""
         return HttpResponse(html, content_type="text/html; charset=utf-8")
 
-    @extend_schema(tags=["Knowledge Base"])
+    @extend_schema(
+        summary="Vote on an article",
+        description="Cast a helpful/unhelpful vote (`{value: 1}` or `{value: -1}`). Idempotent per user — overrides previous vote.",
+        tags=["Knowledge Base"],
+        examples=[
+            OpenApiExample("Helpful", value={"value": 1}, request_only=True),
+            OpenApiExample("Not helpful", value={"value": -1}, request_only=True),
+        ],
+    )
     @action(detail=True, methods=["post"], url_path="vote")
     def vote(self, request, pk=None):
         """Record a helpfulness vote on an article."""
@@ -448,7 +538,15 @@ body{{font-family:Inter,system-ui,-apple-system,sans-serif;background:#09090b;co
         return Response({"status": "recorded"})
 
 
-@extend_schema(tags=["Knowledge Base"])
+@extend_schema(
+    summary="Search KB articles",
+    description=(
+        "Full-text search across published articles. Pass `q=<query>` (min 2 chars). "
+        "Optional `src=agent|customer` toggles visibility filter. On Postgres uses the "
+        "`search_vector` SearchVectorField; on SQLite falls back to `icontains`."
+    ),
+    tags=["Knowledge Base"],
+)
 class KBSearchView(APIView):
     """Full-text search across published knowledge base articles."""
 

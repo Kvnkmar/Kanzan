@@ -9,12 +9,17 @@ DRF ViewSets for the messaging app.
 
 import logging
 
+from django.contrib.contenttypes.models import ContentType
 from django.db.models import Count, OuterRef, Prefetch, Q, Subquery
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 from rest_framework.response import Response
+
+from apps.attachments.models import Attachment
+from apps.attachments.serializers import AttachmentSerializer
 
 from apps.messaging.mentions import notify_mentions, notify_new_message, parse_mentions
 from apps.messaging.models import (
@@ -40,6 +45,18 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List conversations", tags=["Messaging"]),
+    create=extend_schema(summary="Create a conversation", tags=["Messaging"]),
+    retrieve=extend_schema(summary="Retrieve a conversation", tags=["Messaging"]),
+    update=extend_schema(summary="Replace a conversation", tags=["Messaging"]),
+    partial_update=extend_schema(summary="Patch a conversation", tags=["Messaging"]),
+    destroy=extend_schema(summary="Delete a conversation", tags=["Messaging"]),
+    add_participant=extend_schema(summary="Add a participant", tags=["Messaging"]),
+    remove_participant=extend_schema(summary="Remove a participant", tags=["Messaging"]),
+    leave=extend_schema(summary="Leave a conversation", tags=["Messaging"]),
+    search_participants=extend_schema(summary="Search participants", tags=["Messaging"]),
+)
 class ConversationViewSet(viewsets.ModelViewSet):
     """
     Conversation resource scoped to the current tenant and authenticated user.
@@ -296,6 +313,15 @@ class ConversationViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List messages", tags=["Messaging"]),
+    create=extend_schema(summary="Send a message", tags=["Messaging"]),
+    retrieve=extend_schema(summary="Retrieve a message", tags=["Messaging"]),
+    update=extend_schema(summary="Edit own message", tags=["Messaging"]),
+    partial_update=extend_schema(summary="Patch own message", tags=["Messaging"]),
+    destroy=extend_schema(summary="Delete own message", tags=["Messaging"]),
+    broadcast=extend_schema(summary="Re-broadcast message via channels", tags=["Messaging"]),
+)
 class MessageViewSet(viewsets.ModelViewSet):
     """
     Message resource scoped to a parent conversation.
@@ -395,8 +421,43 @@ class MessageViewSet(viewsets.ModelViewSet):
             raise PermissionDenied("You can only delete your own messages.")
         instance.delete()
 
+    @action(
+        detail=True,
+        methods=["post"],
+        url_path="broadcast",
+    )
+    def broadcast(self, request, conversation_pk=None, pk=None):
+        """
+        Re-broadcast a message via the conversation's Channels group.
+
+        Used by the client after attachments are linked to a freshly created
+        message, so other participants receive the updated payload (with
+        attachments embedded) over the existing WebSocket.
+
+        Only the message author may trigger a rebroadcast.
+        """
+        message = self.get_object()
+        if message.author_id != request.user.pk:
+            raise PermissionDenied(
+                "Only the message author can rebroadcast."
+            )
+        self._broadcast_message(message)
+        serializer = MessageSerializer(message, context={"request": request})
+        return Response(serializer.data)
+
     @staticmethod
-    def _broadcast_message(message):
+    def _build_attachment_payload(message):
+        """Return a list of attachment dicts for the given message."""
+        ct = ContentType.objects.get_for_model(message.__class__)
+        qs = (
+            Attachment.objects.filter(content_type=ct, object_id=message.pk)
+            .select_related("uploaded_by")
+            .order_by("created_at")
+        )
+        return AttachmentSerializer(qs, many=True).data
+
+    @classmethod
+    def _broadcast_message(cls, message):
         """
         Best-effort broadcast of a new message to the conversation's
         Channels group. Failures are logged but do not block the HTTP
@@ -422,7 +483,10 @@ class MessageViewSet(viewsets.ModelViewSet):
                             str(message.author_id) if message.author_id else None
                         ),
                         "author_name": (
-                            message.author.get_full_name()
+                            (
+                                message.author.get_full_name()
+                                or message.author.email
+                            )
                             if message.author
                             else "System"
                         ),
@@ -432,6 +496,7 @@ class MessageViewSet(viewsets.ModelViewSet):
                         ),
                         "is_edited": message.is_edited,
                         "created_at": message.created_at.isoformat(),
+                        "attachments": cls._build_attachment_payload(message),
                     },
                 },
             }

@@ -10,6 +10,7 @@ import secrets
 
 from django.http import FileResponse
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -45,6 +46,12 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="Retrieve VoIP settings (singleton)", tags=["VoIP"]),
+    retrieve=extend_schema(summary="Retrieve VoIP settings", tags=["VoIP"]),
+    update=extend_schema(summary="Replace VoIP settings", tags=["VoIP"]),
+    partial_update=extend_schema(summary="Patch VoIP settings", tags=["VoIP"]),
+)
 class VoIPSettingsViewSet(viewsets.ModelViewSet):
     """
     Per-tenant VoIP configuration.
@@ -79,6 +86,14 @@ class VoIPSettingsViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List SIP extensions", tags=["VoIP"]),
+    create=extend_schema(summary="Create a SIP extension", tags=["VoIP"]),
+    retrieve=extend_schema(summary="Retrieve a SIP extension", tags=["VoIP"]),
+    update=extend_schema(summary="Replace a SIP extension", tags=["VoIP"]),
+    partial_update=extend_schema(summary="Patch a SIP extension", tags=["VoIP"]),
+    destroy=extend_schema(summary="Delete a SIP extension", tags=["VoIP"]),
+)
 class ExtensionViewSet(viewsets.ModelViewSet):
     """
     CRUD for SIP extensions.
@@ -113,6 +128,11 @@ class ExtensionViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema(
+    summary="Get SIP credentials",
+    description="Return WSS URL + SIP URI + STUN/TURN servers for the calling user's softphone to register with Asterisk.",
+    tags=["VoIP"],
+)
 class SIPCredentialsView(APIView):
     """
     Return SIP registration credentials for the current user.
@@ -182,6 +202,13 @@ class SIPCredentialsView(APIView):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List call logs", tags=["VoIP"]),
+    retrieve=extend_schema(summary="Retrieve a call log", tags=["VoIP"]),
+    partial_update=extend_schema(summary="Patch a call log (notes / contact / ticket)", tags=["VoIP"]),
+    active_calls=extend_schema(summary="List active calls", tags=["VoIP"]),
+    call_stats=extend_schema(summary="Today's call stats", tags=["VoIP"]),
+)
 class CallLogViewSet(viewsets.ModelViewSet):
     """
     Call history with filtering and search.
@@ -259,6 +286,11 @@ class CallLogViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema(
+    summary="Initiate outbound call",
+    description="Originate an outbound call via Asterisk ARI. Counts against the plan's monthly call quota.",
+    tags=["VoIP"],
+)
 class InitiateCallView(APIView):
     """
     Initiate an outbound call via Asterisk ARI.
@@ -355,6 +387,7 @@ class InitiateCallView(APIView):
         )
 
 
+@extend_schema(summary="Hold / resume call", tags=["VoIP"])
 class CallHoldView(APIView):
     """
     Hold or resume an active call.
@@ -391,6 +424,7 @@ class CallHoldView(APIView):
         )
 
 
+@extend_schema(summary="Transfer call", tags=["VoIP"])
 class CallTransferView(APIView):
     """
     Transfer an active call to another number or extension.
@@ -438,6 +472,7 @@ class CallTransferView(APIView):
         )
 
 
+@extend_schema(summary="Hang up call", tags=["VoIP"])
 class CallHangupView(APIView):
     """
     Hang up an active call.
@@ -479,6 +514,11 @@ class CallHangupView(APIView):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema(
+    summary="Download call recording",
+    description="Streams the recorded audio file as an attachment.",
+    tags=["VoIP"],
+)
 class CallRecordingDownloadView(APIView):
     """
     Download a call recording file.
@@ -515,6 +555,14 @@ class CallRecordingDownloadView(APIView):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List call queues", tags=["VoIP"]),
+    create=extend_schema(summary="Create a call queue", tags=["VoIP"]),
+    retrieve=extend_schema(summary="Retrieve a call queue", tags=["VoIP"]),
+    update=extend_schema(summary="Replace a call queue", tags=["VoIP"]),
+    partial_update=extend_schema(summary="Patch a call queue", tags=["VoIP"]),
+    destroy=extend_schema(summary="Delete a call queue", tags=["VoIP"]),
+)
 class CallQueueViewSet(viewsets.ModelViewSet):
     """CRUD for call distribution queues."""
 

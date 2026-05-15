@@ -74,7 +74,10 @@
       --crm-chat-sent-bg: {{ tenant_palette.primary }};
       --crm-focus-ring: rgba({{ tenant_palette.primary_rgb }}, 0.28);
       --crm-glow-primary: 0 0 0 1px rgba({{ tenant_palette.primary_rgb }}, 0.24), 0 0 20px rgba({{ tenant_palette.primary_rgb }}, 0.18);
-      --crm-gradient: linear-gradient(135deg, {{ tenant_palette.primary }} 0%, {{ tenant_palette.accent }} 100%);
+      /* Monotone primary gradient. Mixing primary+accent looked random when
+         the tenant picked two very different hues -- the original component
+         fallback was primary-700 -> primary, so match that intent. */
+      --crm-gradient: linear-gradient(135deg, {{ tenant_palette.primary }} 0%, {{ tenant_palette.primary_dark }} 100%);
       --status-danger-text: {{ tenant_palette.primary }};
       --status-danger-dot: {{ tenant_palette.primary }};
       --status-danger-bg: rgba({{ tenant_palette.primary_rgb }}, 0.08);
@@ -137,11 +140,13 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.4/dist/purify.min.js"></script>
+  <script src="{% static 'js/live-bus.js' %}"></script>
   <script src="{% static 'js/api.js' %}"></script>
   <script src="{% static 'js/app.js' %}"></script>
   <script src="{% static 'js/command-palette.js' %}"></script>
   <script src="{% static 'js/custom-select.js' %}"></script>
   {% if tenant and user.is_authenticated %}
+  <script src="{% static 'js/live-connection.js' %}"></script>
   <script src="{% static 'js/agent-availability.js' %}"></script>
   <script src="{% static 'js/notes-panel.js' %}"></script>
   <script src="{% static 'js/keyboard-shortcuts.js' %}"></script>

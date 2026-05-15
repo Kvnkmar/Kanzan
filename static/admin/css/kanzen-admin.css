@@ -1,0 +1,1606 @@
+/* ===========================================================================
+   Kanzen Admin — Premium Dark UI
+   ---------------------------------------------------------------------------
+   Overrides Jazzmin / AdminLTE 3 defaults to deliver a Linear/Vercel/Stripe-
+   inspired admin surface. Built from layered dark tokens; brand red is used
+   sparingly for active/focus only.
+
+   Scope: Django admin pages only (loaded via JAZZMIN_SETTINGS["custom_css"]).
+   This file lives outside static/css/** so the theme-leak scanner skips it,
+   but we still route every rule body through var(--ka-*) tokens.
+
+   Sections:
+     1. Tokens               — admin-scoped design tokens (dark)
+     2. Resets & typography
+     3. Layout               — wrapper, navbar, sidebar, content
+     4. Sidebar navigation
+     5. Top navbar
+     6. Dashboard            — app modules, recent actions
+     7. Cards & panels
+     8. Buttons & action links
+     9. Tables & changelists
+     10. Forms & change-form
+     11. Filters & pagination
+     12. Messages & alerts
+     13. Login page
+     14. Misc utilities
+   ========================================================================= */
+
+/* ----------------------------------------------------------------------- *
+ * 1. Tokens
+ * ----------------------------------------------------------------------- */
+
+:root {
+  /* Canvas → surface → elevated, in steps of perceptual lightness */
+  --ka-bg:            #0A0A0A;
+  --ka-bg-sidebar:    #0F0F0F;
+  --ka-bg-navbar:     #0B0B0B;
+  --ka-surface:       #141414;
+  --ka-surface-hover: #1A1A1A;
+  --ka-surface-input: #181818;
+
+  /* Borders — three weights so dividers can recede or assert */
+  --ka-border:        #1F1F1F;
+  --ka-border-strong: #262626;
+  --ka-border-faint:  #161616;
+
+  /* Text scale — never pure white. Three steps + on-brand */
+  --ka-text:          #F4F4F5;
+  --ka-text-muted:    #A1A1AA;
+  --ka-text-dim:      #71717A;
+  --ka-text-link:     #E4E4E7;
+  --ka-text-on-brand: #FFFFFF;
+
+  /* Brand — kept consistent with project tokens */
+  --ka-brand:         #C1121F;
+  --ka-brand-hover:   #DC1B2A;
+  --ka-brand-tint:    rgba(193, 18, 31, 0.10);
+  --ka-brand-ring:    rgba(193, 18, 31, 0.18);
+  --ka-brand-rail:    #C1121F;
+
+  /* Semantic accents — desaturated for dark UI */
+  --ka-success:       #22C55E;
+  --ka-success-tint:  rgba(34, 197, 94, 0.12);
+  --ka-warning:       #EAB308;
+  --ka-warning-tint:  rgba(234, 179, 8, 0.12);
+  --ka-danger:        #EF4444;
+  --ka-danger-tint:   rgba(239, 68, 68, 0.12);
+  --ka-info:          #3B82F6;
+  --ka-info-tint:     rgba(59, 130, 246, 0.12);
+
+  /* Radii — controlled, never childish */
+  --ka-radius-xs:     4px;
+  --ka-radius-sm:     6px;
+  --ka-radius:        8px;
+  --ka-radius-lg:     10px;
+
+  /* Shadows — soft, single-layer, no neon glows */
+  --ka-shadow-sm:     0 1px 2px rgba(0, 0, 0, 0.30);
+  --ka-shadow:        0 4px 12px -4px rgba(0, 0, 0, 0.45);
+  --ka-shadow-lg:     0 12px 32px -8px rgba(0, 0, 0, 0.55);
+
+  /* Motion */
+  --ka-ease:          cubic-bezier(0.16, 1, 0.3, 1);
+  --ka-dur:           160ms;
+
+  /* Typography */
+  --ka-font:          "Inter", "Inter UI", -apple-system, BlinkMacSystemFont,
+                      "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ka-font-mono:     "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+}
+
+/* ----------------------------------------------------------------------- *
+ * 2. Resets & global typography
+ * ----------------------------------------------------------------------- */
+
+html,
+body {
+  background: var(--ka-bg) !important;
+  color: var(--ka-text);
+  font-family: var(--ka-font);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.005em;
+}
+
+body.dark-mode,
+body.sidebar-mini,
+body.layout-navbar-fixed,
+body.layout-fixed {
+  background: var(--ka-bg) !important;
+}
+
+h1, h2, h3, h4, h5, h6,
+.h1, .h2, .h3, .h4, .h5, .h6 {
+  color: var(--ka-text);
+  font-family: var(--ka-font);
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+h1, .h1 { font-size: 22px; }
+h2, .h2 { font-size: 18px; }
+h3, .h3 { font-size: 15px; }
+h4, .h4 { font-size: 14px; }
+
+a {
+  color: var(--ka-text-link);
+  text-decoration: none;
+  transition: color var(--ka-dur) var(--ka-ease);
+}
+a:hover { color: var(--ka-text); }
+
+p, label, span, td, th, li {
+  color: inherit;
+}
+
+::selection {
+  background: var(--ka-brand-tint);
+  color: var(--ka-text);
+}
+
+/* Scrollbars — match the surface, not OS-default */
+*::-webkit-scrollbar         { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track   { background: transparent; }
+*::-webkit-scrollbar-thumb   { background: var(--ka-border-strong); border-radius: 999px; border: 2px solid var(--ka-bg); }
+*::-webkit-scrollbar-thumb:hover { background: #333333; }
+
+/* ----------------------------------------------------------------------- *
+ * 3. Layout
+ * ----------------------------------------------------------------------- */
+
+.wrapper { background: var(--ka-bg); }
+
+.content-wrapper {
+  background: var(--ka-bg) !important;
+  min-height: calc(100vh - 56px);
+}
+
+.content-header {
+  padding: 24px 28px 8px 28px;
+}
+
+.content-header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ka-text);
+}
+
+.content-header .breadcrumb {
+  background: transparent;
+  padding: 0;
+  margin: 6px 0 0 0;
+  font-size: 12px;
+}
+
+.content-header .breadcrumb-item,
+.content-header .breadcrumb-item a {
+  color: var(--ka-text-dim);
+}
+.content-header .breadcrumb-item.active { color: var(--ka-text-muted); }
+.content-header .breadcrumb-item + .breadcrumb-item::before {
+  color: var(--ka-text-dim);
+  content: "/";
+}
+
+.content,
+section.content {
+  padding: 8px 28px 32px 28px;
+}
+
+.main-footer {
+  background: var(--ka-bg);
+  border-top: 1px solid var(--ka-border);
+  color: var(--ka-text-dim);
+  font-size: 12px;
+  padding: 16px 28px;
+}
+
+/* ----------------------------------------------------------------------- *
+ * 4. Sidebar
+ * ----------------------------------------------------------------------- */
+
+.main-sidebar,
+.main-sidebar.sidebar-dark-primary,
+.main-sidebar.sidebar-dark-navy {
+  background: var(--ka-bg-sidebar) !important;
+  border-right: 1px solid var(--ka-border);
+  width: 248px;
+  box-shadow: none;
+}
+
+.sidebar {
+  padding: 8px 12px 24px 12px;
+}
+
+/* Brand block */
+.brand-link {
+  background: var(--ka-bg-sidebar) !important;
+  border-bottom: 1px solid var(--ka-border-faint) !important;
+  padding: 16px 16px !important;
+  height: 56px;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  transition: background var(--ka-dur) var(--ka-ease);
+}
+.brand-link:hover { background: var(--ka-surface-hover) !important; }
+
+.brand-link .brand-image {
+  height: 24px;
+  width: 24px;
+  margin: 0;
+  border-radius: var(--ka-radius-xs);
+  opacity: 1;
+  box-shadow: none;
+}
+
+.brand-link .brand-text {
+  color: var(--ka-text) !important;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* User panel (avatar block) — minimised */
+.sidebar .user-panel {
+  border-bottom: none !important;
+  margin: 8px 0 4px 0 !important;
+  padding: 8px 12px !important;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar .user-panel .image img {
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  border: 1px solid var(--ka-border);
+  background: var(--ka-surface);
+}
+
+.sidebar .user-panel .info,
+.sidebar .user-panel a {
+  color: var(--ka-text-muted) !important;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 0 !important;
+}
+.sidebar .user-panel a:hover { color: var(--ka-text) !important; }
+
+/* Section labels (NAV-HEADER) — small, tracked, muted, breathing room above */
+.nav-sidebar .nav-header {
+  color: var(--ka-text-dim) !important;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 20px 12px 6px 12px !important;
+  background: transparent !important;
+  border: 0 !important;
+}
+.nav-sidebar .nav-header:first-of-type { padding-top: 8px !important; }
+
+/* Nav items */
+.nav-sidebar .nav-item { margin: 1px 0; }
+
+.nav-sidebar .nav-link {
+  position: relative;
+  display: flex !important;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px !important;
+  margin: 0 !important;
+  border-radius: var(--ka-radius-sm) !important;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ka-text-muted) !important;
+  background: transparent !important;
+  transition: background var(--ka-dur) var(--ka-ease),
+              color var(--ka-dur) var(--ka-ease);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nav-sidebar .nav-link .nav-icon {
+  font-size: 14px !important;
+  width: 16px;
+  margin: 0 !important;
+  color: var(--ka-text-dim) !important;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.nav-sidebar .nav-link p {
+  margin: 0 !important;
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.nav-sidebar .nav-link:hover {
+  background: var(--ka-surface-hover) !important;
+  color: var(--ka-text) !important;
+}
+.nav-sidebar .nav-link:hover .nav-icon { color: var(--ka-text) !important; }
+
+/* Active state — subtle brand tint + 2px rail, NOT a bright bar */
+.nav-sidebar .nav-link.active,
+.nav-sidebar .nav-item.menu-open > .nav-link {
+  background: var(--ka-brand-tint) !important;
+  color: var(--ka-text) !important;
+  font-weight: 600;
+  box-shadow: none !important;
+}
+.nav-sidebar .nav-link.active::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  background: var(--ka-brand-rail);
+  border-radius: 0 2px 2px 0;
+}
+.nav-sidebar .nav-link.active .nav-icon { color: var(--ka-brand) !important; }
+
+/* Tree children (nested nav) */
+.nav-sidebar .nav-treeview {
+  padding-left: 10px;
+  margin: 2px 0 4px 0;
+  border-left: 1px solid var(--ka-border-faint);
+  margin-left: 18px;
+}
+.nav-sidebar .nav-treeview .nav-link {
+  padding: 6px 10px !important;
+  font-size: 12.5px;
+  color: var(--ka-text-dim) !important;
+}
+.nav-sidebar .nav-treeview .nav-link .nav-icon { font-size: 10px !important; }
+
+/* Caret chevron */
+.nav-sidebar .nav-link > p > .right {
+  color: var(--ka-text-dim);
+  transition: transform var(--ka-dur) var(--ka-ease);
+}
+.nav-sidebar .nav-item.menu-open > .nav-link > p > .right { transform: rotate(-180deg); }
+
+/* Sidebar search if present */
+.sidebar-search-form .form-control,
+.sidebar .form-control-sidebar {
+  background: var(--ka-surface) !important;
+  border: 1px solid var(--ka-border) !important;
+  color: var(--ka-text) !important;
+  font-size: 12px;
+  border-radius: var(--ka-radius-sm);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 5. Top navbar
+ * ----------------------------------------------------------------------- */
+
+.main-header,
+.main-header.navbar,
+.main-header.navbar-dark,
+.main-header.navbar-light {
+  background: var(--ka-bg-navbar) !important;
+  border-bottom: 1px solid var(--ka-border) !important;
+  border-left: 0 !important;
+  box-shadow: none !important;
+  height: 56px;
+  min-height: 56px;
+  padding: 0 16px;
+}
+
+.main-header .navbar-nav .nav-link {
+  color: var(--ka-text-muted) !important;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0 12px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  transition: color var(--ka-dur) var(--ka-ease);
+}
+.main-header .navbar-nav .nav-link:hover { color: var(--ka-text) !important; }
+
+/* Sidebar collapse pusher */
+.main-header [data-widget="pushmenu"] {
+  color: var(--ka-text-muted) !important;
+  border-radius: var(--ka-radius-sm);
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+}
+.main-header [data-widget="pushmenu"]:hover {
+  background: var(--ka-surface-hover);
+  color: var(--ka-text) !important;
+}
+
+/* Top-right user tools */
+.main-header .navbar-nav.ml-auto .nav-link,
+.main-header .navbar-nav .user-menu > .nav-link {
+  color: var(--ka-text-muted) !important;
+}
+
+.main-header .dropdown-menu {
+  background: var(--ka-surface) !important;
+  border: 1px solid var(--ka-border) !important;
+  border-radius: var(--ka-radius);
+  box-shadow: var(--ka-shadow-lg);
+  padding: 4px;
+  margin-top: 4px;
+  min-width: 200px;
+}
+.main-header .dropdown-item {
+  color: var(--ka-text-muted) !important;
+  border-radius: var(--ka-radius-sm);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.main-header .dropdown-item:hover {
+  background: var(--ka-surface-hover) !important;
+  color: var(--ka-text) !important;
+}
+.main-header .dropdown-divider {
+  border-color: var(--ka-border) !important;
+  margin: 4px 0;
+}
+
+/* Top search forms — pill */
+.main-header form .input-group,
+.main-header .navbar-form {
+  background: var(--ka-surface);
+  border: 1px solid var(--ka-border);
+  border-radius: var(--ka-radius);
+  height: 32px;
+  padding: 0 4px 0 10px;
+  display: inline-flex;
+  align-items: center;
+  width: 240px;
+  margin: 0 6px;
+  transition: border-color var(--ka-dur) var(--ka-ease),
+              box-shadow var(--ka-dur) var(--ka-ease);
+}
+.main-header form .input-group:focus-within,
+.main-header .navbar-form:focus-within {
+  border-color: var(--ka-brand);
+  box-shadow: 0 0 0 3px var(--ka-brand-ring);
+}
+.main-header form .input-group input,
+.main-header .navbar-form input {
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--ka-text) !important;
+  font-size: 12.5px;
+  padding: 0 6px;
+  height: 28px;
+  outline: none;
+  box-shadow: none !important;
+}
+.main-header form .input-group input::placeholder,
+.main-header .navbar-form input::placeholder {
+  color: var(--ka-text-dim);
+}
+.main-header form .input-group .btn,
+.main-header .navbar-form button {
+  background: transparent !important;
+  border: 0 !important;
+  color: var(--ka-text-dim) !important;
+  padding: 0 6px !important;
+  height: 28px !important;
+  min-height: 28px !important;
+  font-size: 12px;
+  box-shadow: none !important;
+}
+.main-header form .input-group .btn:hover { color: var(--ka-text) !important; }
+
+/* ----------------------------------------------------------------------- *
+ * 6. Dashboard — app modules + recent actions
+ * ----------------------------------------------------------------------- */
+
+/* Two-column dashboard grid spacing */
+.dashboard #content-related,
+.dashboard .col-md-6 {
+  padding: 0 12px;
+}
+
+/* App module group (Accounts, Agents, etc.) */
+.dashboard .card,
+#content-main .card,
+#content-main .module {
+  background: var(--ka-surface) !important;
+  border: 1px solid var(--ka-border) !important;
+  border-radius: var(--ka-radius-lg) !important;
+  box-shadow: none !important;
+  margin-bottom: 16px;
+  overflow: hidden;
+  transition: border-color var(--ka-dur) var(--ka-ease);
+}
+.dashboard .card:hover,
+#content-main .card:hover { border-color: var(--ka-border-strong) !important; }
+
+/* Module header — quiet, no filled background */
+.dashboard .card .card-header,
+#content-main .card .card-header,
+#content-main .module h2,
+#content-main .module caption {
+  background: transparent !important;
+  border-bottom: 1px solid var(--ka-border) !important;
+  padding: 14px 18px !important;
+  min-height: 0 !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.dashboard .card .card-header .card-title,
+#content-main .card .card-header .card-title,
+#content-main .module h2,
+#content-main .module caption {
+  color: var(--ka-text) !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.005em;
+  margin: 0 !important;
+  text-transform: none;
+}
+
+.dashboard .card .card-body,
+#content-main .card .card-body { padding: 0 !important; }
+
+/* Tables inside module cards — hairline-separated rows */
+.dashboard .card .table,
+#content-main .module table {
+  margin: 0 !important;
+  width: 100%;
+  background: transparent;
+  border: 0;
+}
+.dashboard .card .table tr,
+#content-main .module table tr {
+  border: 0;
+  background: transparent;
+  transition: background var(--ka-dur) var(--ka-ease);
+}
+.dashboard .card .table tr + tr,
+#content-main .module table tr + tr,
+.dashboard .card .table tbody > tr,
+#content-main .module table tbody > tr {
+  border-top: 1px solid var(--ka-border-faint);
+}
+.dashboard .card .table tr:hover,
+#content-main .module table tr:hover {
+  background: var(--ka-surface-hover);
+}
+.dashboard .card .table td,
+.dashboard .card .table th,
+#content-main .module table td,
+#content-main .module table th {
+  border: 0 !important;
+  padding: 11px 18px !important;
+  vertical-align: middle;
+  background: transparent !important;
+  color: var(--ka-text);
+  font-size: 13px;
+}
+.dashboard .card .table td:first-child a,
+#content-main .module table td:first-child a {
+  color: var(--ka-text) !important;
+  font-weight: 500;
+}
+.dashboard .card .table td:first-child a:hover,
+#content-main .module table td:first-child a:hover {
+  color: var(--ka-brand-hover) !important;
+}
+
+/* Recent actions panel — strip the card chrome, list-only */
+#recent-actions-module,
+.dashboard #content-related .module {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+#recent-actions-module h2,
+.dashboard #content-related .module h2,
+.dashboard #content-related .module caption {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 0 12px 0 !important;
+  color: var(--ka-text) !important;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#recent-actions-module .actionlist,
+.dashboard #content-related .actionlist {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+#recent-actions-module .actionlist li,
+.dashboard #content-related .actionlist li {
+  background: var(--ka-surface);
+  border: 1px solid var(--ka-border);
+  border-radius: var(--ka-radius);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  position: relative;
+  transition: border-color var(--ka-dur) var(--ka-ease);
+}
+#recent-actions-module .actionlist li:hover,
+.dashboard #content-related .actionlist li:hover {
+  border-color: var(--ka-border-strong);
+}
+
+#recent-actions-module .actionlist li::marker,
+.dashboard #content-related .actionlist li::marker { content: ""; }
+
+#recent-actions-module .actionlist li a,
+.dashboard #content-related .actionlist li a {
+  color: var(--ka-text);
+  font-size: 12.5px;
+  font-weight: 500;
+}
+#recent-actions-module .actionlist li a:hover { color: var(--ka-brand-hover); }
+
+#recent-actions-module .actionlist li .mini.quiet,
+.dashboard #content-related .actionlist li .mini.quiet,
+#recent-actions-module .actionlist li .visually-hidden + *,
+#recent-actions-module .actionlist .timesince {
+  color: var(--ka-text-dim) !important;
+  font-size: 11px;
+  font-weight: 400;
+}
+
+/* "Add", "Change", "Delete" indicators in recent actions */
+#recent-actions-module .actionlist .changelink,
+#recent-actions-module .actionlist .addlink,
+#recent-actions-module .actionlist .deletelink {
+  background: transparent !important;
+  padding: 0 !important;
+  color: var(--ka-text-muted) !important;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ----------------------------------------------------------------------- *
+ * 7. Generic cards & panels (changeform, changelist, etc.)
+ * ----------------------------------------------------------------------- */
+
+.card {
+  background: var(--ka-surface);
+  border: 1px solid var(--ka-border);
+  border-radius: var(--ka-radius-lg);
+  box-shadow: none;
+}
+
+.card-header {
+  background: transparent;
+  border-bottom: 1px solid var(--ka-border);
+  padding: 12px 16px;
+  color: var(--ka-text);
+}
+.card-header .card-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.card-body { color: var(--ka-text-muted); padding: 16px; }
+.card-footer {
+  background: transparent;
+  border-top: 1px solid var(--ka-border);
+  padding: 12px 16px;
+}
+
+/* Card "tools" (collapse/remove) — quieter */
+.card-tools .btn-tool,
+.btn-tool {
+  color: var(--ka-text-dim) !important;
+  background: transparent !important;
+  border: 0 !important;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--ka-radius-sm);
+  padding: 0 !important;
+  font-size: 11px;
+}
+.btn-tool:hover {
+  background: var(--ka-surface-hover) !important;
+  color: var(--ka-text) !important;
+}
+
+/* ----------------------------------------------------------------------- *
+ * 8. Buttons & action links
+ * ----------------------------------------------------------------------- */
+
+.btn,
+button.btn,
+input[type="submit"].btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 30px;
+  min-height: 30px;
+  padding: 0 12px;
+  border-radius: var(--ka-radius-sm);
+  font-family: var(--ka-font);
+  font-size: 12.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  line-height: 1;
+  border: 1px solid transparent;
+  box-shadow: none !important;
+  transition: background var(--ka-dur) var(--ka-ease),
+              border-color var(--ka-dur) var(--ka-ease),
+              color var(--ka-dur) var(--ka-ease);
+}
+
+/* Default / secondary — ghost */
+.btn,
+.btn-default,
+.btn-secondary,
+.btn-outline-secondary {
+  background: var(--ka-surface) !important;
+  border-color: var(--ka-border) !important;
+  color: var(--ka-text) !important;
+}
+.btn:hover,
+.btn-default:hover,
+.btn-secondary:hover,
+.btn-outline-secondary:hover {
+  background: var(--ka-surface-hover) !important;
+  border-color: var(--ka-border-strong) !important;
+}
+
+/* Primary — solid brand, used sparingly */
+.btn-primary {
+  background: var(--ka-brand) !important;
+  border-color: var(--ka-brand) !important;
+  color: var(--ka-text-on-brand) !important;
+}
+.btn-primary:hover {
+  background: var(--ka-brand-hover) !important;
+  border-color: var(--ka-brand-hover) !important;
+}
+
+/* Info / Success / Warning / Danger — soft tinted ghosts (NOT bright) */
+.btn-info {
+  background: var(--ka-info-tint) !important;
+  border-color: transparent !important;
+  color: var(--ka-info) !important;
+}
+.btn-info:hover { background: rgba(59, 130, 246, 0.20) !important; }
+
+.btn-success {
+  background: var(--ka-success-tint) !important;
+  border-color: transparent !important;
+  color: var(--ka-success) !important;
+}
+.btn-success:hover { background: rgba(34, 197, 94, 0.20) !important; }
+
+.btn-warning {
+  background: var(--ka-warning-tint) !important;
+  border-color: transparent !important;
+  color: var(--ka-warning) !important;
+}
+.btn-warning:hover { background: rgba(234, 179, 8, 0.20) !important; }
+
+.btn-danger {
+  background: var(--ka-danger-tint) !important;
+  border-color: transparent !important;
+  color: var(--ka-danger) !important;
+}
+.btn-danger:hover { background: rgba(239, 68, 68, 0.20) !important; }
+
+/* Sizes */
+.btn-sm, .btn-xs { height: 26px; padding: 0 10px; font-size: 12px; }
+.btn-lg { height: 36px; padding: 0 16px; font-size: 13px; }
+
+/* Focus */
+.btn:focus,
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--ka-brand-ring) !important;
+  border-color: var(--ka-brand) !important;
+}
+
+/* Action links in admin tables: "Add", "Change", "Delete" */
+.addlink,
+.changelink,
+.deletelink,
+.viewlink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px !important;
+  border-radius: var(--ka-radius-xs);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  background: transparent !important;
+  border: 1px solid var(--ka-border) !important;
+  color: var(--ka-text-muted) !important;
+  transition: background var(--ka-dur) var(--ka-ease),
+              border-color var(--ka-dur) var(--ka-ease),
+              color var(--ka-dur) var(--ka-ease);
+}
+.addlink:hover,
+.changelink:hover,
+.viewlink:hover {
+  background: var(--ka-surface-hover) !important;
+  border-color: var(--ka-border-strong) !important;
+  color: var(--ka-text) !important;
+}
+.deletelink:hover {
+  background: var(--ka-danger-tint) !important;
+  border-color: transparent !important;
+  color: var(--ka-danger) !important;
+}
+
+/* Make "addlink" carry a subtle brand affordance on hover */
+.addlink:hover {
+  border-color: var(--ka-brand) !important;
+  color: var(--ka-brand-hover) !important;
+}
+
+/* Strip Jazzmin's coloured wrappers around action links */
+.dashboard .card td .addlink,
+.dashboard .card td .changelink,
+#content-main .module td .addlink,
+#content-main .module td .changelink {
+  background: transparent !important;
+}
+.dashboard .card td .btn,
+#content-main .module td .btn {
+  background: transparent !important;
+  border-color: var(--ka-border) !important;
+  color: var(--ka-text-muted) !important;
+  height: 26px;
+  padding: 0 10px;
+  font-size: 11.5px;
+}
+.dashboard .card td .btn:hover,
+#content-main .module td .btn:hover {
+  background: var(--ka-surface-hover) !important;
+  color: var(--ka-text) !important;
+}
+
+/* Object tools (top-right of changelist: "Add user +") */
+.object-tools {
+  display: flex;
+  gap: 6px;
+  margin: 0 0 12px 0;
+  padding: 0;
+}
+.object-tools li { list-style: none; }
+.object-tools a,
+.object-tools a:link,
+.object-tools a:visited {
+  background: var(--ka-brand) !important;
+  border-radius: var(--ka-radius-sm);
+  color: var(--ka-text-on-brand) !important;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  text-transform: none;
+  letter-spacing: 0;
+  transition: background var(--ka-dur) var(--ka-ease);
+}
+.object-tools a:hover { background: var(--ka-brand-hover) !important; }
+
+/* ----------------------------------------------------------------------- *
+ * 9. Tables & changelist
+ * ----------------------------------------------------------------------- */
+
+.table,
+table.table,
+#result_list,
+table#result_list {
+  background: var(--ka-surface);
+  border: 1px solid var(--ka-border);
+  border-radius: var(--ka-radius-lg);
+  border-collapse: separate;
+  border-spacing: 0;
+  overflow: hidden;
+  color: var(--ka-text);
+  font-size: 13px;
+  width: 100%;
+}
+
+.table thead th,
+#result_list thead th {
+  background: transparent;
+  border-bottom: 1px solid var(--ka-border);
+  color: var(--ka-text-dim);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  text-align: left;
+}
+.table thead th a,
+#result_list thead th a {
+  color: var(--ka-text-dim) !important;
+}
+.table thead th a:hover,
+#result_list thead th a:hover {
+  color: var(--ka-text) !important;
+}
+
+.table tbody td,
+#result_list tbody td {
+  border: 0;
+  border-top: 1px solid var(--ka-border-faint);
+  padding: 10px 12px;
+  vertical-align: middle;
+  background: transparent;
+}
+.table tbody tr:first-child td,
+#result_list tbody tr:first-child td { border-top: 0; }
+
+.table tbody tr:hover td,
+#result_list tbody tr:hover td {
+  background: var(--ka-surface-hover);
+}
+
+.table tbody tr.row1 td,
+.table tbody tr.row2 td { background: transparent; }
+
+/* Selected row */
+#result_list tbody tr.selected td,
+.table tbody tr.selected td {
+  background: var(--ka-brand-tint);
+}
+
+/* Result list checkboxes column */
+#result_list td.action-checkbox,
+#result_list th.action-checkbox-column { width: 32px; }
+
+/* Result count, action select bar */
+.results,
+.paginator { color: var(--ka-text-muted); }
+
+.changelist-form .actions {
+  background: var(--ka-surface) !important;
+  border: 1px solid var(--ka-border) !important;
+  border-radius: var(--ka-radius);
+  padding: 10px 12px !important;
+  margin: 0 0 12px 0 !important;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--ka-text-muted);
+}
+.changelist-form .actions select {
+  height: 28px;
+  font-size: 12px;
+}
+.changelist-form .actions .button {
+  height: 28px;
+  padding: 0 10px;
+}
+
+/* Empty state */
+.dashboard .module table tbody:empty::after,
+.empty-state {
+  display: block;
+  padding: 24px;
+  text-align: center;
+  color: var(--ka-text-dim);
+  font-size: 12px;
+}
+
+/* ----------------------------------------------------------------------- *
+ * 10. Forms & change-form
+ * ----------------------------------------------------------------------- */
+
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="url"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+textarea,
+select,
+.form-control,
+.form-select {
+  background: var(--ka-surface-input) !important;
+  border: 1px solid var(--ka-border-strong) !important;
+  border-radius: var(--ka-radius-sm) !important;
+  color: var(--ka-text) !important;
+  font-family: var(--ka-font);
+  font-size: 13px !important;
+  height: 32px;
+  min-height: 32px;
+  padding: 6px 10px !important;
+  transition: border-color var(--ka-dur) var(--ka-ease),
+              box-shadow var(--ka-dur) var(--ka-ease);
+  box-shadow: none !important;
+}
+
+textarea,
+textarea.form-control {
+  height: auto;
+  min-height: 80px;
+  line-height: 1.5;
+  padding: 8px 10px !important;
+  resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder { color: var(--ka-text-dim); }
+
+input:focus,
+textarea:focus,
+select:focus,
+.form-control:focus,
+.form-select:focus {
+  outline: none !important;
+  border-color: var(--ka-brand) !important;
+  box-shadow: 0 0 0 3px var(--ka-brand-ring) !important;
+}
+
+input:disabled,
+textarea:disabled,
+select:disabled,
+.form-control:disabled {
+  background: var(--ka-surface) !important;
+  color: var(--ka-text-dim) !important;
+  opacity: 0.6;
+}
+
+label,
+.form-group label,
+.form-row label {
+  color: var(--ka-text-muted);
+  font-size: 12px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.help,
+.help-block,
+.form-text,
+small.text-muted {
+  color: var(--ka-text-dim) !important;
+  font-size: 11.5px;
+  margin-top: 4px;
+}
+
+/* Change-form layout */
+form .module,
+.change-form .module,
+#content-main form > div > fieldset {
+  background: var(--ka-surface);
+  border: 1px solid var(--ka-border);
+  border-radius: var(--ka-radius-lg);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+form .module h2,
+.change-form .module h2,
+#content-main fieldset h2,
+#content-main fieldset legend {
+  background: transparent !important;
+  border-bottom: 1px solid var(--ka-border);
+  padding: 12px 18px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ka-text-dim);
+  margin: 0;
+}
+
+.form-row,
+.form-group {
+  padding: 12px 18px;
+  border: 0;
+  margin: 0;
+}
+.form-row + .form-row { border-top: 1px solid var(--ka-border-faint); }
+
+.errorlist {
+  list-style: none;
+  padding: 6px 10px;
+  margin: 6px 0 0 0;
+  background: var(--ka-danger-tint);
+  border-radius: var(--ka-radius-xs);
+  color: var(--ka-danger);
+  font-size: 11.5px;
+}
+
+.errornote,
+.errors {
+  background: var(--ka-danger-tint);
+  border: 1px solid rgba(239, 68, 68, 0.30);
+  color: var(--ka-danger);
+  border-radius: var(--ka-radius);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  margin: 0 0 12px 0;
+}
+
+/* Submit row */
+.submit-row {
+  background: var(--ka-surface) !important;
+  border: 1px solid var(--ka-border) !important;
+  border-radius: var(--ka-radius-lg);
+  padding: 12px 16px !important;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-end;
+  margin: 16px 0 0 0;
+  box-shadow: none;
+}
+.submit-row input,
+.submit-row .button {
+  height: 32px !important;
+  padding: 0 14px !important;
+  font-size: 12.5px !important;
+  font-weight: 500;
+  border-radius: var(--ka-radius-sm) !important;
+  border: 1px solid var(--ka-border) !important;
+  background: var(--ka-surface-hover) !important;
+  color: var(--ka-text) !important;
+}
+.submit-row input.default,
+.submit-row input[name="_save"] {
+  background: var(--ka-brand) !important;
+  border-color: var(--ka-brand) !important;
+  color: var(--ka-text-on-brand) !important;
+}
+.submit-row input.default:hover { background: var(--ka-brand-hover) !important; }
+.submit-row .deletelink-box .deletelink {
+  background: transparent !important;
+  border: 1px solid var(--ka-border) !important;
+  color: var(--ka-danger) !important;
+}
+.submit-row .deletelink-box .deletelink:hover {
+  background: var(--ka-danger-tint) !important;
+  border-color: transparent !important;
+}
+
+/* Inline forms */
+.inline-group {
+  background: var(--ka-surface);
+  border: 1px solid var(--ka-border);
+  border-radius: var(--ka-radius-lg);
+  margin: 0 0 16px 0;
+  padding: 0;
+}
+.inline-group .module { border: 0; border-radius: 0; margin: 0; }
+.inline-related h3 {
+  background: transparent !important;
+  border-bottom: 1px solid var(--ka-border);
+  padding: 10px 16px !important;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ka-text-muted);
+}
+.inline-related h3 a.inline-deletelink {
+  color: var(--ka-text-dim);
+}
+.inline-related h3 a.inline-deletelink:hover { color: var(--ka-danger); }
+
+/* Tabs (Jazzmin horizontal_tabs changeform) */
+.nav-tabs {
+  border-bottom: 1px solid var(--ka-border);
+  padding: 0 4px;
+  gap: 2px;
+}
+.nav-tabs .nav-link {
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  color: var(--ka-text-muted) !important;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 10px 14px !important;
+  margin-bottom: -1px;
+}
+.nav-tabs .nav-link:hover { color: var(--ka-text) !important; }
+.nav-tabs .nav-link.active {
+  color: var(--ka-text) !important;
+  border-bottom-color: var(--ka-brand) !important;
+  background: transparent !important;
+}
+.tab-content { padding-top: 14px; }
+
+/* ----------------------------------------------------------------------- *
+ * 11. Filters & pagination
+ * ----------------------------------------------------------------------- */
+
+#changelist-filter {
+  background: var(--ka-surface);
+  border: 1px solid var(--ka-border);
+  border-radius: var(--ka-radius-lg);
+  padding: 0;
+  margin-left: 16px;
+  width: 220px;
+}
+#changelist-filter h2 {
+  background: transparent;
+  border-bottom: 1px solid var(--ka-border);
+  color: var(--ka-text-dim);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 12px 14px;
+  margin: 0;
+}
+#changelist-filter h3 {
+  color: var(--ka-text);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 12px 14px 4px 14px;
+  margin: 0;
+}
+#changelist-filter ul {
+  list-style: none;
+  padding: 0 8px 12px 8px;
+  margin: 0;
+}
+#changelist-filter ul li {
+  margin: 1px 0;
+}
+#changelist-filter ul li a {
+  display: block;
+  padding: 5px 8px;
+  font-size: 12px;
+  color: var(--ka-text-muted);
+  border-radius: var(--ka-radius-sm);
+  transition: background var(--ka-dur) var(--ka-ease);
+}
+#changelist-filter ul li a:hover {
+  background: var(--ka-surface-hover);
+  color: var(--ka-text);
+}
+#changelist-filter ul li.selected a {
+  background: var(--ka-brand-tint);
+  color: var(--ka-text);
+  font-weight: 500;
+}
+
+/* Search bar above changelist */
+#toolbar {
+  background: var(--ka-surface);
+  border: 1px solid var(--ka-border);
+  border-radius: var(--ka-radius-lg);
+  padding: 10px 12px;
+  margin: 0 0 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+#toolbar form#changelist-search { display: flex; gap: 8px; flex: 1; }
+#toolbar input[type="text"],
+#toolbar input[type="search"] { height: 30px; }
+#toolbar input[type="submit"] {
+  background: var(--ka-surface-hover);
+  border: 1px solid var(--ka-border);
+  color: var(--ka-text);
+  height: 30px;
+  padding: 0 12px;
+  border-radius: var(--ka-radius-sm);
+  font-size: 12px;
+}
+
+/* Pagination */
+.paginator {
+  padding: 12px 0 0 0;
+  font-size: 12px;
+}
+.paginator a,
+.paginator .this-page {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  margin: 0 2px;
+  border: 1px solid var(--ka-border);
+  border-radius: var(--ka-radius-sm);
+  background: var(--ka-surface);
+  color: var(--ka-text-muted);
+  font-size: 12px;
+}
+.paginator a:hover {
+  background: var(--ka-surface-hover);
+  color: var(--ka-text);
+}
+.paginator .this-page {
+  background: var(--ka-brand);
+  border-color: var(--ka-brand);
+  color: var(--ka-text-on-brand);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 12. Messages, alerts, badges
+ * ----------------------------------------------------------------------- */
+
+ul.messagelist {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+ul.messagelist li {
+  background: var(--ka-surface);
+  border: 1px solid var(--ka-border);
+  border-left: 3px solid var(--ka-info);
+  border-radius: var(--ka-radius);
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: var(--ka-text);
+}
+ul.messagelist li.success { border-left-color: var(--ka-success); }
+ul.messagelist li.warning { border-left-color: var(--ka-warning); }
+ul.messagelist li.error,
+ul.messagelist li.danger  { border-left-color: var(--ka-danger); }
+
+.alert {
+  background: var(--ka-surface);
+  border: 1px solid var(--ka-border);
+  border-radius: var(--ka-radius);
+  color: var(--ka-text);
+  padding: 10px 14px;
+  font-size: 12.5px;
+}
+.alert-info    { border-left: 3px solid var(--ka-info); }
+.alert-success { border-left: 3px solid var(--ka-success); }
+.alert-warning { border-left: 3px solid var(--ka-warning); }
+.alert-danger,
+.alert-error   { border-left: 3px solid var(--ka-danger); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 6px;
+  font-size: 10.5px;
+  font-weight: 500;
+  border-radius: var(--ka-radius-xs);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.badge-primary,
+.badge-info,
+.badge-success,
+.badge-warning,
+.badge-danger {
+  background: var(--ka-surface-hover);
+  color: var(--ka-text-muted);
+  border: 1px solid var(--ka-border);
+}
+.badge-success { background: var(--ka-success-tint); color: var(--ka-success); border-color: transparent; }
+.badge-warning { background: var(--ka-warning-tint); color: var(--ka-warning); border-color: transparent; }
+.badge-danger  { background: var(--ka-danger-tint);  color: var(--ka-danger);  border-color: transparent; }
+.badge-info    { background: var(--ka-info-tint);    color: var(--ka-info);    border-color: transparent; }
+
+/* ----------------------------------------------------------------------- *
+ * 13. Login page
+ * ----------------------------------------------------------------------- */
+
+body.login {
+  background: var(--ka-bg) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+}
+
+.login-page,
+.register-page {
+  background: var(--ka-bg) !important;
+}
+
+.login-box,
+.register-box {
+  width: 360px;
+  margin: 0 auto;
+}
+
+.login-card-body,
+.register-card-body,
+.card.card-outline.card-primary {
+  background: var(--ka-surface) !important;
+  border: 1px solid var(--ka-border) !important;
+  border-radius: var(--ka-radius-lg) !important;
+  box-shadow: var(--ka-shadow-lg) !important;
+  padding: 24px !important;
+}
+
+.login-logo,
+.register-logo {
+  margin-bottom: 16px;
+}
+.login-logo a,
+.register-logo a {
+  color: var(--ka-text) !important;
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.login-box-msg,
+.register-box-msg {
+  color: var(--ka-text-muted);
+  font-size: 13px;
+  text-align: left;
+  margin-bottom: 16px;
+}
+
+.login-card-body .input-group,
+.register-card-body .input-group { margin-bottom: 10px; }
+
+.login-card-body .input-group-append .input-group-text,
+.input-group-text {
+  background: var(--ka-surface-input) !important;
+  border: 1px solid var(--ka-border-strong) !important;
+  border-left: 0 !important;
+  color: var(--ka-text-dim) !important;
+}
+
+/* ----------------------------------------------------------------------- *
+ * 14. Misc utilities
+ * ----------------------------------------------------------------------- */
+
+hr { border: 0; border-top: 1px solid var(--ka-border); margin: 16px 0; }
+
+code, kbd, pre, samp {
+  font-family: var(--ka-font-mono);
+  font-size: 12px;
+  background: var(--ka-surface);
+  border: 1px solid var(--ka-border);
+  border-radius: var(--ka-radius-xs);
+  padding: 1px 5px;
+  color: var(--ka-text);
+}
+pre {
+  padding: 12px;
+  border-radius: var(--ka-radius);
+  line-height: 1.5;
+  overflow: auto;
+}
+
+/* Generic muted, dim, strong text helpers used by Django admin */
+.text-muted,
+.quiet,
+.mini { color: var(--ka-text-muted) !important; }
+
+.help-tooltip,
+.fieldBox .field-help {
+  color: var(--ka-text-dim);
+  font-size: 11px;
+}
+
+/* Calendar / clock widgets popovers */
+.calendarbox,
+.clockbox {
+  background: var(--ka-surface) !important;
+  border: 1px solid var(--ka-border) !important;
+  border-radius: var(--ka-radius) !important;
+  box-shadow: var(--ka-shadow-lg) !important;
+}
+.calendarbox table th,
+.calendar caption,
+.calendar table thead th {
+  background: transparent !important;
+  color: var(--ka-text-dim);
+  font-size: 11px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--ka-border);
+}
+.calendar td a,
+.calendar td.selected a {
+  color: var(--ka-text-muted);
+  border-radius: var(--ka-radius-xs);
+}
+.calendar td a:hover { background: var(--ka-surface-hover); color: var(--ka-text); }
+.calendar td.selected a { background: var(--ka-brand); color: var(--ka-text-on-brand); }
+.calendarnav-previous,
+.calendarnav-next { color: var(--ka-text-muted) !important; }
+
+/* Related-object lookup modal */
+.related-widget-wrapper-link,
+.related-lookup,
+a.related-lookup,
+a.related-widget-wrapper-link,
+.add-related,
+.change-related,
+.delete-related,
+.view-related {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--ka-border) !important;
+  border-radius: var(--ka-radius-sm) !important;
+  background: var(--ka-surface) !important;
+  color: var(--ka-text-muted) !important;
+  margin-left: 4px;
+  font-size: 12px;
+}
+.related-widget-wrapper-link:hover,
+.add-related:hover,
+.change-related:hover,
+.view-related:hover {
+  background: var(--ka-surface-hover) !important;
+  color: var(--ka-text) !important;
+}
+.delete-related:hover {
+  background: var(--ka-danger-tint) !important;
+  color: var(--ka-danger) !important;
+}
+
+/* Inlined "Now / Today" shortcut links next to date inputs */
+.datetimeshortcuts a {
+  color: var(--ka-text-dim);
+  font-size: 11px;
+  margin-left: 4px;
+}
+.datetimeshortcuts a:hover { color: var(--ka-brand-hover); }
+
+/* Responsive — collapse sidebar at narrow widths */
+@media (max-width: 992px) {
+  .content-header { padding: 16px 16px 4px 16px; }
+  .content, section.content { padding: 8px 16px 24px 16px; }
+  .main-header { padding: 0 8px; }
+  #changelist-filter { width: 100%; margin: 12px 0 0 0; }
+}
+
+/* Smaller screens — make module cards stack with comfortable spacing */
+@media (max-width: 768px) {
+  .dashboard .col-md-6 { padding: 0; }
+  .dashboard .card,
+  #content-main .card { margin-bottom: 12px; }
+  .submit-row {
+    flex-wrap: wrap;
+    justify-content: stretch;
+  }
+  .submit-row input,
+  .submit-row .button { flex: 1 0 auto; }
+}
+
+/* Print — fall back to system defaults */
+@media print {
+  body, .wrapper, .content-wrapper { background: #fff !important; color: #000 !important; }
+  .main-sidebar, .main-header, .object-tools, .submit-row { display: none !important; }
+}

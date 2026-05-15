@@ -10,6 +10,7 @@ urlpatterns = [
     # API v1 endpoints
     path("api/v1/tenants/", include("apps.tenants.urls")),
     path("api/v1/accounts/", include("apps.accounts.urls")),
+    path("api/v1/api-keys/", include("apps.api_keys.urls")),
     path("api/v1/tickets/", include("apps.tickets.urls")),
     path("api/v1/contacts/", include("apps.contacts.urls")),
     path("api/v1/billing/", include("apps.billing.urls")),

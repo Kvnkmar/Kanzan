@@ -862,6 +862,112 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   /* ------------------------------------------------------------------ */
   var detailModal = new bootstrap.Modal(document.getElementById('eventDetailModal'));
 
+  /* ── Day-overflow popover ── */
+  var WEEKDAY_FULL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  var dayPopoverEl = null;
+  var dayPopoverCleanup = null;
+
+  function closeDayEventsPopover() {
+    if (dayPopoverEl) { dayPopoverEl.remove(); dayPopoverEl = null; }
+    if (dayPopoverCleanup) { dayPopoverCleanup(); dayPopoverCleanup = null; }
+  }
+
+  function showDayEventsPopover(anchor, dayKey, events) {
+    closeDayEventsPopover();
+
+    var dt = new Date(dayKey + 'T00:00:00');
+    var heading = WEEKDAY_FULL[dt.getDay()] + ', ' + MONTH_SHORT[dt.getMonth()] + ' ' + dt.getDate();
+
+    var pop = document.createElement('div');
+    pop.className = 'fc-day-popover';
+    pop.setAttribute('role', 'dialog');
+    pop.setAttribute('aria-label', heading + ' events');
+
+    var header = document.createElement('div');
+    header.className = 'fc-day-popover-header';
+    var titleSpan = document.createElement('span');
+    titleSpan.className = 'fc-day-popover-title';
+    titleSpan.textContent = heading;
+    var closeBtn = document.createElement('button');
+    closeBtn.type = 'button';
+    closeBtn.className = 'fc-day-popover-close';
+    closeBtn.setAttribute('aria-label', 'Close');
+    var closeIcon = document.createElement('i');
+    closeIcon.className = 'ti ti-x';
+    closeBtn.appendChild(closeIcon);
+    header.appendChild(titleSpan);
+    header.appendChild(closeBtn);
+    pop.appendChild(header);
+
+    var list = document.createElement('div');
+    list.className = 'fc-day-popover-list';
+    events.forEach(function(ev, idx) {
+      var color = ev.customColor || EVENT_COLORS[ev.type] || EVENT_COLORS['default'];
+      var item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'fc-day-popover-item';
+      item.style.borderLeftColor = color;
+      item.dataset.idx = String(idx);
+      if (ev.time) {
+        var timeEl = document.createElement('span');
+        timeEl.className = 'fc-day-popover-time';
+        timeEl.textContent = ev.time;
+        item.appendChild(timeEl);
+      }
+      var labelEl = document.createElement('span');
+      labelEl.className = 'fc-day-popover-label';
+      labelEl.textContent = ev.label || '';
+      item.appendChild(labelEl);
+      item.addEventListener('click', function(e) {
+        e.stopPropagation();
+        closeDayEventsPopover();
+        showEventDetail(events[idx]);
+      });
+      list.appendChild(item);
+    });
+    pop.appendChild(list);
+
+    document.body.appendChild(pop);
+
+    var rect = anchor.getBoundingClientRect();
+    var popRect = pop.getBoundingClientRect();
+    var margin = 8;
+    var top = rect.bottom + window.scrollY + 4;
+    var left = rect.left + window.scrollX;
+    if (left + popRect.width + margin > window.scrollX + document.documentElement.clientWidth) {
+      left = window.scrollX + document.documentElement.clientWidth - popRect.width - margin;
+    }
+    if (top + popRect.height + margin > window.scrollY + document.documentElement.clientHeight) {
+      top = rect.top + window.scrollY - popRect.height - 4;
+    }
+    if (left < window.scrollX + margin) left = window.scrollX + margin;
+    if (top < window.scrollY + margin) top = window.scrollY + margin;
+    pop.style.top = top + 'px';
+    pop.style.left = left + 'px';
+
+    closeBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      closeDayEventsPopover();
+    });
+    pop.addEventListener('click', function(e) { e.stopPropagation(); });
+
+    function onDocClick() { closeDayEventsPopover(); }
+    function onKey(e) { if (e.key === 'Escape') closeDayEventsPopover(); }
+    function onScroll() { closeDayEventsPopover(); }
+    setTimeout(function() { document.addEventListener('click', onDocClick); }, 0);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onScroll);
+    window.addEventListener('scroll', onScroll, true);
+
+    dayPopoverEl = pop;
+    dayPopoverCleanup = function() {
+      document.removeEventListener('click', onDocClick);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('scroll', onScroll, true);
+    };
+  }
+
   function showEventDetail(ev) {
     var body = document.getElementById('eventDetailBody');
     var footer = document.getElementById('eventDetailFooter');
@@ -1210,11 +1316,12 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
           var more = document.createElement('div');
           more.className = 'fc-event-more';
           more.textContent = '+' + (dayEvents.length - maxShow) + ' more';
-          more.addEventListener('click', function(e) {
-            e.stopPropagation();
-            // Show first overflow event
-            showEventDetail(dayEvents[maxShow]);
-          });
+          (function(eventsForDay, dayKeyForPopover) {
+            more.addEventListener('click', function(e) {
+              e.stopPropagation();
+              showDayEventsPopover(more, dayKeyForPopover, eventsForDay);
+            });
+          })(dayEvents, dk);
           evContainer.appendChild(more);
         }
       });

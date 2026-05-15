@@ -41,6 +41,7 @@ var TicketFeed = (function () {
         ws.onopen = function () {
             connected = true;
             reconnectAttempts = 0;
+            if (window.LiveBus) LiveBus.setChannelState('ticket_feed', 'open');
             console.log('[TicketFeed] Connected');
         };
 
@@ -48,6 +49,7 @@ var TicketFeed = (function () {
             try {
                 var data = JSON.parse(event.data);
                 notifyListeners(data);
+                publishToBus(data);
                 updateTicketListUI(data);
             } catch (e) {
                 console.warn('[TicketFeed] Failed to parse message:', e);
@@ -56,7 +58,9 @@ var TicketFeed = (function () {
 
         ws.onclose = function (event) {
             connected = false;
+            if (window.LiveBus) LiveBus.setChannelState('ticket_feed', 'closed');
             if (event.code !== 1000) {
+                if (window.LiveBus) LiveBus.setChannelState('ticket_feed', 'reconnecting');
                 scheduleReconnect();
             }
         };
@@ -64,6 +68,27 @@ var TicketFeed = (function () {
         ws.onerror = function () {
             connected = false;
         };
+    }
+
+    /**
+     * Forward each server event into LiveBus using the canonical
+     * "<domain>.<verb>" naming so other pages can subscribe by event
+     * type without caring about the underlying WebSocket.
+     *
+     * Server emits ticket_created / ticket_updated / ticket_assigned /
+     * ticket_closed / ticket_deleted; we publish as ticket.created /
+     * ticket.updated / ticket.assigned / ticket.closed / ticket.deleted.
+     * Also publishes a generic "ticket.*" passthrough as "ticket.event"
+     * so debounced refetch handlers can listen once.
+     */
+    function publishToBus(data) {
+        if (!window.LiveBus || !data || !data.type) return;
+        var eventType = String(data.type).replace(/^ticket_/, 'ticket.');
+        LiveBus.publish(eventType, data);
+        // Aggregated event for refetch-on-any-change subscribers.
+        if (eventType.indexOf('ticket.') === 0) {
+            LiveBus.publish('ticket.event', data);
+        }
     }
 
     function disconnect() {
@@ -148,31 +173,52 @@ var TicketFeed = (function () {
         }
     }
 
+    // Track how many new tickets have arrived but aren't yet inserted into
+    // the visible list, so the banner shows a useful count. Pages that
+    // care (tickets list, dashboard) subscribe to ticket.created via
+    // LiveBus and reset this counter once they've folded the new rows in.
+    var pendingNewCount = 0;
+
     function showNewTicketBanner() {
-        var existing = document.getElementById('new-tickets-banner');
-        if (existing) return;
+        pendingNewCount++;
+        var banner = document.getElementById('new-tickets-banner');
+        if (!banner) {
+            banner = document.createElement('div');
+            banner.id = 'new-tickets-banner';
+            banner.className = 'new-tickets-banner';
+            banner.setAttribute('role', 'status');
+            banner.setAttribute('aria-live', 'polite');
 
-        var banner = document.createElement('div');
-        banner.id = 'new-tickets-banner';
-        banner.className = 'new-tickets-banner';
-        banner.setAttribute('role', 'status');
-        banner.setAttribute('aria-live', 'polite');
+            var text = document.createElement('span');
+            text.className = 'new-tickets-banner-text';
+            banner.appendChild(text);
 
-        var text = document.createElement('span');
-        text.textContent = 'New tickets available. ';
-        banner.appendChild(text);
+            var btn = document.createElement('button');
+            btn.className = 'btn btn-sm btn-link p-0';
+            btn.textContent = 'Show';
+            btn.addEventListener('click', function () {
+                // Ask the current page to fold in the pending rows. The
+                // page handler is responsible for the actual DOM insert
+                // (it knows its sort order, filters, etc.). We just emit
+                // a request and clear the banner.
+                if (window.LiveBus) {
+                    LiveBus.publish('ticket.show_pending', { count: pendingNewCount });
+                }
+                pendingNewCount = 0;
+                banner.remove();
+            });
+            banner.appendChild(btn);
 
-        var btn = document.createElement('button');
-        btn.className = 'btn btn-sm btn-link p-0';
-        btn.textContent = 'Refresh';
-        btn.addEventListener('click', function () {
-            window.location.reload();
-        });
-        banner.appendChild(btn);
-
-        var container = document.querySelector('.ticket-list-container, .content-area, main');
-        if (container) {
-            container.insertBefore(banner, container.firstChild);
+            var container = document.querySelector('.ticket-list-container, .content-area, main');
+            if (container) {
+                container.insertBefore(banner, container.firstChild);
+            }
+        }
+        var textEl = banner.querySelector('.new-tickets-banner-text');
+        if (textEl) {
+            textEl.textContent = pendingNewCount === 1
+                ? '1 new ticket. '
+                : pendingNewCount + ' new tickets. ';
         }
     }
 

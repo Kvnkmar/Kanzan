@@ -2287,7 +2287,10 @@ function switchSettingsTab(targetId) {
     });
     var logoDropzone = document.getElementById('logoDropzone');
     var logoFileInput = document.getElementById('logoFileInput');
-    document.getElementById('logoBrowseLink').addEventListener('click', function() { logoFileInput.click(); });
+    logoDropzone.addEventListener('click', function(e) {
+      if (e.target === logoFileInput) return;
+      logoFileInput.click();
+    });
     logoFileInput.addEventListener('change', function() { if (this.files.length) uploadLogo(this.files[0]); });
     logoDropzone.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('dragover'); });
     logoDropzone.addEventListener('dragleave', function() { this.classList.remove('dragover'); });

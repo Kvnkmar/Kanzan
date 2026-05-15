@@ -5,10 +5,10 @@
 <div id="auditPageData" data-current-user="{{ request.user.pk }}" class="d-none"></div>
 
 <!-- Page Header -->
-<div class="page-header">
+<div class="page-header audit-page-header">
   <div>
     <h1 class="page-title">Audit Log</h1>
-    <p class="page-subtitle">Track all actions and changes across your workspace</p>
+    <p class="page-subtitle">Forensic trail of every action across your workspace</p>
   </div>
   <div class="page-header-actions">
     <div class="dropdown" id="auditExportDropdown">
@@ -40,80 +40,114 @@
 <div class="tab-content" id="auditSectionTabContent">
 <div class="tab-pane fade show active" id="pane-activity" role="tabpanel" aria-labelledby="tab-activity">
 
-<!-- Stats -->
-<div class="row g-3 mb-4" id="auditStats">
-  <div class="col-6 col-md-2">
-    <div class="stat-card stat-card--audit-total h-100">
-      <div class="stat-label">Total Events</div>
-      <div class="stat-value" id="statTotal">--</div>
+<!-- Insights Ribbon -->
+<section class="audit-insights" aria-label="Workspace activity insights">
+  <div class="audit-insights-block audit-insights-pulse">
+    <div class="audit-insights-pulse-head">
+      <span class="audit-live-dot" id="auditLiveDot" aria-hidden="true"></span>
+      <span class="audit-insights-eyebrow" id="auditLiveLabel">Live</span>
+      <span class="audit-insights-number" id="statTotal">—</span>
+      <span class="audit-insights-unit">events total</span>
+    </div>
+    <div class="audit-insights-pulse-sub">
+      <span class="audit-insights-pill"><i class="ti ti-bolt"></i><span id="statToday">—</span> today</span>
+      <span class="audit-insights-pill"><i class="ti ti-calendar-week"></i><span id="statWeek">—</span> this week</span>
+      <span class="audit-insights-pill"><i class="ti ti-users"></i><span id="statUsers">—</span> active users</span>
     </div>
   </div>
-  <div class="col-6 col-md-2">
-    <div class="stat-card stat-card--audit-today h-100">
-      <div class="stat-label">Today</div>
-      <div class="stat-value" id="statToday">--</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-2">
-    <div class="stat-card stat-card--audit-week h-100">
-      <div class="stat-label">This Week</div>
-      <div class="stat-value" id="statWeek">--</div>
-    </div>
-  </div>
-  <div class="col-6 col-md-2">
-    <div class="stat-card stat-card--audit-users h-100">
-      <div class="stat-label">Unique Users</div>
-      <div class="stat-value" id="statUsers">--</div>
-    </div>
-  </div>
-  <div class="col-12 col-md-4">
-    <div class="stat-card audit-sparkline-card h-100">
-      <div class="stat-label">Last 7 Days</div>
-      <div class="audit-sparkline" id="auditSparkline"></div>
-    </div>
-  </div>
-</div>
 
-<!-- Quick Filter Presets -->
-<div class="audit-quick-filters" id="quickFilters">
-  <button class="audit-quick-btn active" data-preset="all">All</button>
-  <button class="audit-quick-btn" data-preset="today">Today</button>
-  <button class="audit-quick-btn" data-preset="week">This Week</button>
-  <button class="audit-quick-btn" data-preset="mine">My Actions</button>
-  <span class="audit-filter-separator"></span>
-  <button class="audit-clear-filters d-none" id="btnClearFilters">
-    <i class="ti ti-x me-1"></i>Clear filters<span class="audit-filter-count d-none" id="filterCount"></span>
-  </button>
-</div>
+  <div class="audit-insights-block audit-insights-heat">
+    <div class="audit-insights-heat-head">
+      <span class="audit-insights-eyebrow">Last 7 days</span>
+      <span class="audit-insights-heat-peak" id="heatPeakLabel">—</span>
+    </div>
+    <div class="audit-heat-ribbon" id="auditHeatRibbon" role="img" aria-label="7-day activity heat ribbon"></div>
+  </div>
 
-<!-- Filters -->
-<div class="tl-toolbar">
-  <div class="tl-toolbar-left">
-    <div class="tl-toolbar-filters">
-      <div class="tl-filter-group">
-        <label for="filterAction" class="visually-hidden">Action</label>
-        <select id="filterAction" class="form-select form-select-sm tl-filter-select">
-          <option value="">All Actions</option>
-          <option value="created">Created</option>
-          <option value="updated">Updated</option>
-          <option value="assigned">Assigned</option>
-          <option value="status_changed">Status Changed</option>
-          <option value="commented">Commented</option>
-          <option value="deleted">Deleted</option>
-          <option value="field_changed">Field Changed</option>
-          <option value="closed">Closed</option>
-          <option value="reopened">Reopened</option>
-          <option value="attachment_added">Attachment Added</option>
-          <option value="attachment_removed">Attachment Removed</option>
-          <option value="sla_updated">SLA Updated</option>
-          <option value="email_linked">Email Linked</option>
-          <option value="email_actioned">Email Actioned</option>
-        </select>
+  <div class="audit-insights-block audit-insights-actor">
+    <div class="audit-insights-eyebrow">Top contributor</div>
+    <div class="audit-top-actor" id="auditTopActor">
+      <div class="audit-top-actor-avatar audit-top-actor-avatar--placeholder">·</div>
+      <div class="audit-top-actor-info">
+        <div class="audit-top-actor-name text-muted">No activity yet</div>
+        <div class="audit-top-actor-count">—</div>
       </div>
-      <div class="tl-filter-group">
+    </div>
+  </div>
+
+  <div class="audit-insights-block audit-insights-risk" id="auditRiskBlock">
+    <div class="audit-insights-eyebrow"><i class="ti ti-shield-half"></i> Risk signal</div>
+    <div class="audit-risk-number" id="auditRiskCount">—</div>
+    <div class="audit-risk-label">destructive actions this week</div>
+  </div>
+</section>
+
+<!-- Filter Bar: chip rail + Filter dropdown + Search, all on one row -->
+<div class="audit-filterbar">
+  <div class="audit-chiprail" id="auditChipRail" role="toolbar" aria-label="Filter by action type">
+    <button class="audit-chip audit-chip--all is-active" data-action="" type="button">
+      <span class="audit-chip-dot"></span>
+      <span class="audit-chip-label">All actions</span>
+      <span class="audit-chip-count" id="chipCountAll">—</span>
+    </button>
+    <span class="audit-chip-divider"></span>
+    <!-- action chips injected by JS, "More ▾" dropdown appended last -->
+  </div>
+
+  <span class="audit-filterbar-spacer"></span>
+
+  <button class="audit-clear-link d-none" id="btnClearFilters" type="button">
+    <i class="ti ti-x"></i> Clear all<span class="audit-filter-count d-none" id="filterCount"></span>
+  </button>
+
+  <div class="audit-search">
+    <i class="ti ti-search" aria-hidden="true"></i>
+    <label for="filterSearch" class="visually-hidden">Search audit logs</label>
+    <input type="text" id="filterSearch" placeholder="Search description, user, ticket…">
+  </div>
+
+  <div class="dropdown audit-filter-dropdown">
+    <button class="audit-filter-btn" type="button" id="auditFilterBtn"
+            data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+            aria-label="Open filter panel">
+      <i class="ti ti-adjustments-horizontal"></i>
+      <span>Filter</span>
+      <span class="audit-filter-btn-count d-none" id="auditFilterBtnCount">0</span>
+    </button>
+
+    <div class="dropdown-menu dropdown-menu-end audit-filter-panel" aria-labelledby="auditFilterBtn">
+      <div class="audit-filter-panel-head">
+        <span class="audit-filter-panel-title">Filter events</span>
+        <button class="audit-filter-reset" id="auditFilterReset" type="button">
+          <i class="ti ti-rotate-clockwise"></i> Reset
+        </button>
+      </div>
+
+      <div class="audit-filter-group">
+        <div class="audit-filter-group-label">When</div>
+        <div class="audit-filter-group-row">
+          <button class="audit-quick-btn" data-preset="today" type="button">Today</button>
+          <button class="audit-quick-btn" data-preset="week" type="button">This week</button>
+        </div>
+        <label class="audit-filter-since" for="filterDateFrom">
+          <span class="audit-filter-since-label"><i class="ti ti-calendar-event"></i> Since</span>
+          <input type="date" id="filterDateFrom" class="audit-filter-since-input" aria-label="Since date">
+        </label>
+        <input type="hidden" id="filterDateTo" value="">
+      </div>
+
+      <div class="audit-filter-group">
+        <div class="audit-filter-group-label">Actor</div>
+        <button class="audit-quick-btn audit-quick-btn--full" data-preset="mine" type="button">
+          <i class="ti ti-user"></i> Only my actions
+        </button>
+      </div>
+
+      <div class="audit-filter-group">
+        <div class="audit-filter-group-label">Entity type</div>
         <label for="filterEntity" class="visually-hidden">Entity Type</label>
-        <select id="filterEntity" class="form-select form-select-sm tl-filter-select">
-          <option value="">All Entities</option>
+        <select id="filterEntity" class="audit-filter-select" aria-label="Filter by entity">
+          <option value="">All entities</option>
           <option value="tickets.ticket">Tickets</option>
           <option value="contacts.contact">Contacts</option>
           <option value="contacts.company">Companies</option>
@@ -121,50 +155,39 @@
           <option value="knowledge.article">Articles</option>
         </select>
       </div>
-      <div class="tl-filter-group">
-        <label for="filterDateFrom" class="visually-hidden">Since Date</label>
-        <input type="date" id="filterDateFrom" class="form-control form-control-sm tl-filter-select" title="Since date">
-      </div>
-      <input type="hidden" id="filterDateTo" value="">
-    </div>
-  </div>
-  <div class="tl-toolbar-right">
-    <div class="tl-filter-search">
-      <i class="ti ti-search" aria-hidden="true"></i>
-      <label for="filterSearch" class="visually-hidden">Search audit logs</label>
-      <input type="text" id="filterSearch" class="form-control form-control-sm" placeholder="Search descriptions...">
     </div>
   </div>
 </div>
 
-<!-- Table Header -->
-<div class="tl-table-header">
-  <div class="tl-col" style="flex:2;">User</div>
-  <div class="tl-col" style="flex:1.5;">Action</div>
-  <div class="tl-col" style="flex:1.2;">Entity</div>
-  <div class="tl-col" style="flex:4;">Description</div>
-  <div class="tl-col" style="flex:1.5;">When</div>
+<!-- Result count strip -->
+<div class="audit-result-strip" id="auditResultStrip">
+  <span class="audit-result-count" id="auditResultCount">—</span>
+  <span class="audit-result-divider"></span>
+  <span class="audit-result-applied" id="auditResultApplied"></span>
 </div>
 
-<!-- Audit Log List -->
-<div class="tl-ticket-list audit-log-table" id="auditList" role="list" aria-label="Audit log list">
-  <div class="tl-loading" role="status">
+<!-- Timeline -->
+<div class="audit-timeline-stream" id="auditList" role="list" aria-label="Activity log timeline">
+  <div class="audit-stream-loading" role="status">
     <div class="spinner-border spinner-border-sm text-primary" aria-hidden="true"></div>
-    <span>Loading audit logs...</span>
+    <span>Loading activity…</span>
   </div>
 </div>
 
 <!-- Empty State -->
 <div id="emptyState" class="d-none">
-  <div class="tl-empty">
+  <div class="audit-empty">
     <div class="audit-empty-icon"><i class="ti ti-history-off" aria-hidden="true"></i></div>
-    <h5 class="tl-empty-title">No matching events</h5>
-    <p class="tl-empty-text">Try adjusting your filters or search query.</p>
+    <h5 class="audit-empty-title">No matching events</h5>
+    <p class="audit-empty-text">Try a different action chip, widen the date range, or clear your filters.</p>
     <button class="btn btn-sm btn-outline-primary d-none" id="emptyStateClear">
       <i class="ti ti-filter-off me-1"></i>Clear all filters
     </button>
   </div>
 </div>
+
+<!-- Hidden legacy input (kept for JS compat — replaced by chip rail) -->
+<select id="filterAction" class="visually-hidden" aria-hidden="true" tabindex="-1"><option value=""></option></select>
 
 <!-- Pagination -->
 <nav id="paginationNav" class="mt-3 d-none" aria-label="Audit log pagination">
@@ -350,32 +373,63 @@
   var currentEntries = [];
   var currentDetailIndex = -1;
   var drawerInstance = null;
-  var activePreset = 'all';
+  var activeDatePreset = '';            // '' | 'today' | 'week'
+  var mineOnly = false;
+  var selectedActions = new Set();      // multi-select chip state
+
+  // Category-driven palette: each action maps to a semantic family.
+  // Keeps the design coherent and lets a single token swap re-skin everything.
+  // Categories: positive | neutral | primary | destructive | warning
+  var ACTION_META = {
+    created:                { cat: 'positive',    icon: 'ti-plus',           label: 'Created' },
+    updated:                { cat: 'primary',     icon: 'ti-pencil',         label: 'Updated' },
+    field_changed:          { cat: 'primary',     icon: 'ti-edit',           label: 'Field changed' },
+    status_changed:         { cat: 'primary',     icon: 'ti-arrows-exchange',label: 'Status changed' },
+    pipeline_stage_changed: { cat: 'primary',     icon: 'ti-layout-kanban',  label: 'Stage moved' },
+    sla_updated:            { cat: 'primary',     icon: 'ti-clock',          label: 'SLA updated' },
+    assigned:               { cat: 'info',        icon: 'ti-user-check',     label: 'Assigned' },
+    commented:              { cat: 'info',        icon: 'ti-message',        label: 'Commented' },
+    attachment_added:       { cat: 'info',        icon: 'ti-paperclip',      label: 'Attached' },
+    email_linked:           { cat: 'info',        icon: 'ti-mail',           label: 'Email linked' },
+    email_actioned:         { cat: 'info',        icon: 'ti-mail-check',     label: 'Email actioned' },
+    imported:               { cat: 'info',        icon: 'ti-upload',         label: 'Imported' },
+    exported:               { cat: 'info',        icon: 'ti-download',       label: 'Exported' },
+    reopened:               { cat: 'warning',     icon: 'ti-refresh',        label: 'Reopened' },
+    closed:                 { cat: 'neutral',     icon: 'ti-circle-check',   label: 'Closed' },
+    deleted:                { cat: 'destructive', icon: 'ti-trash',          label: 'Deleted' },
+    attachment_removed:     { cat: 'destructive', icon: 'ti-paperclip-off',  label: 'Detached' }
+  };
+
+  var CATEGORY_TOKENS = {
+    positive:    { bg: 'var(--status-success-bg)',  fg: 'var(--status-success-text)',  dot: 'var(--status-success-dot)',  border: 'var(--status-success-border)' },
+    primary:     { bg: 'var(--crm-primary-light)',  fg: 'var(--crm-primary)',          dot: 'var(--crm-primary)',         border: 'var(--crm-primary-ring)' },
+    info:        { bg: 'var(--status-info-bg)',     fg: 'var(--status-info-text)',     dot: 'var(--status-info-dot)',     border: 'var(--status-info-border)' },
+    neutral:     { bg: 'var(--status-neutral-bg)',  fg: 'var(--status-neutral-text)',  dot: 'var(--status-neutral-dot)',  border: 'var(--status-neutral-border)' },
+    warning:     { bg: 'var(--status-warning-bg)',  fg: 'var(--status-warning-text)',  dot: 'var(--status-warning-dot)',  border: 'var(--status-warning-border)' },
+    destructive: { bg: 'var(--status-danger-bg)',   fg: 'var(--status-danger-text)',   dot: 'var(--status-danger-dot)',   border: 'var(--status-danger-border)' }
+  };
+
+  var DESTRUCTIVE_ACTIONS = ['deleted', 'attachment_removed'];
+
+  // Primary chips visible by default (most common actions). The rest fold under "More".
+  var PRIMARY_CHIPS = ['created', 'updated', 'status_changed', 'assigned', 'commented', 'closed', 'deleted'];
+  var SECONDARY_CHIPS = ['field_changed', 'reopened', 'attachment_added', 'attachment_removed', 'sla_updated', 'pipeline_stage_changed', 'email_linked', 'email_actioned'];
 
   var AVATAR_COLORS = [
-    'var(--crm-accent)', 'var(--status-neutral-dot)', 'var(--crm-primary)', 'var(--crm-accent)', 'var(--crm-accent)',
-    'var(--crm-accent)', 'var(--crm-primary)', 'var(--crm-primary)', 'var(--crm-primary)', 'var(--status-neutral-dot)'
+    'var(--crm-accent)', 'var(--status-neutral-dot)', 'var(--crm-primary)',
+    'var(--status-info-dot)', 'var(--status-success-dot)', 'var(--status-warning-dot)',
+    'var(--crm-primary-dark)', 'var(--crm-accent-hover)'
   ];
 
-  var ACTION_STYLES = {
-    created:             { bg: 'var(--status-neutral-bg)', color: 'var(--status-neutral-dot)', border: 'var(--status-neutral-bg)', icon: 'ti-plus' },
-    updated:             { bg: 'var(--crm-primary-light)', color: 'var(--crm-primary)', border: 'var(--crm-primary-light)', icon: 'ti-pencil' },
-    assigned:            { bg: 'rgba(var(--crm-accent-rgb), 0.10)', color: 'var(--crm-accent)', border: 'rgba(var(--crm-accent-rgb), 0.10)', icon: 'ti-user-check' },
-    status_changed:      { bg: 'var(--crm-primary-light)', color: 'var(--crm-primary)', border: 'var(--crm-primary-light)', icon: 'ti-arrows-exchange' },
-    commented:           { bg: 'var(--status-neutral-bg)', color: 'var(--status-neutral-dot)', border: 'var(--status-neutral-bg)', icon: 'ti-message' },
-    deleted:             { bg: 'rgba(var(--crm-accent-rgb), 0.10)', color: 'var(--crm-accent)', border: 'rgba(var(--crm-accent-rgb), 0.10)', icon: 'ti-trash' },
-    field_changed:       { bg: 'var(--crm-primary-light)', color: 'var(--crm-primary)', border: 'var(--crm-primary-light)', icon: 'ti-edit' },
-    imported:            { bg: 'rgba(var(--crm-accent-rgb), 0.10)', color: 'var(--crm-accent)', border: 'rgba(var(--crm-accent-rgb), 0.10)', icon: 'ti-upload' },
-    exported:            { bg: 'rgba(var(--crm-accent-rgb), 0.10)', color: 'var(--crm-accent)', border: 'rgba(var(--crm-accent-rgb), 0.10)', icon: 'ti-download' },
-    closed:              { bg: '#6B6B701A', color: '#6B6B70', border: '#6B6B7033', icon: 'ti-circle-check' },
-    reopened:            { bg: 'rgba(var(--crm-accent-rgb), 0.10)', color: 'var(--crm-accent)', border: 'rgba(var(--crm-accent-rgb), 0.10)', icon: 'ti-refresh' },
-    attachment_added:    { bg: 'rgba(var(--crm-accent-rgb), 0.10)', color: 'var(--crm-accent)', border: 'rgba(var(--crm-accent-rgb), 0.10)', icon: 'ti-paperclip' },
-    attachment_removed:  { bg: 'rgba(var(--crm-accent-rgb), 0.10)', color: 'var(--crm-accent)', border: 'rgba(var(--crm-accent-rgb), 0.10)', icon: 'ti-paperclip' },
-    sla_updated:         { bg: 'var(--crm-primary-light)', color: 'var(--crm-primary)', border: 'var(--crm-primary-light)', icon: 'ti-clock' },
-    pipeline_stage_changed: { bg: 'var(--crm-primary-light)', color: 'var(--crm-primary)', border: 'var(--crm-primary-light)', icon: 'ti-layout-kanban' },
-    email_linked:        { bg: 'rgba(var(--crm-accent-rgb), 0.10)', color: 'var(--crm-accent)', border: 'rgba(var(--crm-accent-rgb), 0.10)', icon: 'ti-mail' },
-    email_actioned:      { bg: 'var(--status-neutral-bg)', color: 'var(--status-neutral-dot)', border: 'var(--status-neutral-bg)', icon: 'ti-mail-check' }
-  };
+  // Back-compat shim so code that still expects ACTION_STYLES keeps working
+  var ACTION_STYLES = (function() {
+    var s = {};
+    Object.keys(ACTION_META).forEach(function(k) {
+      var t = CATEGORY_TOKENS[ACTION_META[k].cat];
+      s[k] = { bg: t.bg, color: t.fg, border: t.border, icon: ACTION_META[k].icon };
+    });
+    return s;
+  })();
 
   var ENTITY_LABELS = {
     ticket: 'Ticket', contact: 'Contact', company: 'Company', comment: 'Comment',
@@ -383,10 +437,17 @@
     message: 'Message', notification: 'Notification'
   };
 
+  var ENTITY_ICONS = {
+    ticket: 'ti-ticket', contact: 'ti-user', company: 'ti-building',
+    comment: 'ti-message-2', article: 'ti-book', board: 'ti-layout-kanban',
+    column: 'ti-columns', conversation: 'ti-messages', message: 'ti-message',
+    notification: 'ti-bell'
+  };
+
   var dom = {
     auditList: document.getElementById('auditList'),
     emptyState: document.getElementById('emptyState'),
-    filterAction: document.getElementById('filterAction'),
+    filterAction: document.getElementById('filterAction'),       // hidden legacy shim
     filterEntity: document.getElementById('filterEntity'),
     filterSearch: document.getElementById('filterSearch'),
     filterDateFrom: document.getElementById('filterDateFrom'),
@@ -398,18 +459,30 @@
     statToday: document.getElementById('statToday'),
     statWeek: document.getElementById('statWeek'),
     statUsers: document.getElementById('statUsers'),
-    sparkline: document.getElementById('auditSparkline'),
+    heatRibbon: document.getElementById('auditHeatRibbon'),
+    heatPeakLabel: document.getElementById('heatPeakLabel'),
+    chipRail: document.getElementById('auditChipRail'),
+    chipCountAll: document.getElementById('chipCountAll'),
+    topActor: document.getElementById('auditTopActor'),
+    riskCount: document.getElementById('auditRiskCount'),
+    liveDot: document.getElementById('auditLiveDot'),
+    liveLabel: document.getElementById('auditLiveLabel'),
+    resultCount: document.getElementById('auditResultCount'),
+    resultApplied: document.getElementById('auditResultApplied'),
     btnExportCsv: document.getElementById('btnExportCsv'),
     btnExportJson: document.getElementById('btnExportJson'),
     exportCount: document.getElementById('exportCount'),
-    quickFilters: document.getElementById('quickFilters'),
     btnClearFilters: document.getElementById('btnClearFilters'),
     filterCount: document.getElementById('filterCount'),
     emptyStateClear: document.getElementById('emptyStateClear'),
+    filterBtn: document.getElementById('auditFilterBtn'),
+    filterBtnCount: document.getElementById('auditFilterBtnCount'),
+    filterReset: document.getElementById('auditFilterReset'),
     drawerPrev: document.getElementById('drawerPrev'),
     drawerNext: document.getElementById('drawerNext'),
     detailBody: document.getElementById('auditDetailBody')
   };
+  dom.quickFilterButtons = document.querySelectorAll('.audit-quick-btn');
 
   var currentUserId = document.getElementById('auditPageData').dataset.currentUser || '';
 
@@ -480,25 +553,33 @@
     var params = new URLSearchParams();
     params.set('page', currentPage);
     params.set('page_size', PAGE_SIZE);
-    if (dom.filterAction.value) params.set('action', dom.filterAction.value);
+
+    // Multi-select action chips
+    if (selectedActions.size === 1) {
+      params.set('action', Array.from(selectedActions)[0]);
+    } else if (selectedActions.size > 1) {
+      params.set('action__in', Array.from(selectedActions).join(','));
+    }
+
     if (dom.filterEntity.value) params.set('content_type', dom.filterEntity.value);
     var q = dom.filterSearch.value.trim();
     if (q) params.set('search', q);
     if (dom.filterDateFrom.value) params.set('created_at__gte', dom.filterDateFrom.value + 'T00:00:00');
     if (dom.filterDateTo.value) params.set('created_at__lte', dom.filterDateTo.value + 'T23:59:59');
-    if (activePreset === 'mine' && currentUserId) params.set('actor', currentUserId);
+    if (mineOnly && currentUserId) params.set('actor', currentUserId);
     return params.toString();
   }
 
   function syncFiltersToUrl() {
     var params = new URLSearchParams();
-    if (dom.filterAction.value) params.set('action', dom.filterAction.value);
+    if (selectedActions.size) params.set('actions', Array.from(selectedActions).join(','));
     if (dom.filterEntity.value) params.set('entity', dom.filterEntity.value);
     if (dom.filterSearch.value.trim()) params.set('q', dom.filterSearch.value.trim());
     if (dom.filterDateFrom.value) params.set('from', dom.filterDateFrom.value);
     if (dom.filterDateTo.value) params.set('to', dom.filterDateTo.value);
     if (currentPage > 1) params.set('page', currentPage);
-    if (activePreset !== 'all') params.set('preset', activePreset);
+    if (activeDatePreset) params.set('preset', activeDatePreset);
+    if (mineOnly) params.set('mine', '1');
     var qs = params.toString();
     var url = window.location.pathname + (qs ? '?' + qs : '');
     window.history.replaceState(null, '', url);
@@ -506,26 +587,40 @@
 
   function loadFiltersFromUrl() {
     var params = new URLSearchParams(window.location.search);
-    if (params.get('action')) dom.filterAction.value = params.get('action');
+    var actionsParam = params.get('actions') || params.get('action');
+    if (actionsParam) {
+      actionsParam.split(',').forEach(function(a) {
+        a = a.trim();
+        if (a && ACTION_META[a]) selectedActions.add(a);
+      });
+    }
     if (params.get('entity')) dom.filterEntity.value = params.get('entity');
     if (params.get('q')) dom.filterSearch.value = params.get('q');
     if (params.get('from')) dom.filterDateFrom.value = params.get('from');
     if (params.get('to')) dom.filterDateTo.value = params.get('to');
     if (params.get('page')) currentPage = parseInt(params.get('page'), 10) || 1;
-    if (params.get('preset')) {
-      activePreset = params.get('preset');
-      updatePresetButtons();
-    }
+    if (params.get('preset')) activeDatePreset = params.get('preset');
+    if (params.get('mine') === '1') mineOnly = true;
   }
 
   function countActiveFilters() {
     var count = 0;
-    if (dom.filterAction.value) count++;
+    if (selectedActions.size) count++;
     if (dom.filterEntity.value) count++;
     if (dom.filterSearch.value.trim()) count++;
     if (dom.filterDateFrom.value) count++;
-    if (dom.filterDateTo.value) count++;
+    if (mineOnly) count++;
     return count;
+  }
+
+  function countFilterPanelFilters() {
+    // Filters that live inside the Filter dropdown — used for the button badge.
+    // Excludes action chips (their own state lives in the chip rail) and search.
+    var n = 0;
+    if (activeDatePreset || dom.filterDateFrom.value) n++;
+    if (mineOnly) n++;
+    if (dom.filterEntity.value) n++;
+    return n;
   }
 
   function updateFilterIndicator() {
@@ -533,52 +628,106 @@
     if (count > 0) {
       dom.btnClearFilters.classList.remove('d-none');
       dom.filterCount.classList.remove('d-none');
-      dom.filterCount.textContent = count;
+      dom.filterCount.textContent = ' · ' + count;
       dom.emptyStateClear.classList.remove('d-none');
     } else {
       dom.btnClearFilters.classList.add('d-none');
       dom.filterCount.classList.add('d-none');
       dom.emptyStateClear.classList.add('d-none');
     }
+
+    // Filter button badge (only panel-scoped filters)
+    var panelCount = countFilterPanelFilters();
+    if (panelCount > 0) {
+      dom.filterBtnCount.classList.remove('d-none');
+      dom.filterBtnCount.textContent = panelCount;
+      dom.filterBtn.classList.add('is-active');
+    } else {
+      dom.filterBtnCount.classList.add('d-none');
+      dom.filterBtn.classList.remove('is-active');
+    }
+    // Update "applied" summary in result strip
+    var bits = [];
+    if (selectedActions.size === 1) {
+      bits.push((ACTION_META[Array.from(selectedActions)[0]] || {}).label || 'filtered');
+    } else if (selectedActions.size > 1) {
+      bits.push(selectedActions.size + ' action types');
+    }
+    if (activeDatePreset === 'today') bits.push('today');
+    else if (activeDatePreset === 'week') bits.push('this week');
+    else if (dom.filterDateFrom.value) bits.push('since ' + dom.filterDateFrom.value);
+    if (mineOnly) bits.push('mine');
+    if (dom.filterEntity.value) {
+      var key = dom.filterEntity.value.split('.').pop();
+      bits.push(ENTITY_LABELS[key] || dom.filterEntity.value);
+    }
+    if (dom.filterSearch.value.trim()) bits.push('"' + dom.filterSearch.value.trim() + '"');
+    dom.resultApplied.textContent = bits.length ? '· ' + bits.join(' · ') : '';
   }
 
   function clearAllFilters() {
-    dom.filterAction.value = '';
+    selectedActions.clear();
     dom.filterEntity.value = '';
     dom.filterSearch.value = '';
     dom.filterDateFrom.value = '';
     dom.filterDateTo.value = '';
-    activePreset = 'all';
-    updatePresetButtons();
+    activeDatePreset = '';
+    mineOnly = false;
+    updateAllChipStates();
+    updateQuickPresetStates();
     currentPage = 1;
     loadLogs();
   }
 
-  function updatePresetButtons() {
-    var btns = dom.quickFilters.querySelectorAll('.audit-quick-btn');
-    for (var i = 0; i < btns.length; i++) {
-      btns[i].classList.toggle('active', btns[i].dataset.preset === activePreset);
+  function updateQuickPresetStates() {
+    for (var i = 0; i < dom.quickFilterButtons.length; i++) {
+      var btn = dom.quickFilterButtons[i];
+      var p = btn.dataset.preset;
+      var active = (p === activeDatePreset) || (p === 'mine' && mineOnly);
+      btn.classList.toggle('is-active', active);
     }
   }
 
-  function applyPreset(preset) {
-    dom.filterAction.value = '';
-    dom.filterEntity.value = '';
-    dom.filterSearch.value = '';
-    dom.filterDateFrom.value = '';
-    dom.filterDateTo.value = '';
-
-    activePreset = preset;
-    updatePresetButtons();
-
-    if (preset === 'today') {
-      dom.filterDateFrom.value = todayISO();
-    } else if (preset === 'week') {
-      dom.filterDateFrom.value = weekAgoISO();
+  function applyDatePreset(preset) {
+    // Toggle: clicking the active preset clears it
+    if (activeDatePreset === preset) {
+      activeDatePreset = '';
+      dom.filterDateFrom.value = '';
+    } else {
+      activeDatePreset = preset;
+      if (preset === 'today') dom.filterDateFrom.value = todayISO();
+      else if (preset === 'week') dom.filterDateFrom.value = weekAgoISO();
     }
-    // 'mine' is handled in buildParams via activePreset check
+    updateQuickPresetStates();
     currentPage = 1;
     loadLogs();
+  }
+
+  function toggleMineOnly() {
+    mineOnly = !mineOnly;
+    updateQuickPresetStates();
+    currentPage = 1;
+    loadLogs();
+  }
+
+  function toggleAction(action) {
+    if (selectedActions.has(action)) selectedActions.delete(action);
+    else selectedActions.add(action);
+    updateAllChipStates();
+    currentPage = 1;
+    loadLogs();
+  }
+
+  function updateAllChipStates() {
+    var chips = dom.chipRail.querySelectorAll('.audit-chip');
+    for (var i = 0; i < chips.length; i++) {
+      var act = chips[i].dataset.action;
+      if (!act) {
+        chips[i].classList.toggle('is-active', selectedActions.size === 0);
+      } else {
+        chips[i].classList.toggle('is-active', selectedActions.has(act));
+      }
+    }
   }
 
   // ── Action badge ──
@@ -629,7 +778,7 @@
     return span;
   }
 
-  // ── Loading skeleton ──
+  // ── Loading skeleton (timeline rhythm) ──
 
   function createSkeletonBlock(w, h, extra) {
     var d = document.createElement('div');
@@ -641,55 +790,66 @@
 
   function renderLoadingSkeleton() {
     var fragment = document.createDocumentFragment();
-    for (var i = 0; i < 5; i++) {
-      var row = document.createElement('div');
-      row.className = 'tl-table-row audit-skeleton-row';
+    for (var g = 0; g < 2; g++) {
+      var dayHeader = document.createElement('div');
+      dayHeader.className = 'audit-day-divider audit-day-divider--skeleton';
+      dayHeader.appendChild(createSkeletonBlock('120px', null, 'skeleton-text'));
+      fragment.appendChild(dayHeader);
 
-      // User col
-      var colUser = document.createElement('div');
-      colUser.className = 'tl-col';
-      colUser.style.flex = '2';
-      var userWrap = document.createElement('div');
-      userWrap.className = 'd-flex align-items-center gap-2';
-      userWrap.appendChild(createSkeletonBlock('28px', '28px', 'skeleton-avatar'));
-      var nameWrap = document.createElement('div');
-      nameWrap.appendChild(createSkeletonBlock('90px', null, 'skeleton-text'));
-      nameWrap.appendChild(createSkeletonBlock('120px', null, 'skeleton-text'));
-      nameWrap.lastChild.style.marginBottom = '0';
-      userWrap.appendChild(nameWrap);
-      colUser.appendChild(userWrap);
+      for (var i = 0; i < 4; i++) {
+        var row = document.createElement('div');
+        row.className = 'audit-event audit-event--skeleton';
 
-      var colAction = document.createElement('div');
-      colAction.className = 'tl-col';
-      colAction.style.flex = '1.5';
-      colAction.appendChild(createSkeletonBlock('75px', null, 'skeleton-text'));
+        var time = document.createElement('div');
+        time.className = 'audit-event-time';
+        time.appendChild(createSkeletonBlock('44px', null, 'skeleton-text'));
+        row.appendChild(time);
 
-      var colEntity = document.createElement('div');
-      colEntity.className = 'tl-col';
-      colEntity.style.flex = '1.2';
-      colEntity.appendChild(createSkeletonBlock('55px', null, 'skeleton-text'));
+        var icon = document.createElement('div');
+        icon.className = 'audit-event-icon';
+        icon.appendChild(createSkeletonBlock('28px', '28px', 'skeleton-avatar'));
+        row.appendChild(icon);
 
-      var colDesc = document.createElement('div');
-      colDesc.className = 'tl-col';
-      colDesc.style.flex = '4';
-      colDesc.appendChild(createSkeletonBlock('85%', null, 'skeleton-text'));
+        var body = document.createElement('div');
+        body.className = 'audit-event-body';
+        body.appendChild(createSkeletonBlock('70%', null, 'skeleton-text'));
+        body.appendChild(createSkeletonBlock('45%', null, 'skeleton-text'));
+        body.lastChild.style.marginBottom = '0';
+        row.appendChild(body);
 
-      var colDate = document.createElement('div');
-      colDate.className = 'tl-col';
-      colDate.style.flex = '1.5';
-      colDate.appendChild(createSkeletonBlock('65px', null, 'skeleton-text'));
-
-      row.appendChild(colUser);
-      row.appendChild(colAction);
-      row.appendChild(colEntity);
-      row.appendChild(colDesc);
-      row.appendChild(colDate);
-      fragment.appendChild(row);
+        fragment.appendChild(row);
+      }
     }
     return fragment;
   }
 
-  // ── Stats & Sparkline ──
+  // ── Day grouping ──
+
+  function groupKeyFor(dateStr) {
+    var d = new Date(dateStr);
+    var t = new Date();
+    var sameDay = d.getFullYear() === t.getFullYear() && d.getMonth() === t.getMonth() && d.getDate() === t.getDate();
+    if (sameDay) return 'today';
+    var y = new Date(t.getFullYear(), t.getMonth(), t.getDate() - 1);
+    if (d.getFullYear() === y.getFullYear() && d.getMonth() === y.getMonth() && d.getDate() === y.getDate()) return 'yesterday';
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  function groupLabelFor(key, dateStr) {
+    if (key === 'today') return 'Today';
+    if (key === 'yesterday') return 'Yesterday';
+    var d = new Date(dateStr);
+    var opts = { weekday: 'long', month: 'short', day: 'numeric' };
+    if (d.getFullYear() !== new Date().getFullYear()) opts.year = 'numeric';
+    return d.toLocaleDateString(undefined, opts);
+  }
+
+  function formatTimeOnly(dateStr) {
+    var d = new Date(dateStr);
+    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+  }
+
+  // ── Insights ribbon loaders ──
 
   function loadStats() {
     var today = todayISO();
@@ -700,19 +860,61 @@
       Api.get('/api/v1/comments/activity-logs/?page_size=1&created_at__gte=' + today + 'T00:00:00'),
       Api.get('/api/v1/comments/activity-logs/?page_size=1&created_at__gte=' + weekAgo + 'T00:00:00')
     ]).then(function(results) {
-      dom.statTotal.textContent = (results[0].count || 0).toLocaleString();
+      var total = results[0].count || 0;
+      dom.statTotal.textContent = total.toLocaleString();
       dom.statToday.textContent = (results[1].count || 0).toLocaleString();
       dom.statWeek.textContent = (results[2].count || 0).toLocaleString();
-
-      Api.get('/api/v1/comments/activity-logs/?page_size=50&created_at__gte=' + weekAgo + 'T00:00:00').then(function(data) {
-        var actors = {};
-        (data.results || []).forEach(function(e) { if (e.actor) actors[e.actor] = true; });
-        dom.statUsers.textContent = Object.keys(actors).length;
-      }).catch(function() { dom.statUsers.textContent = '--'; });
+      dom.chipCountAll.textContent = total.toLocaleString();
     }).catch(function() {});
+
+    // Active users in the last 7 days (window-scan, 200 max)
+    Api.get('/api/v1/comments/activity-logs/?page_size=200&created_at__gte=' + weekAgo + 'T00:00:00')
+      .then(function(data) {
+        var actorTallies = {};
+        (data.results || []).forEach(function(e) {
+          if (!e.actor) return;
+          if (!actorTallies[e.actor]) actorTallies[e.actor] = { count: 0, name: e.actor_name || 'User', email: e.actor_email || '' };
+          actorTallies[e.actor].count++;
+        });
+        dom.statUsers.textContent = Object.keys(actorTallies).length || 0;
+        renderTopActor(actorTallies);
+      })
+      .catch(function() { dom.statUsers.textContent = '—'; });
+
+    // Destructive actions in the last 7 days
+    Api.get('/api/v1/comments/activity-logs/?page_size=1&action__in=' + DESTRUCTIVE_ACTIONS.join(',') + '&created_at__gte=' + weekAgo + 'T00:00:00')
+      .then(function(data) {
+        var n = data.count || 0;
+        dom.riskCount.textContent = n;
+        var block = document.getElementById('auditRiskBlock');
+        if (block) block.classList.toggle('audit-insights-risk--hot', n > 0);
+      })
+      .catch(function() { dom.riskCount.textContent = '—'; });
   }
 
-  function loadSparkline() {
+  function renderTopActor(tallies) {
+    var top = null;
+    Object.keys(tallies).forEach(function(actorId) {
+      var entry = tallies[actorId];
+      if (!top || entry.count > top.count) top = entry;
+    });
+    if (!top) return;
+    dom.topActor.textContent = '';
+    var avatar = document.createElement('div');
+    avatar.className = 'audit-top-actor-avatar';
+    avatar.style.background = hashColor(top.name);
+    avatar.textContent = getInitials(top.name);
+    var info = document.createElement('div');
+    info.className = 'audit-top-actor-info';
+    var name = makeText('div', top.name, 'audit-top-actor-name');
+    var count = makeText('div', top.count + (top.count === 1 ? ' event' : ' events'), 'audit-top-actor-count');
+    info.appendChild(name);
+    info.appendChild(count);
+    dom.topActor.appendChild(avatar);
+    dom.topActor.appendChild(info);
+  }
+
+  function loadHeatRibbon() {
     var DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     var promises = [];
     var days = [];
@@ -720,7 +922,8 @@
     for (var i = 6; i >= 0; i--) {
       var dayStart = daysAgoISO(i);
       var dayEnd = i === 0 ? todayISO() : daysAgoISO(i - 1);
-      days.push({ date: dayStart, label: DAY_LABELS[new Date(dayStart + 'T12:00:00').getDay()] });
+      var d = new Date(dayStart + 'T12:00:00');
+      days.push({ date: dayStart, label: DAY_LABELS[d.getDay()], dom: d.getDate() });
       var endParam = i === 0 ? '' : '&created_at__lte=' + dayEnd + 'T00:00:00';
       promises.push(Api.get('/api/v1/comments/activity-logs/?page_size=1&created_at__gte=' + dayStart + 'T00:00:00' + endParam));
     }
@@ -728,29 +931,238 @@
     Promise.all(promises).then(function(results) {
       var counts = results.map(function(r) { return r.count || 0; });
       var maxCount = Math.max.apply(null, counts) || 1;
-      var MAX_BAR_PX = 36;
+      var peakIdx = counts.indexOf(maxCount);
 
-      dom.sparkline.textContent = '';
+      dom.heatRibbon.textContent = '';
       for (var i = 0; i < counts.length; i++) {
-        var col = document.createElement('div');
-        col.className = 'audit-sparkline-day';
+        var cell = document.createElement('div');
+        cell.className = 'audit-heat-cell';
+        var intensity = counts[i] / maxCount;
+        var bucket = counts[i] === 0 ? 0 : Math.min(4, Math.ceil(intensity * 4));
+        cell.setAttribute('data-intensity', String(bucket));
+        cell.setAttribute('title', days[i].label + ' ' + days[i].dom + ': ' + counts[i] + ' events');
+        if (i === peakIdx && maxCount > 0) cell.classList.add('audit-heat-cell--peak');
 
         var bar = document.createElement('div');
-        bar.className = 'audit-sparkline-bar';
-        var barHeight = Math.max(2, Math.round((counts[i] / maxCount) * MAX_BAR_PX));
-        bar.style.height = barHeight + 'px';
-        bar.title = days[i].date + ': ' + counts[i] + ' events';
+        bar.className = 'audit-heat-fill';
+        bar.style.height = (counts[i] === 0 ? 12 : Math.max(20, Math.round(intensity * 100))) + '%';
+        cell.appendChild(bar);
 
-        var label = makeText('div', days[i].label, 'audit-sparkline-label');
+        var lbl = document.createElement('span');
+        lbl.className = 'audit-heat-label';
+        lbl.textContent = days[i].label[0];
+        cell.appendChild(lbl);
 
-        col.appendChild(bar);
-        col.appendChild(label);
-        dom.sparkline.appendChild(col);
+        dom.heatRibbon.appendChild(cell);
+      }
+      if (maxCount > 0 && peakIdx >= 0) {
+        dom.heatPeakLabel.textContent = 'Peak ' + days[peakIdx].label + ' · ' + maxCount;
+      } else {
+        dom.heatPeakLabel.textContent = 'No activity';
       }
     }).catch(function() {});
   }
 
-  // ── Render logs ──
+  // ── Chip rail builder ──
+
+  function buildChipRail() {
+    var frag = document.createDocumentFragment();
+
+    function chip(actionKey) {
+      var meta = ACTION_META[actionKey];
+      if (!meta) return null;
+      var tok = CATEGORY_TOKENS[meta.cat];
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'audit-chip audit-chip--cat-' + meta.cat;
+      btn.dataset.action = actionKey;
+      btn.style.setProperty('--chip-fg', tok.fg);
+      btn.style.setProperty('--chip-bg', tok.bg);
+      btn.style.setProperty('--chip-border', tok.border);
+      btn.style.setProperty('--chip-dot', tok.dot);
+
+      btn.appendChild(makeText('span', '', 'audit-chip-dot'));
+      btn.appendChild(makeIcon('ti ' + meta.icon + ' audit-chip-icon'));
+      btn.appendChild(makeText('span', meta.label, 'audit-chip-label'));
+      var count = makeText('span', '—', 'audit-chip-count');
+      count.dataset.countFor = actionKey;
+      btn.appendChild(count);
+
+      btn.addEventListener('click', function() { toggleAction(actionKey); });
+      return btn;
+    }
+
+    PRIMARY_CHIPS.forEach(function(k) {
+      var c = chip(k);
+      if (c) frag.appendChild(c);
+    });
+
+    // "More" dropdown for secondary actions
+    var more = document.createElement('div');
+    more.className = 'audit-chip-more dropdown';
+
+    var moreBtn = document.createElement('button');
+    moreBtn.type = 'button';
+    moreBtn.className = 'audit-chip audit-chip--more';
+    moreBtn.setAttribute('data-bs-toggle', 'dropdown');
+    moreBtn.setAttribute('aria-expanded', 'false');
+    moreBtn.appendChild(makeIcon('ti ti-dots audit-chip-icon'));
+    moreBtn.appendChild(makeText('span', 'More', 'audit-chip-label'));
+    more.appendChild(moreBtn);
+
+    var menu = document.createElement('ul');
+    menu.className = 'dropdown-menu audit-chip-more-menu';
+    SECONDARY_CHIPS.forEach(function(k) {
+      var meta = ACTION_META[k]; if (!meta) return;
+      var li = document.createElement('li');
+      var a = document.createElement('a');
+      a.className = 'dropdown-item audit-chip-more-item';
+      a.href = '#';
+      a.dataset.action = k;
+      a.appendChild(makeIcon('ti ' + meta.icon + ' me-2'));
+      a.appendChild(document.createTextNode(meta.label));
+      var c = makeText('span', '—', 'audit-chip-more-count ms-auto');
+      c.dataset.countFor = k;
+      a.appendChild(c);
+      a.addEventListener('click', function(ev) {
+        ev.preventDefault();
+        toggleAction(k);
+      });
+      li.appendChild(a);
+      menu.appendChild(li);
+    });
+    more.appendChild(menu);
+    frag.appendChild(more);
+
+    dom.chipRail.appendChild(frag);
+  }
+
+  function loadChipCounts() {
+    var allChips = PRIMARY_CHIPS.concat(SECONDARY_CHIPS);
+    allChips.forEach(function(action) {
+      Api.get('/api/v1/comments/activity-logs/?page_size=1&action=' + action)
+        .then(function(data) {
+          var n = data.count || 0;
+          var nodes = document.querySelectorAll('[data-count-for="' + action + '"]');
+          for (var i = 0; i < nodes.length; i++) {
+            nodes[i].textContent = n > 999 ? '999+' : n;
+            if (n === 0) nodes[i].classList.add('is-empty');
+          }
+          // Hide zero-count primary chips — keep the rail focused on what's actually there.
+          // Active or already-selected chips stay visible regardless.
+          if (n === 0 && PRIMARY_CHIPS.indexOf(action) !== -1 && !selectedActions.has(action)) {
+            var chipBtn = dom.chipRail.querySelector('.audit-chip[data-action="' + action + '"]');
+            if (chipBtn) chipBtn.classList.add('audit-chip--hidden');
+          }
+        })
+        .catch(function() {});
+    });
+  }
+
+  // ── Render day-grouped timeline ──
+
+  function renderEventRow(entry, idx) {
+    var meta = ACTION_META[entry.action] || { cat: 'neutral', icon: 'ti-point', label: entry.action_display || entry.action };
+    var tok = CATEGORY_TOKENS[meta.cat] || CATEGORY_TOKENS.neutral;
+
+    var row = document.createElement('div');
+    row.className = 'audit-event audit-event--cat-' + meta.cat;
+    row.setAttribute('role', 'listitem');
+    row.setAttribute('tabindex', '0');
+    row.style.setProperty('--evt-fg', tok.fg);
+    row.style.setProperty('--evt-bg', tok.bg);
+    row.style.setProperty('--evt-dot', tok.dot);
+    row.style.setProperty('--evt-border', tok.border);
+
+    (function(e, i) {
+      row.addEventListener('click', function() { showDetail(e, i); });
+      row.addEventListener('keydown', function(ev) {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          showDetail(e, i);
+        }
+      });
+    })(entry, idx);
+
+    // Time gutter — HH:MM only; the day divider already provides date context.
+    // For today entries, also show a tiny relative hint ("2h ago").
+    var time = document.createElement('div');
+    time.className = 'audit-event-time';
+    var timeStr = makeText('span', formatTimeOnly(entry.created_at), 'audit-event-time-hm');
+    timeStr.title = formatFullDate(entry.created_at);
+    time.appendChild(timeStr);
+    if (groupKeyFor(entry.created_at) === 'today') {
+      var diff = Math.floor((Date.now() - new Date(entry.created_at)) / 1000);
+      if (diff < 86400) {
+        var hint;
+        if (diff < 60) hint = 'just now';
+        else if (diff < 3600) hint = Math.floor(diff / 60) + 'm ago';
+        else hint = Math.floor(diff / 3600) + 'h ago';
+        time.appendChild(makeText('span', hint, 'audit-event-time-rel'));
+      }
+    }
+    row.appendChild(time);
+
+    // Action icon dot
+    var iconWrap = document.createElement('div');
+    iconWrap.className = 'audit-event-icon';
+    iconWrap.appendChild(makeIcon('ti ' + meta.icon));
+    row.appendChild(iconWrap);
+
+    // Body — single horizontal line that spans the full available width.
+    // Layout: [avatar] [actor] [verb] [detail/changes] ←spacer→ [entity pill]
+    var body = document.createElement('div');
+    body.className = 'audit-event-body';
+
+    var avatar = document.createElement('span');
+    avatar.className = 'audit-event-avatar';
+    avatar.style.background = hashColor(entry.actor_name || 'System');
+    avatar.textContent = getInitials(entry.actor_name || 'System');
+    body.appendChild(avatar);
+
+    var actorName = makeText('span', entry.actor_name || 'System', 'audit-event-actor');
+    body.appendChild(actorName);
+
+    var verb = makeText('span', meta.label.toLowerCase(), 'audit-event-verb');
+    body.appendChild(verb);
+
+    // Inline change preview OR description — fills the middle of the row
+    var detail = document.createElement('span');
+    detail.className = 'audit-event-detail';
+    if (entry.changes && Object.keys(entry.changes).length > 0) {
+      var preview = buildInlineChangePreview(entry.changes);
+      if (preview) detail.appendChild(preview);
+    }
+    if (!detail.childNodes.length && entry.description) {
+      detail.appendChild(makeText('span', entry.description, 'audit-event-desc'));
+    }
+    if (detail.childNodes.length) body.appendChild(detail);
+
+    // Flexible spacer pushes the entity badge to the right edge
+    var spacer = document.createElement('span');
+    spacer.className = 'audit-event-spacer';
+    body.appendChild(spacer);
+
+    if (entry.content_type) {
+      var entityKey = entry.content_type;
+      var entityWrap = document.createElement('span');
+      entityWrap.className = 'audit-event-entity';
+      entityWrap.appendChild(makeIcon('ti ' + (ENTITY_ICONS[entityKey] || 'ti-circle')));
+      var entityLabel = makeText('span', ENTITY_LABELS[entityKey] || entityKey, 'audit-event-entity-label');
+      entityWrap.appendChild(entityLabel);
+      body.appendChild(entityWrap);
+    }
+
+    row.appendChild(body);
+
+    // Trailing chevron
+    var trail = document.createElement('div');
+    trail.className = 'audit-event-trail';
+    trail.appendChild(makeIcon('ti ti-chevron-right'));
+    row.appendChild(trail);
+
+    return row;
+  }
 
   function renderAuditLogs(entries) {
     dom.auditList.textContent = '';
@@ -766,100 +1178,45 @@
     dom.emptyState.classList.add('d-none');
 
     var fragment = document.createDocumentFragment();
+    var currentKey = null;
+    var currentBucket = null;
+    var currentBucketBody = null;
 
     entries.forEach(function(e, idx) {
-      var row = document.createElement('div');
-      row.className = 'tl-table-row';
-      row.style.cursor = 'pointer';
-      row.setAttribute('role', 'listitem');
-      (function(entry, index) {
-        row.addEventListener('click', function() { showDetail(entry, index); });
-      })(e, idx);
+      var key = groupKeyFor(e.created_at);
+      if (key !== currentKey) {
+        // Close previous bucket
+        currentKey = key;
+        currentBucket = document.createElement('section');
+        currentBucket.className = 'audit-day-group';
 
-      // User column with avatar
-      var colUser = document.createElement('div');
-      colUser.className = 'tl-col';
-      colUser.style.flex = '2';
+        var divider = document.createElement('div');
+        divider.className = 'audit-day-divider';
+        var title = makeText('span', groupLabelFor(key, e.created_at), 'audit-day-title');
+        divider.appendChild(title);
+        var rule = document.createElement('span');
+        rule.className = 'audit-day-rule';
+        divider.appendChild(rule);
+        var bucketCount = makeText('span', '', 'audit-day-count');
+        divider.appendChild(bucketCount);
+        currentBucket.appendChild(divider);
 
-      var userInfo = document.createElement('div');
-      userInfo.className = 'audit-user-info';
+        currentBucketBody = document.createElement('div');
+        currentBucketBody.className = 'audit-day-events';
+        currentBucket.appendChild(currentBucketBody);
 
-      var avatar = document.createElement('div');
-      avatar.className = 'audit-avatar';
-      avatar.style.background = hashColor(e.actor_name || 'System');
-      avatar.textContent = getInitials(e.actor_name || 'System');
+        // Track count node so we can update it after the bucket is filled
+        currentBucket._countNode = bucketCount;
+        currentBucket._tally = 0;
 
-      var userDetails = document.createElement('div');
-      userDetails.className = 'audit-user-details';
-      var userName = makeText('div', e.actor_name || 'System', 'fw-medium text-truncate');
-      userName.style.fontSize = '0.85rem';
-      userDetails.appendChild(userName);
-      if (e.actor_email) {
-        var userEmail = makeText('div', e.actor_email, 'text-muted text-truncate');
-        userEmail.style.fontSize = '0.75rem';
-        userDetails.appendChild(userEmail);
+        fragment.appendChild(currentBucket);
       }
-
-      userInfo.appendChild(avatar);
-      userInfo.appendChild(userDetails);
-      colUser.appendChild(userInfo);
-
-      // Action column
-      var colAction = document.createElement('div');
-      colAction.className = 'tl-col';
-      colAction.style.flex = '1.5';
-      colAction.appendChild(createActionBadge(e.action, e.action_display));
-
-      // Entity column
-      var colEntity = document.createElement('div');
-      colEntity.className = 'tl-col';
-      colEntity.style.flex = '1.2';
-      var entityLabel = makeText('span', ENTITY_LABELS[e.content_type] || e.content_type || '--', 'text-muted');
-      entityLabel.style.fontSize = '0.85rem';
-      colEntity.appendChild(entityLabel);
-
-      // Description column with inline preview
-      var colDesc = document.createElement('div');
-      colDesc.className = 'tl-col';
-      colDesc.style.flex = '4';
-      colDesc.style.flexDirection = 'column';
-      colDesc.style.alignItems = 'flex-start';
-      colDesc.style.minWidth = '0';
-
-      var descText = makeText('div', e.description || '--', 'text-truncate');
-      descText.style.fontSize = '0.85rem';
-      colDesc.appendChild(descText);
-
-      if (e.changes && Object.keys(e.changes).length > 0) {
-        var preview = buildInlineChangePreview(e.changes);
-        if (preview) colDesc.appendChild(preview);
-      }
-
-      // When column with tooltip
-      var colDate = document.createElement('div');
-      colDate.className = 'tl-col';
-      colDate.style.flex = '1.5';
-      var dateSpan = makeText('span', formatDate(e.created_at), 'tl-cell-date');
-      dateSpan.title = formatFullDate(e.created_at);
-      dateSpan.setAttribute('data-bs-toggle', 'tooltip');
-      dateSpan.setAttribute('data-bs-placement', 'top');
-      colDate.appendChild(dateSpan);
-
-      row.appendChild(colUser);
-      row.appendChild(colAction);
-      row.appendChild(colEntity);
-      row.appendChild(colDesc);
-      row.appendChild(colDate);
-      fragment.appendChild(row);
+      currentBucketBody.appendChild(renderEventRow(e, idx));
+      currentBucket._tally += 1;
+      currentBucket._countNode.textContent = currentBucket._tally + (currentBucket._tally === 1 ? ' event' : ' events');
     });
 
     dom.auditList.appendChild(fragment);
-
-    // Init tooltips
-    var tooltipEls = dom.auditList.querySelectorAll('[data-bs-toggle="tooltip"]');
-    for (var t = 0; t < tooltipEls.length; t++) {
-      new bootstrap.Tooltip(tooltipEls[t]);
-    }
   }
 
   // ── Pagination ──
@@ -928,11 +1285,13 @@
       renderPagination();
       syncFiltersToUrl();
       updateFilterIndicator();
-      dom.exportCount.textContent = totalCount > 0 ? '(' + totalCount.toLocaleString() + ')' : '';
+      dom.exportCount.textContent = totalCount > 0 ? ' (' + totalCount.toLocaleString() + ')' : '';
+      dom.resultCount.textContent = totalCount.toLocaleString() + (totalCount === 1 ? ' event' : ' events');
     }).catch(function() {
       dom.auditList.textContent = '';
-      var err = makeText('div', 'Failed to load audit logs.', 'tl-loading text-danger');
+      var err = makeText('div', 'Failed to load audit logs.', 'audit-stream-loading text-danger');
       dom.auditList.appendChild(err);
+      dom.resultCount.textContent = '— events';
     });
   }
 
@@ -1190,27 +1549,48 @@
 
   // ── Event listeners ──
 
-  dom.filterAction.addEventListener('change', function() { activePreset = 'all'; updatePresetButtons(); currentPage = 1; loadLogs(); });
-  dom.filterEntity.addEventListener('change', function() { activePreset = 'all'; updatePresetButtons(); currentPage = 1; loadLogs(); });
-  dom.filterDateFrom.addEventListener('change', function() { activePreset = 'all'; updatePresetButtons(); currentPage = 1; loadLogs(); });
-  dom.filterDateTo.addEventListener('change', function() { activePreset = 'all'; updatePresetButtons(); currentPage = 1; loadLogs(); });
+  dom.filterEntity.addEventListener('change', function() { currentPage = 1; loadLogs(); });
+  dom.filterDateFrom.addEventListener('change', function() {
+    // Manual date change escapes the preset
+    activeDatePreset = '';
+    updateQuickPresetStates();
+    currentPage = 1;
+    loadLogs();
+  });
+  dom.filterDateTo.addEventListener('change', function() { currentPage = 1; loadLogs(); });
 
   var searchTimeout;
   dom.filterSearch.addEventListener('input', function() {
     clearTimeout(searchTimeout);
-    searchTimeout = setTimeout(function() { activePreset = 'all'; updatePresetButtons(); currentPage = 1; loadLogs(); }, DEBOUNCE_MS);
+    searchTimeout = setTimeout(function() { currentPage = 1; loadLogs(); }, DEBOUNCE_MS);
   });
 
-  // Quick filter presets
-  dom.quickFilters.addEventListener('click', function(ev) {
-    var btn = ev.target.closest('.audit-quick-btn');
-    if (!btn) return;
-    applyPreset(btn.dataset.preset);
+  // Quick presets (today / week / mine)
+  for (var qi = 0; qi < dom.quickFilterButtons.length; qi++) {
+    (function(btn) {
+      btn.addEventListener('click', function() {
+        var p = btn.dataset.preset;
+        if (p === 'mine') toggleMineOnly();
+        else applyDatePreset(p);
+      });
+    })(dom.quickFilterButtons[qi]);
+  }
+
+  // "All actions" chip — clears the action filter
+  dom.chipRail.addEventListener('click', function(ev) {
+    var allBtn = ev.target.closest('.audit-chip--all');
+    if (allBtn && !allBtn.classList.contains('audit-chip--more')) {
+      selectedActions.clear();
+      updateAllChipStates();
+      currentPage = 1;
+      loadLogs();
+    }
   });
 
   // Clear filters
   dom.btnClearFilters.addEventListener('click', clearAllFilters);
   dom.emptyStateClear.addEventListener('click', clearAllFilters);
+  if (dom.filterReset) dom.filterReset.addEventListener('click', clearAllFilters);
 
   // Drawer navigation
   dom.drawerPrev.addEventListener('click', function() {
@@ -1220,11 +1600,32 @@
     if (currentDetailIndex < currentEntries.length - 1) showDetail(currentEntries[currentDetailIndex + 1], currentDetailIndex + 1);
   });
 
+  // Live indicator: subscribe to LiveBus if available
+  if (window.LiveBus) {
+    var pulseTimeout = null;
+    function pulse() {
+      dom.liveDot.classList.add('audit-live-dot--pulse');
+      clearTimeout(pulseTimeout);
+      pulseTimeout = setTimeout(function() {
+        dom.liveDot.classList.remove('audit-live-dot--pulse');
+      }, 1500);
+    }
+    window.LiveBus.on('*', function(evt) {
+      // Avoid feedback on our own internal channel events
+      if (evt && evt.type && evt.type.indexOf('livebus.') === 0) return;
+      pulse();
+    });
+  }
+
   // ── Init ──
   loadFiltersFromUrl();
+  buildChipRail();
+  updateAllChipStates();
+  updateQuickPresetStates();
   loadLogs();
   loadStats();
-  loadSparkline();
+  loadHeatRibbon();
+  loadChipCounts();
 })();
 
 // ═══ INBOUND EMAIL SECTION (lazy-init on tab show) ═══

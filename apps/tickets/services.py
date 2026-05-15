@@ -471,7 +471,7 @@ def assign_ticket(ticket, assignee, actor, request=None, note=""):
 ALLOWED_TRANSITIONS = {
     "open": ["in-progress", "waiting", "resolved", "closed"],
     "in-progress": ["open", "waiting", "resolved", "closed"],
-    "waiting": ["open", "in-progress"],
+    "waiting": ["open", "in-progress", "resolved", "closed"],
     "resolved": ["closed", "open"],
     "closed": [],  # Terminal — no transitions out
 }

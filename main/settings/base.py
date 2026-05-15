@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "apps.kanban",
     "apps.comments",
     "apps.notifications",
+    "apps.api_keys",
     "apps.messaging",
     "apps.attachments",
     "apps.analytics",
@@ -99,6 +100,7 @@ MIDDLEWARE = [
     "apps.accounts.middleware.SessionVersionMiddleware",
     "apps.tenants.middleware.TenantMiddleware",
     "apps.billing.middleware.SubscriptionMiddleware",
+    "apps.api_keys.middleware.RateLimitHeadersMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -209,6 +211,7 @@ CORS_ALLOWED_ORIGIN_REGEXES = [
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework_simplejwt.authentication.JWTAuthentication",
+        "apps.api_keys.authentication.APIKeyAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
@@ -221,12 +224,14 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.ScopedRateThrottle",
+        "apps.api_keys.throttling.APIKeyRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "auth": "10/min",
         "api_default": "200/min",
         "api_heavy": "30/min",
         "webhook": "60/min",
+        "api_key": "1000/hour",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
@@ -478,6 +483,9 @@ JAZZMIN_SETTINGS = {
     "related_modal_active": True,
     "use_google_fonts_cdn": True,
     "changeform_format": "horizontal_tabs",
+    # Premium dark admin UI — Linear/Vercel/Stripe inspired.
+    # Tokens + overrides live in static/admin/css/kanzen-admin.css.
+    "custom_css": "admin/css/kanzen-admin.css",
 }
 
 JAZZMIN_UI_TWEAKS = {
@@ -500,8 +508,10 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": False,
-    "theme": "default",
-    "dark_mode_theme": None,
+    # Use AdminLTE's "darkly" bootswatch base; kanzen-admin.css overrides on top
+    # so every surface is a layered dark token, not a Bootstrap default.
+    "theme": "darkly",
+    "dark_mode_theme": "darkly",
     "button_classes": {
         "primary": "btn-primary",
         "secondary": "btn-secondary",

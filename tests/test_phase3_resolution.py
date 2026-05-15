@@ -127,19 +127,18 @@ class TestStatusTransitions:
             transition_ticket_status(ticket, statuses["open"], admin_user)
         clear_current_tenant()
 
-    def test_waiting_to_resolved_blocked(self, tenant, admin_user):
-        """Waiting can only go to open or in-progress."""
-        from django.core.exceptions import ValidationError
-
+    def test_waiting_to_resolved_allowed(self, tenant, admin_user):
+        """Waiting can resolve directly — leaving wait clears the SLA pause."""
         statuses = _make_statuses(tenant)
         ticket = _make_ticket(tenant, statuses["waiting"], admin_user)
 
         from apps.tickets.services import transition_ticket_status
 
         set_current_tenant(tenant)
-        with pytest.raises(ValidationError, match="Cannot transition"):
-            transition_ticket_status(ticket, statuses["resolved"], admin_user)
+        result = transition_ticket_status(ticket, statuses["resolved"], admin_user)
         clear_current_tenant()
+
+        assert result.status.slug == "resolved"
 
     def test_waiting_to_open_allowed(self, tenant, admin_user):
         statuses = _make_statuses(tenant)

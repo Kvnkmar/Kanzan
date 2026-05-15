@@ -170,6 +170,9 @@ class ActivityLog(TenantScopedModel):
         REMINDER_RESCHEDULED = "reminder_rescheduled", "Reminder Rescheduled"
         OUTBOUND_CALL_LOGGED = "outbound_call_logged", "Outbound Call Logged"
         OUTBOUND_CALL_COMPLETED = "outbound_call_completed", "Outbound Call Completed"
+        API_KEY_CREATED = "api_key_created", "API Key Created"
+        API_KEY_REGENERATED = "api_key_regenerated", "API Key Regenerated"
+        API_KEY_REVOKED = "api_key_revoked", "API Key Revoked"
 
     content_type = models.ForeignKey(
         ContentType,

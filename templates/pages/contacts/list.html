@@ -579,7 +579,9 @@
       document.getElementById('panelContactName').textContent = fn;
       document.getElementById('panelFullName').textContent = fn;
       document.getElementById('panelAvatar').textContent = ini;
-      document.getElementById('panelAvatar').style.background = 'linear-gradient(135deg, ' + bgColor + ', ' + bgColor + 'cc)';
+      // bgColor may resolve to 'var(--crm-primary)'; appending 'cc' (hex alpha)
+      // only works on literal hex strings, so just use the solid value.
+      document.getElementById('panelAvatar').style.background = bgColor;
 
       var jobTitle = c.job_title || '';
       var compName = c.company ? (typeof c.company === 'object' ? c.company.name : '') : '';
@@ -683,6 +685,61 @@
 
   loadContacts();
   ContactSavedViews.init();
+
+  /* ── LiveBus: keep contacts list live without polling ───────────
+   *
+   * Server signals (apps/contacts/signals.py) broadcast contact.*,
+   * company.*, and account.* events whenever a row in this tenant
+   * changes. Refetch the current page (debounced) so the list and
+   * counters stay accurate.  Burst-safe, visibility-aware.
+   *
+   * If the detail panel is open and the visible contact was updated
+   * elsewhere, refresh just that record so the operator's edit
+   * context is preserved.
+   */
+  if (window.LiveBus) {
+    var refetchList = LiveBus.debounce(function () {
+      if (document.visibilityState === 'hidden') return;
+      loadContacts();
+    }, 500);
+
+    LiveBus.onMany(
+      [
+        'contact.created', 'contact.updated', 'contact.deleted',
+        'company.created', 'company.updated', 'company.deleted',
+        'account.created', 'account.updated', 'account.deleted',
+        'contact_group.created', 'contact_group.updated', 'contact_group.deleted',
+      ],
+      function () { refetchList(); }
+    );
+
+    LiveBus.on('contact.updated', function (payload) {
+      if (!payload || !payload.id) return;
+      if (typeof ContactPanel !== 'undefined'
+          && ContactPanel.panel
+          && ContactPanel.panel.classList.contains('open')
+          && String(ContactPanel.currentId) === String(payload.id)
+          && typeof ContactPanel.open === 'function') {
+        ContactPanel.open(payload.id);
+      }
+    });
+
+    LiveBus.on('contact.deleted', function (payload) {
+      if (typeof ContactPanel !== 'undefined'
+          && ContactPanel.panel
+          && ContactPanel.panel.classList.contains('open')
+          && String(ContactPanel.currentId) === String(payload && payload.id)) {
+        ContactPanel.close();
+        Toast.info('Contact was removed.');
+      }
+    });
+
+    LiveBus.on('live.reconnected', function () { refetchList(); });
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') refetchList();
+    });
+  }
 })();
 </script>
 {% endblock %}

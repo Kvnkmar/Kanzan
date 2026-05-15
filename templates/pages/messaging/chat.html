@@ -79,10 +79,12 @@
 
     <!-- Message Input (hidden by default) -->
     <div class="chat-input d-none" id="messageInputArea">
+      <div class="chat-pending-attachments d-none" id="pendingAttachments"></div>
       <form id="messageForm" class="chat-input-form">
-        <button type="button" class="chat-attach-btn" title="Attach file">
+        <button type="button" class="chat-attach-btn" id="attachBtn" title="Attach file">
           <i class="ti ti-paperclip"></i>
         </button>
+        <input type="file" id="messageAttachInput" multiple hidden>
         <input type="text" placeholder="Type a message..." id="messageInput" autocomplete="off">
         <button type="submit" class="chat-send-btn" id="sendBtn" title="Send message">
           <i class="ti ti-send"></i>
@@ -454,6 +456,55 @@
     scrollToBottom();
   }
 
+  function buildAttachmentBlock(attachments) {
+    if (!attachments || !attachments.length) return null;
+    var block = document.createElement('div');
+    block.className = 'chat-bubble-attachments';
+    attachments.forEach(function(att) {
+      var url = att.file_url || '';
+      var mime = (att.mime_type || '').toLowerCase();
+      var isImage = mime.indexOf('image/') === 0;
+      if (isImage && url) {
+        var link = document.createElement('a');
+        link.href = url;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.className = 'chat-attach-image';
+        var img = document.createElement('img');
+        img.src = url;
+        img.alt = att.original_name || 'attachment';
+        img.loading = 'lazy';
+        link.appendChild(img);
+        block.appendChild(link);
+      } else {
+        var chip = document.createElement('a');
+        chip.className = 'chat-attach-file';
+        chip.href = url;
+        chip.target = '_blank';
+        chip.rel = 'noopener noreferrer';
+        if (!url) { chip.removeAttribute('href'); }
+        var icon = document.createElement('i');
+        icon.className = 'ti ti-file';
+        chip.appendChild(icon);
+        var meta = document.createElement('div');
+        meta.className = 'chat-attach-meta';
+        var nameEl = document.createElement('div');
+        nameEl.className = 'chat-attach-name';
+        nameEl.textContent = att.original_name || 'file';
+        meta.appendChild(nameEl);
+        if (att.size_display) {
+          var sizeEl = document.createElement('div');
+          sizeEl.className = 'chat-attach-size';
+          sizeEl.textContent = att.size_display;
+          meta.appendChild(sizeEl);
+        }
+        chip.appendChild(meta);
+        block.appendChild(chip);
+      }
+    });
+    return block;
+  }
+
   function buildMessageBubble(msg) {
     var authorId = msg.author ? String(msg.author.id) : (msg.author_id || '');
     var authorName = msg.author
@@ -465,6 +516,7 @@
 
     var wrapper = document.createElement('div');
     wrapper.className = 'd-flex mb-2 ' + (isMine ? 'justify-content-end' : 'justify-content-start');
+    wrapper.dataset.messageId = String(msg.id || '');
 
     var bubble = document.createElement('div');
     bubble.className = 'chat-bubble ' + (isMine ? 'chat-bubble-sent' : 'chat-bubble-received');
@@ -476,9 +528,14 @@
       bubble.appendChild(sender);
     }
 
-    var bodyDiv = document.createElement('div');
-    bodyDiv.textContent = body;
-    bubble.appendChild(bodyDiv);
+    if (body) {
+      var bodyDiv = document.createElement('div');
+      bodyDiv.textContent = body;
+      bubble.appendChild(bodyDiv);
+    }
+
+    var attBlock = buildAttachmentBlock(msg.attachments);
+    if (attBlock) bubble.appendChild(attBlock);
 
     var timeDiv = document.createElement('div');
     timeDiv.className = 'chat-bubble-time';
@@ -495,7 +552,16 @@
     if (emptyNote && emptyNote.textContent.indexOf('No messages yet') !== -1) {
       emptyNote.remove();
     }
-    container.appendChild(buildMessageBubble(msg));
+    var fresh = buildMessageBubble(msg);
+    var msgId = String(msg.id || '');
+    if (msgId) {
+      var existing = container.querySelector('[data-message-id="' + msgId + '"]');
+      if (existing) {
+        existing.replaceWith(fresh);
+        return;
+      }
+    }
+    container.appendChild(fresh);
     scrollToBottom();
   }
 
@@ -560,20 +626,183 @@
     };
   }
 
+  // Pending files staged for the next send. Each entry: { file, previewUrl }.
+  // previewUrl is an object URL we created and must revoke to free memory.
+  var pendingFiles = [];
+
+  function isImageFile(file) {
+    return file && file.type && file.type.indexOf('image/') === 0;
+  }
+
+  function stagePendingFile(file) {
+    var entry = { file: file, previewUrl: null };
+    pendingFiles.push(entry);
+    if (!isImageFile(file)) return;
+
+    // Try the fast path first: createObjectURL gives us a blob: URL the img
+    // can render without copying the whole file into a string.
+    try {
+      entry.previewUrl = URL.createObjectURL(file);
+    } catch (err) {
+      console.warn('URL.createObjectURL failed, falling back to FileReader', err);
+    }
+
+    if (entry.previewUrl) {
+      refreshPendingAttachmentsUI();
+      return;
+    }
+
+    // Fallback: FileReader → data: URL. Slightly slower for big images but
+    // works even when blob URLs are blocked (e.g. strict CSP).
+    try {
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        entry.previewUrl = ev.target.result;
+        refreshPendingAttachmentsUI();
+      };
+      reader.onerror = function() {
+        console.warn('FileReader failed to read', file.name);
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      console.warn('Image preview unavailable', err);
+    }
+  }
+
+  function removePendingAt(idx) {
+    var entry = pendingFiles[idx];
+    if (entry && entry.previewUrl && entry.previewUrl.indexOf('blob:') === 0) {
+      URL.revokeObjectURL(entry.previewUrl);
+    }
+    pendingFiles.splice(idx, 1);
+    refreshPendingAttachmentsUI();
+  }
+
+  function refreshPendingAttachmentsUI() {
+    var tray = document.getElementById('pendingAttachments');
+    if (!tray) return;
+    tray.textContent = '';
+    if (!pendingFiles.length) {
+      tray.classList.add('d-none');
+      return;
+    }
+    tray.classList.remove('d-none');
+    pendingFiles.forEach(function(entry, idx) {
+      var file = entry.file;
+      var chip = document.createElement('span');
+      chip.className = 'chat-pending-chip';
+
+      if (entry.previewUrl) {
+        chip.classList.add('chat-pending-chip-image');
+        var thumb = document.createElement('img');
+        thumb.className = 'chat-pending-thumb';
+        thumb.src = entry.previewUrl;
+        thumb.alt = file.name;
+        chip.appendChild(thumb);
+      } else {
+        var icon = document.createElement('i');
+        icon.className = isImageFile(file) ? 'ti ti-photo' : 'ti ti-file';
+        chip.appendChild(icon);
+      }
+
+      var name = document.createElement('span');
+      name.className = 'chat-pending-name';
+      name.textContent = file.name;
+      chip.appendChild(name);
+
+      var remove = document.createElement('button');
+      remove.type = 'button';
+      remove.className = 'chat-pending-remove';
+      remove.title = 'Remove';
+      var x = document.createElement('i');
+      x.className = 'ti ti-x';
+      remove.appendChild(x);
+      remove.addEventListener('click', function() { removePendingAt(idx); });
+      chip.appendChild(remove);
+
+      tray.appendChild(chip);
+    });
+  }
+
+  function pendingFileObjects() {
+    return pendingFiles.map(function(e) { return e.file; });
+  }
+
+  function clearPendingFiles() {
+    pendingFiles.forEach(function(e) {
+      if (e.previewUrl && e.previewUrl.indexOf('blob:') === 0) {
+        URL.revokeObjectURL(e.previewUrl);
+      }
+    });
+    pendingFiles = [];
+    var picker = document.getElementById('messageAttachInput');
+    if (picker) picker.value = '';
+    refreshPendingAttachmentsUI();
+  }
+
+  async function uploadAttachmentsForMessage(messageId, files) {
+    var uploaded = [];
+    for (var i = 0; i < files.length; i++) {
+      var fd = new FormData();
+      fd.append('file', files[i]);
+      fd.append('content_type', 'messaging.message');
+      fd.append('object_id', messageId);
+      try {
+        var att = await Api.upload('/api/v1/attachments/attachments/', fd);
+        uploaded.push(att);
+      } catch (e) {
+        console.error('Attachment upload failed:', files[i].name, e);
+        Toast.error('Failed to upload ' + files[i].name);
+      }
+    }
+    return uploaded;
+  }
+
   async function sendMessage(content) {
-    // Prefer WebSocket if connected
-    if (socket && socket.readyState === WebSocket.OPEN) {
+    var hasFiles = pendingFiles.length > 0;
+
+    // Plain text + WebSocket fast path (unchanged behavior)
+    if (!hasFiles && socket && socket.readyState === WebSocket.OPEN) {
       socket.send(JSON.stringify({
         action: 'send_message',
         body: content,
       }));
       return;
     }
-    // Fallback to REST API
+
+    // Attachment-bearing path (always REST, then upload, then rebroadcast)
+    // and the no-WS fallback both go through the REST endpoint.
+    var filesToSend = pendingFileObjects();
+    if (hasFiles) clearPendingFiles();
+
     try {
-      const msg = await Api.post(`/api/v1/messaging/conversations/${activeConversationId}/messages/`, { body: content });
+      var msg = await Api.post(
+        `/api/v1/messaging/conversations/${activeConversationId}/messages/`,
+        { body: content }
+      );
+      // Show locally if WS isn't connected; if it is, the WS broadcast will
+      // arrive and our idempotent appendMessage handles dedup.
       appendMessage(msg);
       updateConversationPreview(activeConversationId, msg);
+
+      if (filesToSend.length) {
+        var uploaded = await uploadAttachmentsForMessage(msg.id, filesToSend);
+        if (uploaded.length) {
+          // Re-render locally with attachments.
+          var withAttachments = Object.assign({}, msg, { attachments: uploaded });
+          appendMessage(withAttachments);
+          // Push the updated payload to other participants via the existing
+          // chat WS group (server re-serializes + broadcasts).
+          try {
+            await Api.post(
+              `/api/v1/messaging/conversations/${activeConversationId}/messages/${msg.id}/broadcast/`,
+              {}
+            );
+          } catch (e) {
+            console.error('Rebroadcast failed:', e);
+          }
+        }
+      }
     } catch (e) {
       console.error('Failed to send message:', e);
       Toast.error('Failed to send message');
@@ -752,10 +981,34 @@
       e.preventDefault();
       const input = document.getElementById('messageInput');
       const content = input.value.trim();
-      if (!content) return;
+      // Allow sending with no text if at least one file is attached.
+      if (!content && !pendingFiles.length) return;
       sendMessage(content);
       input.value = '';
       input.focus();
+    });
+
+    // Paperclip button opens the file picker.
+    document.getElementById('attachBtn').addEventListener('click', function() {
+      document.getElementById('messageAttachInput').click();
+    });
+
+    // File picker change → stage files in pendingFiles tray.
+    document.getElementById('messageAttachInput').addEventListener('change', function(e) {
+      var files = Array.from(e.target.files || []);
+      if (!files.length) return;
+      // Enforce 25MB per file (matches the backend AttachmentUpload limit).
+      var MAX_BYTES = 25 * 1024 * 1024;
+      files.forEach(function(f) {
+        if (f.size > MAX_BYTES) {
+          Toast.error(f.name + ' exceeds the 25MB upload limit.');
+          return;
+        }
+        stagePendingFile(f);
+      });
+      refreshPendingAttachmentsUI();
+      // Reset the picker so re-selecting the same file fires change again.
+      e.target.value = '';
     });
 
     document.getElementById('conversationSearch').addEventListener('input', function() {

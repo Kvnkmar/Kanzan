@@ -9,6 +9,11 @@ import logging
 
 from django.contrib.contenttypes.models import ContentType
 from django_filters import rest_framework as django_filters
+from drf_spectacular.utils import (
+    OpenApiExample,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import mixins, parsers, permissions, status, viewsets
 from rest_framework.response import Response
 
@@ -80,6 +85,65 @@ class AttachmentFilter(django_filters.FilterSet):
             return queryset.none()
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List attachments",
+        description=(
+            "Returns attachments visible to the caller. Filter by polymorphic target via "
+            "`?content_type=app_label.model&object_id=<uuid>`, or by `?mime_type=` / "
+            "`?uploaded_by=`."
+        ),
+        tags=["Attachments"],
+    ),
+    create=extend_schema(
+        summary="Upload an attachment",
+        description=(
+            "Upload a file attached to any polymorphic target (Ticket, Comment, KB Article, "
+            "etc.).\n\n"
+            "## Request shape (multipart/form-data)\n\n"
+            "- `file` — the binary file to upload. **Max 25 MB** "
+            "(`FILE_UPLOAD_MAX_MEMORY_SIZE` / `DATA_UPLOAD_MAX_MEMORY_SIZE`).\n"
+            "- `content_type` — string `\"app_label.model\"`, e.g. `\"tickets.ticket\"`.\n"
+            "- `object_id` — UUID of the target row.\n\n"
+            "## Behaviour\n\n"
+            "- MIME type is detected from the file body via `python-magic` (with a "
+            "Content-Type fallback) — clients should not trust the upload extension.\n"
+            "- Files are stored under `tenants/<tenant_id>/attachments/YYYY/MM/<filename>`.\n"
+            "- Storage usage is checked against the tenant's plan before the file is "
+            "persisted — 402 is returned if the cap would be exceeded.\n"
+            "- Attaching to a ticket additionally writes a `TicketActivity` + `ActivityLog` "
+            "row so the action shows up on the ticket timeline.\n"
+            "- Attachments are immutable. To replace a file, delete and re-upload.\n\n"
+            "## Example cURL\n\n"
+            "```bash\n"
+            "curl -X POST https://acme.kanzen.app/api/v1/attachments/attachments/ \\\n"
+            "  -H \"Authorization: Bearer <kanzan-api-key>\" \\\n"
+            "  -F \"content_type=tickets.ticket\" \\\n"
+            "  -F \"object_id=ae12c1f0-1234-4abc-9def-1234567890ab\" \\\n"
+            "  -F \"file=@/path/to/screenshot.png\"\n"
+            "```"
+        ),
+        tags=["Attachments"],
+        request={"multipart/form-data": AttachmentUploadSerializer},
+        examples=[
+            OpenApiExample(
+                "Multipart fields",
+                value={
+                    "content_type": "tickets.ticket",
+                    "object_id": "ae12c1f0-1234-4abc-9def-1234567890ab",
+                    "file": "(binary)",
+                },
+                request_only=True,
+            ),
+        ],
+    ),
+    retrieve=extend_schema(summary="Retrieve an attachment", tags=["Attachments"]),
+    destroy=extend_schema(
+        summary="Delete an attachment",
+        description="Deletes the DB row AND the underlying file from storage. Writes a `ticket.attachment_removed` audit row when the target is a ticket.",
+        tags=["Attachments"],
+    ),
+)
 class AttachmentViewSet(
     mixins.CreateModelMixin,
     mixins.ListModelMixin,

@@ -8,6 +8,7 @@ DRF ViewSets for the notifications app.
 import logging
 
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import mixins, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -31,6 +32,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List notifications", tags=["Notifications"]),
+    retrieve=extend_schema(summary="Retrieve a notification", tags=["Notifications"]),
+    mark_read=extend_schema(summary="Mark notification as read", tags=["Notifications"]),
+    mark_all_read=extend_schema(summary="Mark all notifications as read", tags=["Notifications"]),
+    unread_count=extend_schema(summary="Unread notification count", tags=["Notifications"]),
+    cleanup=extend_schema(summary="Trigger old-notification cleanup (admin only)", tags=["Notifications"]),
+)
 class NotificationViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -128,6 +137,11 @@ class NotificationViewSet(
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List notification preferences", tags=["Notifications"]),
+    update=extend_schema(summary="Update a notification preference", tags=["Notifications"]),
+    partial_update=extend_schema(summary="Patch a notification preference", tags=["Notifications"]),
+)
 class NotificationPreferenceViewSet(
     mixins.ListModelMixin,
     mixins.UpdateModelMixin,

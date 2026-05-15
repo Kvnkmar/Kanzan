@@ -10,6 +10,7 @@ import logging
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django_filters.rest_framework import DjangoFilterBackend
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
@@ -35,6 +36,10 @@ from apps.inbound_email.serializers import (
 logger = logging.getLogger(__name__)
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List inbound/outbound emails", tags=["Inbound Email"]),
+    retrieve=extend_schema(summary="Retrieve an email", tags=["Inbound Email"]),
+)
 class InboundEmailViewSet(ReadOnlyModelViewSet):
     """
     Read-only viewset for viewing inbound email processing history.
@@ -72,6 +77,12 @@ class InboundEmailViewSet(ReadOnlyModelViewSet):
         return InboundEmailListSerializer
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List agent inbox emails", tags=["Inbound Email"]),
+    link=extend_schema(summary="Link an email to a ticket", tags=["Inbound Email"]),
+    action=extend_schema(summary="Action an email (open/assign/close)", tags=["Inbound Email"]),
+    ignore=extend_schema(summary="Mark email as ignored", tags=["Inbound Email"]),
+)
 class InboxViewSet(viewsets.GenericViewSet):
     """
     Agent-facing email inbox for unlinked/linked inbound emails.

@@ -21,6 +21,7 @@ message_list = MessageViewSet.as_view({"get": "list", "post": "create"})
 message_detail = MessageViewSet.as_view(
     {"get": "retrieve", "put": "update", "patch": "partial_update", "delete": "destroy"}
 )
+message_broadcast = MessageViewSet.as_view({"post": "broadcast"})
 
 app_name = "messaging"
 
@@ -37,5 +38,12 @@ urlpatterns = [
         "conversations/<uuid:conversation_pk>/messages/<uuid:pk>/",
         message_detail,
         name="conversation-messages-detail",
+    ),
+    # Re-broadcast a message over the conversation's WS group (e.g. after
+    # attachments are linked) so other participants receive the updated payload.
+    path(
+        "conversations/<uuid:conversation_pk>/messages/<uuid:pk>/broadcast/",
+        message_broadcast,
+        name="conversation-messages-broadcast",
     ),
 ]

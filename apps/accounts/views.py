@@ -3,6 +3,7 @@ import secrets
 
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.parsers import MultiPartParser
@@ -45,6 +46,15 @@ INVITATION_EXPIRY_HOURS = 72
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List users in tenant", tags=["Accounts"]),
+    create=extend_schema(summary="Create a user", tags=["Accounts"]),
+    retrieve=extend_schema(summary="Retrieve a user", tags=["Accounts"]),
+    update=extend_schema(summary="Replace a user", tags=["Accounts"]),
+    partial_update=extend_schema(summary="Patch a user", tags=["Accounts"]),
+    destroy=extend_schema(summary="Delete (deactivate) a user", tags=["Accounts"]),
+    create_user=extend_schema(summary="Admin invite-and-create user", tags=["Accounts"]),
+)
 class UserViewSet(viewsets.ModelViewSet):
     """
     CRUD for users within the current tenant.
@@ -139,6 +149,12 @@ class UserViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List tenant memberships", tags=["Accounts"]),
+    retrieve=extend_schema(summary="Retrieve a tenant membership", tags=["Accounts"]),
+    update=extend_schema(summary="Replace a tenant membership (role change)", tags=["Accounts"]),
+    partial_update=extend_schema(summary="Patch a tenant membership", tags=["Accounts"]),
+)
 class TenantMembershipViewSet(
     mixins.ListModelMixin,
     mixins.RetrieveModelMixin,
@@ -164,6 +180,14 @@ class TenantMembershipViewSet(
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List own profiles", tags=["Accounts"]),
+    retrieve=extend_schema(summary="Retrieve a profile", tags=["Accounts"]),
+    update=extend_schema(summary="Replace a profile", tags=["Accounts"]),
+    partial_update=extend_schema(summary="Patch a profile", tags=["Accounts"]),
+    me=extend_schema(summary="Current user's profile (GET / PATCH)", tags=["Accounts"]),
+    upload_avatar=extend_schema(summary="Upload avatar (2 MB max)", tags=["Accounts"]),
+)
 class ProfileViewSet(
     mixins.RetrieveModelMixin,
     mixins.UpdateModelMixin,
@@ -259,6 +283,14 @@ class ProfileViewSet(
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List roles", tags=["Accounts"]),
+    create=extend_schema(summary="Create a role (admin only)", tags=["Accounts"]),
+    retrieve=extend_schema(summary="Retrieve a role", tags=["Accounts"]),
+    update=extend_schema(summary="Replace a role (admin only)", tags=["Accounts"]),
+    partial_update=extend_schema(summary="Patch a role (admin only)", tags=["Accounts"]),
+    destroy=extend_schema(summary="Delete a non-system role (admin only)", tags=["Accounts"]),
+)
 class RoleViewSet(viewsets.ModelViewSet):
     """
     Tenant admins manage roles within their tenant.
@@ -294,6 +326,13 @@ class RoleViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List invitations", tags=["Accounts"]),
+    create=extend_schema(summary="Send an invitation", tags=["Accounts"]),
+    retrieve=extend_schema(summary="Retrieve an invitation", tags=["Accounts"]),
+    destroy=extend_schema(summary="Revoke an invitation", tags=["Accounts"]),
+    resend=extend_schema(summary="Resend an invitation email", tags=["Accounts"]),
+)
 class InvitationViewSet(
     mixins.CreateModelMixin,
     mixins.ListModelMixin,
@@ -398,6 +437,16 @@ class InvitationViewSet(
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List user groups", tags=["User Groups"]),
+    create=extend_schema(summary="Create a user group", tags=["User Groups"]),
+    retrieve=extend_schema(summary="Retrieve a user group", tags=["User Groups"]),
+    update=extend_schema(summary="Replace a user group", tags=["User Groups"]),
+    partial_update=extend_schema(summary="Patch a user group", tags=["User Groups"]),
+    destroy=extend_schema(summary="Delete a user group", tags=["User Groups"]),
+    add_members=extend_schema(summary="Add members to a user group", tags=["User Groups"]),
+    remove_members=extend_schema(summary="Remove members from a user group", tags=["User Groups"]),
+)
 class UserGroupViewSet(viewsets.ModelViewSet):
     """
     Tenant-scoped user groups. Admins and Managers can manage groups;
@@ -464,6 +513,13 @@ class UserGroupViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    register=extend_schema(summary="Register a new user", tags=["Authentication"]),
+    login=extend_schema(summary="Obtain JWT token pair", tags=["Authentication"]),
+    logout=extend_schema(summary="Blacklist refresh token", tags=["Authentication"]),
+    change_password=extend_schema(summary="Change current user's password", tags=["Authentication"]),
+    accept_invitation=extend_schema(summary="Accept a tenant invitation", tags=["Authentication"]),
+)
 class AuthViewSet(viewsets.GenericViewSet):
     """
     Authentication endpoints: register, login (via SimpleJWT), logout,

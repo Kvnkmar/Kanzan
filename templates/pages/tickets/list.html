@@ -313,9 +313,19 @@
   var PAGE_SIZE = 25;
   var SEARCH_DEBOUNCE_MS = 400;
   var PRIORITY_COLORS = { urgent: 'var(--crm-accent)', high: 'var(--crm-primary)', medium: 'var(--crm-primary)', low: 'var(--status-neutral-dot)' };
-  var PRIORITY_BG_LIGHT = { urgent: 'var(--crm-input-bg)', high: '#FFF7ED', medium: '#FFFBEB', low: '#ECFDF5' };
+  var PRIORITY_BG_LIGHT = { urgent: 'var(--crm-input-bg)', high: 'var(--status-warning-bg)', medium: 'var(--status-warning-bg)', low: 'var(--status-success-bg)' };
   var PRIORITY_BG_DARK = { urgent: 'rgba(239,68,68,0.12)', high: 'rgba(249,115,22,0.12)', medium: 'rgba(245,158,11,0.12)', low: 'rgba(16,185,129,0.12)' };
   var PRIORITY_TEXT_DARK = { urgent: 'var(--crm-primary-300)', high: '#FDBA74', medium: 'var(--crm-accent)', low: 'var(--status-neutral-dot)' };
+
+  // Hex-alpha concat (color + 'XX') silently breaks when the color is a
+  // CSS variable like 'var(--crm-accent)'. color-mix() works on any color
+  // expression, so use it whenever the input isn't a literal hex string.
+  function withAlpha(color, alphaHex) {
+    if (typeof color !== 'string' || !color) return color;
+    if (color.charAt(0) === '#') return color + alphaHex;
+    var pct = Math.round(parseInt(alphaHex, 16) / 255 * 100);
+    return 'color-mix(in srgb, ' + color + ' ' + pct + '%, transparent)';
+  }
 
   /* ── State ── */
   var currentPage = 1;
@@ -665,9 +675,9 @@
       statusBadge.className = 'tl-cell-status';
       statusBadge.textContent = statusName;
       if (statusColor) {
-        statusBadge.style.background = statusColor + '1A';
+        statusBadge.style.background = withAlpha(statusColor, '1A');
         statusBadge.style.color = statusColor;
-        statusBadge.style.border = '1px solid ' + statusColor + '33';
+        statusBadge.style.border = '1px solid ' + withAlpha(statusColor, '33');
       }
       colStatus.appendChild(statusBadge);
 
@@ -685,8 +695,8 @@
       var priSpan = document.createElement('span');
       priSpan.className = 'tl-cell-priority';
       priSpan.style.color = pColor;
-      priSpan.style.background = pColor + '1A';
-      priSpan.style.border = '1px solid ' + pColor + '33';
+      priSpan.style.background = withAlpha(pColor, '1A');
+      priSpan.style.border = '1px solid ' + withAlpha(pColor, '33');
       priSpan.textContent = capitalize(t.priority);
       colPriority.appendChild(priSpan);
 
@@ -752,8 +762,8 @@
       var priBadge = document.createElement('span');
       priBadge.className = 'tl-cell-priority';
       priBadge.style.color = pColor;
-      priBadge.style.background = pColor + '1A';
-      priBadge.style.border = '1px solid ' + pColor + '33';
+      priBadge.style.background = withAlpha(pColor, '1A');
+      priBadge.style.border = '1px solid ' + withAlpha(pColor, '33');
       priBadge.textContent = capitalize(t.priority);
 
       header.appendChild(headerLeft);
@@ -775,9 +785,9 @@
       statusBadge.className = 'tl-cell-status';
       statusBadge.textContent = statusName;
       if (statusColor) {
-        statusBadge.style.background = statusColor + '1A';
+        statusBadge.style.background = withAlpha(statusColor, '1A');
         statusBadge.style.color = statusColor;
-        statusBadge.style.border = '1px solid ' + statusColor + '33';
+        statusBadge.style.border = '1px solid ' + withAlpha(statusColor, '33');
       }
       meta.appendChild(statusBadge);
 
@@ -1357,6 +1367,50 @@
   /* ── Init ── */
   loadTickets();
   SavedViews.init();
+
+  /* ── LiveBus: keep the list current without reloads ──────────────
+   *
+   * Strategy:
+   *   - "ticket.created" arrives: if we're on page 1 with no filter
+   *     fight, refetch so the row appears in the right sort position.
+   *     Otherwise leave the banner that TicketFeed already showed and
+   *     let the operator click "Show" to refetch on demand.
+   *   - "ticket.updated" / "ticket.assigned" / "ticket.closed": the row
+   *     might still match the current filter or might fall off. Cheapest
+   *     correct thing: debounced refetch of the current page.
+   *   - "ticket.deleted": refetch (the row vanishes).
+   *   - "ticket.show_pending": user clicked the banner. Force a refetch.
+   *   - Tab regains focus: refetch to catch up.
+   */
+  if (window.LiveBus) {
+    var debouncedReload = LiveBus.debounce(function () {
+      if (document.visibilityState === 'hidden') return;
+      loadTickets();
+    }, 500);
+
+    LiveBus.on('ticket.created', function () {
+      // On page 1 with no manual scroll, prepend by refetching. The
+      // user's filter state is preserved because loadTickets re-reads
+      // the filter inputs.
+      if (currentPage === 1) debouncedReload();
+      // On later pages, leave the banner alone — user clicks Show to
+      // jump back to page 1 (handled by ticket.show_pending below).
+    });
+
+    LiveBus.onMany(
+      ['ticket.updated', 'ticket.assigned', 'ticket.closed', 'ticket.deleted'],
+      function () { debouncedReload(); }
+    );
+
+    LiveBus.on('ticket.show_pending', function () {
+      currentPage = 1;
+      loadTickets();
+    });
+
+    document.addEventListener('visibilitychange', function () {
+      if (document.visibilityState === 'visible') debouncedReload();
+    });
+  }
 })();
 </script>
 {% endblock %}

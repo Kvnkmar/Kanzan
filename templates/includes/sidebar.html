@@ -131,16 +131,16 @@
 
   <!-- User Footer -->
   <div class="sidebar-footer">
-    <div class="sidebar-user dropdown">
+    <div class="sidebar-user dropdown" data-current-user-id="{{ user.id }}">
       <div class="sidebar-user-trigger" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-        <div class="user-avatar-sidebar">
+        <div class="user-avatar-sidebar" id="sidebarUserAvatar">
           {% with name=user.get_full_name|default:user.email %}
           {{ name|make_list|first|upper }}
           {% endwith %}
         </div>
         <div class="user-info">
-          <span class="user-name">{{ user.get_full_name|default:"User" }}</span>
-          <span class="user-email">{{ user.email }}</span>
+          <span class="user-name" id="sidebarUserName">{{ user.get_full_name|default:"User" }}</span>
+          <span class="user-email" id="sidebarUserEmail">{{ user.email }}</span>
         </div>
         <i class="ti ti-dots sidebar-menu-icon"></i>
       </div>

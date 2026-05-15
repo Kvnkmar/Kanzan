@@ -270,11 +270,16 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
             "id": str(message.pk),
             "conversation_id": str(conversation.pk),
             "author_id": str(self.user.pk),
-            "author_name": self.user.get_full_name() or str(self.user),
+            "author_name": (
+                self.user.get_full_name()
+                or self.user.email
+                or str(self.user)
+            ),
             "body": message.body,
             "parent_id": str(parent.pk) if parent else None,
             "is_edited": message.is_edited,
             "created_at": message.created_at.isoformat(),
+            "attachments": [],
         }
 
     @database_sync_to_async

@@ -5,6 +5,7 @@ DRF ViewSets for the tenants app.
 * ``TenantSettingsViewSet`` -- tenant admins can view/update their own settings.
 """
 
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import parsers, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -35,6 +36,14 @@ class IsSuperAdmin(permissions.BasePermission):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List tenants visible to caller", tags=["Tenants"]),
+    create=extend_schema(summary="Create a tenant (superadmin only)", tags=["Tenants"]),
+    retrieve=extend_schema(summary="Retrieve a tenant", tags=["Tenants"]),
+    update=extend_schema(summary="Replace a tenant (superadmin only)", tags=["Tenants"]),
+    partial_update=extend_schema(summary="Patch a tenant (superadmin only)", tags=["Tenants"]),
+    destroy=extend_schema(summary="Delete a tenant (superadmin only)", tags=["Tenants"]),
+)
 class TenantViewSet(viewsets.ModelViewSet):
     """
     Tenant resource.
@@ -69,6 +78,12 @@ class TenantViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated(), IsSuperAdmin()]
 
 
+@extend_schema_view(
+    retrieve=extend_schema(summary="Retrieve tenant settings (singleton)", tags=["Tenants"]),
+    partial_update=extend_schema(summary="Patch tenant settings", tags=["Tenants"]),
+    logo=extend_schema(summary="Upload or remove tenant logo", tags=["Tenants"]),
+    test_email=extend_schema(summary="Send a test outbound email", tags=["Tenants"]),
+)
 class TenantSettingsViewSet(viewsets.GenericViewSet):
     """
     Tenant settings resource scoped to the current request tenant.

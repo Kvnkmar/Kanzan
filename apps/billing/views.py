@@ -12,6 +12,7 @@ import logging
 
 import stripe
 from django.conf import settings
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.exceptions import NotFound, ValidationError
@@ -35,6 +36,10 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List billing plans (public)", tags=["Billing"]),
+    retrieve=extend_schema(summary="Retrieve a billing plan", tags=["Billing"]),
+)
 class PlanViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Public, read-only listing of available billing plans.
@@ -48,6 +53,11 @@ class PlanViewSet(viewsets.ReadOnlyModelViewSet):
     pagination_class = None
 
 
+@extend_schema_view(
+    retrieve=extend_schema(summary="Retrieve current subscription", tags=["Billing"]),
+    cancel=extend_schema(summary="Cancel subscription at period end", tags=["Billing"]),
+    reactivate=extend_schema(summary="Reactivate a cancelling subscription", tags=["Billing"]),
+)
 class SubscriptionViewSet(viewsets.GenericViewSet):
     """
     Tenant-scoped subscription management.
@@ -137,6 +147,10 @@ class SubscriptionViewSet(viewsets.GenericViewSet):
         return Response(serializer.data)
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List invoices", tags=["Billing"]),
+    retrieve=extend_schema(summary="Retrieve an invoice", tags=["Billing"]),
+)
 class InvoiceViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Tenant-scoped, read-only invoice history.
@@ -154,6 +168,9 @@ class InvoiceViewSet(viewsets.ReadOnlyModelViewSet):
         ).select_related("subscription")
 
 
+@extend_schema_view(
+    retrieve=extend_schema(summary="Retrieve current tenant usage counters", tags=["Billing"]),
+)
 class UsageViewSet(viewsets.GenericViewSet):
     """
     Tenant-scoped usage statistics.

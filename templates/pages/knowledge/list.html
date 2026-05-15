@@ -579,6 +579,13 @@
     document.getElementById('kbStatusFilter').addEventListener('change', e => {
       statusFilter = e.target.value; page = 1; loadAdminArticles();
     });
+    document.getElementById('kbAdminList').addEventListener('click', e => {
+      if (e.target.closest('button, input, a, label, .kb-admin-row-actions, .kb-admin-row-check')) return;
+      const row = e.target.closest('.kb-admin-row');
+      if (!row) return;
+      const titleLink = row.querySelector('.kb-admin-row-title');
+      if (titleLink && titleLink.href) window.location.href = titleLink.href;
+    });
   });
 
   async function loadStats() {

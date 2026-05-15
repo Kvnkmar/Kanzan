@@ -10,6 +10,7 @@ from datetime import datetime
 
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -45,6 +46,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List report definitions", tags=["Analytics"]),
+    create=extend_schema(summary="Create a report definition", tags=["Analytics"]),
+    retrieve=extend_schema(summary="Retrieve a report definition", tags=["Analytics"]),
+    update=extend_schema(summary="Replace a report definition", tags=["Analytics"]),
+    partial_update=extend_schema(summary="Patch a report definition", tags=["Analytics"]),
+    destroy=extend_schema(summary="Delete a report definition", tags=["Analytics"]),
+)
 class ReportDefinitionViewSet(viewsets.ModelViewSet):
     """Full CRUD for tenant-scoped report definitions."""
 
@@ -64,6 +73,14 @@ class ReportDefinitionViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List dashboard widgets", tags=["Analytics"]),
+    create=extend_schema(summary="Create a dashboard widget", tags=["Analytics"]),
+    retrieve=extend_schema(summary="Retrieve a dashboard widget", tags=["Analytics"]),
+    update=extend_schema(summary="Replace a dashboard widget", tags=["Analytics"]),
+    partial_update=extend_schema(summary="Patch a dashboard widget", tags=["Analytics"]),
+    destroy=extend_schema(summary="Delete a dashboard widget", tags=["Analytics"]),
+)
 class DashboardWidgetViewSet(viewsets.ModelViewSet):
     """
     Full CRUD for dashboard widgets.
@@ -88,6 +105,11 @@ class DashboardWidgetViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List export jobs", tags=["Analytics"]),
+    create=extend_schema(summary="Create an export job (async)", tags=["Analytics"]),
+    retrieve=extend_schema(summary="Retrieve an export job", tags=["Analytics"]),
+)
 class ExportJobViewSet(viewsets.ModelViewSet):
     """
     Create and list export jobs.
@@ -118,6 +140,14 @@ class ExportJobViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List calendar events", tags=["Analytics"]),
+    create=extend_schema(summary="Create a calendar event", tags=["Analytics"]),
+    retrieve=extend_schema(summary="Retrieve a calendar event", tags=["Analytics"]),
+    update=extend_schema(summary="Replace a calendar event", tags=["Analytics"]),
+    partial_update=extend_schema(summary="Patch a calendar event", tags=["Analytics"]),
+    destroy=extend_schema(summary="Delete a calendar event", tags=["Analytics"]),
+)
 class CalendarEventViewSet(viewsets.ModelViewSet):
     """Full CRUD for tenant-scoped calendar events."""
 
@@ -144,6 +174,11 @@ class CalendarEventViewSet(viewsets.ModelViewSet):
         serializer.save(created_by=self.request.user)
 
 
+@extend_schema(
+    summary="Tenant dashboard summary",
+    description="Returns aggregated dashboard metrics for the current tenant (ticket stats, agent perf, SLA compliance, etc.). Optional `date_from` / `date_to` ISO datetimes.",
+    tags=["Analytics"],
+)
 class DashboardView(APIView):
     """
     Returns aggregated statistics for the tenant dashboard.

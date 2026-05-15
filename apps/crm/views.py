@@ -9,6 +9,11 @@ from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.db.models import Avg, Count, Q, Sum
 from django.utils import timezone
+from drf_spectacular.utils import (
+    OpenApiExample,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.generics import RetrieveAPIView
@@ -32,6 +37,27 @@ logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List CRM activities",
+        description=(
+            "CRM activities (calls, emails, meetings, tasks). Filterable by `ticket`, "
+            "`contact`, `activity_type` (call/email/meeting/task), `assigned_to`, "
+            "`due_at_before`, `due_at_after`."
+        ),
+        tags=["CRM Activities"],
+    ),
+    create=extend_schema(summary="Create a CRM activity", tags=["CRM Activities"]),
+    retrieve=extend_schema(summary="Retrieve a CRM activity", tags=["CRM Activities"]),
+    update=extend_schema(summary="Replace a CRM activity", tags=["CRM Activities"]),
+    partial_update=extend_schema(summary="Patch a CRM activity", tags=["CRM Activities"]),
+    destroy=extend_schema(summary="Delete a CRM activity", tags=["CRM Activities"]),
+    my_tasks=extend_schema(
+        summary="Agent task queue",
+        description="Returns the calling user's open activities, overdue follow-up tickets, and overdue reminders in one payload.",
+        tags=["CRM Activities"],
+    ),
+)
 class ActivityViewSet(viewsets.ModelViewSet):
     """
     CRUD for CRM activities (calls, emails, meetings, tasks).
@@ -230,6 +256,96 @@ class ActivityViewSet(viewsets.ModelViewSet):
         })
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List reminders",
+        description=(
+            "Returns reminders visible to the caller. Agents see only reminders they "
+            "created or are assigned to. Supports the documented filterset plus `mine=true` "
+            "and `status=overdue|pending|completed|cancelled`."
+        ),
+        tags=["CRM Reminders"],
+    ),
+    create=extend_schema(
+        summary="Create a reminder",
+        description=(
+            "Create a reminder. Note: `contacts` and `tickets` are **many-to-many** "
+            "fields — pass arrays of UUIDs, not single values. `assigned_to` is optional "
+            "and defaults to the caller. `priority` is `low` / `medium` / `high` / `urgent`."
+        ),
+        tags=["CRM Reminders"],
+        examples=[
+            OpenApiExample(
+                "Reminder linked to one ticket and one contact",
+                value={
+                    "subject": "Follow up on quote",
+                    "notes": "Customer asked us to circle back next Monday.",
+                    "scheduled_at": "2026-05-20T15:00:00+08:00",
+                    "priority": "high",
+                    "contacts": ["ae12c1f0-1234-4abc-9def-1234567890ab"],
+                    "tickets": ["c5fde2b1-7777-4ddd-9aaa-1234567890ab"],
+                    "assigned_to": "f3e8c91a-aaaa-4ddd-9eee-1234567890ab",
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Reminder with multiple contacts",
+                value={
+                    "subject": "Quarterly check-in",
+                    "scheduled_at": "2026-06-01T09:00:00+08:00",
+                    "priority": "medium",
+                    "contacts": [
+                        "ae12c1f0-1234-4abc-9def-1234567890ab",
+                        "ae12c1f0-1234-4abc-9def-1234567890cd",
+                    ],
+                    "tickets": [],
+                },
+                request_only=True,
+            ),
+        ],
+    ),
+    retrieve=extend_schema(summary="Retrieve a reminder", tags=["CRM Reminders"]),
+    update=extend_schema(summary="Replace a reminder", tags=["CRM Reminders"]),
+    partial_update=extend_schema(summary="Patch a reminder", tags=["CRM Reminders"]),
+    destroy=extend_schema(summary="Delete a reminder", tags=["CRM Reminders"]),
+    overdue=extend_schema(
+        summary="List overdue reminders",
+        description="Reminders whose `scheduled_at` is in the past and that are neither completed nor cancelled.",
+        tags=["CRM Reminders"],
+    ),
+    stats=extend_schema(
+        summary="Reminder stats",
+        description="Aggregated reminder counts (pending / overdue / completed / cancelled / by-priority).",
+        tags=["CRM Reminders"],
+    ),
+    complete=extend_schema(
+        summary="Mark reminder complete",
+        description="Stamps `completed_at` and writes an audit row. Idempotent — already-completed reminders return 400.",
+        tags=["CRM Reminders"],
+    ),
+    cancel=extend_schema(
+        summary="Cancel reminder",
+        description="Stamps `cancelled_at` and writes an audit row.",
+        tags=["CRM Reminders"],
+    ),
+    reschedule=extend_schema(
+        summary="Reschedule reminder",
+        description="Update `scheduled_at` to a future time and append an optional note.",
+        tags=["CRM Reminders"],
+        examples=[
+            OpenApiExample(
+                "Reschedule to next week",
+                value={"new_at": "2026-05-22T14:00:00+08:00", "note": "Customer requested a delay."},
+                request_only=True,
+            ),
+        ],
+    ),
+    bulk_action=extend_schema(
+        summary="Bulk reminder action",
+        description="Apply `complete`, `cancel`, or `delete` to many reminders in one request.",
+        tags=["CRM Reminders"],
+    ),
+)
 class ReminderViewSet(viewsets.ModelViewSet):
     """
     CRUD for reminders with overdue tracking.
@@ -658,6 +774,15 @@ class ReminderViewSet(viewsets.ModelViewSet):
                 )
 
 
+@extend_schema(
+    summary="Pipeline revenue forecast",
+    description=(
+        "Manager+ only. Returns weighted revenue per stage for the given pipeline. "
+        "`weighted_value` per deal = `deal_value * probability / 100` (deal probability "
+        "wins over stage default). Closed statuses are excluded from the forecast."
+    ),
+    tags=["CRM Pipelines"],
+)
 class PipelineForecastView(RetrieveAPIView):
     """
     GET /api/v1/crm/pipeline/{pipeline_id}/forecast/

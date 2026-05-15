@@ -8,6 +8,7 @@ and object ID.
 
 import logging
 
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -24,6 +25,15 @@ from apps.custom_fields.serializers import (
 logger = logging.getLogger(__name__)
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List custom field definitions", tags=["Custom Fields"]),
+    create=extend_schema(summary="Create a custom field definition", tags=["Custom Fields"]),
+    retrieve=extend_schema(summary="Retrieve a custom field definition", tags=["Custom Fields"]),
+    update=extend_schema(summary="Replace a custom field definition", tags=["Custom Fields"]),
+    partial_update=extend_schema(summary="Patch a custom field definition", tags=["Custom Fields"]),
+    destroy=extend_schema(summary="Delete a custom field definition", tags=["Custom Fields"]),
+    reorder=extend_schema(summary="Bulk reorder custom field definitions", tags=["Custom Fields"]),
+)
 class CustomFieldDefinitionViewSet(viewsets.ModelViewSet):
     """
     Full CRUD for custom field definitions.
@@ -117,6 +127,10 @@ class CustomFieldDefinitionViewSet(viewsets.ModelViewSet):
         return Response(response_data, status=status.HTTP_200_OK)
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List custom field values", tags=["Custom Fields"]),
+    retrieve=extend_schema(summary="Retrieve a custom field value", tags=["Custom Fields"]),
+)
 class CustomFieldValueViewSet(viewsets.ReadOnlyModelViewSet):
     """
     Read-only access to custom field values.

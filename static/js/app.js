@@ -139,6 +139,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // Load sidebar notification badges
   initSidebarBadges();
 
+  // Live-connection status pill in the navbar — only shown while the
+  // WebSocket is reconnecting or offline, so happy-path users don't see
+  // any chrome at all.
+  initLiveStatusPill();
+
+  // Keep the sidebar user-footer (avatar/name/email) in sync when the
+  // current user edits their profile in another tab.
+  initSidebarUserLive();
+
   // Show toast from sessionStorage (for cross-page redirects)
   const pendingToast = sessionStorage.getItem('toast');
   if (pendingToast) {
@@ -268,25 +277,48 @@ function initNotifications() {
     }
   }
 
-  // Mark all read button
+  // Mark all read button — fully optimistic with rollback on failure.
   const markAllBtn = document.getElementById('markAllReadBtn');
   if (markAllBtn) {
     markAllBtn.addEventListener('click', (e) => {
       e.preventDefault();
+
+      // Snapshot previous state so we can rollback on server failure.
+      var prevBadgeCount = parseInt(badge.textContent || '0');
+      var prevListNodes = Array.prototype.slice.call(list.children);
+      var prevFooterNodes = notifFooter ? Array.prototype.slice.call(notifFooter.children) : [];
+
+      // Optimistic: clear list, show empty state, zero badge.
+      updateBadge(0);
+      list.textContent = '';
+      var empty = document.createElement('div');
+      empty.className = 'notif-empty';
+      var ico = document.createElement('div');
+      ico.className = 'notif-empty-icon';
+      ico.appendChild(Object.assign(document.createElement('i'), { className: 'ti ti-bell-off' }));
+      empty.appendChild(ico);
+      empty.appendChild(Object.assign(document.createElement('p'),
+        { className: 'notif-empty-title', textContent: 'All caught up!' }));
+      empty.appendChild(Object.assign(document.createElement('p'),
+        { className: 'notif-empty-text', textContent: 'No new notifications right now.' }));
+      list.appendChild(empty);
+      showViewOlderBtn(true);
+      olderPage = 0;
+
       Api.post('/api/v1/notifications/notifications/mark_all_read/').then(() => {
-        updateBadge(0);
-        list.textContent = '';
-        var empty = document.createElement('div');
-        empty.className = 'notif-empty';
-        empty.appendChild(Object.assign(document.createElement('div'), {className: 'notif-empty-icon'}));
-        empty.firstChild.appendChild(Object.assign(document.createElement('i'), {className: 'ti ti-bell-off'}));
-        empty.appendChild(Object.assign(document.createElement('p'), {className: 'notif-empty-title', textContent: 'All caught up!'}));
-        empty.appendChild(Object.assign(document.createElement('p'), {className: 'notif-empty-text', textContent: 'No new notifications right now.'}));
-        list.appendChild(empty);
-        showViewOlderBtn(true);
-        olderPage = 0;
+        // Server confirmed — nothing left to do, the optimistic state
+        // is now the canonical state.
         Toast.success('All notifications marked as read');
       }).catch(() => {
+        // Server rejected — restore the original list / badge / footer.
+        list.textContent = '';
+        prevListNodes.forEach(function (n) { list.appendChild(n); });
+        updateBadge(prevBadgeCount);
+        if (notifFooter) {
+          notifFooter.textContent = '';
+          prevFooterNodes.forEach(function (n) { notifFooter.appendChild(n); });
+        }
+        bindNotifClicks(list);
         Toast.error('Failed to mark notifications as read');
       });
     });
@@ -356,49 +388,225 @@ function initNotifications() {
 
   function bindNotifClicks(container) {
     container.querySelectorAll('.notif-item').forEach(item => {
-      item.addEventListener('click', function(e) {
+      // Idempotent re-bind: skip if we already attached a handler.
+      if (item.dataset.markreadBound === '1') return;
+      item.dataset.markreadBound = '1';
+
+      item.addEventListener('click', function (e) {
         var nid = this.dataset.notifId;
-        if (nid && this.classList.contains('notif-item--unread')) {
-          Api.post('/api/v1/notifications/notifications/' + nid + '/mark_read/').catch(() => {});
-          this.classList.remove('notif-item--unread');
-          var current = parseInt(badge.textContent || '0');
-          if (current > 0) updateBadge(current - 1);
+        var wasUnread = this.classList.contains('notif-item--unread');
+        if (nid && wasUnread) {
+          // Optimistic: flip to read + decrement badge before the network
+          // call. If the server rejects, revert so server truth wins.
+          var self = this;
+          var prevBadge = parseInt(badge.textContent || '0');
+          self.classList.remove('notif-item--unread');
+          if (prevBadge > 0) updateBadge(prevBadge - 1);
+
+          Api.post('/api/v1/notifications/notifications/' + nid + '/mark_read/')
+            .catch(function () {
+              self.classList.add('notif-item--unread');
+              updateBadge(prevBadge);
+              Toast.error('Failed to mark notification as read');
+            });
         }
         if (!this.getAttribute('href') || this.getAttribute('href') === '#') e.preventDefault();
       });
     });
   }
 
-  // WebSocket for real-time notifications
-  const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-  try {
-    const ws = new WebSocket(`${protocol}//${location.host}/ws/notifications/`);
-    ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.id && data.title) {
-        const current = parseInt(badge.textContent || '0');
-        updateBadge(current + 1);
+  // WebSocket for real-time notifications.
+  //
+  // Reconnect with exponential backoff (1s -> 30s cap, 10 attempts) so a
+  // brief server restart or VPN hiccup doesn't kill the live feed. Each
+  // received notification is published into LiveBus so pages can react
+  // to it (dashboard counters, kanban WIP, sidebar badges, etc.) without
+  // every page wiring up its own WebSocket.
 
-        Toast.info(data.title + (data.body ? ' — ' + data.body.substring(0, 60) : ''));
+  function handleIncomingNotification(data) {
+    if (!data || !data.id || !data.title) return;
 
-        var tempDiv = document.createElement('div');
-        tempDiv.innerHTML = renderNotifItem({
-          id: data.id, type: data.type || 'info', title: data.title, body: data.body,
-          data: data.data, is_read: false, created_at: data.created_at || new Date().toISOString()
-        });
-        var newItem = tempDiv.firstElementChild;
-        var emptyState = list.querySelector('.notif-empty');
-        if (emptyState) emptyState.remove();
-        list.prepend(newItem);
-        bindNotifClicks(list);
+    var current = parseInt(badge.textContent || '0');
+    updateBadge(current + 1);
 
-        // Broadcast notification type as a custom event so other pages can react
-        if (data.type) {
-          document.dispatchEvent(new CustomEvent('kanzan:notification', { detail: data }));
-        }
-      }
-    };
-  } catch (e) {}
+    Toast.info(data.title + (data.body ? ' — ' + data.body.substring(0, 60) : ''));
+
+    var html = renderNotifItem({
+      id: data.id, type: data.type || 'info', title: data.title, body: data.body,
+      data: data.data, is_read: false, created_at: data.created_at || new Date().toISOString()
+    });
+    var safe = (typeof DOMPurify !== 'undefined') ? DOMPurify.sanitize(html) : html;
+    var emptyState = list.querySelector('.notif-empty');
+    if (emptyState) emptyState.remove();
+    list.insertAdjacentHTML('afterbegin', safe);
+    bindNotifClicks(list);
+
+    // Publish into LiveBus so any other surface that cares can subscribe
+    // without opening its own WebSocket. Keep the legacy CustomEvent for
+    // older pages still listening to ``document``.
+    if (window.LiveBus) {
+      LiveBus.publish('notification.received', data);
+    }
+    if (data.type) {
+      document.dispatchEvent(new CustomEvent('kanzan:notification', { detail: data }));
+    }
+  }
+
+  (function connectNotificationsWS() {
+    if (!('WebSocket' in window)) return;
+    var protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    var url = protocol + '//' + location.host + '/ws/notifications/';
+    var attempt = 0;
+    var maxAttempts = 10;
+    var manualClose = false;
+
+    function open() {
+      var ws;
+      try { ws = new WebSocket(url); }
+      catch (e) { scheduleReconnect(); return; }
+
+      ws.onopen = function () {
+        attempt = 0;
+        if (window.LiveBus) LiveBus.setChannelState('notifications', 'open');
+      };
+
+      ws.onmessage = function (event) {
+        var data;
+        try { data = JSON.parse(event.data); } catch (e) { return; }
+        handleIncomingNotification(data);
+      };
+
+      ws.onclose = function (event) {
+        if (window.LiveBus) LiveBus.setChannelState('notifications', 'closed');
+        if (!manualClose && event.code !== 1000) scheduleReconnect();
+      };
+
+      ws.onerror = function () { /* onclose will follow */ };
+    }
+
+    function scheduleReconnect() {
+      if (attempt >= maxAttempts) return;
+      attempt++;
+      var delay = Math.min(1000 * Math.pow(2, attempt - 1), 30000);
+      if (window.LiveBus) LiveBus.setChannelState('notifications', 'reconnecting');
+      setTimeout(open, delay);
+    }
+
+    window.addEventListener('beforeunload', function () { manualClose = true; });
+    open();
+  })();
+}
+
+/**
+ * Live-connection status pill.
+ *
+ * Surfaces a problem with the real-time channels.  Stays hidden during
+ * the normal page-load handshake; only appears once a channel that was
+ * previously open drops, or stays unable to connect for a sustained
+ * period.  Hides again the moment all once-open channels are open
+ * again.
+ *
+ * State machine per channel:
+ *     'unknown'      -- no event observed yet (initial)
+ *     'open'         -- connected
+ *     'reconnecting' -- transient gap (backoff scheduled)
+ *     'closed'       -- explicit close after a previous open
+ *
+ * We only show the pill if at least one channel has *ever* been open
+ * and is currently not open. That avoids the false-positive flash
+ * during the initial handshake window before all channels finish
+ * connecting.
+ */
+function initLiveStatusPill() {
+  if (!window.LiveBus) return;
+  var pill = document.getElementById('liveStatusPill');
+  if (!pill) return;
+  var label = document.getElementById('liveStatusLabel');
+
+  var state = { live: 'unknown', notifications: 'unknown', ticket_feed: 'unknown' };
+  // Track which channels have ever come up. A channel that's never
+  // succeeded yet is still in handshake and shouldn't trigger the pill.
+  var everOpen = { live: false, notifications: false, ticket_feed: false };
+  // Grace window: even if a channel never opens, after this delay we
+  // surface the pill so a permanently misconfigured server is visible.
+  var FALLBACK_MS = 12000;
+  var fallbackTimer = setTimeout(function () { applyVisualState(true); }, FALLBACK_MS);
+
+  function applyVisualState(forceShow) {
+    pill.classList.remove(
+      'live-status-pill--hidden',
+      'live-status-pill--reconnecting',
+      'live-status-pill--offline'
+    );
+
+    var channels = Object.keys(state);
+    var problemChannels = channels.filter(function (c) {
+      // A channel is "in a problem state" if it's currently not open
+      // AND we've either seen it open before OR the fallback fired.
+      if (state[c] === 'open') return false;
+      return everOpen[c] || forceShow;
+    });
+
+    if (problemChannels.length === 0) {
+      pill.classList.add('live-status-pill--hidden');
+      return;
+    }
+
+    var anyReconn = problemChannels.some(function (c) { return state[c] === 'reconnecting'; });
+    if (anyReconn) {
+      pill.classList.add('live-status-pill--reconnecting');
+      if (label) label.textContent = 'Reconnecting';
+      pill.setAttribute('title', 'Reconnecting to live updates…');
+      return;
+    }
+    pill.classList.add('live-status-pill--offline');
+    if (label) label.textContent = 'Offline';
+    pill.setAttribute('title',
+      'Live updates are unavailable. Data will refresh once the connection returns.');
+  }
+
+  LiveBus.on('livebus.channel_state', function (data) {
+    if (!data || !data.channel || !(data.channel in state)) return;
+    state[data.channel] = data.state;
+    if (data.state === 'open') {
+      everOpen[data.channel] = true;
+      // First open clears the fallback timer; the pill is now strictly
+      // driven by actual state changes.
+      if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
+    }
+    applyVisualState(false);
+  });
+
+  // Hide it until we hear something.
+  pill.classList.add('live-status-pill--hidden');
+}
+
+/**
+ * Live updates for the sidebar user footer (avatar/name/email).
+ *
+ * Driven by ``user.updated`` events emitted from
+ * apps/accounts/signals.broadcast_user_save when the current user's
+ * profile changes (name, email).  Filters by the data-current-user-id
+ * attribute on the sidebar so changes to *other* users in the tenant
+ * don't replace your name with theirs.
+ */
+function initSidebarUserLive() {
+  if (!window.LiveBus) return;
+  var root = document.querySelector('.sidebar-user[data-current-user-id]');
+  if (!root) return;
+  var currentUserId = root.getAttribute('data-current-user-id');
+  if (!currentUserId) return;
+
+  var nameEl = document.getElementById('sidebarUserName');
+  var emailEl = document.getElementById('sidebarUserEmail');
+  var avatarEl = document.getElementById('sidebarUserAvatar');
+
+  LiveBus.on('user.updated', function (payload) {
+    if (!payload || String(payload.id) !== String(currentUserId)) return;
+    if (nameEl && payload.full_name) nameEl.textContent = payload.full_name;
+    if (emailEl && payload.email)    emailEl.textContent = payload.email;
+    if (avatarEl && payload.initial) avatarEl.textContent = payload.initial;
+  });
 }
 
 /**
@@ -496,6 +704,8 @@ const Toast = {
     info:    'var(--crm-primary)',
   },
 
+  _max: 3,
+
   show(message, type = 'success', duration = 4500) {
     const container = document.getElementById('toastContainer');
     if (!container) return;
@@ -503,6 +713,18 @@ const Toast = {
     const icon = this._icons[type] || this._icons.info;
     const color = this._colors[type] || this._colors.info;
     const title = this._titles[type] || 'Notification';
+
+    /* Cap visible toasts: dismiss oldest non-exiting toasts beyond the limit.
+       The exiting toast slides out sideways first, then collapses its height
+       so the remaining toasts push upward — keep the node alive for both phases. */
+    const active = container.querySelectorAll('.crm-toast:not(.crm-toast-exit)');
+    const overflow = active.length - (this._max - 1);
+    for (let i = 0; i < overflow; i++) {
+      const old = active[i];
+      old.classList.remove('show');
+      old.classList.add('crm-toast-exit');
+      setTimeout(function() { if (old.parentNode) old.remove(); }, 600);
+    }
 
     const el = document.createElement('div');
     el.className = 'toast crm-toast border-0';
@@ -532,12 +754,8 @@ const Toast = {
     setTimeout(function() {
       el.classList.remove('show');
       el.classList.add('crm-toast-exit');
-      el.addEventListener('transitionend', function handler() {
-        el.removeEventListener('transitionend', handler);
-        el.remove();
-      });
-      /* Fallback removal if transitionend doesn't fire */
-      setTimeout(function() { if (el.parentNode) el.remove(); }, 500);
+      /* Keep the node alive for the full slide + collapse sequence (~430ms). */
+      setTimeout(function() { if (el.parentNode) el.remove(); }, 600);
     }, duration);
   },
 

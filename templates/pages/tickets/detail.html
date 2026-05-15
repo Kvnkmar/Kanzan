@@ -366,10 +366,10 @@ span.flatpickr-weekday {
           <input type="file" id="ticketAttachmentInput" multiple class="d-none" accept="image/jpeg,image/png,image/gif,image/webp,application/pdf,text/plain,text/csv,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.odt,.ods,.odp">
         </div>
         <div id="ticketAttachmentsEmpty" class="td-attachment-empty">
-          <div class="td-attachment-dropzone">
+          <div id="ticketAttachmentDropzone" class="td-attachment-dropzone" role="button" tabindex="0" aria-label="Upload attachments">
             <i class="ti ti-cloud-upload" aria-hidden="true"></i>
             <span>No attachments yet</span>
-            <small>Drag files here or click + to upload</small>
+            <small>Drag files here or click to upload</small>
           </div>
         </div>
         <div id="ticketAttachmentImages" class="td-attachment-grid"></div>
@@ -1183,7 +1183,10 @@ window.dispatchEvent(new Event('tiptap-ready'));
             dom.priorityBadge.innerHTML = '<span class="badge badge-priority-' + value + '">' + prLabel + '</span>';
           }
         })
-        .catch(function() { Toast.error('Failed to update ' + field); });
+        .catch(function(err) {
+          var detail = err && (err.detail || (err[field] && err[field][0]) || err.non_field_errors && err.non_field_errors[0]);
+          Toast.error(detail || ('Failed to update ' + field));
+        });
     }, AUTOSAVE_DEBOUNCE_MS);
   }
 
@@ -1228,7 +1231,9 @@ window.dispatchEvent(new Event('tiptap-ready'));
 
     var avatar = document.createElement('div');
     avatar.className = 'avatar avatar-sm td-contact-avatar';
-    avatar.style.cssText = 'background:' + bgColor + '15;color:' + bgColor + ';border-color:' + bgColor + '25;';
+    // bgColor is a var(--crm-*) palette value; hex-alpha suffixes ('15', '25')
+    // only work on literal hex, so use rgb-channel + opacity via a wrapper.
+    avatar.style.cssText = 'background:' + bgColor + ';color:var(--crm-text-on-primary);border-color:transparent;';
     avatar.textContent = initials;
     header.appendChild(avatar);
 
@@ -1324,7 +1329,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
           var initials = getInitials(name);
           var bgColor = avatarColor(name);
           html += '<div class="td-contact-result-item" data-contact-id="' + c.id + '">' +
-            '<div class="td-contact-result-avatar" style="background:' + bgColor + '12;color:' + bgColor + ';">' + initials + '</div>' +
+            '<div class="td-contact-result-avatar" style="background:' + bgColor + ';color:var(--crm-text-on-primary);">' + initials + '</div>' +
             '<div class="td-contact-result-info"><div class="td-contact-result-name">' + escapeHtml(name) + '</div>' +
             (c.email ? '<div class="td-contact-result-email">' + escapeHtml(c.email) + '</div>' : '') +
             '</div></div>';
@@ -1946,14 +1951,12 @@ window.dispatchEvent(new Event('tiptap-ready'));
     };
   }
 
-  document.getElementById('addAttachmentBtn').addEventListener('click', function() {
-    document.getElementById('ticketAttachmentInput').click();
-  });
+  var ticketAttachmentInput = document.getElementById('ticketAttachmentInput');
+  var ticketAttachmentDropzone = document.getElementById('ticketAttachmentDropzone');
 
-  document.getElementById('ticketAttachmentInput').addEventListener('change', function() {
-    if (!ticketId || !this.files.length) return;
-    var files = Array.from(this.files);
-    this.value = '';
+  function uploadTicketAttachmentFiles(fileList) {
+    if (!ticketId || !fileList || !fileList.length) return;
+    var files = Array.from(fileList);
     var uploads = files.map(function(file) {
       if (file.size > MAX_FILE_SIZE) { Toast.warning(file.name + ' exceeds 25 MB limit'); return Promise.resolve(); }
       var fd = new FormData();
@@ -1963,6 +1966,30 @@ window.dispatchEvent(new Event('tiptap-ready'));
       return Api.upload('/api/v1/attachments/attachments/', fd).catch(function() { Toast.error('Failed to upload ' + file.name); });
     });
     Promise.all(uploads).then(function() { Toast.success('Attachment(s) uploaded'); loadTicketAttachments(); loadActivity(); });
+  }
+
+  document.getElementById('addAttachmentBtn').addEventListener('click', function() {
+    ticketAttachmentInput.click();
+  });
+
+  if (ticketAttachmentDropzone) {
+    ticketAttachmentDropzone.addEventListener('click', function() { ticketAttachmentInput.click(); });
+    ticketAttachmentDropzone.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); ticketAttachmentInput.click(); }
+    });
+    ticketAttachmentDropzone.addEventListener('dragover', function(e) { e.preventDefault(); this.classList.add('dragover'); });
+    ticketAttachmentDropzone.addEventListener('dragleave', function() { this.classList.remove('dragover'); });
+    ticketAttachmentDropzone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      this.classList.remove('dragover');
+      if (e.dataTransfer && e.dataTransfer.files.length) uploadTicketAttachmentFiles(e.dataTransfer.files);
+    });
+  }
+
+  ticketAttachmentInput.addEventListener('change', function() {
+    var files = this.files;
+    this.value = '';
+    uploadTicketAttachmentFiles(files);
   });
 
   /* ── Comment Attachments ── */
@@ -3475,7 +3502,8 @@ window.dispatchEvent(new Event('tiptap-ready'));
       document.getElementById('panelContactName').textContent = fn;
       document.getElementById('cpFullName').textContent = fn;
       document.getElementById('cpAvatar').textContent = ini;
-      document.getElementById('cpAvatar').style.background = 'linear-gradient(135deg, ' + bgColor + ', ' + bgColor + 'cc)';
+      // bgColor is a var(--crm-*) palette value; can't append hex-alpha.
+      document.getElementById('cpAvatar').style.background = bgColor;
 
       var compName = c.company ? (typeof c.company === 'object' ? c.company.name : '') : '';
       document.getElementById('cpJobTitle').textContent = c.job_title || compName || 'No title';
@@ -3645,6 +3673,71 @@ window.dispatchEvent(new Event('tiptap-ready'));
   loadTicketReminders();
   setTimeout(upgradeAllSelects, 800);
   setTimeout(upgradeAllSelects, 2000);
+
+  /* ── LiveBus: keep ticket detail conversation live ────────────────
+   *
+   * Server signals broadcast comment.created / .updated / .deleted with
+   * the parent's content_type + object_id. We listen for the events
+   * pointing at *this* ticket and refresh the comments thread, the
+   * activity timeline, and the ticket header itself.
+   *
+   * We also listen to ticket.updated (from the existing ticket feed
+   * channel) for this specific ticket so status changes from another
+   * tab are reflected in the header without reload.
+   */
+  if (window.LiveBus) {
+    function isThisTicket(payload) {
+      if (!payload || !ticketId) return false;
+      if (payload.content_type && payload.content_type !== 'tickets.ticket') return false;
+      var pid = payload.object_id || payload.id;
+      return String(pid) === String(ticketId);
+    }
+
+    var refetchComments = LiveBus.debounce(function () {
+      if (document.visibilityState === 'hidden') return;
+      loadComments();
+    }, 350);
+    var refetchActivity = LiveBus.debounce(function () {
+      if (document.visibilityState === 'hidden') return;
+      loadActivity();
+    }, 350);
+    var refetchTicket = LiveBus.debounce(function () {
+      if (document.visibilityState === 'hidden') return;
+      if (typeof loadTicket === 'function') loadTicket();
+    }, 400);
+
+    LiveBus.onMany(
+      ['comment.created', 'comment.updated', 'comment.deleted'],
+      function (payload) {
+        if (!isThisTicket(payload)) return;
+        refetchComments();
+        refetchActivity();
+      }
+    );
+
+    LiveBus.onMany(
+      ['ticket.updated', 'ticket.assigned', 'ticket.closed'],
+      function (payload) {
+        // ticket-feed payloads carry the ticket id directly
+        var pid = payload && (payload.id || payload.ticket_id);
+        if (!pid || !ticketId || String(pid) !== String(ticketId)) return;
+        refetchTicket();
+        refetchActivity();
+      }
+    );
+
+    LiveBus.on('ticket.deleted', function (payload) {
+      var pid = payload && (payload.ticket_id || payload.id);
+      if (!pid || !ticketId || String(pid) !== String(ticketId)) return;
+      Toast.info('This ticket was deleted.');
+    });
+
+    LiveBus.on('live.reconnected', function () {
+      refetchTicket();
+      refetchComments();
+      refetchActivity();
+    });
+  }
 })();
 </script>
 {% endblock %}

@@ -2,6 +2,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import models
 from django.db.models import Count, Exists, OuterRef, Subquery
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -18,6 +19,18 @@ from apps.newsfeed.models import (
 from apps.newsfeed.serializers import NewsPostSerializer
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List newsfeed posts", tags=["Newsfeed"]),
+    create=extend_schema(summary="Create a newsfeed post (admin only)", tags=["Newsfeed"]),
+    retrieve=extend_schema(summary="Retrieve a newsfeed post", tags=["Newsfeed"]),
+    update=extend_schema(summary="Replace a newsfeed post (admin only)", tags=["Newsfeed"]),
+    partial_update=extend_schema(summary="Patch a newsfeed post (admin only)", tags=["Newsfeed"]),
+    destroy=extend_schema(summary="Delete a newsfeed post (admin only)", tags=["Newsfeed"]),
+    react=extend_schema(summary="React to a post (or remove reaction)", tags=["Newsfeed"]),
+    mark_read=extend_schema(summary="Mark a post as read", tags=["Newsfeed"]),
+    mark_all_read=extend_schema(summary="Mark all posts as read", tags=["Newsfeed"]),
+    unread_count=extend_schema(summary="Unread newsfeed count", tags=["Newsfeed"]),
+)
 class NewsPostViewSet(viewsets.ModelViewSet):
     """
     News feed for the tenant dashboard.

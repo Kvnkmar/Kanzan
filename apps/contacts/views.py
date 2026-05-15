@@ -6,6 +6,11 @@ All querysets are automatically tenant-scoped via TenantAwareManager.
 """
 
 from django.db.models import Count
+from drf_spectacular.utils import (
+    OpenApiExample,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -27,6 +32,18 @@ from apps.contacts.serializers import (
 )
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List CRM accounts",
+        description="Returns CRM accounts (book-of-business records) for the current tenant. Ordered by `-created_at` by default.",
+        tags=["Accounts"],
+    ),
+    create=extend_schema(summary="Create a CRM account", tags=["Accounts"]),
+    retrieve=extend_schema(summary="Retrieve a CRM account", tags=["Accounts"]),
+    update=extend_schema(summary="Replace a CRM account", tags=["Accounts"]),
+    partial_update=extend_schema(summary="Patch a CRM account", tags=["Accounts"]),
+    destroy=extend_schema(summary="Delete a CRM account", tags=["Accounts"]),
+)
 class AccountViewSet(viewsets.ModelViewSet):
     """
     CRUD for CRM accounts within the current tenant.
@@ -52,6 +69,18 @@ class AccountViewSet(viewsets.ModelViewSet):
         serializer.save(tenant=self.request.tenant)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List companies",
+        description="Returns companies (organisations) in the current tenant, annotated with `contact_count`. Supports search on `name` / `domain` and filtering by `industry` / `size`.",
+        tags=["Companies"],
+    ),
+    create=extend_schema(summary="Create a company", tags=["Companies"]),
+    retrieve=extend_schema(summary="Retrieve a company", tags=["Companies"]),
+    update=extend_schema(summary="Replace a company", tags=["Companies"]),
+    partial_update=extend_schema(summary="Patch a company", tags=["Companies"]),
+    destroy=extend_schema(summary="Delete a company", tags=["Companies"]),
+)
 class CompanyViewSet(viewsets.ModelViewSet):
     """
     Full CRUD for companies within the current tenant.
@@ -88,6 +117,48 @@ class CompanyViewSet(viewsets.ModelViewSet):
         serializer.save(tenant=self.request.tenant)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List contacts",
+        description=(
+            "Returns the paginated contact list for the current tenant. Supports `search=` "
+            "(matches email, first_name, last_name, phone), `ordering=`, and filterset "
+            "params (company, account, etc.). Counts against `Plan.max_contacts` on create."
+        ),
+        tags=["Contacts"],
+    ),
+    create=extend_schema(
+        summary="Create a contact",
+        description="Email must be unique per tenant. Counts against `Plan.max_contacts`.",
+        tags=["Contacts"],
+        examples=[
+            OpenApiExample(
+                "Minimal contact",
+                value={
+                    "email": "jane@example.com",
+                    "first_name": "Jane",
+                    "last_name": "Doe",
+                    "phone": "+1-555-0123",
+                },
+                request_only=True,
+            ),
+        ],
+    ),
+    retrieve=extend_schema(summary="Retrieve a contact", tags=["Contacts"]),
+    update=extend_schema(summary="Replace a contact", tags=["Contacts"]),
+    partial_update=extend_schema(summary="Patch a contact", tags=["Contacts"]),
+    destroy=extend_schema(summary="Delete a contact", tags=["Contacts"]),
+    context=extend_schema(
+        summary="Contact 360 context",
+        description="Return a contact summary for the ticket-detail sidebar (recent tickets, latest events, group memberships).",
+        tags=["Contacts"],
+    ),
+    timeline=extend_schema(
+        summary="Contact event timeline",
+        description="Append-only `ContactEvent` timeline (360° interaction history).",
+        tags=["Contacts"],
+    ),
+)
 class ContactViewSet(viewsets.ModelViewSet):
     """
     Full CRUD for contacts within the current tenant.
@@ -174,6 +245,36 @@ class ContactViewSet(viewsets.ModelViewSet):
         PlanLimitChecker(self.request.tenant).check_can_create_contact()
         serializer.save(tenant=self.request.tenant)
 
+    @extend_schema(
+        summary="Bulk contact action",
+        description=(
+            "Apply one of `delete`, `add_to_group`, `remove_from_group` to multiple "
+            "contacts at once. `params.group_id` is required for group actions."
+        ),
+        tags=["Contacts"],
+        examples=[
+            OpenApiExample(
+                "Bulk delete",
+                value={
+                    "action": "delete",
+                    "contact_ids": [
+                        "ae12c1f0-1234-4abc-9def-1234567890ab",
+                        "ae12c1f0-1234-4abc-9def-1234567890cd",
+                    ],
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Add to a group",
+                value={
+                    "action": "add_to_group",
+                    "contact_ids": ["ae12c1f0-1234-4abc-9def-1234567890ab"],
+                    "params": {"group_id": "2b3c4d5e-6789-4abc-9def-1234567890ab"},
+                },
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=False, methods=["post"], url_path="bulk-action")
     def bulk_action(self, request):
         """
@@ -392,6 +493,14 @@ class ContactViewSet(viewsets.ModelViewSet):
         return paginator.get_paginated_response(serializer.data)
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List contact groups", tags=["Contact Groups"]),
+    create=extend_schema(summary="Create a contact group", tags=["Contact Groups"]),
+    retrieve=extend_schema(summary="Retrieve a contact group", tags=["Contact Groups"]),
+    update=extend_schema(summary="Replace a contact group", tags=["Contact Groups"]),
+    partial_update=extend_schema(summary="Patch a contact group", tags=["Contact Groups"]),
+    destroy=extend_schema(summary="Delete a contact group", tags=["Contact Groups"]),
+)
 class ContactGroupViewSet(viewsets.ModelViewSet):
     """
     Full CRUD for contact groups within the current tenant.
@@ -417,6 +526,18 @@ class ContactGroupViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(tenant=self.request.tenant)
 
+    @extend_schema(
+        summary="Add contacts to group",
+        description="Add one or more contacts to this group. Set-based — duplicates are silently ignored.",
+        tags=["Contact Groups"],
+        examples=[
+            OpenApiExample(
+                "Add by id list",
+                value={"contact_ids": ["ae12c1f0-1234-4abc-9def-1234567890ab"]},
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=True, methods=["post"], url_path="add_contacts")
     def add_contacts(self, request, pk=None):
         """
@@ -450,6 +571,11 @@ class ContactGroupViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @extend_schema(
+        summary="Remove contacts from group",
+        description="Remove one or more contacts from this group.",
+        tags=["Contact Groups"],
+    )
     @action(detail=True, methods=["post"], url_path="remove_contacts")
     def remove_contacts(self, request, pk=None):
         """

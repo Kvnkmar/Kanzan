@@ -17,6 +17,19 @@
   </div>
 
   <div class="header-right">
+    <!-- Live connection indicator. Driven by LiveBus.setChannelState
+         from live-connection.js. Hidden when the live channel is open
+         (steady-state happy path), shown as a warning pill when the
+         WebSocket is reconnecting or offline. -->
+    <div class="live-status-pill live-status-pill--hidden"
+         id="liveStatusPill"
+         role="status"
+         aria-live="polite"
+         title="Live updates">
+      <span class="live-status-dot" id="liveStatusDot"></span>
+      <span class="live-status-label" id="liveStatusLabel">Live</span>
+    </div>
+
     <!-- Theme Toggle -->
     <button class="theme-toggle-btn" id="themeToggleBtn" type="button" title="Toggle theme">
       <i class="ti ti-sun"></i>

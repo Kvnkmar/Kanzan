@@ -9,6 +9,7 @@ DRF ViewSets for the kanban app.
 import logging
 
 from django.db.models import Q
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -37,6 +38,16 @@ def _accessible_boards_q(user):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List kanban boards", tags=["Kanban"]),
+    create=extend_schema(summary="Create a kanban board", tags=["Kanban"]),
+    retrieve=extend_schema(summary="Retrieve a kanban board", tags=["Kanban"]),
+    update=extend_schema(summary="Replace a kanban board", tags=["Kanban"]),
+    partial_update=extend_schema(summary="Patch a kanban board", tags=["Kanban"]),
+    destroy=extend_schema(summary="Delete a kanban board", tags=["Kanban"]),
+    detail_with_cards=extend_schema(summary="Board with columns + cards", tags=["Kanban"]),
+    populate=extend_schema(summary="Populate board from tickets", tags=["Kanban"]),
+)
 class BoardViewSet(viewsets.ModelViewSet):
     """
     CRUD operations for kanban boards.
@@ -129,6 +140,14 @@ class BoardViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List kanban columns", tags=["Kanban"]),
+    create=extend_schema(summary="Create a kanban column", tags=["Kanban"]),
+    retrieve=extend_schema(summary="Retrieve a kanban column", tags=["Kanban"]),
+    update=extend_schema(summary="Replace a kanban column", tags=["Kanban"]),
+    partial_update=extend_schema(summary="Patch a kanban column", tags=["Kanban"]),
+    destroy=extend_schema(summary="Delete a kanban column", tags=["Kanban"]),
+)
 class ColumnViewSet(viewsets.ModelViewSet):
     """
     CRUD operations for columns within a specific board.
@@ -207,6 +226,17 @@ class ColumnViewSet(viewsets.ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List card positions", tags=["Kanban"]),
+    create=extend_schema(summary="Create a card position", tags=["Kanban"]),
+    retrieve=extend_schema(summary="Retrieve a card position", tags=["Kanban"]),
+    update=extend_schema(summary="Replace a card position", tags=["Kanban"]),
+    partial_update=extend_schema(summary="Patch a card position", tags=["Kanban"]),
+    destroy=extend_schema(summary="Delete a card position", tags=["Kanban"]),
+    add_ticket=extend_schema(summary="Add a ticket as a card", tags=["Kanban"]),
+    move=extend_schema(summary="Move a card", tags=["Kanban"]),
+    reorder=extend_schema(summary="Reorder cards within a column", tags=["Kanban"]),
+)
 class CardPositionViewSet(viewsets.ModelViewSet):
     """
     CRUD and movement operations for card positions within a board.

@@ -19,6 +19,7 @@ import logging
 
 from django.db.models import Q, Count
 from django.utils import timezone
+from drf_spectacular.utils import extend_schema
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -35,6 +36,11 @@ def _cap(n):
     return min(n, MAX_BADGE)
 
 
+@extend_schema(
+    summary="Sidebar badge counts",
+    description="Returns live unread/pending counts for sidebar nav badges. All counts capped at 99.",
+    tags=["Navigation"],
+)
 class BadgeCountView(APIView):
     """
     GET /api/v1/nav/badge-counts/

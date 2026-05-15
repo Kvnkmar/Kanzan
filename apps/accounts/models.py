@@ -32,6 +32,12 @@ class User(AbstractUser):
     # See apps/accounts/middleware.py:SessionVersionMiddleware.
     auth_version = models.PositiveIntegerField(default=1)
 
+    # Marks "service account" users — hidden synthetic users that back an
+    # API key (one User per key). These rows must be filtered out of every
+    # human-facing list (users page, agent picker, mention search, etc.)
+    # so admins never see them. See apps/api_keys/services.create_api_key.
+    is_service_account = models.BooleanField(default=False, db_index=True)
+
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["first_name", "last_name"]
 

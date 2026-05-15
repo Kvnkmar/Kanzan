@@ -10,6 +10,13 @@ permission backend.
 import logging
 
 from django.contrib.contenttypes.models import ContentType
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -91,6 +98,14 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List ticket statuses", tags=["Ticket Configuration"]),
+    create=extend_schema(summary="Create a status", tags=["Ticket Configuration"]),
+    retrieve=extend_schema(summary="Retrieve a status", tags=["Ticket Configuration"]),
+    update=extend_schema(summary="Replace a status", tags=["Ticket Configuration"]),
+    partial_update=extend_schema(summary="Patch a status", tags=["Ticket Configuration"]),
+    destroy=extend_schema(summary="Delete a status", tags=["Ticket Configuration"]),
+)
 class TicketStatusViewSet(ModelViewSet):
     """CRUD for tenant-customisable ticket statuses."""
 
@@ -117,6 +132,14 @@ class TicketStatusViewSet(ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List ticket queues", tags=["Ticket Configuration"]),
+    create=extend_schema(summary="Create a queue", tags=["Ticket Configuration"]),
+    retrieve=extend_schema(summary="Retrieve a queue", tags=["Ticket Configuration"]),
+    update=extend_schema(summary="Replace a queue", tags=["Ticket Configuration"]),
+    partial_update=extend_schema(summary="Patch a queue", tags=["Ticket Configuration"]),
+    destroy=extend_schema(summary="Delete a queue (blocks if open tickets)", tags=["Ticket Configuration"]),
+)
 class QueueViewSet(ModelViewSet):
     """CRUD for ticket queues."""
 
@@ -169,6 +192,14 @@ class QueueViewSet(ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List ticket categories", tags=["Ticket Configuration"]),
+    create=extend_schema(summary="Create a category", tags=["Ticket Configuration"]),
+    retrieve=extend_schema(summary="Retrieve a category", tags=["Ticket Configuration"]),
+    update=extend_schema(summary="Replace a category", tags=["Ticket Configuration"]),
+    partial_update=extend_schema(summary="Patch a category", tags=["Ticket Configuration"]),
+    destroy=extend_schema(summary="Delete a category", tags=["Ticket Configuration"]),
+)
 class TicketCategoryViewSet(ModelViewSet):
     """CRUD for admin-configurable ticket categories."""
 
@@ -197,6 +228,14 @@ class TicketCategoryViewSet(ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List SLA policies", tags=["SLA"]),
+    create=extend_schema(summary="Create an SLA policy", tags=["SLA"]),
+    retrieve=extend_schema(summary="Retrieve an SLA policy", tags=["SLA"]),
+    update=extend_schema(summary="Replace an SLA policy", tags=["SLA"]),
+    partial_update=extend_schema(summary="Patch an SLA policy", tags=["SLA"]),
+    destroy=extend_schema(summary="Delete an SLA policy", tags=["SLA"]),
+)
 class SLAPolicyViewSet(ModelViewSet):
     """CRUD for SLA policies."""
 
@@ -215,6 +254,14 @@ class SLAPolicyViewSet(ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List escalation rules", tags=["SLA"]),
+    create=extend_schema(summary="Create an escalation rule", tags=["SLA"]),
+    retrieve=extend_schema(summary="Retrieve an escalation rule", tags=["SLA"]),
+    update=extend_schema(summary="Replace an escalation rule", tags=["SLA"]),
+    partial_update=extend_schema(summary="Patch an escalation rule", tags=["SLA"]),
+    destroy=extend_schema(summary="Delete an escalation rule", tags=["SLA"]),
+)
 class EscalationRuleViewSet(ModelViewSet):
     """CRUD for escalation rules."""
 
@@ -233,6 +280,233 @@ class EscalationRuleViewSet(ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(
+        summary="List tickets",
+        description=(
+            "Returns a paginated list of tickets visible to the caller. Agents see only "
+            "tickets they created or are assigned to; Managers and Admins see every ticket "
+            "in the tenant. Soft-deleted tickets are excluded by default — pass "
+            "`?include_deleted=true` to include them. Supports rich filtering via the "
+            "documented query parameters, as well as `search=` (matches subject, "
+            "description, and number) and `ordering=` (any field in `ordering_fields`)."
+        ),
+        tags=["Tickets"],
+        parameters=[
+            OpenApiParameter(
+                name="status",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.QUERY,
+                description="Filter by TicketStatus UUID.",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="assignee",
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.QUERY,
+                description="Filter by assigned user UUID.",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="priority",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Filter by priority: `low`, `medium`, `high`, or `urgent`.",
+                required=False,
+                enum=["low", "medium", "high", "urgent"],
+            ),
+            OpenApiParameter(
+                name="search",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description="Full-text-ish search across `subject`, `description`, `number`.",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="ordering",
+                type=OpenApiTypes.STR,
+                location=OpenApiParameter.QUERY,
+                description=(
+                    "Order results by any of: `number`, `priority`, `created_at`, "
+                    "`updated_at`, `due_date`. Prefix with `-` for descending."
+                ),
+                required=False,
+            ),
+            OpenApiParameter(
+                name="include_deleted",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Set `true` to include soft-deleted tickets in the response.",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="sla_approaching",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Set `true` to return only tickets within 30 minutes of an SLA deadline.",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="sla_response_breached",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Filter by first-response SLA breach state.",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="sla_resolution_breached",
+                type=OpenApiTypes.BOOL,
+                location=OpenApiParameter.QUERY,
+                description="Filter by resolution SLA breach state.",
+                required=False,
+            ),
+        ],
+    ),
+    create=extend_schema(
+        summary="Create a ticket",
+        description=(
+            "Create a new ticket scoped to the caller's tenant. Counts against the "
+            "tenant's monthly ticket cap (`PlanLimitChecker`). The ticket number is "
+            "assigned atomically by `TicketCounter`. SLA deadlines are initialised "
+            "automatically based on the resolved `SLAPolicy`."
+        ),
+        tags=["Tickets"],
+        examples=[
+            OpenApiExample(
+                "Minimal ticket",
+                value={
+                    "subject": "Cannot log in to dashboard",
+                    "description": "Customer reports a 500 after entering credentials.",
+                    "priority": "high",
+                    "contact": "ae12c1f0-1234-4abc-9def-1234567890ab",
+                },
+                request_only=True,
+            ),
+        ],
+    ),
+    retrieve=extend_schema(
+        summary="Retrieve a ticket",
+        description="Return a single ticket with full detail (SLA, watchers, related tickets, custom fields).",
+        tags=["Tickets"],
+    ),
+    update=extend_schema(
+        summary="Replace a ticket",
+        description=(
+            "Full update of a ticket. Tracked-field changes (`status`, `priority`, "
+            "`assignee`) are routed through the service layer so that ActivityLog + "
+            "TicketActivity entries and SLA breach checks fire correctly."
+        ),
+        tags=["Tickets"],
+    ),
+    partial_update=extend_schema(
+        summary="Patch a ticket",
+        description="Partial update — same routing rules as PUT but only the supplied fields are changed.",
+        tags=["Tickets"],
+    ),
+    destroy=extend_schema(
+        summary="Soft-delete a ticket",
+        description=(
+            "Soft-deletes the ticket (sets `is_deleted=true`, `deleted_at`, `deleted_by`). "
+            "The row stays in the database and can be restored via `POST /restore/`."
+        ),
+        tags=["Tickets"],
+    ),
+    change_stage=extend_schema(
+        summary="Change pipeline stage",
+        description="Move the ticket along a sales/support pipeline. Pass `{stage: <uuid>, reason: <str>}`.",
+        tags=["Tickets"],
+    ),
+    lookup=extend_schema(
+        summary="Lookup ticket by number",
+        description="Find a ticket by its tenant-local number. Ignores soft-delete so closed tickets remain findable.",
+        tags=["Tickets"],
+    ),
+    teammates=extend_schema(
+        summary="List teammates",
+        description="Lightweight teammate roster (id, name, role) for the current tenant.",
+        tags=["Tickets"],
+    ),
+    team_progress=extend_schema(
+        summary="Team progress digest",
+        description="Aggregated per-teammate stats for dashboards (open tickets, recent closures).",
+        tags=["Tickets"],
+    ),
+    activity=extend_schema(
+        summary="Audit activity log",
+        description="Polymorphic ActivityLog rows for this ticket (23-action audit trail; diffs + IP).",
+        tags=["Tickets"],
+    ),
+    timeline=extend_schema(
+        summary="Merged event timeline",
+        description="Chronological merge of TicketActivity events and human-readable comments.",
+        tags=["Tickets"],
+    ),
+    emails=extend_schema(
+        summary="List linked emails",
+        description="Inbound/outbound `InboundEmail` records threaded to this ticket.",
+        tags=["Tickets"],
+    ),
+    send_creation_email=extend_schema(
+        summary="Send creation confirmation email",
+        description="Send the canned `ticket_created` template to the ticket's contact.",
+        tags=["Tickets"],
+    ),
+    unlinked_emails=extend_schema(
+        summary="Unlinked emails for agent inbox",
+        description="Recent inbound emails that have not yet been linked to a ticket.",
+        tags=["Tickets"],
+    ),
+    links=extend_schema(
+        summary="List or create ticket links",
+        description="GET: list duplicates/relations/blockers. POST: create a link (`duplicate_of` / `related_to` / `blocks` / `blocked_by`).",
+        tags=["Tickets"],
+    ),
+    delete_link=extend_schema(
+        summary="Delete a ticket link",
+        description="Remove an existing TicketLink row. Agent+ may delete links.",
+        tags=["Tickets"],
+    ),
+    merge=extend_schema(
+        summary="Merge into another ticket",
+        description="Manager+ only. Moves comments/activities/attachments to the primary, closes this one, and writes a `duplicate_of` link.",
+        tags=["Tickets"],
+    ),
+    split=extend_schema(
+        summary="Split selected comments to a new ticket",
+        description="Manager+ only. Creates a child ticket carrying the named comments, SLA-initialised, linked back as `related_to`.",
+        tags=["Tickets"],
+    ),
+    apply_macro=extend_schema(
+        summary="Apply a macro",
+        description="Render a macro body (with `{{ticket.*}}` / `{{contact.*}}` / `{{agent.*}}` substitution) and atomically execute its actions.",
+        tags=["Tickets"],
+    ),
+    search=extend_schema(
+        summary="Search ticket by number",
+        description="Return ticket detail with related-link context. Number-only search; for prefix/keyword search use `?search=` on list.",
+        tags=["Tickets"],
+    ),
+    mark_all_read=extend_schema(
+        summary="Mark all comments as read",
+        description="Bulk-create CommentRead rows for the calling user on every visible comment in this ticket.",
+        tags=["Tickets"],
+    ),
+    watch=extend_schema(
+        summary="Toggle watch",
+        description="Toggle the calling user's TicketWatcher row. Returns `{watching: true}` or `{watching: false}`.",
+        tags=["Tickets"],
+    ),
+    time_summary=extend_schema(
+        summary="Aggregated time tracking",
+        description="Total / billable minutes for this ticket plus a per-user breakdown.",
+        tags=["Tickets"],
+    ),
+    time_entry_detail=extend_schema(
+        summary="Update or delete a time entry",
+        description="PATCH or DELETE a single TimeEntry. Only the creator (or Manager+) may modify.",
+        tags=["Tickets"],
+    ),
+)
 class TicketViewSet(ModelViewSet):
     """
     Full CRUD for tickets with rich filtering, search, and an ``assign``
@@ -349,9 +623,16 @@ class TicketViewSet(ModelViewSet):
         pending_priority = serializer.validated_data.pop("priority", None)
         pending_assignee = serializer.validated_data.pop("assignee", None)
 
-        # Validate status transition before saving anything
+        # Validate status transition before saving anything. Translate
+        # Django's ValidationError into DRF's so the client gets a 400 with
+        # the descriptive message instead of an opaque 500.
         if pending_status and pending_status.pk != old_status_id:
-            validate_status_transition(instance, pending_status)
+            from django.core.exceptions import ValidationError as DjangoValidationError
+            from rest_framework.exceptions import ValidationError as DRFValidationError
+            try:
+                validate_status_transition(instance, pending_status)
+            except DjangoValidationError as exc:
+                raise DRFValidationError({"status": [exc.message if hasattr(exc, "message") else str(exc)]})
 
         # Save remaining simple fields (subject, description, tags, etc.)
         updated = serializer.save()
@@ -389,6 +670,23 @@ class TicketViewSet(ModelViewSet):
     # Custom actions
     # ------------------------------------------------------------------
 
+    @extend_schema(
+        summary="Assign / reassign ticket",
+        description=(
+            "Assign the ticket to a user (or change the current assignee). The assignee "
+            "must be an active member of the ticket's tenant. On first assignment from the "
+            "default open status, the ticket auto-transitions to the configured "
+            "'In Progress' status."
+        ),
+        tags=["Tickets"],
+        examples=[
+            OpenApiExample(
+                "Assign to a teammate",
+                value={"assignee": "f3e8c91a-aaaa-4ddd-9eee-1234567890ab", "note": "Taking this one."},
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=True, methods=["post"], url_path="assign")
     def assign(self, request, pk=None):
         """
@@ -440,6 +738,22 @@ class TicketViewSet(ModelViewSet):
         serializer = TicketDetailSerializer(ticket, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        summary="Close ticket",
+        description=(
+            "Transitions the ticket to the tenant's configured closed status. Idempotent — "
+            "if the ticket is already closed this is a no-op. Closed tickets disappear from "
+            "active lists but remain searchable by case number."
+        ),
+        tags=["Tickets"],
+        examples=[
+            OpenApiExample(
+                "Close (empty body)",
+                value={},
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=True, methods=["post"], url_path="close")
     def close(self, request, pk=None):
         """
@@ -463,6 +777,23 @@ class TicketViewSet(ModelViewSet):
         serializer = TicketDetailSerializer(ticket, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        summary="Change ticket status",
+        description=(
+            "Change ticket status with transition enforcement. Validates the move against "
+            "the configured transition map before applying. Illegal transitions return "
+            "HTTP 400 with a descriptive error. Fires SLA pause/resume logic when entering "
+            "or leaving a status with `pauses_sla=true`."
+        ),
+        tags=["Tickets"],
+        examples=[
+            OpenApiExample(
+                "Move to In Progress",
+                value={"status": "c5fde2b1-7777-4ddd-9aaa-1234567890ab"},
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=True, methods=["post"], url_path="change-status")
     def change_status(self, request, pk=None):
         """
@@ -555,6 +886,31 @@ class TicketViewSet(ModelViewSet):
         detail_serializer = TicketDetailSerializer(ticket, context={"request": request})
         return Response(detail_serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        summary="Escalate ticket",
+        description=(
+            "Escalate the ticket to a different agent or queue. Increments "
+            "`escalation_count`, posts an internal comment with the reason, and "
+            "recalculates SLA deadlines if the new context resolves to a different "
+            "SLA policy."
+        ),
+        tags=["Tickets"],
+        examples=[
+            OpenApiExample(
+                "Escalate to a manager",
+                value={
+                    "assignee": "f3e8c91a-aaaa-4ddd-9eee-1234567890ab",
+                    "reason": "Customer is a Tier-1 account, requesting manager handoff.",
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Escalate to a queue",
+                value={"queue": "2b3c4d5e-6789-4abc-9def-1234567890ab", "reason": "Needs platform team."},
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=True, methods=["post"], url_path="escalate")
     def escalate(self, request, pk=None):
         """
@@ -800,6 +1156,28 @@ class TicketViewSet(ModelViewSet):
         ]
         return Response({"results": results}, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        summary="List or post comments",
+        description=(
+            "GET returns the chronological comment thread (internal notes hidden from "
+            "Agents). POST creates a comment. Pass `is_internal=true` to post an "
+            "internal note that's hidden from Agents. `parent` accepts a comment UUID "
+            "to thread replies. Mentions are auto-extracted from the body."
+        ),
+        tags=["Tickets"],
+        examples=[
+            OpenApiExample(
+                "Add a public reply",
+                value={"body": "Thanks for the update — looking into it now.", "is_internal": False},
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Add an internal note",
+                value={"body": "Routing to platform team — see thread #4521.", "is_internal": True},
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=True, methods=["get", "post"], url_path="comments")
     def comments(self, request, pk=None):
         """
@@ -940,6 +1318,38 @@ class TicketViewSet(ModelViewSet):
     # Bulk actions
     # ------------------------------------------------------------------
 
+    @extend_schema(
+        summary="Bulk ticket action",
+        description=(
+            "Apply a single action (`assign`, `change_status`, `change_priority`, "
+            "`close`, `escalate`, `delete`) to a batch of tickets. Failures on individual "
+            "tickets do not abort the rest of the batch — the response reports per-ticket "
+            "success/error so the caller can reconcile."
+        ),
+        tags=["Tickets"],
+        examples=[
+            OpenApiExample(
+                "Bulk close",
+                value={
+                    "action": "close",
+                    "ticket_ids": [
+                        "ae12c1f0-1234-4abc-9def-1234567890ab",
+                        "ae12c1f0-1234-4abc-9def-1234567890cd",
+                    ],
+                },
+                request_only=True,
+            ),
+            OpenApiExample(
+                "Bulk assign",
+                value={
+                    "action": "assign",
+                    "ticket_ids": ["ae12c1f0-1234-4abc-9def-1234567890ab"],
+                    "params": {"assignee": "f3e8c91a-aaaa-4ddd-9eee-1234567890ab"},
+                },
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=False, methods=["post"], url_path="bulk-action")
     def bulk_action(self, request):
         """
@@ -1019,6 +1429,27 @@ class TicketViewSet(ModelViewSet):
         serializer = TicketEmailListSerializer(emails_qs, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
 
+    @extend_schema(
+        summary="Send email reply",
+        description=(
+            "Send a threaded email reply from this ticket. Honours In-Reply-To / "
+            "References headers so the message is correctly threaded by the recipient's "
+            "mail client. Persists an OUTBOUND `InboundEmail` record so future replies "
+            "back into the thread can be matched by Message-ID."
+        ),
+        tags=["Tickets"],
+        examples=[
+            OpenApiExample(
+                "Reply to the customer",
+                value={
+                    "to": "customer@example.com",
+                    "subject": "Re: Cannot log in",
+                    "body_html": "<p>Could you try clearing your cookies and retrying?</p>",
+                },
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=True, methods=["post"], url_path="send-email")
     def send_email(self, request, pk=None):
         """
@@ -1150,6 +1581,22 @@ class TicketViewSet(ModelViewSet):
             status=status.HTTP_202_ACCEPTED,
         )
 
+    @extend_schema(
+        summary="Link an inbound email",
+        description=(
+            "Attach a previously-unlinked `InboundEmail` to this ticket. Mostly used "
+            "by the agent inbox workflow when an email could not be auto-threaded. "
+            "Once linked, `linked_at` / `linked_by` are immutable."
+        ),
+        tags=["Tickets"],
+        examples=[
+            OpenApiExample(
+                "Link by email id",
+                value={"email_id": "ae12c1f0-1234-4abc-9def-1234567890ab"},
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=True, methods=["post"], url_path="link-email")
     def link_email(self, request, pk=None):
         """
@@ -1652,6 +2099,22 @@ class TicketViewSet(ModelViewSet):
     # Watchers (followers / CC list)
     # ------------------------------------------------------------------
 
+    @extend_schema(
+        summary="List or add ticket watchers",
+        description=(
+            "GET returns the watcher roster with `reason` (`manual`, `mentioned`, "
+            "`commented`, `cc`) and `is_muted`. POST adds a watcher — duplicates return "
+            "HTTP 409. Muted watchers skip notifications."
+        ),
+        tags=["Tickets"],
+        examples=[
+            OpenApiExample(
+                "Add a watcher",
+                value={"user": "f3e8c91a-aaaa-4ddd-9eee-1234567890ab", "reason": "manual"},
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=True, methods=["get", "post"], url_path="watchers")
     def watchers(self, request, pk=None):
         """
@@ -1705,6 +2168,11 @@ class TicketViewSet(ModelViewSet):
         out = TicketWatcherSerializer(watcher)
         return Response(out.data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        summary="Remove a watcher",
+        description="Detach a watcher from this ticket. Returns 204 on success, 404 if the watcher is not present.",
+        tags=["Tickets"],
+    )
     @action(
         detail=True,
         methods=["delete"],
@@ -1745,6 +2213,26 @@ class TicketViewSet(ModelViewSet):
     # Time tracking
     # ------------------------------------------------------------------
 
+    @extend_schema(
+        summary="List or log time entries",
+        description=(
+            "GET returns the paginated time-entry list. POST logs a TimeEntry — "
+            "`duration_minutes` must be in the range 1–1440. `is_billable` flags the "
+            "entry for invoice rollups. Users may only delete their own entries."
+        ),
+        tags=["Tickets"],
+        examples=[
+            OpenApiExample(
+                "Log 30 minutes",
+                value={
+                    "duration_minutes": 30,
+                    "description": "Investigated the 500 error in auth flow.",
+                    "is_billable": True,
+                },
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=True, methods=["get", "post"], url_path="time-entries")
     def time_entries(self, request, pk=None):
         """
@@ -1879,6 +2367,18 @@ class TicketViewSet(ModelViewSet):
         instance.deleted_by = self.request.user
         instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by", "updated_at"])
 
+    @extend_schema(
+        summary="Restore a soft-deleted ticket",
+        description=(
+            "Re-activates a ticket that was soft-deleted via `DELETE /tickets/{id}/`. "
+            "Clears `is_deleted`, `deleted_at`, and `deleted_by`. Returns 400 if the "
+            "ticket is not in a deleted state."
+        ),
+        tags=["Tickets"],
+        examples=[
+            OpenApiExample("Restore (empty body)", value={}, request_only=True),
+        ],
+    )
     @action(detail=True, methods=["post"], url_path="restore")
     def restore(self, request, pk=None):
         """Restore a soft-deleted ticket."""
@@ -1902,6 +2402,14 @@ class TicketViewSet(ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List canned responses", tags=["Canned Responses"]),
+    create=extend_schema(summary="Create canned response", tags=["Canned Responses"]),
+    retrieve=extend_schema(summary="Retrieve canned response", tags=["Canned Responses"]),
+    update=extend_schema(summary="Replace canned response", tags=["Canned Responses"]),
+    partial_update=extend_schema(summary="Patch canned response", tags=["Canned Responses"]),
+    destroy=extend_schema(summary="Delete canned response", tags=["Canned Responses"]),
+)
 class CannedResponseViewSet(ModelViewSet):
     """
     CRUD for canned response templates.
@@ -1957,6 +2465,11 @@ class CannedResponseViewSet(ModelViewSet):
                 )
         instance.delete()
 
+    @extend_schema(
+        summary="Render canned response",
+        description="Render the canned response body with `{{ticket.*}}` / `{{contact.*}}` substitution.",
+        tags=["Canned Responses"],
+    )
     @action(detail=True, methods=["post"])
     def render(self, request, pk=None):
         """
@@ -1991,6 +2504,14 @@ class CannedResponseViewSet(ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List macros", tags=["Macros"]),
+    create=extend_schema(summary="Create a macro", tags=["Macros"]),
+    retrieve=extend_schema(summary="Retrieve a macro", tags=["Macros"]),
+    update=extend_schema(summary="Replace a macro", tags=["Macros"]),
+    partial_update=extend_schema(summary="Patch a macro", tags=["Macros"]),
+    destroy=extend_schema(summary="Delete a macro", tags=["Macros"]),
+)
 class MacroViewSet(ModelViewSet):
     """
     CRUD for ticket macros — reusable body templates with optional actions.
@@ -2051,6 +2572,14 @@ class MacroViewSet(ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List saved views", tags=["Saved Views"]),
+    create=extend_schema(summary="Create a saved view", tags=["Saved Views"]),
+    retrieve=extend_schema(summary="Retrieve a saved view", tags=["Saved Views"]),
+    update=extend_schema(summary="Replace a saved view", tags=["Saved Views"]),
+    partial_update=extend_schema(summary="Patch a saved view", tags=["Saved Views"]),
+    destroy=extend_schema(summary="Delete a saved view", tags=["Saved Views"]),
+)
 class SavedViewViewSet(ModelViewSet):
     """
     CRUD for saved filter views (tickets / contacts).
@@ -2079,6 +2608,11 @@ class SavedViewViewSet(ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
 
+    @extend_schema(
+        summary="Set saved view as default",
+        description="Mark this view as the default for its resource type. Atomically demotes the previous default.",
+        tags=["Saved Views"],
+    )
     @action(detail=True, methods=["post"], url_path="set-default")
     def set_default(self, request, pk=None):
         """Set this view as the default for its resource type."""
@@ -2102,6 +2636,10 @@ class SavedViewViewSet(ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    retrieve=extend_schema(summary="Retrieve business hours", tags=["Business Hours"]),
+    partial_update=extend_schema(summary="Update business hours", tags=["Business Hours"]),
+)
 class BusinessHoursViewSet(viewsets.GenericViewSet):
     """
     Business hours configuration for the current tenant.
@@ -2147,6 +2685,14 @@ class BusinessHoursViewSet(viewsets.GenericViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List public holidays", tags=["Business Hours"]),
+    create=extend_schema(summary="Create a public holiday", tags=["Business Hours"]),
+    retrieve=extend_schema(summary="Retrieve a public holiday", tags=["Business Hours"]),
+    update=extend_schema(summary="Replace a public holiday", tags=["Business Hours"]),
+    partial_update=extend_schema(summary="Patch a public holiday", tags=["Business Hours"]),
+    destroy=extend_schema(summary="Delete a public holiday", tags=["Business Hours"]),
+)
 class PublicHolidayViewSet(ModelViewSet):
     """CRUD for tenant public holidays."""
 
@@ -2173,6 +2719,17 @@ class PublicHolidayViewSet(ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    create=extend_schema(
+        summary="Submit CSAT survey",
+        description=(
+            "Public endpoint (no auth) for CSAT survey submission. Accepts a signed "
+            "token + 1–5 rating + optional comment. The signed token proves the requester "
+            "received the survey email. Idempotent — returns 409 if a rating already exists."
+        ),
+        tags=["CSAT"],
+    ),
+)
 class CSATSubmitView(viewsets.ViewSet):
     """
     Public endpoint for CSAT survey submission.
@@ -2268,6 +2825,14 @@ class CSATSubmitView(viewsets.ViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List ticket templates", tags=["Ticket Templates"]),
+    create=extend_schema(summary="Create a ticket template", tags=["Ticket Templates"]),
+    retrieve=extend_schema(summary="Retrieve a ticket template", tags=["Ticket Templates"]),
+    update=extend_schema(summary="Replace a ticket template", tags=["Ticket Templates"]),
+    partial_update=extend_schema(summary="Patch a ticket template", tags=["Ticket Templates"]),
+    destroy=extend_schema(summary="Delete a ticket template", tags=["Ticket Templates"]),
+)
 class TicketTemplateViewSet(ModelViewSet):
     """
     CRUD for ticket templates (pre-filled ticket forms).
@@ -2299,6 +2864,11 @@ class TicketTemplateViewSet(ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+    @extend_schema(
+        summary="Use a ticket template",
+        description="Atomically increment `usage_count` and return the template payload for prefilling a new ticket form.",
+        tags=["Ticket Templates"],
+    )
     @action(detail=True, methods=["post"], url_path="use")
     def use(self, request, pk=None):
         """
@@ -2321,6 +2891,67 @@ class TicketTemplateViewSet(ModelViewSet):
 # ---------------------------------------------------------------------------
 
 
+@extend_schema_view(
+    list=extend_schema(summary="List webhook subscriptions", tags=["Webhooks"]),
+    create=extend_schema(
+        summary="Create a webhook subscription",
+        tags=["Webhooks"],
+        description=(
+            "Register a URL to receive HTTP callbacks when ticket events fire.\n\n"
+            "## Inbound Payload\n\n"
+            "When a subscribed event fires, Kanzen sends a `POST` to your configured URL "
+            "with the following headers and JSON body:\n\n"
+            "**Headers:**\n"
+            "- `Content-Type: application/json`\n"
+            "- `X-Webhook-Signature: sha256=<hex digest>` — HMAC-SHA256 of the raw "
+            "request body using the webhook's `secret`.\n"
+            "- `X-Webhook-Timestamp: <unix-seconds>` — server time at dispatch.\n"
+            "- `X-Webhook-Event: <event-name>` — event type (also in body).\n\n"
+            "**Body:**\n"
+            "```json\n"
+            "{\n"
+            "  \"event\": \"ticket.created\",\n"
+            "  \"timestamp\": \"2026-05-15T12:34:56.789Z\",\n"
+            "  \"tenant_id\": \"ae12c1f0-1234-4abc-9def-1234567890ab\",\n"
+            "  \"data\": {\n"
+            "    \"ticket_id\": \"...\",\n"
+            "    \"number\": 4231,\n"
+            "    \"subject\": \"...\",\n"
+            "    \"status\": \"open\",\n"
+            "    \"priority\": \"high\",\n"
+            "    \"...\": \"...\"\n"
+            "  }\n"
+            "}\n"
+            "```\n\n"
+            "## Supported Events\n\n"
+            "- `ticket.created`, `ticket.updated`, `ticket.assigned`, `ticket.closed`, "
+            "`ticket.reopened`, `ticket.comment`\n"
+            "- `sla.breached` — fires when first-response or resolution SLA breaches.\n"
+            "- `ticket.escalated` — fires on escalation.\n\n"
+            "## HMAC Verification (Python)\n\n"
+            "```python\n"
+            "import hmac, hashlib\n\n"
+            "def verify(body: bytes, signature_header: str, secret: str) -> bool:\n"
+            "    # signature_header is like 'sha256=<hex>'\n"
+            "    if not signature_header.startswith('sha256='):\n"
+            "        return False\n"
+            "    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()\n"
+            "    received = signature_header.split('=', 1)[1]\n"
+            "    return hmac.compare_digest(expected, received)\n"
+            "```\n\n"
+            "## Delivery Guarantees\n\n"
+            "- 10-second connection timeout.\n"
+            "- Auto-disabled after 10 consecutive non-2xx deliveries — re-enable via "
+            "`POST /webhooks/{id}/reset-failures/`.\n"
+            "- The `secret` field is write-only and never echoed in responses; store the value "
+            "you set at creation time."
+        ),
+    ),
+    retrieve=extend_schema(summary="Retrieve a webhook", tags=["Webhooks"]),
+    update=extend_schema(summary="Replace a webhook", tags=["Webhooks"]),
+    partial_update=extend_schema(summary="Patch a webhook", tags=["Webhooks"]),
+    destroy=extend_schema(summary="Delete a webhook", tags=["Webhooks"]),
+)
 class WebhookViewSet(ModelViewSet):
     """
     CRUD for webhook configurations.
@@ -2343,6 +2974,18 @@ class WebhookViewSet(ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(created_by=self.request.user)
 
+    @extend_schema(
+        summary="Send test webhook delivery",
+        description="Synchronously sends a test payload to the configured URL and returns the receiver's HTTP status code.",
+        tags=["Webhooks"],
+        examples=[
+            OpenApiExample(
+                "Test ticket.created delivery",
+                value={"event": "ticket.created"},
+                request_only=True,
+            ),
+        ],
+    )
     @action(detail=True, methods=["post"], url_path="test")
     def test(self, request, pk=None):
         """
@@ -2371,6 +3014,11 @@ class WebhookViewSet(ModelViewSet):
             "status_code": status_code,
         })
 
+    @extend_schema(
+        summary="Reset webhook failure count",
+        description="Clear `failure_count` and set `is_active=true`. Use after fixing the receiver.",
+        tags=["Webhooks"],
+    )
     @action(detail=True, methods=["post"], url_path="reset-failures")
     def reset_failures(self, request, pk=None):
         """Reset failure count and re-enable a disabled webhook."""
