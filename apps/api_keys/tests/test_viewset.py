@@ -389,7 +389,7 @@ def test_activity_log_written_on_revoke(
 
 
 def test_email_task_queued_on_create(
-    admin_client, admin_role, admin_user, tenant, monkeypatch
+    admin_client, admin_role, admin_user, tenant, monkeypatch, django_capture_on_commit_callbacks
 ):
     """
     On successful create, the ``send_api_key_created_email_task`` Celery task
@@ -403,8 +403,6 @@ def test_email_task_queued_on_create(
 
     from apps.api_keys import tasks as api_key_tasks
 
-    real_delay = api_key_tasks.send_api_key_created_email_task.delay
-
     def fake_delay(*args, **kwargs):
         calls.append({"args": args, "kwargs": kwargs})
         # Don't actually execute — we just want to verify it was enqueued.
@@ -414,11 +412,16 @@ def test_email_task_queued_on_create(
         api_key_tasks.send_api_key_created_email_task, "delay", fake_delay,
     )
 
-    resp = admin_client.post(
-        API_KEYS_URL,
-        {"name": "Email Task Test", "role_id": str(admin_role.pk)},
-        format="json",
-    )
+    # ``pytest.mark.django_db`` wraps each test in an atomic block that's rolled
+    # back at teardown, so transaction.on_commit() callbacks are normally
+    # discarded. Capture-and-execute them explicitly to exercise the
+    # post-commit wiring.
+    with django_capture_on_commit_callbacks(execute=True):
+        resp = admin_client.post(
+            API_KEYS_URL,
+            {"name": "Email Task Test", "role_id": str(admin_role.pk)},
+            format="json",
+        )
     assert resp.status_code == status.HTTP_201_CREATED, resp.content
 
     # transaction.on_commit fires after the surrounding atomic block exits.

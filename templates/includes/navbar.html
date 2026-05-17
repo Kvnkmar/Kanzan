@@ -139,11 +139,31 @@
     </button>
 
     <!-- Notifications -->
-    <div class="dropdown">
-      <button class="header-icon-btn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" id="notifDropdown" title="Notifications" aria-expanded="false">
-        <i class="ti ti-bell"></i>
+    <div class="dropdown notif-dropdown-wrap">
+      <button class="header-icon-btn notif-bell-btn" type="button" data-bs-toggle="dropdown" data-bs-auto-close="outside" id="notifDropdown" title="Notifications" aria-expanded="false">
+        <i class="ti ti-bell notif-bell-icon"></i>
         <span class="notification-badge d-none" id="notifBadge"></span>
       </button>
+
+      <!-- Bell-anchored transient popup: shown briefly when a new
+           notification arrives over the WebSocket, then auto-fades. -->
+      <div class="notif-flyout" id="notifFlyout" role="status" aria-live="polite" aria-hidden="true">
+        <div class="notif-flyout-arrow"></div>
+        <div class="notif-flyout-card">
+          <div class="notif-flyout-icon" id="notifFlyoutIcon"><i class="ti ti-bell"></i></div>
+          <div class="notif-flyout-content">
+            <div class="notif-flyout-top">
+              <span class="notif-flyout-label" id="notifFlyoutLabel">Notification</span>
+              <span class="notif-flyout-time" id="notifFlyoutTime">just now</span>
+            </div>
+            <p class="notif-flyout-title" id="notifFlyoutTitle"></p>
+            <p class="notif-flyout-body" id="notifFlyoutBody"></p>
+          </div>
+          <button type="button" class="notif-flyout-close" id="notifFlyoutClose" aria-label="Dismiss">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+      </div>
       <div class="dropdown-menu dropdown-menu-end notification-dropdown" id="notifDropdownMenu">
         <div class="notif-header">
           <div class="notif-header-left">

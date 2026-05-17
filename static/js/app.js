@@ -264,18 +264,85 @@ function initNotifications() {
   const badge = document.getElementById('notifBadge');
   const list = document.getElementById('notifList');
   const countBadge = document.getElementById('notifCountBadge');
+  const bellBtn = document.getElementById('notifDropdown');
+  const flyout = document.getElementById('notifFlyout');
+  const flyoutIcon = document.getElementById('notifFlyoutIcon');
+  const flyoutLabel = document.getElementById('notifFlyoutLabel');
+  const flyoutTime = document.getElementById('notifFlyoutTime');
+  const flyoutTitle = document.getElementById('notifFlyoutTitle');
+  const flyoutBody = document.getElementById('notifFlyoutBody');
+  const flyoutClose = document.getElementById('notifFlyoutClose');
   if (!badge || !list) return;
 
-  function updateBadge(count) {
+  function updateBadge(count, opts) {
     if (count > 0) {
       badge.textContent = count > 99 ? '99+' : count;
       badge.classList.remove('d-none');
       if (countBadge) { countBadge.textContent = count; countBadge.classList.remove('d-none'); }
+      if (opts && opts.bump) {
+        badge.classList.remove('is-bumping');
+        void badge.offsetWidth;
+        badge.classList.add('is-bumping');
+        setTimeout(function () { badge.classList.remove('is-bumping'); }, 500);
+      }
     } else {
       badge.classList.add('d-none');
       if (countBadge) countBadge.classList.add('d-none');
     }
   }
+
+  // -------- Bell-anchored flyout (transient peek-preview) --------
+  var flyoutHideTimer = null;
+  var bellRingTimer = null;
+
+  function ringBell() {
+    if (!bellBtn) return;
+    bellBtn.classList.remove('is-ringing');
+    void bellBtn.offsetWidth;
+    bellBtn.classList.add('is-ringing');
+    if (bellRingTimer) clearTimeout(bellRingTimer);
+    bellRingTimer = setTimeout(function () {
+      bellBtn.classList.remove('is-ringing');
+    }, 950);
+  }
+
+  function hideFlyout() {
+    if (!flyout) return;
+    flyout.classList.remove('is-visible');
+    flyout.setAttribute('aria-hidden', 'true');
+    if (flyoutHideTimer) { clearTimeout(flyoutHideTimer); flyoutHideTimer = null; }
+  }
+
+  function showFlyout(data) {
+    if (!flyout) return;
+    var cfg = getNotifConfig(data.type);
+    if (flyoutIcon) {
+      flyoutIcon.style.background = 'color-mix(in srgb, ' + cfg.color + ' 14%, transparent)';
+      flyoutIcon.style.color = cfg.color;
+      // Build icon element via DOM (icon class comes from a closed allowlist).
+      flyoutIcon.textContent = '';
+      var iconEl = document.createElement('i');
+      iconEl.className = cfg.icon;
+      flyoutIcon.appendChild(iconEl);
+    }
+    if (flyoutLabel) { flyoutLabel.textContent = cfg.label; flyoutLabel.style.color = cfg.color; }
+    if (flyoutTime)  { flyoutTime.textContent = 'just now'; }
+    if (flyoutTitle) { flyoutTitle.textContent = data.title || 'Notification'; }
+    if (flyoutBody)  { flyoutBody.textContent = data.body || ''; }
+
+    flyout.classList.remove('is-visible');
+    void flyout.offsetWidth;
+    flyout.classList.add('is-visible');
+    flyout.setAttribute('aria-hidden', 'false');
+
+    if (flyoutHideTimer) clearTimeout(flyoutHideTimer);
+    flyoutHideTimer = setTimeout(hideFlyout, 5000);
+  }
+
+  if (flyoutClose) flyoutClose.addEventListener('click', function (e) {
+    e.preventDefault(); e.stopPropagation(); hideFlyout();
+  });
+  if (bellBtn) bellBtn.addEventListener('click', hideFlyout);
 
   // Mark all read button — fully optimistic with rollback on failure.
   const markAllBtn = document.getElementById('markAllReadBtn');
@@ -427,9 +494,12 @@ function initNotifications() {
     if (!data || !data.id || !data.title) return;
 
     var current = parseInt(badge.textContent || '0');
-    updateBadge(current + 1);
+    updateBadge(current + 1, { bump: true });
 
-    Toast.info(data.title + (data.body ? ' — ' + data.body.substring(0, 60) : ''));
+    // Bell-anchored popup + ring animation. Replaces the generic Toast
+    // so the notification is clearly tied to the bell icon.
+    ringBell();
+    showFlyout(data);
 
     var html = renderNotifItem({
       id: data.id, type: data.type || 'info', title: data.title, body: data.body,

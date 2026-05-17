@@ -1,6 +1,6 @@
 # Kanzen — Project Intelligence
 
-> Last refreshed: **2026-05-15**. Verified against branch `theming-refactor` @ `7db5c24` **plus uncommitted live-broadcast + messaging-attachments work in the working tree**. New files (uncommitted): `apps/tenants/{live,consumers,routing}.py`, `apps/{comments,contacts,crm,newsfeed}/signals.py`, `static/js/{live-bus,live-connection}.js`. Modified (uncommitted): `apps/accounts/signals.py`, `apps/messaging/{consumers,serializers,urls,views}.py`, `apps/tickets/{services,views}.py`, `main/asgi.py`, several templates + CSS, `tests/test_phase3_resolution.py`, `scripts/.theme_baseline.json`. For deeper per-domain inventory see `docs/reference/{codebase-inventory,api-surface,frontend-surface,infra-surface}.md` — those were last regenerated 2026-05-11 and DO NOT yet reflect the live layer or messaging attachments.
+> Last refreshed: **2026-05-17** (post-API-keys merge + bell-flyout UX + throttle base-class swap). Verified against branch `main` @ `fe0ad66` ("feat(api-keys): add quickstart page, sidebar entry, settings tab, and tests") **plus uncommitted working-tree changes**: `apps/api_keys/apps.py` registers the drf-spectacular OpenAPI extension in `ready()`; `apps/api_keys/throttling.py` now subclasses **`SimpleRateThrottle`** (not `ScopedRateThrottle`) so it engages on every API-key-authenticated request without per-viewset opt-in (skips JWT/session traffic by returning `None` from `get_cache_key`); `apps/api_keys/tests/{test_authentication,test_viewset}.py` cleanup + `django_capture_on_commit_callbacks` for the post-commit email task; and a bell-anchored notification flyout (`templates/includes/navbar.html` + `static/js/app.js` + `static/css/custom-v15.css`) replaces the generic `Toast.info` for new notifications — bell rings, badge bumps, peek-preview card auto-fades after 5s. The API-keys feature itself adds: a new `apps/api_keys/` app (model + auth class + viewset + throttle + middleware + drf-spectacular extension + **43 tests across 4 files**), `User.is_service_account` (migration `accounts/0010`), **three new `ActivityLog.Action` choices → total 26** (migration `comments/0009`), a new `/api/v1/api-keys/` router include (count 21 → 22), a new middleware `apps.api_keys.middleware.RateLimitHeadersMiddleware` (middleware count 13 → 14), `DEFAULT_THROTTLE_RATES["api_key"] = "1000/hour"`, a `Developer & Integrations` settings tab + reveal/regenerate/revoke modals, and a `/api/quickstart/` developer-guide page (frontend URL count 33 → 34). For deeper per-domain inventory see `docs/reference/{codebase-inventory,api-surface,frontend-surface,infra-surface}.md` — those reference docs were regenerated 2026-05-11 and DO NOT yet reflect the live broadcast layer, messaging attachments, OR the API-keys feature; refresh as needed.
 
 ## Project Overview
 
@@ -15,7 +15,7 @@ Multi-tenant CRM, Ticketing, Knowledge Base and VoIP SaaS. **Django 6.0.2 + DRF 
 ## Quick Reference
 
 ```
-Superuser:      admin@epstein.local / Pl@nC-ICT_2024
+Superuser:      admin@kanzen.local / Pl@nC-ICT_2024
 Django Admin:   http://localhost:8001/admin/   (locked to is_superuser — see main/admin.py)
 
 Tenants:
@@ -31,13 +31,14 @@ API Docs:       http://dpap.localhost:8001/api/docs/
 
 ```
 /home/kavin/Kanzen/
-├── apps/                          # 20 Django apps (apps.nav is URL-only — no models, no AppConfig)
-│   ├── accounts/                  # Users, RBAC + temp-role overrides, invitations, profiles, UserGroups, middleware
+├── apps/                          # 21 Django apps (apps.nav is URL-only — no models, no AppConfig)
+│   ├── accounts/                  # Users (+is_service_account), RBAC + temp-role overrides, invitations, profiles, UserGroups, middleware
 │   ├── agents/                    # AgentAvailability + CustomAgentStatus + load-fairness email agent picker
 │   ├── analytics/                 # Reports, dashboard widgets, exports, calendar events
+│   ├── api_keys/                  # APIKey model + auth class + viewset + per-key throttle + rate-limit-headers middleware + drf-spectacular extension
 │   ├── attachments/               # File uploads (polymorphic GenericFK)
 │   ├── billing/                   # Stripe billing, plans, subscriptions, webhooks, decorators
-│   ├── comments/                  # Comments + Mention + CommentRead + ActivityLog (audit, 23 actions) + LIVE signals
+│   ├── comments/                  # Comments + Mention + CommentRead + ActivityLog (audit, 26 actions) + LIVE signals
 │   ├── contacts/                  # Contacts, Companies, Accounts, Groups, ContactEvent (360°) + LIVE signals
 │   ├── crm/                       # Activity + Reminder (M2M contacts/tickets), lead/account scoring + LIVE signals
 │   ├── custom_fields/             # EAV custom fields per tenant + sync signals
@@ -71,10 +72,10 @@ API Docs:       http://dpap.localhost:8001/api/docs/
 │   ├── notifications/email/       # notification.{html,txt}
 │   └── tickets/email/             # ticket_created, reply_notification, csat_survey (html+txt)
 ├── static/
-│   ├── css/custom-v15.css         # 21,896 lines (live file referenced by base.html — Crimson Black v9)
+│   ├── css/custom-v15.css         # 23,271 lines (live file referenced by base.html — Crimson Black v9; +API-keys settings tab/modals/quickstart + bell-flyout)
 │   ├── css/custom.css             # 20,431 lines (committed snapshot — NOT loaded; allowlisted in theme check)
 │   └── js/                        # 13 vanilla-JS modules (incl. NEW live-bus.js + live-connection.js)
-├── tests/                         # 54 root pytest modules + 3 app-level (57 total) + tests/base.py legacy scaffold
+├── tests/                         # 54 root pytest modules + 7 app-level (61 total, incl. 4 new api_keys/tests/test_*.py) + tests/base.py legacy scaffold
 ├── conftest.py                    # 16 factories + 20 fixtures (3 autouse: celery_eager, free_plan, clear_tenant_context)
 ├── pytest.ini                     # DJANGO_SETTINGS_MODULE=main.settings; pythonpath=. (3 lines, no asyncio_mode set)
 ├── requirements/{base,dev,prod}.txt   # prod.txt is literally `-r base.txt` — no extras
@@ -198,9 +199,9 @@ The messaging app gained an attachment workflow. Code changes are minor but the 
 
 There are NO new WebSocket consumers from this work — chat still goes through `ChatConsumer`. The only new HTTP route is the `broadcast` action.
 
-## Models (82 model classes across 19 apps with models.py — `nav` is URL-only)
+## Models (83 model classes across 20 apps with models.py — `nav` is URL-only)
 
-> Counted as `class X(<…>)` in `apps/*/models.py`, excluding `TextChoices`, `Manager`, `QuerySet`. Per-app totals: tickets 22, accounts 8, knowledge 6, contacts 5, voip 5, analytics 4, billing 4, comments 4, kanban 3, inbound_email 3, messaging 3, newsfeed 3, agents 2, crm 2, custom_fields 2, notifications 2, tenants 2, attachments 1, notes 1, nav 0.
+> Counted as `class X(<…>)` in `apps/*/models.py`, excluding `TextChoices`, `Manager`, `QuerySet`. Per-app totals: tickets 22, accounts 8, knowledge 6, contacts 5, voip 5, analytics 4, billing 4, comments 4, kanban 3, inbound_email 3, messaging 3, newsfeed 3, agents 2, crm 2, custom_fields 2, notifications 2, tenants 2, **api_keys 1**, attachments 1, notes 1, nav 0.
 
 ### Base Models (Abstract)
 - **TimestampedModel**: UUID PK + `created_at` + `updated_at`; default ordering `["-created_at"]`.
@@ -210,8 +211,8 @@ There are NO new WebSocket consumers from this work — chat still goes through 
 
 **tenants** (2): `Tenant` (name, slug unique, domain unique nullable, is_active, logo); `TenantSettings` (1:1; auth_method, SSO config, timezone, date_format, branding `primary_color`+`accent_color` with hex validators, `inbound_email_address`, business hours/days, `auto_close_days` (5), `csat_delay_minutes` (60), `auto_transition_on_assign`, `auto_send_ticket_created_email`, **`auto_assign_inbound_email_tickets`** — migration 0008). **Defaults: `primary_color="#6366F1"`, `accent_color="#F59E0B"`** — NOT Crimson Black. The Crimson Black `#C1121F`/`#E11D2D` is only the *fallback* in `apps/tenants/colors.py::derive_palette` when no settings exist or hex parsing fails.
 
-**accounts** (8 — added **UserGroup** in migration 0009):
-- `User(AbstractUser)` — email-based custom user, UUID PK, `auth_version` (PositiveIntegerField; bumped for global logout), `avatar`, `phone`, `username=None`.
+**accounts** (8 — `UserGroup` added in migration 0009; `User.is_service_account` boolean added in migration 0010):
+- `User(AbstractUser)` — email-based custom user, UUID PK, `auth_version` (PositiveIntegerField; bumped for global logout), `avatar`, `phone`, `username=None`, **`is_service_account`** (BooleanField, db_indexed; True for the hidden synthetic users minted by `apps.api_keys` — UI filters these out of staff lists).
 - `Permission` — **global** (not tenant-scoped). codename unique; nested `Action` TextChoices (view/create/update/delete/assign/export/manage — 7 members).
 - `Role(TenantScopedModel)` — M2M `permissions`, `hierarchy_level` (default 100), `is_system`. `unique_together=("tenant","slug")`.
 - `Profile(TenantScopedModel)` — UI/agent prefs (theme, density, signature, DND, language, date/time format, sidebar_collapsed, job_title, department, bio). `unique_together=("user","tenant")`.
@@ -243,7 +244,7 @@ There are NO new WebSocket consumers from this work — chat still goes through 
 
 ### Comments / Messaging / Newsfeed / Notifications
 
-**comments** (4): `Comment` (polymorphic GenericFK, threaded via parent, `is_internal`), `Mention`, `CommentRead` (row-existence = read), `ActivityLog` (immutable polymorphic audit, **23 action choices** after migration 0008 — incl. reminder lifecycle + outbound_call_logged/completed).
+**comments** (4): `Comment` (polymorphic GenericFK, threaded via parent, `is_internal`), `Mention`, `CommentRead` (row-existence = read), `ActivityLog` (immutable polymorphic audit, **26 action choices** after migration 0009 — incl. reminder lifecycle + outbound_call_logged/completed + **api_key_created/regenerated/revoked**).
 
 **messaging** (3): `Conversation` (DIRECT/GROUP/TICKET; FK `source_group` to UserGroup added in migration 0002 — dedup per-creator group conversations + surface group name in UI), `ConversationParticipant` (last_read_at, is_muted), `Message` (threaded via parent, mentions M2M, `is_edited`).
 
@@ -264,6 +265,9 @@ There are NO new WebSocket consumers from this work — chat still goes through 
 **attachments** (1): `Attachment` (polymorphic GenericFK; `tenants/{tenant_id}/attachments/YYYY/MM/{filename}`; python-magic MIME detection).
 
 **notes** (1): `QuickNote` (6 colors; pinning, position; per-user).
+
+### API Keys (1)
+`APIKey(TenantScopedModel)` — fields: `name`, `service_user` (OneToOne to a hidden synthetic `User` with `is_service_account=True`; CASCADE), `role` (FK PROTECT — drives `HasTenantPermission`), `prefix` (first ~20 chars, indexed for lookup), `hashed_key` (SHA-512 hex; **cleartext never persisted**), `created_by` (PROTECT), `is_active`, `expires_at`, `last_used_at`/`last_used_ip`/`last_used_user_agent`, `request_count`. `unique_together=("tenant","name")`. Property `masked_prefix → "{prefix}…{hashed_key[-4:]}"`. **Cleartext is returned exactly once at creation/regeneration** — never recoverable afterward. Cleartext format: `kz_live_<tenant_slug>_<secret>`. Sister files in the app: `authentication.py` (DRF auth class; `Authorization: Api-Key …`; cross-tenant guard; timing-safe `secrets.compare_digest`; best-effort `last_used_*`/`request_count` update via `.update()` with no signals), `services.py` (mint/regenerate/revoke; each writes an `ActivityLog`; uses `transaction.on_commit` to queue creation email), `throttling.py` (**`SimpleRateThrottle`** subclass — per-`APIKey.pk` bucket, returns `None` for non-API-key auth; rate `1000/hour`), `middleware.py` (`RateLimitHeadersMiddleware` — emits `X-RateLimit-Limit/Remaining/Reset` from `request._kanzan_throttle_info`), `extensions.py` (drf-spectacular `APIKeyAuthScheme`; registered via `apps.py::ready()`), `views.py` (admin-only viewset; reveal/regenerate/revoke + email-task on create via `transaction.on_commit`), `tasks.py` (`send_api_key_created_email_task`).
 
 ### VoIP (5)
 `VoIPSettings` (singleton via UniqueConstraint; encrypted ARI creds; STUN/TURN; `pjsip_context`; `recording_enabled`/`voicemail_enabled`/`is_active`; `asterisk_use_ssl` + related fields added in migration 0002), `Extension` (sip_username **globally unique**, encrypted password), `CallLog` (direction 3-choice, status 9-choice, `asterisk_channel_id` indexed, FKs to caller/callee Extension + Contact + Ticket; 4 indexes), `CallRecording` (1:1 CallLog; `tenants/{id}/recordings/YYYY/MM/{uuid}.{ext}`), `CallQueue` (5 ACD strategies + M2M Extension members).
@@ -333,7 +337,7 @@ See [Live Broadcast Layer](#live-broadcast-layer-uncommitted-2026-05-1415).
 
 **Two parallel log systems:**
 1. **TicketActivity** — human-readable timeline, 27 events. Endpoint: `/api/v1/tickets/tickets/{id}/timeline/`.
-2. **ActivityLog** — polymorphic audit trail with diffs+IP, 23 actions. Endpoint: `/api/v1/tickets/tickets/{id}/activity/`.
+2. **ActivityLog** — polymorphic audit trail with diffs+IP, 26 actions. Endpoint: `/api/v1/tickets/tickets/{id}/activity/`.
 
 **Dedup:** ViewSet sets `instance._skip_signal_logging = True` before save; signal checks flag. Use `serializer.instance` (not `self.get_object()`) in `perform_update` so the flag persists. 2-sec window in signal.
 
@@ -394,15 +398,16 @@ Single breach-detection entry point `get_effective_elapsed_minutes()`:
 ## API Architecture
 
 ### Authentication
-- **API:** JWT (SimpleJWT) — 15min access, 7-day refresh, rotate + blacklist, HS256.
+- **API:** JWT (SimpleJWT) — 15min access, 7-day refresh, rotate + blacklist, HS256. **`APIKeyAuthentication`** (`apps.api_keys.authentication`) — `Authorization: Api-Key kz_live_<tenant_slug>_<secret>`. Returns `None` (not a 401) when the header is absent or uses a different scheme so JWT/Session can still try. Fails closed (401) on a valid-format but invalid/revoked/expired/cross-tenant key. Cross-tenant guard: when the Host already resolved to a tenant, the key's `tenant_id` must match. SHA-512 hash + `secrets.compare_digest`. Best-effort `last_used_*` + `request_count` update on each request via `.update()` (no signals).
 - **Frontend:** Session auth (Redis-backed cached_db, host-only cookie in dev).
 - **SSO:** django-allauth (Google, Microsoft, OpenID Connect) — `ACCOUNT_LOGIN_METHODS = {"email"}` (a set).
 - **Global logout:** `User.auth_version` bumped invalidates all prior sessions; `SessionVersionMiddleware` enforces.
 
-### `/api/v1/` Endpoint Map (21 router includes from `main/urls.py`, + 1 dual-mount)
+### `/api/v1/` Endpoint Map (22 router includes from `main/urls.py`, + 1 dual-mount)
 ```
 /tenants/            TenantViewSet (slug lookup), TenantSettingsViewSet (singleton; per-field Manager allowlist)
 /accounts/           AuthViewSet (throttle_scope="auth"), UserViewSet, RoleViewSet, ProfileViewSet, InvitationViewSet, TenantMembershipViewSet, UserGroupViewSet
+/api-keys/           APIKeyViewSet (admin-only; mint/list/reveal-once/regenerate/revoke; writes ActivityLog; queues creation-email task via transaction.on_commit)
 /tickets/            TicketViewSet (31 custom actions), TicketStatusViewSet, QueueViewSet, TicketCategoryViewSet, SLAPolicyViewSet, EscalationRuleViewSet, CannedResponseViewSet, MacroViewSet, SavedViewViewSet, BusinessHoursViewSet (singleton), PublicHolidayViewSet, TicketTemplateViewSet, WebhookViewSet, CSATSubmitView (public)
 /contacts/           ContactViewSet, CompanyViewSet, AccountViewSet, ContactGroupViewSet
 /billing/            PlanViewSet (AllowAny), SubscriptionViewSet (singleton + cancel/reactivate), InvoiceViewSet, UsageViewSet, checkout, webhook (CSRF-exempt, Stripe-signed)
@@ -454,12 +459,13 @@ Permission stack: `[IsAuthenticated, HasTenantPermission, IsTicketAccessible]`, 
 - **`MessageViewSet`**: **`broadcast` (NEW, author-only)** — re-emit a message over chat group after attachment linking.
 
 ### REST Framework Config
-- Authentication: `JWTAuthentication`, `SessionAuthentication` (default).
+- Authentication: **`APIKeyAuthentication`, `JWTAuthentication`, `SessionAuthentication`** (default — Api-Key checked first; falls through to JWT then Session when header isn't `Api-Key`).
 - Pagination: PageNumberPagination, PAGE_SIZE=50.
 - Filtering: DjangoFilterBackend + SearchFilter + OrderingFilter.
-- Throttle rates: `auth=10/min`, `api_default=200/min`, `api_heavy=30/min`, `webhook=60/min` (ScopedRateThrottle). **Only `AuthViewSet` actually sets `throttle_scope = "auth"`** anywhere in the codebase — `api_heavy`/`webhook` are defined but never opted into.
+- Throttle classes (default, applied to every viewset): `ScopedRateThrottle`, `apps.api_keys.throttling.APIKeyRateThrottle`.
+- Throttle rates: `auth=10/min`, `api_default=200/min`, `api_heavy=30/min`, `webhook=60/min` (ScopedRateThrottle), **`api_key=1000/hour`** (per-`APIKey.pk` bucket via `SimpleRateThrottle`). **Only `AuthViewSet` actually sets `throttle_scope = "auth"`** — `api_heavy`/`webhook` are defined but never opted into. `APIKeyRateThrottle` does NOT require an opt-in: it engages automatically whenever `request.auth` is an `APIKey` instance, and stashes `(limit, remaining, reset_epoch)` on `request._kanzan_throttle_info` (set on BOTH the DRF `Request` and underlying `HttpRequest`) so `RateLimitHeadersMiddleware` can emit `X-RateLimit-Limit/Remaining/Reset` headers on the response.
 - Renderers: JSON + BrowsableAPI.
-- Schema: drf-spectacular (`SPECTACULAR_SETTINGS.TITLE="Kanzen Suite API"`).
+- Schema: drf-spectacular (`SPECTACULAR_SETTINGS.TITLE="Kanzen Suite API"`). The `apps.api_keys.extensions.APIKeyAuthScheme` is registered by `apps/api_keys/apps.py::ready()` so Swagger UI's "Authorize" button shows an `ApiKeyAuth` option alongside the JWT bearer.
 
 ### Public / unauthenticated endpoints
 - `POST /api/v1/tickets/csat/` — `CSATSubmitView` (`authentication_classes=[]`, `permission_classes=[]`; signed token validates caller).
@@ -467,7 +473,7 @@ Permission stack: `[IsAuthenticated, HasTenantPermission, IsTicketAccessible]`, 
 - `POST /api/v1/billing/webhook/` — `stripe_webhook` (only `@csrf_exempt` in repo; HMAC validated).
 - `AuthViewSet.register/login/accept_invitation` — `[AllowAny]`, `throttle_scope="auth"`.
 
-### Frontend Routes (`apps/tenants/frontend_urls.py`) — **33 paths**
+### Frontend Routes (`apps/tenants/frontend_urls.py`) — **34 paths**
 ```
 /                             landing_page
 /login/                       login_page
@@ -498,6 +504,7 @@ Permission stack: `[IsAuthenticated, HasTenantPermission, IsTicketAccessible]`, 
 /knowledge/                   knowledge_list_page   @_membership_required
 /knowledge/<article_slug>/    knowledge_article_page @_membership_required
 /profile/                     profile_page          @_membership_required
+/api/quickstart/              api_quickstart_page   @_membership_required (developer API guide; renders templates/pages/api_quickstart.html)
 /inbound-email/               inbound_email_page    @_membership_required (agent inbox)
 /reminders/                   reminders_page        @_membership_required
 /audit-log/                   audit_log_page        @_role_required(20)
@@ -590,7 +597,7 @@ Common: `kill_timeout=8000ms` (15000ms for worker), `max_restarts=10`, `min_upti
 | **`live-bus.js` (NEW)** | 175 | Global pub/sub `window.LiveBus` (on/onMany/publish/debounce/rafBatch/isConnected/setChannelState + wildcards + BroadcastChannel cross-tab) |
 | **`live-connection.js` (NEW)** | 206 | Single shared `wss?:/ws/live/` socket; 25s heartbeat / 8s pong; backoff 1s→30s+jitter, infinite retries; visibility hook for instant reconnect; `live.reconnected` on recovery |
 | `api.js` | 90 | Central API client (CSRF from cookie, session credentials, JSON + multipart) |
-| `app.js` (MODIFIED) | 773 | Global init: alerts, sidebar collapse, density, notification WS, Toast (uses var() colours), `Kanzan.formatDate/formatDateTime/timeAgo`, sidebar badge polling, **`initLiveStatusPill()`** (520–582), **`initSidebarUserLive()`** (593–610), `initSidebarBadges()` (615–680, still uses legacy `kanzan:notification` CustomEvent) |
+| `app.js` (MODIFIED) | 843 | Global init: alerts, sidebar collapse, density, notification WS, Toast (uses var() colours), `Kanzan.formatDate/formatDateTime/timeAgo`, sidebar badge polling, **`initLiveStatusPill()`**, **`initSidebarUserLive()`**, `initSidebarBadges()` (still uses legacy `kanzan:notification` CustomEvent). **Working-tree change**: new-notification WS handler no longer calls `Toast.info` — instead `ringBell()` swings the bell + `showFlyout(data)` displays a bell-anchored peek-preview card (`#notifFlyout`) for 5s with an animated progress bar; `updateBadge(count, {bump:true})` re-triggers the `.is-bumping` scale animation on the badge |
 | `ticket-feed.js` (MODIFIED) | 247 | WebSocket `ws/tickets/feed/`. Auto-connects via `data-ticket-feed` or URL match. Toasts + banner + row pulse. **Publishes into LiveBus** (lines 84–92): server `ticket_*` → `ticket.<verb>` + aggregated `ticket.event`. Banner click → `ticket.show_pending {count}` |
 | `voip-softphone.js` | 710 | SIP.js 0.21.2 (CDN) + `CallEventConsumer`. Dial pad, DTMF, mute/hold/transfer/hangup, incoming-call modal |
 | `notes-panel.js` | 238 | Quick notes CRUD (6 colors, pinning, localStorage) |
@@ -602,7 +609,7 @@ Common: `kill_timeout=8000ms` (15000ms for worker), `max_restarts=10`, `min_upti
 | `keyboard-shortcuts.js` | 318 | Global hotkeys: j/k navigate, Enter open, Esc deselect; a/s/x row actions; Ctrl+K palette; c new ticket; ? help; g d/t/c/b go-to. Injects runtime `<style>` using `var(--crm-primary)` etc. Disabled inside inputs |
 
 ### CSS
-- **`static/css/custom-v15.css`** — **21,896 lines.** Live stylesheet, referenced from `base.html`. Design system "Crimson Black v9".
+- **`static/css/custom-v15.css`** — **23,271 lines.** Live stylesheet, referenced from `base.html`. Design system "Crimson Black v9". Recent growth: API-keys Developer settings tab + reveal/regenerate/revoke modals + quickstart page (~+1.1k lines, fe0ad66) and the bell-anchored notification flyout + bell-ring/badge-bump animations (~+219 lines, uncommitted; respects `prefers-reduced-motion`).
 - **`static/css/custom.css`** — 20,431 lines. Committed snapshot of the previous version; **NOT loaded** by base.html. Allowlisted in `scripts/check_theme.py` (so its legacy hex literals don't trip the regression guard).
 - Foundation tokens added 2026-05-13 (in both `:root` and `[data-bs-theme="dark"]`): `--crm-text-on-primary/accent/dark`, `--crm-card-bg`, `--crm-input-bg{,-focus,-border}`, `--crm-scrollbar-{track,thumb,thumb-hover}`, `--crm-skeleton-{base,highlight}`, `--crm-overlay`.
 - Components: stat cards with left accent, soft badges, kanban drag-and-drop, chat bubbles (now incl. pending-attachments tray), timeline dots, toast notifications (with exit animation), notes panel, knowledge base, calendar, softphone widget, audit log tabs/stats, command palette, quick notes, **"light island" auth pinning** (hardcoded values for autofill — explained inline; the only place hex literals are intentionally kept).
@@ -638,7 +645,7 @@ Per-tenant runtime theming flows: **`TenantSettings.primary_color/accent_color`*
 
 ### Templates (51 files total)
 - `templates/base.html` (254 lines) — layout + palette `<style>` + toast container + quick-notes panel + softphone include (conditional on `voip_enabled`) + DOMPurify v3.2.4 CDN + SIP.js 0.21.2 CDN (conditional) + Flatpickr 3-CDN-fallback global loader (jsdelivr → cdnjs → unpkg) + mobile detection IIFE (`is-mobile-html`/`is-mobile`/`is-mobile-sm` body classes based on touch + `screen.width<992/576`). Default theme: dark. Loads `static/css/custom-v15.css`. **Live-bus** always loaded; **live-connection** + agent-availability + notes + keyboard-shortcuts + ticket-feed conditional on `tenant and user.is_authenticated`.
-- `templates/includes/` (5 files) — `navbar.html` (with `#liveStatusPill`), `sidebar.html` (with `data-current-user-id`), `softphone.html`, `messages.html`, `kb_sidebar_widget.html` (**orphan** — no includer; check before removing).
+- `templates/includes/` (5 files) — `navbar.html` (with `#liveStatusPill` + the bell-anchored `#notifFlyout` peek-preview card added in working tree), `sidebar.html` (with `data-current-user-id`), `softphone.html`, `messages.html`, `kb_sidebar_widget.html` (**orphan** — no includer; check before removing).
 - `templates/pages/` — **14 subfolders** + 7 root files. Folders: agents/, analytics/, audit_log/, auth/, billing/, contacts/, emails/, **groups/**, inbound_email/, kanban/, knowledge/, messaging/, reminders/, settings/, tickets/, users/, voip/. Root: 403.html, calendar.html, dashboard.html, landing.html, login.html, profile.html, register.html.
 - `templates/landing/landing_crm.html` — standalone marketing page (doesn't extend `base.html`; tolerates landing-specific hex literals in the theme baseline).
 - Email templates (12 files / 6 pairs): `auth/email/verify_email.{html,txt}`, `tickets/email/{ticket_created,reply_notification,csat_survey}.{html,txt}`, `notifications/email/notification.{html,txt}`, `knowledge/email/article_rejected.{html,txt}`.
@@ -646,7 +653,7 @@ Per-tenant runtime theming flows: **`TenantSettings.primary_color/accent_color`*
 ### Context Processor (`apps/tenants/context_processors.py`)
 Injects into every template: `tenant`, `membership`, `user_role` (= `effective_role`), `is_admin`, `is_admin_or_manager`, `is_agent_or_above`, **`voip_enabled`** (queries `VoIPSettings.is_active`; controls softphone inclusion), **`tenant_palette`** (~21-key dict from `derive_palette`), `BASE_URL`. Caches membership on `request._cached_tenant_membership` to avoid double-fetch with DRF permission classes.
 
-## Middleware Stack (13 layers)
+## Middleware Stack (14 layers)
 1. SecurityMiddleware
 2. WhiteNoiseMiddleware
 3. SessionMiddleware
@@ -658,8 +665,9 @@ Injects into every template: `tenant`, `membership`, `user_role` (= `effective_r
 9. **SessionVersionMiddleware** (custom — global logout via `User.auth_version`)
 10. **TenantMiddleware** (tenant resolution + async-safe context)
 11. **SubscriptionMiddleware** (billing enforcement — returns HTTP 402 when neither `is_active` nor `in_grace_period`)
-12. MessageMiddleware
-13. XFrameOptionsMiddleware
+12. **RateLimitHeadersMiddleware** (`apps.api_keys.middleware` — emits `X-RateLimit-Limit/Remaining/Reset` on API-key requests; reads from `request._kanzan_throttle_info` stashed by `APIKeyRateThrottle`)
+13. MessageMiddleware
+14. XFrameOptionsMiddleware
 
 ## Third-Party Integrations (selected)
 
@@ -748,25 +756,30 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 
 ### Infrastructure
 - **Framework:** pytest + pytest-django.
-- **Module counts:** **54 root-level** `tests/test_*.py` + **3 app-level** (`apps/knowledge/tests/test_kb_gap_fill.py`, `apps/tickets/tests/test_creation.py`, `apps/tickets/tests/test_escalation.py`) = **57 total** (16,242 LOC in root).
+- **Module counts:** **54 root-level** `tests/test_*.py` + **7 app-level** (`apps/knowledge/tests/test_kb_gap_fill.py`, `apps/tickets/tests/test_{creation,escalation}.py`, plus 4 new `apps/api_keys/tests/test_{authentication,documentation,throttling,viewset}.py`) = **61 total** (~16,242 LOC in root; ~1,150 LOC for `apps/api_keys/tests/`; 43 test functions in api_keys split 15 / 19 / 5 / 4).
 - **Config:** `pytest.ini` — `DJANGO_SETTINGS_MODULE=main.settings`, `pythonpath=.`. **No `asyncio_mode`** (pytest-asyncio defaults to `strict` — explicit decorators required). No `pyproject.toml`.
 - **Fixtures (`conftest.py`):** **16 factories + 20 fixtures (3 autouse:** `celery_eager`, `free_plan`, `clear_tenant_context`**).** `viewer_role`/`viewer_user`/`viewer_client` rely on the Viewer role being seeded by `apps/tenants/signals.py` on tenant creation.
 - **Legacy base** (`tests/base.py`): `TenantTestCase` + `KanzenBaseTestCase` providing `tenant_a`/`tenant_b`, free + pro plans, all 4 roles per tenant, ticket statuses + SLA policy + helpers.
 - **Celery:** Eager mode (autouse fixture `celery_eager`).
 
-### Working-tree test edit
-`tests/test_phase3_resolution.py` — one test was flipped: `test_waiting_to_resolved_blocked` (expected ValidationError) → `test_waiting_to_resolved_allowed` (Waiting → Resolved is now legal; SLA pause is cleared). Aligns with the `services.py` `ALLOWED_TRANSITIONS["waiting"]` widening.
+### Working-tree test edits
+- `tests/test_phase3_resolution.py` — one test was flipped: `test_waiting_to_resolved_blocked` (expected ValidationError) → `test_waiting_to_resolved_allowed` (Waiting → Resolved is now legal; SLA pause is cleared). Aligns with the `services.py` `ALLOWED_TRANSITIONS["waiting"]` widening.
+- `apps/api_keys/tests/test_authentication.py` — removed unused imports (`Role`, `APIKey`).
+- `apps/api_keys/tests/test_viewset.py::test_email_task_queued_on_create` — now wraps the POST in `django_capture_on_commit_callbacks(execute=True)` because `transaction.on_commit` callbacks are otherwise discarded by `pytest.mark.django_db`'s atomic-rollback teardown. This is the canonical pattern for exercising post-commit Celery dispatch under pytest-django.
 
 ## Recent Migration Highlights (verify against `git log`)
 
 | App | Latest | What it adds |
 |-----|--------|--------------|
-| accounts | **0009_usergroup** | `UserGroup` model (tenant-scoped, M2M members) — used by `Article.allowed_groups` |
+| accounts | **0010_user_is_service_account** | `User.is_service_account` BooleanField (db-indexed) — marks the hidden synthetic users minted by `apps.api_keys` |
+| accounts | 0009_usergroup | `UserGroup` model (tenant-scoped, M2M members) — used by `Article.allowed_groups` |
 | accounts | 0008_add_temporary_permissions | `TenantMembership.temporary_permissions` M2M (per-grant permission subset; intersect with `temporary_role.permissions`) |
 | agents | **0006_customagentstatus_…_custom_status** | `CustomAgentStatus` model + `AgentAvailability.custom_status` FK |
 | analytics | 0003_calendarevent_color_calendarevent_end_date_and_more | Calendar event color + end_date |
+| **api_keys** | **0001_initial** | `APIKey` model (TenantScoped) — service-account credentials with prefix lookup + SHA-512 hash |
 | billing | 0002_plan_has_call_recording_plan_has_voip_and_more | VoIP feature flags on Plan |
-| comments | 0008_alter_activitylog_action | ActivityLog action choices grow to 23 |
+| comments | **0009_alter_activitylog_action** | ActivityLog action choices grow to **26** (adds api_key_created/regenerated/revoked) |
+| comments | 0008_alter_activitylog_action | ActivityLog action choices were at 23 (added reminder lifecycle + outbound_call_*) |
 | contacts | 0005_widen_phone_field | Wider phone field |
 | crm | 0004_reminder_m2m_contacts_tickets | **Reminder.contact/ticket FK → contacts/tickets ManyToMany** with data-preserving copy |
 | inbound_email | 0008_…_imappollstate | IMAPPollState model (uid_validity + last_uid watermark) |
@@ -801,7 +814,7 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 - ChatConsumer rate limits (10KB msg, 5/sec, 2s typing cooldown) and tenant-from-scope verification. TicketPresenceConsumer, TicketListConsumer, CallEventConsumer all verify tenant membership.
 - **Webhook `secret`** write-only in serializer responses; HMAC SHA-256 signing; auto-disable at 10 consecutive failures.
 - **XSS prevention** — ticket detail uses `textContent` for description; knowledge base sanitizes mammoth output (strips `<script>` and `on*` handlers); PDF/image preview URLs HTML-escaped; DOMPurify available globally for client-side sanitization.
-- **Auth throttling** — `AuthViewSet.throttle_scope = "auth"` (10/min). **Only viewset in repo with a throttle scope set.**
+- **Auth throttling** — `AuthViewSet.throttle_scope = "auth"` (10/min). **Only viewset in repo with a throttle scope set.** `APIKeyRateThrottle` (1000/hour) is opt-in-free — auto-engages on any `request.auth = APIKey` request.
 - **Tenant queryset scoping** — `TenantViewSet` filters by user's memberships (superusers see all).
 - **File-upload MIME** — python-magic with content-type fallback (avatars, logos, attachments); 2MB avatar cap; 25MB general cap (`FILE_UPLOAD_MAX_MEMORY_SIZE`/`DATA_UPLOAD_MAX_MEMORY_SIZE`).
 - **SSO fields** — `sso_client_id/authority_url/scopes/secret` write-only in TenantSettings serializer.
@@ -861,17 +874,17 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 15. **VoIP queue note** — `kanzan_voip` is defined in `celery.py` routes but the default worker's `-Q` list does not include it; add it or start a dedicated VoIP worker before enabling VoIP tasks.
 16. **PM2 process count** — 5 prod processes (django, celery-worker, celery-beat, flower, smtp). Makefile `stop`/`restart` omit `kanzan-smtp` — manage that one separately.
 17. **9 Beat tasks** including `fetch-inbound-emails` (60s), `calculate-lead-scores` (daily), `calculate-account-health-scores` (daily), `cleanup-stale-calls` (hourly), `kb-stale-alert`/`kb-gap-digest`. `check_overdue_reminders` and `check_sla_breach_warnings` exist in code but are NOT scheduled.
-18. **CSS versioning** — `static/css/custom-v15.css` is the live file referenced by `base.html` (**21,896 lines**). `custom.css` (20,431 lines) is a committed snapshot, not loaded, allowlisted in theme check.
+18. **CSS versioning** — `static/css/custom-v15.css` is the live file referenced by `base.html` (**23,271 lines**). `custom.css` (20,431 lines) is a committed snapshot, not loaded, allowlisted in theme check.
 19. **IMAP "never backfill" safety** — UIDVALIDITY/UIDNEXT must be parseable to bare integers; the poller aborts (returns 0) on first run rather than match `1:*`.
 20. **Tenant primary_color / accent_color override is supported** in `templates/base.html` (lines 30–86). `TenantSettings` defaults `#6366F1`/`#F59E0B`; `colors.py::derive_palette` falls back to Crimson Black `#C1121F`/`#E11D2D` if hex parsing fails. Validate any color string server-side if accepting user input.
 21. **Reminder M2M migration** — `contacts` and `tickets` are M2Ms (crm migration 0004), not single FKs. Older code referencing `reminder.contact` or `reminder.ticket` will break.
 22. **Knowledge-base task names** — `alert_stale_articles` and `send_gap_digest` register under the `knowledge_base.*` namespace.
 23. **TicketActivity events** — 27 choices total after migration 0026.
-24. **ActivityLog actions** — 23 choices total after comments migration 0008.
+24. **ActivityLog actions** — **26 choices** total after comments migration 0009 (api_key_created/regenerated/revoked added on top of the 23 from migration 0008).
 25. **Temporary role overrides** (accounts migration 0007) — use `effective_role` (not `role`) wherever the active role matters.
-26. **API router include count is 21** (`inbound-email/` is dual-mounted at `emails/` with `namespace="emails_api"` so a 22nd `path()` line exists, but it's the same URLConf).
-27. **Frontend URL count is 33** — `apps/tenants/frontend_urls.py` adds `/groups/` (admin-managed user groups), `/calls/` (VoIP history), `/inbound-email/` (agent inbox) on top of the older 28-page set.
-28. **Total model class count is 82**, across 19 apps with `models.py` (`nav` is URL-only — no models.py, no AppConfig, no migrations).
+26. **API router include count is 22** — `main/urls.py` has 22 `/api/v1/*/` `path()` lines after `api-keys/` was added, but `inbound-email/` is dual-mounted at `emails/` with `namespace="emails_api"`, so there are 21 *unique* URLConfs.
+27. **Frontend URL count is 34** — `apps/tenants/frontend_urls.py` now includes `/api/quickstart/` (developer guide, any member can view) on top of `/groups/`, `/calls/`, `/inbound-email/`, and the older 28-page set.
+28. **Total model class count is 83**, across 20 apps with `models.py` (api_keys adds `APIKey`; `nav` is URL-only — no models.py, no AppConfig, no migrations).
 29. **No new hex colour literals in CSS/JS/template rule bodies** (post-theming refactor, 2026-05-13). Token blocks (`:root`, `[data-bs-theme]`) are the ONLY place where new hex values are permitted. `make theme-check` enforces this against the baseline in `scripts/.theme_baseline.json`.
 30. **Use `var(--crm-text-on-primary)` (not `#FFFFFF`) for text/icon foregrounds on tenant-themed surfaces**. The value is computed per-tenant by WCAG luminance — falls to near-black automatically for light tenant primaries.
 31. **JS color strings use var() too** — `element.style.backgroundColor = 'var(--crm-primary)'` works because the browser resolves var() at CSS-value time. Hex literals in JS would silently break tenant theming.
@@ -889,6 +902,11 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 43. **No CI/CD** — no `.github/` directory, no Dockerfile, no docker-compose, no GitLab CI. Pre-commit gate is `make check` (lint + migrate-check + test). Deployment is PM2 on a single host.
 44. **`BASE_SCHEME` IS in `.env.example`** at line 7 (older note saying otherwise was wrong).
 45. **`main/admin.py` is real** — `SuperuserOnlyAdminSite` + `TenantFilteredAdmin` mixin. 9 files in `main/`, not 8.
+46. **API keys are tenant-scoped service-account credentials** (`apps/api_keys/`, fe0ad66). Cleartext format `kz_live_<tenant_slug>_<secret>`; only `prefix` (indexed) + SHA-512 hash are persisted; the secret is shown exactly once at mint/regenerate time and is unrecoverable afterward. Auth class returns `None` (not 401) when the `Authorization` header is missing or uses a different scheme, so JWT/Session still get a chance. **Hidden synthetic users** back each key — they have `is_service_account=True` and must be filtered out of user-facing staff lists. Permission inheritance is via the key's `role` FK (drives `HasTenantPermission` as if a real user). Mint/regenerate/revoke all write an `ActivityLog` row (`api_key_created/regenerated/revoked`) and the create flow queues `send_api_key_created_email_task` via `transaction.on_commit`.
+47. **`APIKeyRateThrottle` is `SimpleRateThrottle`-based, not `ScopedRateThrottle`** (uncommitted working-tree change to `apps/api_keys/throttling.py`). It engages on every API-key-authenticated request without per-viewset `throttle_scope` opt-in; non-API-key auth (`request.auth` not an `APIKey`) returns `None` from `get_cache_key` and is skipped entirely. The throttle stashes `(limit, remaining, reset_epoch)` on **both** `request._kanzan_throttle_info` and `request._request._kanzan_throttle_info` so the response-path Django middleware (which sees the underlying `HttpRequest`) can read it regardless of which reference it holds.
+48. **`RateLimitHeadersMiddleware`** (`apps.api_keys.middleware`) — slot 12 in the middleware stack, between `SubscriptionMiddleware` and `MessageMiddleware`. Pure read-side; only emits `X-RateLimit-*` headers when the throttle stashed info on the request. Cost is essentially zero for non-API-key traffic.
+49. **`drf-spectacular` OpenAPI extension for API keys** is registered by `apps/api_keys/apps.py::ready()` importing `apps.api_keys.extensions` (uncommitted working-tree change — the merge commit had the extension file but missed wiring it). Swagger UI's "Authorize" dialog gains an `ApiKeyAuth` option alongside the existing JWT bearer.
+50. **Notification UX (uncommitted working-tree change)** — new notifications no longer fire a generic `Toast.info`. Instead the bell icon (`#notifDropdown`) gets `.is-ringing` for ~950ms (CSS swing + radial halo) and the new bell-anchored card (`#notifFlyout`) slides in below the bell with a 5s auto-fade and animated progress bar. The unread-count badge gains `.is-bumping` for a one-shot scale animation. All animations respect `@media (prefers-reduced-motion: reduce)`. Files: `templates/includes/navbar.html` (DOM), `static/js/app.js::initNotifications` (`ringBell()`, `showFlyout(data)`, `hideFlyout()`), `static/css/custom-v15.css` (~+219 lines, `.notif-bell-btn`, `.notif-flyout*`, `.notification-badge.is-bumping`, `@keyframes notif-bell-ring/halo/badge-bump/flyout-timer`).
 
 ## Documentation
 - `/CLAUDE.md` (this file) — day-to-day source of truth, kept current with refactors.

@@ -63,7 +63,7 @@ def send_api_key_created_email_task(self, api_key_id, recipient_email):
         "The cleartext secret is shown only once at creation — it is NOT included",
         "in this email. If you did not mint this key, revoke it immediately at:",
         "",
-        f"  /settings/#apiKeysPane",
+        "  /settings/#apiKeysPane",
         "",
         "— Kanzen",
     ]

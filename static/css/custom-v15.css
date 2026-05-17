@@ -1651,6 +1651,225 @@ h6, .h6 { font-size: 0.8125rem; font-weight: 600; line-height: 1.4; }
   line-height: 18px;
   text-align: center;
   border: 2px solid var(--crm-surface);
+  transition: transform var(--crm-duration-fast) var(--crm-ease-out);
+}
+
+/* Badge "bump" when count changes — JS toggles .is-bumping for ~450ms. */
+.notification-badge.is-bumping {
+  animation: notif-badge-bump 0.45s var(--crm-ease-out);
+}
+@keyframes notif-badge-bump {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.45); }
+  70%  { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+/* Bell ring animation — JS toggles .is-ringing on the bell button when a
+   new notification arrives. The icon swings a few degrees and a halo pulse
+   ripples outward so the eye is pulled to the bell. */
+.notif-bell-btn .notif-bell-icon {
+  display: inline-block;
+  transform-origin: 50% 8%;
+  transition: transform var(--crm-duration-fast) var(--crm-ease-out);
+}
+.notif-bell-btn.is-ringing .notif-bell-icon {
+  animation: notif-bell-ring 0.9s var(--crm-ease-out);
+}
+.notif-bell-btn.is-ringing::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  border: 2px solid var(--crm-primary);
+  opacity: 0;
+  pointer-events: none;
+  animation: notif-bell-halo 0.9s var(--crm-ease-out);
+}
+@keyframes notif-bell-ring {
+  0%   { transform: rotate(0deg); }
+  15%  { transform: rotate(-14deg); }
+  30%  { transform: rotate(12deg); }
+  45%  { transform: rotate(-10deg); }
+  60%  { transform: rotate(8deg); }
+  75%  { transform: rotate(-4deg); }
+  100% { transform: rotate(0deg); }
+}
+@keyframes notif-bell-halo {
+  0%   { opacity: 0.55; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.8); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .notif-bell-btn.is-ringing .notif-bell-icon,
+  .notif-bell-btn.is-ringing::after,
+  .notification-badge.is-bumping { animation: none; }
+}
+
+/* ---------------------------------------------------------------
+   Bell-anchored notification flyout
+   Transient popup that appears under the bell when a new
+   notification arrives, then auto-fades. Visually distinct from
+   the dropdown so it reads as a peek-preview, not the full inbox.
+   --------------------------------------------------------------- */
+.notif-dropdown-wrap { position: relative; }
+
+.notif-flyout {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: -4px;
+  width: 340px;
+  max-width: calc(100vw - 2rem);
+  z-index: 1080;
+  opacity: 0;
+  transform: translateY(-8px) scale(0.96);
+  pointer-events: none;
+  transition:
+    opacity var(--crm-duration-base) var(--crm-ease-out),
+    transform var(--crm-duration-base) var(--crm-ease-out);
+}
+.notif-flyout.is-visible {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  pointer-events: auto;
+}
+
+.notif-flyout-arrow {
+  position: absolute;
+  top: -6px;
+  right: 16px;
+  width: 12px;
+  height: 12px;
+  background: var(--crm-surface);
+  border-left: 1px solid var(--crm-border);
+  border-top: 1px solid var(--crm-border);
+  transform: rotate(45deg);
+}
+
+.notif-flyout-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 0.875rem 0.875rem 0.875rem;
+  background: var(--crm-surface);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-lg);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.02);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Left-edge accent that animates a slim progress bar across the lifespan
+   of the flyout — visual confirmation that it's about to disappear. */
+.notif-flyout-card::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background: var(--crm-primary);
+}
+.notif-flyout.is-visible .notif-flyout-card::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 2px;
+  background: var(--crm-primary);
+  opacity: 0.55;
+  transform-origin: left center;
+  animation: notif-flyout-timer 5s linear forwards;
+}
+@keyframes notif-flyout-timer {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
+.notif-flyout-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1rem;
+  background: color-mix(in srgb, var(--crm-primary) 12%, transparent);
+  color: var(--crm-primary);
+}
+
+.notif-flyout-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.notif-flyout-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 2px;
+}
+
+.notif-flyout-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--crm-primary);
+}
+
+.notif-flyout-time {
+  font-size: 0.6875rem;
+  color: var(--crm-text-muted);
+}
+
+.notif-flyout-title {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--crm-text);
+  margin: 0;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.notif-flyout-body {
+  font-size: 0.75rem;
+  color: var(--crm-text-secondary);
+  margin: 2px 0 0;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+.notif-flyout-body:empty { display: none; }
+
+.notif-flyout-close {
+  background: transparent;
+  border: none;
+  color: var(--crm-text-muted);
+  padding: 0.125rem;
+  border-radius: 6px;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  transition: background-color var(--crm-duration-fast) var(--crm-ease-out), color var(--crm-duration-fast) var(--crm-ease-out);
+}
+.notif-flyout-close:hover {
+  background: var(--crm-hover-bg);
+  color: var(--crm-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notif-flyout { transition: opacity 0.15s linear; transform: none; }
+  .notif-flyout.is-visible { transform: none; }
+  .notif-flyout.is-visible .notif-flyout-card::after { animation: none; opacity: 0; }
 }
 
 /* Notification dropdown */

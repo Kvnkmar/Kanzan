@@ -25,8 +25,6 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from apps.accounts.models import Role
-from apps.api_keys.models import APIKey
 from apps.api_keys.services import create_api_key, revoke_api_key
 
 

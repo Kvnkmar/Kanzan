@@ -175,7 +175,7 @@ Current dev `.env` includes Gmail SMTP/IMAP credentials (`kvnkmar012@gmail.com`)
 ## Quick reference
 
 ```
-Superuser:      admin@epstein.local / Pl@nC-ICT_2024
+Superuser:      admin@kanzen.local / Pl@nC-ICT_2024
 Django Admin:   http://localhost:8001/admin/
 
 Tenants:
