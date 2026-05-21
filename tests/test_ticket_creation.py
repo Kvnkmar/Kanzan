@@ -477,3 +477,102 @@ class TestTicketCreation(KanzenBaseTestCase):
             )
         finally:
             ticket_created.disconnect(handler)
+
+    # ------------------------------------------------------------------
+    # 2.18 Ticket auto-populates company from contact when company is blank
+    # ------------------------------------------------------------------
+
+    def test_company_auto_populated_from_contact_on_create(self):
+        """
+        Creating a ticket with a contact that has a company should copy
+        the contact's company onto the ticket when no company is supplied.
+        """
+        from apps.contacts.models import Company
+
+        set_current_tenant(self.tenant_a)
+        company = Company.objects.create(name="Acme Corp", tenant=self.tenant_a)
+        self.contact_a.company = company
+        self.contact_a.save()
+        clear_current_tenant()
+
+        response = self._create_ticket_via_api(contact=str(self.contact_a.id))
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        set_current_tenant(self.tenant_a)
+        ticket = Ticket.objects.get(id=response.data["id"])
+        clear_current_tenant()
+        self.assertEqual(ticket.company_id, company.id)
+
+    def test_explicit_company_not_overwritten_by_contact(self):
+        """
+        If the request sets ``company`` explicitly, the auto-fill must not
+        overwrite it with the contact's company.
+        """
+        from apps.contacts.models import Company
+
+        set_current_tenant(self.tenant_a)
+        contact_company = Company.objects.create(
+            name="Contact Company", tenant=self.tenant_a,
+        )
+        explicit_company = Company.objects.create(
+            name="Explicit Company", tenant=self.tenant_a,
+        )
+        self.contact_a.company = contact_company
+        self.contact_a.save()
+        clear_current_tenant()
+
+        response = self._create_ticket_via_api(
+            contact=str(self.contact_a.id),
+            company=str(explicit_company.id),
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        set_current_tenant(self.tenant_a)
+        ticket = Ticket.objects.get(id=response.data["id"])
+        clear_current_tenant()
+        self.assertEqual(ticket.company_id, explicit_company.id)
+
+    def test_company_auto_populated_on_update_when_contact_linked_later(self):
+        """
+        PATCHing a ticket to link a contact should auto-fill an empty
+        company from the contact's company.
+        """
+        from apps.contacts.models import Company
+
+        set_current_tenant(self.tenant_a)
+        company = Company.objects.create(name="Late Link Co", tenant=self.tenant_a)
+        self.contact_a.company = company
+        self.contact_a.save()
+        clear_current_tenant()
+
+        # Create ticket without a contact.
+        response = self._create_ticket_via_api()
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        ticket_id = response.data["id"]
+
+        # Now link the contact via PATCH.
+        patch_url = self.api_url(f"/tickets/tickets/{ticket_id}/")
+        self.auth_tenant(self.agent_a, self.tenant_a)
+        patch_resp = self.client.patch(
+            patch_url, {"contact": str(self.contact_a.id)}, format="json",
+        )
+        self.assertEqual(patch_resp.status_code, status.HTTP_200_OK)
+
+        set_current_tenant(self.tenant_a)
+        ticket = Ticket.objects.get(id=ticket_id)
+        clear_current_tenant()
+        self.assertEqual(ticket.company_id, company.id)
+
+    def test_no_company_set_when_contact_has_no_company(self):
+        """
+        Linking a contact with no company should leave the ticket's
+        company empty rather than failing or clearing other state.
+        """
+        # contact_a from base has no company.
+        response = self._create_ticket_via_api(contact=str(self.contact_a.id))
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        set_current_tenant(self.tenant_a)
+        ticket = Ticket.objects.get(id=response.data["id"])
+        clear_current_tenant()
+        self.assertIsNone(ticket.company_id)

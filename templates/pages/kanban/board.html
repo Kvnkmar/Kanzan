@@ -47,10 +47,204 @@
     font-size: 0.8125rem;
     padding: 0 0.75rem;
   }
+  .kanban-card.kanban-card-hidden,
+  .kanban-column.kanban-column-hidden {
+    display: none !important;
+  }
+
+  /* Filters panel — mirrors the calendar's .cal-filter-menu pattern:
+     custom panel (not a Bootstrap dropdown), teleported to <body> and
+     positioned in viewport coords so it always sits above the kanban
+     board's transform-induced stacking contexts.
+     NOTE: the .cal-filter-* rules below are duplicated from calendar.html
+     so the kanban page renders the same visual without depending on the
+     calendar template loading. If a third page ever needs them, lift these
+     to custom-v15.css. */
+  .kanban-filters-wrap { position: relative; z-index: 1100; }
+
+  .cal-filter-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    /* 36px to align with the rest of the kanban toolbar buttons */
+    height: 36px;
+    padding: 0 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    border-radius: 8px;
+    line-height: 1;
+    white-space: nowrap;
+    border: 1px solid var(--crm-border);
+    background: transparent;
+    color: var(--crm-text-secondary);
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+  .cal-filter-btn i { font-size: 0.9375rem; }
+  .cal-filter-btn:hover {
+    background: var(--crm-bg-secondary, rgba(0, 0, 0, 0.03));
+    color: var(--crm-text);
+  }
+  .cal-filter-btn.has-active-filters {
+    border-color: var(--crm-primary);
+    color: var(--crm-primary);
+  }
+  [data-bs-theme="dark"] .cal-filter-btn {
+    border-color: rgba(255, 255, 255, 0.10);
+  }
+  [data-bs-theme="dark"] .cal-filter-btn:hover {
+    background: rgba(255, 255, 255, 0.04);
+  }
+  .cal-filter-indicator {
+    display: inline-block;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 0.35rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 18px;
+    text-align: center;
+    color: var(--crm-text-on-primary);
+    background: var(--crm-primary);
+    border-radius: 999px;
+    margin-left: 0.25rem;
+  }
+  .cal-filter-menu {
+    position: fixed;
+    top: 0;
+    left: 0;
+    min-width: 260px;
+    padding: 0.75rem;
+    border: 1px solid var(--crm-border);
+    background: var(--crm-surface);
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.10);
+    border-radius: 12px;
+    /* 1085: above kanban cards (confined to their kanban-board stacking
+       context) and Bootstrap tooltip (1080), but below the KanzenSelect
+       portal (1090) so dropdowns opened inside the panel render on top. */
+    z-index: 1085;
+    display: none;
+  }
+  .cal-filter-menu.open { display: block; }
+  [data-bs-theme="dark"] .cal-filter-menu {
+    background: var(--crm-surface);
+    border-color: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+  }
+  .cal-filter-menu-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--crm-border);
+  }
+  .cal-filter-menu-title {
+    margin: 0;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--crm-text);
+  }
+  .cal-filter-reset {
+    border: none;
+    background: transparent;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--crm-primary);
+    cursor: pointer;
+    padding: 0;
+  }
+  .cal-filter-reset:hover { text-decoration: underline; }
+  .cal-filter-divider {
+    height: 1px;
+    margin: 0.5rem -0.25rem;
+    background: var(--crm-border);
+  }
+
+  /* Grouped label + select rows inside the calendar-style panel */
+  .kanban-filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0.5rem 0;
+  }
+  .kanban-filter-group-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--crm-text);
+  }
+  .kanban-filter-daterange {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin-top: 0.5rem;
+  }
+  .kanban-filter-sublabel {
+    font-size: 0.72rem;
+    font-weight: 500;
+    color: var(--crm-text-muted);
+    margin: 0.25rem 0 0;
+  }
+  .kanban-filter-daterange .kanban-filter-sublabel:first-child { margin-top: 0; }
+
+  /* Active filter chips row */
+  .kanban-filter-chips {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0 0 0.75rem 0;
+  }
+  .kanban-filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.25rem 0.5rem 0.25rem 0.625rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    border-radius: 999px;
+    background: var(--crm-primary-light);
+    color: var(--crm-primary);
+    border: 1px solid var(--crm-primary-subtle, var(--crm-border));
+    white-space: nowrap;
+  }
+  .kanban-filter-chip-close {
+    background: transparent;
+    border: 0;
+    padding: 0;
+    line-height: 1;
+    color: inherit;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    opacity: 0.75;
+  }
+  .kanban-filter-chip-close:hover { opacity: 1; }
+  .kanban-filter-chip-close i { font-size: 0.875rem; }
+  .kanban-filter-chip-clear {
+    background: transparent;
+    border: 0;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--crm-text-muted);
+    cursor: pointer;
+    border-radius: 999px;
+  }
+  .kanban-filter-chip-clear:hover {
+    color: var(--crm-text);
+    background: var(--crm-bg);
+  }
 </style>
 {% endblock %}
 
 {% block content %}
+{% include "includes/page_back_button.html" %}
+
 <!-- Page Header -->
 <div class="page-header">
   <div>
@@ -61,6 +255,64 @@
     <select id="boardSelector" class="form-select form-select-sm" style="min-width:200px;">
       <option value="">Loading boards...</option>
     </select>
+    {% if is_admin %}
+    <div class="cal-filter-wrap kanban-filters-wrap d-none" id="kanbanFiltersWrap">
+      <button type="button"
+              class="cal-filter-btn"
+              id="kanbanFiltersBtn"
+              aria-haspopup="true"
+              aria-expanded="false">
+        <i class="ti ti-filter"></i>
+        <span>Filter</span>
+        <span class="cal-filter-indicator" id="kanbanFiltersCount" style="display:none;">0</span>
+      </button>
+      <div class="cal-filter-menu kanban-filters-menu" id="kanbanFiltersMenu" role="menu">
+        <div class="cal-filter-menu-header">
+          <h6 class="cal-filter-menu-title">Filter tickets</h6>
+          <button type="button" class="cal-filter-reset" id="kanbanFiltersClearBtn">Reset</button>
+        </div>
+        <div class="kanban-filter-group">
+          <label for="filterAssignee" class="kanban-filter-group-label">Assignee</label>
+          <select id="filterAssignee" class="audit-filter-select">
+            <option value="">All assignees</option>
+          </select>
+        </div>
+        <div class="kanban-filter-group">
+          <label for="filterPriority" class="kanban-filter-group-label">Priority</label>
+          <select id="filterPriority" class="audit-filter-select">
+            <option value="">All priorities</option>
+            <option value="urgent">Urgent</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </div>
+        <div class="kanban-filter-group">
+          <label for="filterStatus" class="kanban-filter-group-label">Status (column)</label>
+          <select id="filterStatus" class="audit-filter-select">
+            <option value="">All columns</option>
+          </select>
+        </div>
+        <div class="cal-filter-divider"></div>
+        <div class="kanban-filter-group">
+          <label for="filterDate" class="kanban-filter-group-label">Created</label>
+          <select id="filterDate" class="audit-filter-select">
+            <option value="">Any time</option>
+            <option value="today">Today</option>
+            <option value="7d">Last 7 days</option>
+            <option value="30d">Last 30 days</option>
+            <option value="custom">Custom range…</option>
+          </select>
+          <div class="d-none kanban-filter-daterange" id="filterDateCustom">
+            <label for="filterDateFrom" class="kanban-filter-sublabel">From</label>
+            <input type="date" id="filterDateFrom" class="audit-filter-select">
+            <label for="filterDateTo" class="kanban-filter-sublabel">To</label>
+            <input type="date" id="filterDateTo" class="audit-filter-select">
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
     <button class="btn btn-primary btn-sm kanban-toolbar-control" data-bs-toggle="modal" data-bs-target="#createBoardModal">
       <i class="ti ti-plus me-1"></i>New Board
     </button>
@@ -75,6 +327,11 @@
     </button>
   </div>
 </div>
+
+{% if is_admin %}
+<!-- Active filter chips (admin-only, default board) -->
+<div id="kanbanFilterChips" class="kanban-filter-chips d-none"></div>
+{% endif %}
 
 <!-- Loading State -->
 <div id="boardLoading" class="text-center py-5">
@@ -481,6 +738,12 @@
     card.dataset.ticketId = ticket.id;
     card.dataset.ticketNumber = ticket.number || '';
     card.dataset.cardId = ticket._cardId || '';
+    var assigneeObj = ticket.assigned_to || ticket.assignee;
+    card.dataset.assigneeId = (assigneeObj && typeof assigneeObj === 'object' && assigneeObj.id)
+      ? String(assigneeObj.id)
+      : '';
+    card.dataset.priority = ticket.priority || '';
+    card.dataset.createdAt = ticket.created_at || '';
 
     var prColor = PRIORITY_COLORS[ticket.priority] || 'var(--crm-border)';
     card.style.setProperty('--card-priority-color', prColor);
@@ -792,7 +1055,7 @@
     var columns = document.querySelectorAll('.kanban-column');
     columns.forEach(function(col) {
       var body = col.querySelector('.kanban-column-body');
-      var count = body.querySelectorAll('.kanban-card').length;
+      var count = body.querySelectorAll('.kanban-card:not(.kanban-card-hidden)').length;
       var countBadge = col.querySelector('.column-count');
       if (countBadge) countBadge.textContent = count;
     });
@@ -800,7 +1063,7 @@
 
   function toggleColumnEmptyStates() {
     document.querySelectorAll('.kanban-column-body').forEach(function(body) {
-      var cardCount = body.querySelectorAll('.kanban-card').length;
+      var cardCount = body.querySelectorAll('.kanban-card:not(.kanban-card-hidden)').length;
       var emptyState = body.querySelector('.kanban-empty-state');
       if (!emptyState) return;
       if (cardCount === 0) {
@@ -810,6 +1073,423 @@
       }
     });
   }
+
+  // --- Filter flow (admin-only, default board only) ---
+  // Filters intersect (AND). State syncs to URL query params so links are
+  // shareable and survive a refresh. Filters reset on board switch since
+  // assignee IDs and column IDs differ per board.
+  var filtersWrap     = document.getElementById('kanbanFiltersWrap');
+  var filtersBtn      = document.getElementById('kanbanFiltersBtn');
+  var filtersCountEl  = document.getElementById('kanbanFiltersCount');
+  var filtersClearBtn = document.getElementById('kanbanFiltersClearBtn');
+  var chipsEl         = document.getElementById('kanbanFilterChips');
+  var inAssignee      = document.getElementById('filterAssignee');
+  var inPriority      = document.getElementById('filterPriority');
+  var inStatus        = document.getElementById('filterStatus');
+  var inDate          = document.getElementById('filterDate');
+  var inDateCustom    = document.getElementById('filterDateCustom');
+  var inDateFrom      = document.getElementById('filterDateFrom');
+  var inDateTo        = document.getElementById('filterDateTo');
+
+  // Replace native <select>s with KanzenSelect — portalled menu (z 1090)
+  // renders above the panel (z 1085), and the trigger gets the same chrome
+  // as the rest of the app instead of the raw OS dropdown.
+  // Date inputs (filterDateFrom/To) are <input type="date">, so they stay
+  // native (KanzenSelect is only for <select>).
+  if (window.KanzenSelect) {
+    [inAssignee, inPriority, inStatus, inDate].forEach(function(sel) {
+      if (sel) KanzenSelect.upgrade(sel);
+    });
+  }
+
+  var FILTER_KEYS = ['assignee', 'priority', 'status', 'date', 'from', 'to'];
+  var DATE_LABELS = {today: 'Today', '7d': 'Last 7 days', '30d': 'Last 30 days', custom: 'Custom range'};
+  var PRIORITY_LABELS = {urgent: 'Urgent', high: 'High', medium: 'Medium', low: 'Low'};
+
+  var filterState = {assignee: '', priority: '', status: '', date: '', from: '', to: ''};
+  var assigneeLabels = {}; // id → display name (built from cards)
+  var columnLabels = {};   // column id → display name
+
+  function readFiltersFromUrl() {
+    if (!filtersWrap) return;
+    var params = new URLSearchParams(window.location.search);
+    FILTER_KEYS.forEach(function(k) {
+      filterState[k] = params.get(k) || '';
+    });
+  }
+
+  function writeFiltersToUrl() {
+    if (!filtersWrap) return;
+    var params = new URLSearchParams(window.location.search);
+    FILTER_KEYS.forEach(function(k) {
+      if (filterState[k]) params.set(k, filterState[k]);
+      else params.delete(k);
+    });
+    var qs = params.toString();
+    var newUrl = window.location.pathname + (qs ? '?' + qs : '') + window.location.hash;
+    window.history.replaceState(null, '', newUrl);
+  }
+
+  function clearFilterState() {
+    FILTER_KEYS.forEach(function(k) { filterState[k] = ''; });
+  }
+
+  function collectAssignees() {
+    var seen = Object.create(null);
+    document.querySelectorAll('#kanbanBoard .kanban-card').forEach(function(card) {
+      var id = card.dataset.assigneeId || '';
+      if (!id) { seen['__unassigned'] = 'Unassigned'; return; }
+      if (seen[id]) return;
+      var nameEl = card.querySelector('.kanban-card-assignee span:last-child');
+      seen[id] = (nameEl && nameEl.textContent.trim()) || 'Agent';
+    });
+    return seen;
+  }
+
+  function populateFilterInputs() {
+    if (!filtersWrap || !currentBoard) return;
+
+    // Assignees from rendered cards
+    assigneeLabels = collectAssignees();
+    inAssignee.textContent = '';
+    var allOpt = document.createElement('option');
+    allOpt.value = '';
+    allOpt.textContent = 'All assignees';
+    inAssignee.appendChild(allOpt);
+    Object.keys(assigneeLabels)
+      .sort(function(a, b) {
+        if (a === '__unassigned') return 1;
+        if (b === '__unassigned') return -1;
+        return assigneeLabels[a].localeCompare(assigneeLabels[b]);
+      })
+      .forEach(function(id) {
+        var opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = assigneeLabels[id];
+        inAssignee.appendChild(opt);
+      });
+
+    // Columns (status proxy) from the current board
+    columnLabels = {};
+    inStatus.textContent = '';
+    var allColOpt = document.createElement('option');
+    allColOpt.value = '';
+    allColOpt.textContent = 'All columns';
+    inStatus.appendChild(allColOpt);
+    (currentBoard.columns || []).slice()
+      .sort(function(a, b) { return (a.order || 0) - (b.order || 0); })
+      .forEach(function(col) {
+        var id = String(col.id);
+        columnLabels[id] = col.name || 'Column';
+        var opt = document.createElement('option');
+        opt.value = id;
+        opt.textContent = columnLabels[id];
+        inStatus.appendChild(opt);
+      });
+
+    // Apply state to inputs (drop stale ids that no longer exist on this board)
+    if (filterState.assignee && !assigneeLabels[filterState.assignee]) filterState.assignee = '';
+    if (filterState.status   && !columnLabels[filterState.status])     filterState.status   = '';
+
+    inAssignee.value = filterState.assignee;
+    inPriority.value = filterState.priority;
+    inStatus.value   = filterState.status;
+    inDate.value     = filterState.date;
+    inDateFrom.value = filterState.from;
+    inDateTo.value   = filterState.to;
+    inDateCustom.classList.toggle('d-none', filterState.date !== 'custom');
+  }
+
+  function dateRangeBounds() {
+    var d = filterState.date;
+    if (!d) return null;
+    var now = new Date();
+    var fromTs = null, toTs = null;
+    if (d === 'today') {
+      fromTs = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+      toTs = fromTs + 24 * 60 * 60 * 1000 - 1;
+    } else if (d === '7d') {
+      toTs = now.getTime();
+      fromTs = toTs - 7 * 24 * 60 * 60 * 1000;
+    } else if (d === '30d') {
+      toTs = now.getTime();
+      fromTs = toTs - 30 * 24 * 60 * 60 * 1000;
+    } else if (d === 'custom') {
+      if (filterState.from) fromTs = new Date(filterState.from + 'T00:00:00').getTime();
+      if (filterState.to)   toTs   = new Date(filterState.to   + 'T23:59:59').getTime();
+    }
+    return {from: fromTs, to: toTs};
+  }
+
+  function activeFilterCount() {
+    var n = 0;
+    if (filterState.assignee) n++;
+    if (filterState.priority) n++;
+    if (filterState.status)   n++;
+    if (filterState.date)     n++;
+    return n;
+  }
+
+  function applyFilters() {
+    if (!filtersWrap) return;
+    var bounds = dateRangeBounds();
+
+    // Column-level visibility (status filter)
+    document.querySelectorAll('#kanbanBoard .kanban-column').forEach(function(col) {
+      var visible = !filterState.status || col.dataset.columnId === filterState.status;
+      col.classList.toggle('kanban-column-hidden', !visible);
+    });
+
+    // Card-level visibility (assignee, priority, date)
+    document.querySelectorAll('#kanbanBoard .kanban-card').forEach(function(card) {
+      var ok = true;
+
+      if (ok && filterState.assignee) {
+        var aid = card.dataset.assigneeId || '';
+        if (filterState.assignee === '__unassigned') ok = !aid;
+        else ok = aid === filterState.assignee;
+      }
+      if (ok && filterState.priority) {
+        ok = (card.dataset.priority || '') === filterState.priority;
+      }
+      if (ok && bounds) {
+        var raw = card.dataset.createdAt;
+        var ts = raw ? new Date(raw).getTime() : NaN;
+        if (isNaN(ts)) {
+          ok = false;
+        } else {
+          if (bounds.from !== null && ts < bounds.from) ok = false;
+          if (ok && bounds.to !== null && ts > bounds.to) ok = false;
+        }
+      }
+      card.classList.toggle('kanban-card-hidden', !ok);
+    });
+
+    updateColumnCounts();
+    toggleColumnEmptyStates();
+    renderFilterChips();
+    updateFiltersBadge();
+  }
+
+  function updateFiltersBadge() {
+    var n = activeFilterCount();
+    if (!filtersCountEl) return;
+    if (n > 0) {
+      filtersCountEl.textContent = String(n);
+      filtersCountEl.style.display = '';
+      if (filtersBtn) filtersBtn.classList.add('has-active-filters');
+    } else {
+      filtersCountEl.style.display = 'none';
+      if (filtersBtn) filtersBtn.classList.remove('has-active-filters');
+    }
+  }
+
+  function renderFilterChips() {
+    if (!chipsEl) return;
+    chipsEl.textContent = '';
+
+    function addChip(key, label) {
+      var chip = document.createElement('span');
+      chip.className = 'kanban-filter-chip';
+      var text = document.createElement('span');
+      text.textContent = label;
+      var close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'kanban-filter-chip-close';
+      close.setAttribute('aria-label', 'Remove ' + label);
+      var icon = document.createElement('i');
+      icon.className = 'ti ti-x';
+      close.appendChild(icon);
+      close.addEventListener('click', function() { removeFilter(key); });
+      chip.appendChild(text);
+      chip.appendChild(close);
+      chipsEl.appendChild(chip);
+    }
+
+    if (filterState.assignee) {
+      var aLabel = assigneeLabels[filterState.assignee] || 'Assignee';
+      addChip('assignee', 'Assignee: ' + aLabel);
+    }
+    if (filterState.priority) {
+      addChip('priority', 'Priority: ' + (PRIORITY_LABELS[filterState.priority] || filterState.priority));
+    }
+    if (filterState.status) {
+      addChip('status', 'Column: ' + (columnLabels[filterState.status] || 'Column'));
+    }
+    if (filterState.date) {
+      var dLabel = DATE_LABELS[filterState.date] || filterState.date;
+      if (filterState.date === 'custom') {
+        dLabel = (filterState.from || '…') + ' → ' + (filterState.to || '…');
+      }
+      addChip('date', 'Created: ' + dLabel);
+    }
+
+    if (activeFilterCount() > 0) {
+      var clearAll = document.createElement('button');
+      clearAll.type = 'button';
+      clearAll.className = 'kanban-filter-chip-clear';
+      clearAll.textContent = 'Clear all';
+      clearAll.addEventListener('click', clearAllFilters);
+      chipsEl.appendChild(clearAll);
+      chipsEl.classList.remove('d-none');
+    } else {
+      chipsEl.classList.add('d-none');
+    }
+  }
+
+  function removeFilter(key) {
+    if (key === 'date') {
+      filterState.date = '';
+      filterState.from = '';
+      filterState.to = '';
+    } else {
+      filterState[key] = '';
+    }
+    writeFiltersToUrl();
+    syncInputsFromState();
+    applyFilters();
+  }
+
+  function clearAllFilters() {
+    clearFilterState();
+    writeFiltersToUrl();
+    syncInputsFromState();
+    applyFilters();
+  }
+
+  function syncInputsFromState() {
+    if (!filtersWrap) return;
+    inAssignee.value = filterState.assignee;
+    inPriority.value = filterState.priority;
+    inStatus.value   = filterState.status;
+    inDate.value     = filterState.date;
+    inDateFrom.value = filterState.from;
+    inDateTo.value   = filterState.to;
+    inDateCustom.classList.toggle('d-none', filterState.date !== 'custom');
+  }
+
+  function updateFiltersVisibility() {
+    if (!filtersWrap) return;
+    var shouldShow = !!(currentBoard && currentBoard.is_default && !currentBoard.is_personal);
+    if (shouldShow) {
+      populateFilterInputs();
+      filtersWrap.classList.remove('d-none');
+      applyFilters();
+    } else {
+      filtersWrap.classList.add('d-none');
+      if (chipsEl) chipsEl.classList.add('d-none');
+      // Menu lives on <body> after init — explicitly close it so it doesn't
+      // linger when the wrap is hidden on a non-default board.
+      var openMenu = document.getElementById('kanbanFiltersMenu');
+      if (openMenu) {
+        openMenu.classList.remove('open');
+        if (filtersBtn) filtersBtn.setAttribute('aria-expanded', 'false');
+      }
+      // Make sure nothing stays hidden on non-default boards.
+      document.querySelectorAll('#kanbanBoard .kanban-card-hidden').forEach(function(el) {
+        el.classList.remove('kanban-card-hidden');
+      });
+      document.querySelectorAll('#kanbanBoard .kanban-column-hidden').forEach(function(el) {
+        el.classList.remove('kanban-column-hidden');
+      });
+      updateColumnCounts();
+      toggleColumnEmptyStates();
+    }
+  }
+
+  // Filter panel — custom toggle (mirrors the Calendar page). The panel is
+  // teleported to <body> and positioned in viewport coords so it escapes
+  // the kanban board's animation-induced stacking contexts. No Bootstrap
+  // dropdown is involved here on purpose.
+  var filtersMenu = document.getElementById('kanbanFiltersMenu');
+  if (filtersBtn && filtersMenu) {
+    if (filtersMenu.parentNode !== document.body) {
+      document.body.appendChild(filtersMenu);
+    }
+
+    function positionFiltersMenu() {
+      var rect = filtersBtn.getBoundingClientRect();
+      var menuWidth = filtersMenu.offsetWidth || 280;
+      var top = rect.bottom + 6;
+      var left = rect.right - menuWidth;
+      if (left < 8) left = 8;
+      filtersMenu.style.top = top + 'px';
+      filtersMenu.style.left = left + 'px';
+    }
+    function closeFiltersMenu() {
+      filtersMenu.classList.remove('open');
+      filtersBtn.setAttribute('aria-expanded', 'false');
+    }
+    function openFiltersMenu() {
+      filtersMenu.classList.add('open');
+      positionFiltersMenu();
+      filtersBtn.setAttribute('aria-expanded', 'true');
+    }
+    filtersBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (filtersMenu.classList.contains('open')) closeFiltersMenu();
+      else openFiltersMenu();
+    });
+    filtersMenu.addEventListener('click', function(e) {
+      e.stopPropagation();
+    });
+    document.addEventListener('click', function(e) {
+      if (!filtersMenu.classList.contains('open')) return;
+      if (filtersMenu.contains(e.target) || filtersBtn.contains(e.target)) return;
+      closeFiltersMenu();
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeFiltersMenu();
+    });
+    window.addEventListener('resize', function() {
+      if (filtersMenu.classList.contains('open')) positionFiltersMenu();
+    });
+    window.addEventListener('scroll', function() {
+      if (filtersMenu.classList.contains('open')) positionFiltersMenu();
+    }, true);
+  }
+
+  if (filtersWrap) {
+    inAssignee.addEventListener('change', function() {
+      filterState.assignee = inAssignee.value;
+      writeFiltersToUrl();
+      applyFilters();
+    });
+    inPriority.addEventListener('change', function() {
+      filterState.priority = inPriority.value;
+      writeFiltersToUrl();
+      applyFilters();
+    });
+    inStatus.addEventListener('change', function() {
+      filterState.status = inStatus.value;
+      writeFiltersToUrl();
+      applyFilters();
+    });
+    inDate.addEventListener('change', function() {
+      filterState.date = inDate.value;
+      if (filterState.date !== 'custom') {
+        filterState.from = '';
+        filterState.to = '';
+      }
+      inDateCustom.classList.toggle('d-none', filterState.date !== 'custom');
+      writeFiltersToUrl();
+      applyFilters();
+    });
+    inDateFrom.addEventListener('change', function() {
+      filterState.from = inDateFrom.value;
+      writeFiltersToUrl();
+      applyFilters();
+    });
+    inDateTo.addEventListener('change', function() {
+      filterState.to = inDateTo.value;
+      writeFiltersToUrl();
+      applyFilters();
+    });
+    filtersClearBtn.addEventListener('click', clearAllFilters);
+  }
+
+  // Load initial state from URL once.
+  readFiltersFromUrl();
 
   function renderBoard(board) {
     currentBoard = board;
@@ -925,6 +1605,12 @@
 
   document.getElementById('boardSelector').addEventListener('change', function() {
     var boardId = this.value;
+    // Switching boards changes the available assignees and columns, so any
+    // existing filter ids would be stale. Clear and remove from URL.
+    if (typeof clearFilterState === 'function') {
+      clearFilterState();
+      if (typeof writeFiltersToUrl === 'function') writeFiltersToUrl();
+    }
     if (boardId) {
       loadBoard(boardId);
     } else {
@@ -1214,6 +1900,7 @@
     updateAddColumnBtn();
     updateBoardActions();
     updateBoardSubtitle();
+    updateFiltersVisibility();
   };
 
   // --- Ticket picker (for personal boards) ---

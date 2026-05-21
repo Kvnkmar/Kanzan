@@ -88,6 +88,17 @@
   {% block extra_css %}{% endblock %}
 </head>
 <body>
+  <script>
+    // Apply persisted sidebar-collapsed state synchronously to prevent
+    // a flash of the expanded sidebar on page load / tab switch.
+    (function(){
+      try {
+        if (localStorage.getItem('kanzan_sidebar_collapsed') === '1') {
+          document.body.classList.add('sidebar-collapsed');
+        }
+      } catch (e) {}
+    })();
+  </script>
   {% block fullpage %}
   {% if tenant and user.is_authenticated %}
     {% include "includes/sidebar.html" %}

@@ -182,6 +182,31 @@ AGENT_CODENAMES = [
     "inbound_email.view",
 ]
 
+# Team Lead = elevated Agent. Sits between Manager (20) and Agent (30) at
+# hierarchy 25, so frontend `_role_required(20)` gates do NOT admit them
+# (they are not a Manager) but the ≤30 fallback in HasTenantPermission does.
+TEAM_LEAD_CODENAMES = AGENT_CODENAMES + [
+    "ticket.delete",
+    "ticket.export",
+    "contact.delete",
+    "contact.export",
+    "user.view",
+    "report.export",
+    "queue.view",
+    "sla_policy.view",
+    "escalation_rule.view",
+    "kb_article.delete",
+    "kb_category.update",
+    "calendar_event.delete",
+    "inbound_email.manage",
+]
+
+# IT / HR are departmental flavours of Agent — same hierarchy level (30),
+# distinct slug so they appear as separate roles in pickers and reports.
+# Both gain user.view to look people up while triaging tickets.
+IT_CODENAMES = AGENT_CODENAMES + ["user.view"]
+HR_CODENAMES = AGENT_CODENAMES + ["user.view"]
+
 ROLE_DEFINITIONS = [
     {
         "name": "Admin",
@@ -198,11 +223,32 @@ ROLE_DEFINITIONS = [
         "codenames": MANAGER_CODENAMES,
     },
     {
+        "name": "Team Lead",
+        "slug": "team-lead",
+        "hierarchy_level": 25,
+        "description": "Leads a small group of agents: can delete/export tickets, view ops config, and manage the agent inbox.",
+        "codenames": TEAM_LEAD_CODENAMES,
+    },
+    {
         "name": "Agent",
         "slug": "agent",
         "hierarchy_level": 30,
         "description": "Can work with tickets and contacts.",
         "codenames": AGENT_CODENAMES,
+    },
+    {
+        "name": "IT",
+        "slug": "it",
+        "hierarchy_level": 30,
+        "description": "IT support agent: same ticketing rights as Agent, plus user lookup for support tickets.",
+        "codenames": IT_CODENAMES,
+    },
+    {
+        "name": "HR",
+        "slug": "hr",
+        "hierarchy_level": 30,
+        "description": "HR agent: same ticketing rights as Agent, plus user lookup for employee tickets.",
+        "codenames": HR_CODENAMES,
     },
 ]
 

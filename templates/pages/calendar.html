@@ -340,6 +340,8 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 {% endblock %}
 
 {% block content %}
+{% include "includes/page_back_button.html" %}
+
 <div class="page-header">
   <div>
     <h1 class="page-title">Calendar</h1>
@@ -953,17 +955,21 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 
     function onDocClick() { closeDayEventsPopover(); }
     function onKey(e) { if (e.key === 'Escape') closeDayEventsPopover(); }
-    function onScroll() { closeDayEventsPopover(); }
+    function onResize() { closeDayEventsPopover(); }
+    function onScroll(e) {
+      if (e && e.target && pop.contains(e.target instanceof Node ? e.target : null)) return;
+      closeDayEventsPopover();
+    }
     setTimeout(function() { document.addEventListener('click', onDocClick); }, 0);
     document.addEventListener('keydown', onKey);
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('resize', onResize);
     window.addEventListener('scroll', onScroll, true);
 
     dayPopoverEl = pop;
     dayPopoverCleanup = function() {
       document.removeEventListener('click', onDocClick);
       document.removeEventListener('keydown', onKey);
-      window.removeEventListener('resize', onScroll);
+      window.removeEventListener('resize', onResize);
       window.removeEventListener('scroll', onScroll, true);
     };
   }

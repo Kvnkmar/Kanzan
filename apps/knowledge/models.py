@@ -133,8 +133,18 @@ class Article(TenantScopedModel):
         return self.title
 
     def save(self, *args, **kwargs):
+        # Resolve tenant first so slug-uniqueness scan is scoped to it.
+        # Without this, a new article saved through DRF arrives with
+        # tenant_id=None, the filter finds no collision, and the
+        # unique_together=(tenant, slug) constraint then fails at INSERT.
+        if not self.tenant_id:
+            from main.context import get_current_tenant
+            current = get_current_tenant()
+            if current:
+                self.tenant = current
+
         if not self.slug:
-            base_slug = slugify(self.title)
+            base_slug = slugify(self.title) or "article"
             slug = base_slug
             counter = 1
             while (

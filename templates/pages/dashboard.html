@@ -450,13 +450,17 @@
     return 'color-mix(in srgb, ' + color + ' ' + pct + '%, transparent)';
   }
 
+  // Use the fixed --status-*-dot semantic tokens so slices stay
+  // distinguishable regardless of tenant primary/accent (Crimson Black
+  // tenants have a red accent, which collapsed every slice into the
+  // same shade when these mapped to var(--crm-primary)/var(--crm-accent)).
   var STATUS_COLORS = {
-    'Open':        'var(--crm-primary)',
-    'In Progress': 'var(--crm-accent)',
-    'Waiting':     'var(--crm-primary)',
-    'Pending':     'var(--crm-primary)',
-    'Resolved':    'var(--status-neutral-dot)',
-    'Closed':      '#6B6B70'
+    'Open':        'var(--status-info-dot)',
+    'In Progress': 'var(--status-warning-dot)',
+    'Waiting':     'var(--status-danger-dot)',
+    'Pending':     'var(--status-warning-dot)',
+    'Resolved':    'var(--status-success-dot)',
+    'Closed':      'var(--status-neutral-dot)'
   };
 
   var PRIORITY_LABELS = {
@@ -464,7 +468,10 @@
   };
 
   var PRIORITY_COLORS = {
-    urgent: 'var(--crm-accent)', high: 'var(--crm-primary)', medium: 'var(--crm-primary)', low: 'var(--status-neutral-dot)'
+    urgent: 'var(--status-danger-dot)',
+    high:   'var(--status-warning-dot)',
+    medium: 'var(--status-info-dot)',
+    low:    'var(--status-neutral-dot)'
   };
 
   // Cached dashboard data for tab switching
@@ -1795,8 +1802,7 @@
   }
 
   /* ---- Comment helpers ---- */
-  function loadComments(postId) {
-    var container = document.getElementById('nf-comments-' + postId);
+  function loadComments(container, postId) {
     if (!container) return;
     clearEl(container);
     container.appendChild(el('div', 'nf-comments__header', 'Loading comments...'));
@@ -1811,9 +1817,9 @@
         });
         container.appendChild(el('div', 'nf-comments__header', comments.length + ' comment' + (comments.length !== 1 ? 's' : '')));
         var list = el('div', 'nf-comments__list');
-        topLevel.forEach(function(c) { list.appendChild(buildCommentEl(c, postId, repliesByParent[c.id] || [])); });
+        topLevel.forEach(function(c) { list.appendChild(buildCommentEl(c, container, postId, repliesByParent[c.id] || [])); });
         container.appendChild(list);
-        container.appendChild(buildCommentInput(postId, null));
+        container.appendChild(buildCommentInput(container, postId, null));
         var post = allPosts.find(function(p) { return p.id === postId; });
         if (post) post.comment_count = comments.length;
         renderPostSummary(postId);
@@ -1830,7 +1836,7 @@
     return name.split(' ').map(function(p) { return p[0]; }).join('').substring(0, 2).toUpperCase();
   }
 
-  function buildCommentEl(comment, postId, replies) {
+  function buildCommentEl(comment, container, postId, replies) {
     var wrap = el('div', 'nf-comment');
     var authorName = getCommentAuthor(comment);
     wrap.appendChild(el('span', 'nf-comment__avatar', getInitials(authorName)));
@@ -1845,7 +1851,7 @@
       e.stopPropagation();
       var existingInput = body.querySelector('.nf-comment-input');
       if (existingInput) { existingInput.remove(); return; }
-      body.appendChild(buildCommentInput(postId, comment.id));
+      body.appendChild(buildCommentInput(container, postId, comment.id));
     });
     body.appendChild(replyBtn);
     if (replies.length > 0) {
@@ -1869,7 +1875,7 @@
     return wrap;
   }
 
-  function buildCommentInput(postId, parentId) {
+  function buildCommentInput(container, postId, parentId) {
     var wrap = el('div', 'nf-comment-input');
     wrap.appendChild(el('span', 'nf-comment-input__avatar', '..'));
     var input = document.createElement('input');
@@ -1884,7 +1890,7 @@
       var payload = { content_type: 'newsfeed.newspost', object_id: postId, body: text };
       if (parentId) payload.parent = parentId;
       Api.post('/api/v1/comments/comments/', payload)
-        .then(function() { loadComments(postId); })
+        .then(function() { loadComments(container, postId); })
         .catch(function() { Toast.error('Failed to post comment.'); sendBtn.disabled = false; });
     }
     sendBtn.addEventListener('click', function(e) { e.stopPropagation(); submit(); });
@@ -1967,9 +1973,10 @@
 
     // Comments (lazy load)
     var commentsEl = document.getElementById('nfDetailComments');
-    commentsEl.id = 'nf-comments-' + post.id;
-    clearEl(commentsEl);
-    loadComments(postId);
+    if (commentsEl) {
+      clearEl(commentsEl);
+      loadComments(commentsEl, postId);
+    }
 
     // Mark read
     markPostRead(postId);
@@ -1983,9 +1990,6 @@
   if (detailModalEl) {
     detailModalEl.addEventListener('hidden.bs.modal', function() {
       startAutoPlay();
-      // Reset comments container id so it doesn't conflict
-      var commentsEl = document.getElementById('nfDetailComments');
-      if (commentsEl) commentsEl.removeAttribute('id');
     });
   }
 

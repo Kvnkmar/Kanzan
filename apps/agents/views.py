@@ -412,9 +412,12 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
     )
     def assignable_roles(self, request):
         """
-        Roles that the current admin can grant as a temporary role.
+        Roles that the current admin can grant (temporarily or permanently).
 
-        Admin-only. Returns all roles defined in this tenant.
+        Admin-only. Returns all roles defined in this tenant EXCEPT the
+        Admin role itself — admin must be promoted through a deliberate
+        flow (invitation / explicit promotion), not the regular role
+        picker, to prevent accidental privilege escalation.
 
         GET /agents/assignable-roles/
         """
@@ -428,13 +431,18 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
 
         from apps.accounts.models import Role
 
-        roles = Role.objects.filter(tenant=tenant).order_by("hierarchy_level", "name")
+        roles = (
+            Role.objects.filter(tenant=tenant)
+            .exclude(slug="admin")
+            .order_by("hierarchy_level", "name")
+        )
         data = [
             {
                 "id": str(r.id),
                 "name": r.name,
                 "slug": r.slug,
                 "hierarchy_level": r.hierarchy_level,
+                "description": r.description or "",
             }
             for r in roles
         ]

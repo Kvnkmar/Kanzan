@@ -442,9 +442,12 @@ def get_hourly_trends(tenant, user=None, date_from=None, date_to=None):
     received = sum(current_data)
     resolved = base_qs.filter(**resolved_qs_filter).count()
 
-    # Average first response time for period tickets
+    # Average first response time for period tickets.
+    # Exclude rows where first_responded_at < created_at — a negative delta is
+    # logically impossible and would poison the aggregate.
     avg_first = period_tickets.filter(
-        first_responded_at__isnull=False
+        first_responded_at__isnull=False,
+        first_responded_at__gte=F("created_at"),
     ).aggregate(
         avg=Avg(F("first_responded_at") - F("created_at"))
     )["avg"]
@@ -452,8 +455,11 @@ def get_hourly_trends(tenant, user=None, date_from=None, date_to=None):
     if avg_first is not None:
         avg_first_minutes = round(avg_first.total_seconds() / 60, 1)
 
-    # Average resolution time for resolved tickets in period
-    avg_res = base_qs.filter(**resolved_qs_filter).aggregate(
+    # Average resolution time for resolved tickets in period.
+    # Exclude rows where resolved_at < created_at for the same reason.
+    avg_res = base_qs.filter(**resolved_qs_filter).filter(
+        resolved_at__gte=F("created_at"),
+    ).aggregate(
         avg=Avg(F("resolved_at") - F("created_at"))
     )["avg"]
     avg_response_minutes = None

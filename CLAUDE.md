@@ -1,6 +1,6 @@
 # Kanzen — Project Intelligence
 
-> Last refreshed: **2026-05-17** (post-API-keys merge + bell-flyout UX + throttle base-class swap). Verified against branch `main` @ `fe0ad66` ("feat(api-keys): add quickstart page, sidebar entry, settings tab, and tests") **plus uncommitted working-tree changes**: `apps/api_keys/apps.py` registers the drf-spectacular OpenAPI extension in `ready()`; `apps/api_keys/throttling.py` now subclasses **`SimpleRateThrottle`** (not `ScopedRateThrottle`) so it engages on every API-key-authenticated request without per-viewset opt-in (skips JWT/session traffic by returning `None` from `get_cache_key`); `apps/api_keys/tests/{test_authentication,test_viewset}.py` cleanup + `django_capture_on_commit_callbacks` for the post-commit email task; and a bell-anchored notification flyout (`templates/includes/navbar.html` + `static/js/app.js` + `static/css/custom-v15.css`) replaces the generic `Toast.info` for new notifications — bell rings, badge bumps, peek-preview card auto-fades after 5s. The API-keys feature itself adds: a new `apps/api_keys/` app (model + auth class + viewset + throttle + middleware + drf-spectacular extension + **43 tests across 4 files**), `User.is_service_account` (migration `accounts/0010`), **three new `ActivityLog.Action` choices → total 26** (migration `comments/0009`), a new `/api/v1/api-keys/` router include (count 21 → 22), a new middleware `apps.api_keys.middleware.RateLimitHeadersMiddleware` (middleware count 13 → 14), `DEFAULT_THROTTLE_RATES["api_key"] = "1000/hour"`, a `Developer & Integrations` settings tab + reveal/regenerate/revoke modals, and a `/api/quickstart/` developer-guide page (frontend URL count 33 → 34). For deeper per-domain inventory see `docs/reference/{codebase-inventory,api-surface,frontend-surface,infra-surface}.md` — those reference docs were regenerated 2026-05-11 and DO NOT yet reflect the live broadcast layer, messaging attachments, OR the API-keys feature; refresh as needed.
+> Last refreshed: **2026-05-21** (post-API-keys merge + bell-flyout UX + throttle base-class swap + **7-role hierarchy: Team Lead / IT / HR added** via `accounts/0011`). Verified against branch `main` @ `fe0ad66` ("feat(api-keys): add quickstart page, sidebar entry, settings tab, and tests") **plus uncommitted working-tree changes**: `apps/api_keys/apps.py` registers the drf-spectacular OpenAPI extension in `ready()`; `apps/api_keys/throttling.py` now subclasses **`SimpleRateThrottle`** (not `ScopedRateThrottle`) so it engages on every API-key-authenticated request without per-viewset opt-in (skips JWT/session traffic by returning `None` from `get_cache_key`); `apps/api_keys/tests/{test_authentication,test_viewset}.py` cleanup + `django_capture_on_commit_callbacks` for the post-commit email task; and a bell-anchored notification flyout (`templates/includes/navbar.html` + `static/js/app.js` + `static/css/custom-v15.css`) replaces the generic `Toast.info` for new notifications — bell rings, badge bumps, peek-preview card auto-fades after 5s. The API-keys feature itself adds: a new `apps/api_keys/` app (model + auth class + viewset + throttle + middleware + drf-spectacular extension + **43 tests across 4 files**), `User.is_service_account` (migration `accounts/0010`), **three new `ActivityLog.Action` choices → total 26** (migration `comments/0009`), a new `/api/v1/api-keys/` router include (count 21 → 22), a new middleware `apps.api_keys.middleware.RateLimitHeadersMiddleware` (middleware count 13 → 14), `DEFAULT_THROTTLE_RATES["api_key"] = "1000/hour"`, a `Developer & Integrations` settings tab + reveal/regenerate/revoke modals, and a `/api/quickstart/` developer-guide page (frontend URL count 33 → 34). For deeper per-domain inventory see `docs/reference/{codebase-inventory,api-surface,frontend-surface,infra-surface}.md` — those reference docs were regenerated 2026-05-11 and DO NOT yet reflect the live broadcast layer, messaging attachments, OR the API-keys feature; refresh as needed.
 
 ## Project Overview
 
@@ -19,12 +19,10 @@ Superuser:      admin@kanzen.local / Pl@nC-ICT_2024
 Django Admin:   http://localhost:8001/admin/   (locked to is_superuser — see main/admin.py)
 
 Tenants:
-  DPAP:         http://dpap.localhost:8001      (domain: asmra.shop)
-  Meeting:      http://meeting.localhost:8001
-  Debug:        http://debug-test.localhost:8001
+  Straat-X:     http://straat-x.localhost:8001
 
 Flower:         http://localhost:5556 (admin:changeme — KANZAN_FLOWER_AUTH)
-API Docs:       http://dpap.localhost:8001/api/docs/
+API Docs:       http://straat-x.localhost:8001/api/docs/
 ```
 
 ## Project Structure
@@ -277,19 +275,19 @@ There are NO new WebSocket consumers from this work — chat still goes through 
 
 ## Role-Based Access Control
 
-**Hierarchy:** Admin(10) → Manager(20) → Agent(30) → **Viewer(40)**.
+**Hierarchy:** Admin(10) → Manager(20) → **Team Lead(25)** → Agent(30) / **IT(30)** / **HR(30)** → Viewer(40).
 
-**Default role seeding (`apps/tenants/signals.py::create_default_roles`)** runs on `Tenant.post_save (created=True)` and seeds **all four** system roles, including Viewer (slug `viewer`, hierarchy_level 40). Older notes that said Viewer is *not* seeded by default are wrong — code IS seeding it. Test fixtures rely on this signal-driven seeding (e.g. `viewer_role` fixture in `conftest.py`).
+**Default role seeding (`apps/tenants/signals.py::create_default_roles`)** runs on `Tenant.post_save (created=True)` and seeds **all seven** system roles: `admin` (10), `manager` (20), `team-lead` (25), `agent` (30), `it` (30), `hr` (30), `viewer` (40). All are marked `is_system=True`. Permission sets for the four perm-bearing system roles (admin/manager/team-lead/agent/it/hr — Viewer is intentionally permission-less and relies on the ≤40 view fallback in `HasTenantPermission`) come from `apps/accounts/defaults.py::ROLE_DEFINITIONS`. **Team Lead** (slug `team-lead`) is an elevated Agent — it has `ticket.delete/export`, `contact.delete/export`, `user.view`, `report.export`, the ops-config viewers (`queue.view`, `sla_policy.view`, `escalation_rule.view`), `kb_article.delete`, `kb_category.update`, `calendar_event.delete`, and `inbound_email.manage`. **IT** and **HR** (slugs `it`, `hr`) are departmental flavours of Agent that add only `user.view` — they get the same ticketing rights as Agent but show up as distinct entries in role pickers and reports. Backfill for existing tenants is via data migration `accounts/0011_seed_team_lead_it_hr_roles` (idempotent — uses `get_or_create` + `permissions.set()`). Test fixtures rely on this signal-driven seeding (e.g. `viewer_role` fixture in `conftest.py`).
 
-- `is_admin`: `hierarchy_level ≤ 10`; `is_admin_or_manager`: `≤ 20`; `is_agent_or_above`: `≤ 30`.
-- Agent restriction (`level > 20`): sees only own/assigned tickets, linked contacts, filtered kanban cards, own reminders/activities (enforced by `IsTicketAccessible` and per-viewset `get_queryset` filters).
+- `is_admin`: `hierarchy_level ≤ 10`; `is_admin_or_manager`: `≤ 20`; `is_agent_or_above`: `≤ 30`. **Team Lead (25)** satisfies `is_agent_or_above` but NOT `is_admin_or_manager`. **IT/HR (30)** satisfy `is_agent_or_above`. Viewer (40) satisfies none of the three.
+- Non-manager row-scoping (`level > 20`): the membership sees only own/assigned tickets, linked contacts, filtered kanban cards, own reminders/activities (enforced by `IsTicketAccessible` and per-viewset `get_queryset` filters). Applies to Team Lead, Agent, IT, HR, Viewer.
 - **Always check `TenantMembership.effective_role`** — temporary role wins until `temporary_role_expires_at`. Used by context processor and permission classes.
 - **Permission classes** (`apps/accounts/permissions.py`):
   - `HasTenantPermission` — codename-based (ACTION_MAP maps 70+ DRF action names to `{resource}.{action}`); `apply_macro` → `update`; falls back to hierarchy defaults when the membership has no permissions in its qs (view → ≤40, create/update → ≤30, delete/other → ≤20).
   - `IsTicketAccessible` — object-level row filtering for agents.
   - `IsTenantMember`, `IsTenantAdmin`, `IsTenantAdminOrManager`.
   - Helper `_get_membership()` caches the membership on `request._cached_tenant_membership` for repeated checks within a request.
-- `_role_required(20)` decorator gates admin/manager frontend pages (users, billing, agents, audit_log, groups). `_role_required(30)` gates the Outbound Emails page. **`/settings/` is `@_membership_required + @ensure_csrf_cookie`** — any member can load the page; API enforces admin-only writes (with a per-field allowlist for Managers — `auto_transition_on_assign`, `auto_send_ticket_created_email`, `auto_assign_inbound_email_tickets`).
+- `_role_required(20)` decorator gates admin/manager frontend pages (users, billing, agents, audit_log, groups). **Team Lead (25) does NOT pass `_role_required(20)`** by design — Team Lead is an elevated Agent, not a Manager. `_role_required(30)` gates the Outbound Emails page (admits Team Lead, Agent, IT, HR). **`/settings/` is `@_membership_required + @ensure_csrf_cookie`** — any member can load the page; API enforces admin-only writes (with a per-field allowlist for Managers — `auto_transition_on_assign`, `auto_send_ticket_created_email`, `auto_assign_inbound_email_tickets`).
 
 ## Signals (10 apps with signals.py + notifications/signal_handlers.py)
 
@@ -771,7 +769,8 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 
 | App | Latest | What it adds |
 |-----|--------|--------------|
-| accounts | **0010_user_is_service_account** | `User.is_service_account` BooleanField (db-indexed) — marks the hidden synthetic users minted by `apps.api_keys` |
+| accounts | **0011_seed_team_lead_it_hr_roles** | Data migration — backfills `Team Lead` (25), `IT` (30), `HR` (30) system roles on every existing tenant with permission sets from `apps/accounts/defaults.py::ROLE_DEFINITIONS`. Idempotent (`get_or_create` + `permissions.set()`). New tenants pick up the same roles via `apps/tenants/signals.py::create_default_roles`. |
+| accounts | 0010_user_is_service_account | `User.is_service_account` BooleanField (db-indexed) — marks the hidden synthetic users minted by `apps.api_keys` |
 | accounts | 0009_usergroup | `UserGroup` model (tenant-scoped, M2M members) — used by `Article.allowed_groups` |
 | accounts | 0008_add_temporary_permissions | `TenantMembership.temporary_permissions` M2M (per-grant permission subset; intersect with `temporary_role.permissions`) |
 | agents | **0006_customagentstatus_…_custom_status** | `CustomAgentStatus` model + `AgentAvailability.custom_status` FK |
@@ -865,7 +864,7 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 6. Role creation signal must include `hierarchy_level` (10/20/30/**40 for Viewer**).
 7. Ticket stats JS reads `data.ticket_stats` (not `data.ticket_summary`).
 8. Flower package added to requirements/base.txt.
-9. **Viewer IS seeded by default** (`apps/tenants/signals.py:53`). Older docs that said otherwise are wrong.
+9. **Viewer IS seeded by default** (`apps/tenants/signals.py:56`) alongside Admin / Manager / **Team Lead / Agent / IT / HR**. Older docs that said only four roles are seeded are wrong — the signal seeds **seven** system roles.
 10. `swagger_fake_view` check in `get_queryset()` to survive OpenAPI schema generation.
 11. Use `get_user_model()` (not direct import) in async consumers.
 12. Test fixtures: `UserFactory` uses `_after_postgeneration` with `skip_postgeneration_save = True`.
@@ -907,6 +906,7 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 48. **`RateLimitHeadersMiddleware`** (`apps.api_keys.middleware`) — slot 12 in the middleware stack, between `SubscriptionMiddleware` and `MessageMiddleware`. Pure read-side; only emits `X-RateLimit-*` headers when the throttle stashed info on the request. Cost is essentially zero for non-API-key traffic.
 49. **`drf-spectacular` OpenAPI extension for API keys** is registered by `apps/api_keys/apps.py::ready()` importing `apps.api_keys.extensions` (uncommitted working-tree change — the merge commit had the extension file but missed wiring it). Swagger UI's "Authorize" dialog gains an `ApiKeyAuth` option alongside the existing JWT bearer.
 50. **Notification UX (uncommitted working-tree change)** — new notifications no longer fire a generic `Toast.info`. Instead the bell icon (`#notifDropdown`) gets `.is-ringing` for ~950ms (CSS swing + radial halo) and the new bell-anchored card (`#notifFlyout`) slides in below the bell with a 5s auto-fade and animated progress bar. The unread-count badge gains `.is-bumping` for a one-shot scale animation. All animations respect `@media (prefers-reduced-motion: reduce)`. Files: `templates/includes/navbar.html` (DOM), `static/js/app.js::initNotifications` (`ringBell()`, `showFlyout(data)`, `hideFlyout()`), `static/css/custom-v15.css` (~+219 lines, `.notif-bell-btn`, `.notif-flyout*`, `.notification-badge.is-bumping`, `@keyframes notif-bell-ring/halo/badge-bump/flyout-timer`).
+51. **Seven system roles, not four** (data migration `accounts/0011_seed_team_lead_it_hr_roles`, 2026-05-21). Per-tenant defaults are now `admin` (10), `manager` (20), `team-lead` (25), `agent` (30), `it` (30), `hr` (30), `viewer` (40), all `is_system=True`. Permission sets for the perm-bearing roles come from `apps/accounts/defaults.py::ROLE_DEFINITIONS`; Viewer is intentionally permission-less and leans on the ≤40 view fallback in `HasTenantPermission`. **Team Lead** is an elevated Agent (delete/export tickets + contacts, view ops config, manage agent inbox, see users) — sits at level 25 so it **passes** `is_agent_or_above` (≤30) but **fails** `_role_required(20)` / `is_admin_or_manager`, by design. **IT / HR** are departmental flavours of Agent at level 30 with `user.view` added; they get the same ticketing rights as Agent but show up as distinct entries in pickers/reports. Agent-tier row-scoping (the `level > 20` cohort in `IsTicketAccessible` + per-viewset `get_queryset` filters) now applies to Team Lead, Agent, IT, HR, and Viewer.
 
 ## Documentation
 - `/CLAUDE.md` (this file) — day-to-day source of truth, kept current with refactors.

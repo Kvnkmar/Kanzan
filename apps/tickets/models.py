@@ -598,6 +598,21 @@ class Ticket(TenantScopedModel):
 
             with transaction.atomic():
                 self.number = TicketCounter.next_number(self.tenant_id)
+
+        # Auto-populate company from the linked contact when no company is
+        # set explicitly. Never overwrites an explicit company — that stays
+        # under the agent's control.
+        if self.contact_id and not self.company_id:
+            from apps.contacts.models import Contact
+
+            contact_company_id = (
+                Contact.unscoped.filter(pk=self.contact_id)
+                .values_list("company_id", flat=True)
+                .first()
+            )
+            if contact_company_id:
+                self.company_id = contact_company_id
+
         super().save(*args, **kwargs)
 
 

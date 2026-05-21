@@ -1,0 +1,21 @@
+<button type="button"
+        class="page-back"
+        id="pageBackBtn"
+        style="display:none;"
+        title="Go back to previous page"
+        aria-label="Go back to previous page"
+        onclick="(function(r){if(r&&r.startsWith(window.location.origin)){window.history.back();}else{window.location.href='/dashboard/';}})(document.referrer)">
+  <i class="ti ti-arrow-left" aria-hidden="true"></i>
+  <span>Back</span>
+</button>
+<script>
+(function(){
+  var btn = document.getElementById('pageBackBtn');
+  if (!btn) return;
+  var sidebarPaths = ['/dashboard/','/tickets/','/messaging/','/contacts/','/kanban/','/knowledge/','/calendar/','/reminders/','/analytics/','/audit-log/'];
+  var current = window.location.pathname;
+  if (!current.endsWith('/')) current += '/';
+  if (sidebarPaths.indexOf(current) !== -1) return;
+  btn.style.display = '';
+})();
+</script>

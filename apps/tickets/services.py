@@ -371,6 +371,7 @@ def assign_ticket(ticket, assignee, actor, request=None, note=""):
                 f"Status changed from {old_status_name} to {in_progress.name}"
             )
 
+    ticket._skip_signal_logging = True
     ticket.save(update_fields=update_fields)
 
     # NOTE: record_first_response() is intentionally NOT called here.
@@ -677,6 +678,7 @@ def change_ticket_status(ticket, new_status, actor, request=None):
         if ticket.sla_resolution_breached:
             update_fields.append("sla_resolution_breached")
 
+    ticket._skip_signal_logging = True
     ticket.save(update_fields=update_fields)
 
     # Determine the timeline event type
@@ -1037,6 +1039,7 @@ def escalate_ticket(ticket, actor, reason, assignee=None, queue=None, request=No
         ticket.queue = queue
         update_fields.append("queue")
 
+    ticket._skip_signal_logging = True
     ticket.save(update_fields=update_fields)
 
     # 4. Post internal comment with escalation reason
@@ -1225,6 +1228,7 @@ def change_ticket_priority(ticket, new_priority, actor, request=None):
         return ticket
 
     ticket.priority = new_priority
+    ticket._skip_signal_logging = True
     ticket.save(update_fields=["priority", "updated_at"])
 
     new_display = ticket.get_priority_display()

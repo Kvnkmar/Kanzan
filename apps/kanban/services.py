@@ -194,7 +194,7 @@ def populate_board_from_tickets(board):
     return created_count
 
 
-def move_card(card_position, target_column, position):
+def move_card(card_position, target_column, position, *, actor=None, request=None):
     """
     Move a card to a different column (or reorder within the same column).
 
@@ -205,6 +205,9 @@ def move_card(card_position, target_column, position):
         card_position: The CardPosition instance to move.
         target_column: The Column instance to move the card into.
         position: The desired zero-based order within the target column.
+        actor: The User performing the move (for audit logging when the
+            move triggers a ticket status change).
+        request: Optional HTTP request (for IP logging).
 
     Returns:
         CardPosition: The updated card position instance.
@@ -239,8 +242,23 @@ def move_card(card_position, target_column, position):
         content_obj = card_position.content_object
         if content_obj is not None and hasattr(content_obj, 'status_id'):
             if content_obj.status_id != target_column.status_id:
-                content_obj.status = target_column.status
-                content_obj.save(update_fields=["status", "updated_at"])
+                # Route through the ticket service so the change goes through
+                # dual-write audit logging with the dragger as actor. Falls
+                # back to a direct save for non-Ticket content types (e.g.
+                # deals on personal boards) which don't go through the
+                # ticket service layer.
+                from apps.tickets.models import Ticket as _Ticket
+                if isinstance(content_obj, _Ticket):
+                    from apps.tickets.services import change_ticket_status
+                    change_ticket_status(
+                        content_obj,
+                        target_column.status,
+                        actor,
+                        request=request,
+                    )
+                else:
+                    content_obj.status = target_column.status
+                    content_obj.save(update_fields=["status", "updated_at"])
 
     return card_position
 

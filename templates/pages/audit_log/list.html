@@ -4,6 +4,8 @@
 {% block content %}
 <div id="auditPageData" data-current-user="{{ request.user.pk }}" class="d-none"></div>
 
+{% include "includes/page_back_button.html" %}
+
 <!-- Page Header -->
 <div class="page-header audit-page-header">
   <div>
@@ -40,45 +42,75 @@
 <div class="tab-content" id="auditSectionTabContent">
 <div class="tab-pane fade show active" id="pane-activity" role="tabpanel" aria-labelledby="tab-activity">
 
-<!-- Insights Ribbon -->
+<!-- Insights — hero metric + sidebar + full-width heat ribbon -->
 <section class="audit-insights" aria-label="Workspace activity insights">
-  <div class="audit-insights-block audit-insights-pulse">
-    <div class="audit-insights-pulse-head">
-      <span class="audit-live-dot" id="auditLiveDot" aria-hidden="true"></span>
-      <span class="audit-insights-eyebrow" id="auditLiveLabel">Live</span>
+
+  <!-- Hero: live indicator + big total + stat tiles -->
+  <div class="audit-insights-hero">
+    <div class="audit-insights-hero-head">
+      <span class="audit-live-pill">
+        <span class="audit-live-dot" id="auditLiveDot" aria-hidden="true"></span>
+        <span id="auditLiveLabel">Live</span>
+      </span>
+    </div>
+
+    <div class="audit-insights-hero-num">
       <span class="audit-insights-number" id="statTotal">—</span>
       <span class="audit-insights-unit">events total</span>
     </div>
-    <div class="audit-insights-pulse-sub">
-      <span class="audit-insights-pill"><i class="ti ti-bolt"></i><span id="statToday">—</span> today</span>
-      <span class="audit-insights-pill"><i class="ti ti-calendar-week"></i><span id="statWeek">—</span> this week</span>
-      <span class="audit-insights-pill"><i class="ti ti-users"></i><span id="statUsers">—</span> active users</span>
+
+    <div class="audit-stat-tiles">
+      <div class="audit-stat-tile">
+        <i class="ti ti-bolt" aria-hidden="true"></i>
+        <div class="audit-stat-tile-body">
+          <div class="audit-stat-tile-num" id="statToday">—</div>
+          <div class="audit-stat-tile-label">today</div>
+        </div>
+      </div>
+      <div class="audit-stat-tile">
+        <i class="ti ti-calendar-week" aria-hidden="true"></i>
+        <div class="audit-stat-tile-body">
+          <div class="audit-stat-tile-num" id="statWeek">—</div>
+          <div class="audit-stat-tile-label">this week</div>
+        </div>
+      </div>
+      <div class="audit-stat-tile">
+        <i class="ti ti-users" aria-hidden="true"></i>
+        <div class="audit-stat-tile-body">
+          <div class="audit-stat-tile-num" id="statUsers">—</div>
+          <div class="audit-stat-tile-label">active users</div>
+        </div>
+      </div>
     </div>
   </div>
 
+  <!-- Side stack: top contributor + risk -->
+  <div class="audit-insights-side">
+    <div class="audit-insights-block audit-insights-actor">
+      <div class="audit-insights-eyebrow">Top contributor</div>
+      <div class="audit-top-actor" id="auditTopActor">
+        <div class="audit-top-actor-avatar audit-top-actor-avatar--placeholder">·</div>
+        <div class="audit-top-actor-info">
+          <div class="audit-top-actor-name text-muted">No activity yet</div>
+          <div class="audit-top-actor-count">—</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="audit-insights-block audit-insights-risk" id="auditRiskBlock">
+      <div class="audit-insights-eyebrow"><i class="ti ti-shield-half" aria-hidden="true"></i> Risk signal</div>
+      <div class="audit-risk-number" id="auditRiskCount">—</div>
+      <div class="audit-risk-label">destructive actions this week</div>
+    </div>
+  </div>
+
+  <!-- Full-width heat ribbon -->
   <div class="audit-insights-block audit-insights-heat">
     <div class="audit-insights-heat-head">
       <span class="audit-insights-eyebrow">Last 7 days</span>
       <span class="audit-insights-heat-peak" id="heatPeakLabel">—</span>
     </div>
     <div class="audit-heat-ribbon" id="auditHeatRibbon" role="img" aria-label="7-day activity heat ribbon"></div>
-  </div>
-
-  <div class="audit-insights-block audit-insights-actor">
-    <div class="audit-insights-eyebrow">Top contributor</div>
-    <div class="audit-top-actor" id="auditTopActor">
-      <div class="audit-top-actor-avatar audit-top-actor-avatar--placeholder">·</div>
-      <div class="audit-top-actor-info">
-        <div class="audit-top-actor-name text-muted">No activity yet</div>
-        <div class="audit-top-actor-count">—</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="audit-insights-block audit-insights-risk" id="auditRiskBlock">
-    <div class="audit-insights-eyebrow"><i class="ti ti-shield-half"></i> Risk signal</div>
-    <div class="audit-risk-number" id="auditRiskCount">—</div>
-    <div class="audit-risk-label">destructive actions this week</div>
   </div>
 </section>
 
@@ -545,6 +577,44 @@
 
   function displayValue(val) {
     return val != null ? String(val) : '(empty)';
+  }
+
+  var UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  function isUuid(val) {
+    return typeof val === 'string' && UUID_RE.test(val.trim());
+  }
+
+  function isOpaqueValue(val) {
+    if (val == null) return false;
+    if (isUuid(val)) return true;
+    if (typeof val === 'string' && val.length >= 24 && /^[A-Za-z0-9_-]+$/.test(val) && !/\s/.test(val)) {
+      return true;
+    }
+    return false;
+  }
+
+  function formatFriendlyDateTime(dateStr) {
+    if (!dateStr) return '--';
+    var d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '--';
+    var now = new Date();
+    var sameDay = d.toDateString() === now.toDateString();
+    var yesterday = new Date(now); yesterday.setDate(now.getDate() - 1);
+    var isYesterday = d.toDateString() === yesterday.toDateString();
+    var time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (sameDay) return 'Today ' + time;
+    if (isYesterday) return 'Yesterday ' + time;
+    var weekMs = 7 * 24 * 60 * 60 * 1000;
+    if ((now - d) < weekMs) {
+      return d.toLocaleDateString([], { weekday: 'short' }) + ' ' + time;
+    }
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) + ', ' + time;
+  }
+
+  function parseTicketNumber(text) {
+    if (!text) return null;
+    var m = text.match(/#(\d+)/);
+    return m ? m[1] : null;
   }
 
   // ── Filter & URL sync ──
@@ -1311,6 +1381,11 @@
     var body = dom.detailBody;
     body.textContent = '';
 
+    var actorName = entry.actor_name || 'System';
+    var entityKey = entry.content_type;
+    var entityLabel = ENTITY_LABELS[entityKey] || entityKey || 'item';
+    var entityLabelLower = entityLabel.toLowerCase();
+
     // Header: avatar + actor + action badge
     var headerRow = document.createElement('div');
     headerRow.className = 'd-flex justify-content-between align-items-start mb-3';
@@ -1321,12 +1396,14 @@
     avatarLg.style.width = '36px';
     avatarLg.style.height = '36px';
     avatarLg.style.fontSize = '0.8rem';
-    avatarLg.style.background = hashColor(entry.actor_name || 'System');
-    avatarLg.textContent = getInitials(entry.actor_name || 'System');
+    avatarLg.style.background = hashColor(actorName);
+    avatarLg.textContent = getInitials(actorName);
     actorDiv.appendChild(avatarLg);
-    actorDiv.appendChild(makeText('strong', entry.actor_name || 'System'));
+    actorDiv.appendChild(makeText('strong', actorName));
     if (entry.actor_email) {
       actorDiv.appendChild(makeText('small', entry.actor_email, 'text-muted d-block'));
+    } else if (actorName === 'System') {
+      actorDiv.appendChild(makeText('small', 'automated', 'text-muted d-block'));
     }
     headerRow.appendChild(actorDiv);
     headerRow.appendChild(createActionBadge(entry.action, entry.action_display));
@@ -1336,115 +1413,156 @@
     var metaDiv = document.createElement('div');
     metaDiv.className = 'audit-detail-meta';
 
-    // Entity
+    // Entity — link to ticket when we can parse #N from the description
     var entityItem = document.createElement('div');
     entityItem.className = 'audit-detail-meta-item';
-    entityItem.appendChild(makeIcon('ti ti-box me-1'));
-    entityItem.appendChild(makeText('span', 'Entity:', 'text-muted me-1'));
-    entityItem.appendChild(document.createTextNode(ENTITY_LABELS[entry.content_type] || entry.content_type));
+    entityItem.appendChild(makeIcon('ti ' + (ENTITY_ICONS[entityKey] || 'ti-box') + ' me-1'));
+    var ticketNumber = entityKey === 'ticket' ? parseTicketNumber(entry.description) : null;
+    if (ticketNumber) {
+      var link = document.createElement('a');
+      link.href = '/tickets/' + ticketNumber + '/';
+      link.className = 'audit-detail-entity-link';
+      link.textContent = 'Ticket #' + ticketNumber;
+      entityItem.appendChild(link);
+    } else {
+      entityItem.appendChild(document.createTextNode(entityLabel));
+    }
     metaDiv.appendChild(entityItem);
 
-    // Time
+    // Time — friendly relative format
     var timeItem = document.createElement('div');
     timeItem.className = 'audit-detail-meta-item';
     timeItem.appendChild(makeIcon('ti ti-clock me-1'));
-    timeItem.appendChild(document.createTextNode(formatFullDate(entry.created_at)));
+    var timeText = document.createTextNode(formatFriendlyDateTime(entry.created_at));
+    timeItem.appendChild(timeText);
+    timeItem.title = formatFullDate(entry.created_at);
     metaDiv.appendChild(timeItem);
 
     body.appendChild(metaDiv);
     body.appendChild(document.createElement('hr'));
 
-    // Description
+    // "What happened" — the description
     if (entry.description) {
       var descDiv = document.createElement('div');
       descDiv.className = 'mb-3';
-      descDiv.appendChild(makeText('strong', 'Description'));
+      descDiv.appendChild(makeText('strong', 'What happened'));
       var descP = makeText('p', entry.description, 'mt-1 mb-0');
       descP.style.fontSize = '0.9rem';
       descDiv.appendChild(descP);
       body.appendChild(descDiv);
     }
 
-    // Changes diff
+    // "What changed" — diff table. Hide rows where BOTH values are opaque
+    // (UUIDs / tokens); those become technical-details rows.
+    var friendlyFields = [];
+    var technicalFields = [];
     if (entry.changes && Object.keys(entry.changes).length > 0) {
-      var changesDiv = document.createElement('div');
-      changesDiv.className = 'mb-3';
-      changesDiv.appendChild(makeText('strong', 'Changes'));
-
-      var diffTable = document.createElement('div');
-      diffTable.className = 'audit-diff-table mt-2';
-
-      // Header
-      var diffHeader = document.createElement('div');
-      diffHeader.className = 'audit-diff-row audit-diff-header';
-      ['Field', 'Previous', 'New'].forEach(function(text) {
-        diffHeader.appendChild(makeText('div', text, 'audit-diff-cell'));
-      });
-      diffTable.appendChild(diffHeader);
-
       Object.keys(entry.changes).forEach(function(field) {
         var vals = entry.changes[field];
         var oldVal = Array.isArray(vals) ? vals[0] : '--';
         var newVal = Array.isArray(vals) ? vals[1] : vals;
+        var bothOpaque = isOpaqueValue(oldVal) && isOpaqueValue(newVal);
+        var simple = !isComplexValue(oldVal) && !isComplexValue(newVal);
+        if (bothOpaque && simple) {
+          technicalFields.push({ field: field, oldVal: oldVal, newVal: newVal });
+        } else {
+          friendlyFields.push({ field: field, oldVal: oldVal, newVal: newVal });
+        }
+      });
+    }
 
+    function buildDiffTable(rows) {
+      var diffTable = document.createElement('div');
+      diffTable.className = 'audit-diff-table mt-2';
+      var diffHeader = document.createElement('div');
+      diffHeader.className = 'audit-diff-row audit-diff-header';
+      ['Field', 'Previous', 'New'].forEach(function(t) {
+        diffHeader.appendChild(makeText('div', t, 'audit-diff-cell'));
+      });
+      diffTable.appendChild(diffHeader);
+      rows.forEach(function(r) {
         var diffRow = document.createElement('div');
         diffRow.className = 'audit-diff-row';
-
-        diffRow.appendChild(makeText('div', formatFieldName(field), 'audit-diff-cell fw-medium'));
-
-        // Old value cell
+        diffRow.appendChild(makeText('div', formatFieldName(r.field), 'audit-diff-cell fw-medium'));
         var cellOld = document.createElement('div');
         cellOld.className = 'audit-diff-cell audit-diff-old';
-        if (isComplexValue(oldVal)) {
+        if (isComplexValue(r.oldVal)) {
           var preOld = document.createElement('pre');
           preOld.className = 'audit-diff-json mb-0';
-          preOld.textContent = JSON.stringify(oldVal, null, 2);
+          preOld.textContent = JSON.stringify(r.oldVal, null, 2);
           cellOld.appendChild(preOld);
         } else {
-          cellOld.appendChild(makeText('span', displayValue(oldVal)));
+          cellOld.appendChild(makeText('span', displayValue(r.oldVal)));
         }
-
-        // New value cell
         var cellNew = document.createElement('div');
         cellNew.className = 'audit-diff-cell audit-diff-new';
-        if (isComplexValue(newVal)) {
+        if (isComplexValue(r.newVal)) {
           var preNew = document.createElement('pre');
           preNew.className = 'audit-diff-json mb-0';
-          preNew.textContent = JSON.stringify(newVal, null, 2);
+          preNew.textContent = JSON.stringify(r.newVal, null, 2);
           cellNew.appendChild(preNew);
         } else {
-          cellNew.appendChild(makeText('span', displayValue(newVal)));
+          cellNew.appendChild(makeText('span', displayValue(r.newVal)));
         }
-
         diffRow.appendChild(cellOld);
         diffRow.appendChild(cellNew);
         diffTable.appendChild(diffRow);
       });
+      return diffTable;
+    }
 
-      changesDiv.appendChild(diffTable);
+    if (friendlyFields.length > 0) {
+      var changesDiv = document.createElement('div');
+      changesDiv.className = 'mb-3';
+      changesDiv.appendChild(makeText('strong', 'What changed'));
+      changesDiv.appendChild(buildDiffTable(friendlyFields));
       body.appendChild(changesDiv);
     }
 
-    // Object ID / Log ID
+    // Technical details — collapsed by default. Contains UUID-only changes,
+    // Object ID, and Log ID. Toggle re-renders the panel state in-place.
+    var hasTechnicalChanges = technicalFields.length > 0;
+    var techWrap = document.createElement('details');
+    techWrap.className = 'audit-detail-tech mt-3';
+    var techSummary = document.createElement('summary');
+    techSummary.className = 'audit-detail-tech-summary';
+    techSummary.appendChild(makeIcon('ti ti-code me-1'));
+    techSummary.appendChild(document.createTextNode('Show technical details'));
+    techWrap.appendChild(techSummary);
+
+    var techBody = document.createElement('div');
+    techBody.className = 'audit-detail-tech-body';
+
+    if (hasTechnicalChanges) {
+      techBody.appendChild(makeText('div', 'Raw field changes', 'audit-detail-tech-label'));
+      techBody.appendChild(buildDiffTable(technicalFields));
+    }
+
     var idDiv = document.createElement('div');
-    idDiv.className = 'text-muted mt-3';
-    idDiv.style.fontSize = '0.75rem';
+    idDiv.className = 'audit-detail-tech-ids';
     idDiv.appendChild(makeText('strong', 'Object ID: '));
     idDiv.appendChild(document.createTextNode(entry.object_id));
     idDiv.appendChild(document.createElement('br'));
     idDiv.appendChild(makeText('strong', 'Log ID: '));
     idDiv.appendChild(document.createTextNode(entry.id));
-    body.appendChild(idDiv);
+    if (entry.ip_address) {
+      idDiv.appendChild(document.createElement('br'));
+      idDiv.appendChild(makeText('strong', 'IP: '));
+      idDiv.appendChild(document.createTextNode(entry.ip_address));
+    }
+    techBody.appendChild(idDiv);
+    techWrap.appendChild(techBody);
+    body.appendChild(techWrap);
 
     // Entity timeline
     if (entry.content_type && entry.object_id) {
-      loadEntityTimeline(entry.content_type, entry.object_id, entry.id);
+      loadEntityTimeline(entry.content_type, entry.object_id, entry.id, entityLabelLower);
     }
 
     drawerInstance.show();
   }
 
-  function loadEntityTimeline(contentType, objectId, currentLogId) {
+  function loadEntityTimeline(contentType, objectId, currentLogId, entityLabelLower) {
     var typeMap = {
       ticket: 'tickets.ticket', contact: 'contacts.contact', company: 'contacts.company',
       comment: 'comments.comment', article: 'knowledge.article'
@@ -1454,31 +1572,74 @@
     Api.get('/api/v1/comments/activity-logs/?content_type=' + apiType + '&object_id=' + objectId + '&page_size=10')
       .then(function(data) {
         if (!data.results || data.results.length <= 1) return;
-        renderTimeline(data.results, currentLogId);
+        renderTimeline(data.results, currentLogId, entityLabelLower);
       }).catch(function() {});
   }
 
-  function renderTimeline(entries, currentId) {
+  // Collapse near-duplicate audit rows: same (action, object_id) within 2s.
+  // Prefer the row with a human actor; keep the longest description.
+  function dedupTimeline(entries) {
+    var WINDOW_MS = 2000;
+    var out = [];
+    var byKey = {};
+    entries.forEach(function(e) {
+      var ts = new Date(e.created_at).getTime();
+      var key = e.action + ':' + e.object_id;
+      var prev = byKey[key];
+      if (prev && Math.abs(ts - prev.ts) <= WINDOW_MS) {
+        var prevEntry = out[prev.index];
+        var prevIsHuman = !!prevEntry.actor_name && prevEntry.actor_name !== 'System';
+        var curIsHuman = !!e.actor_name && e.actor_name !== 'System';
+        var merged = Object.assign({}, prevEntry);
+        if (!prevIsHuman && curIsHuman) {
+          merged.actor_name = e.actor_name;
+          merged.actor_email = e.actor_email;
+          merged.actor = e.actor;
+        }
+        var prevDesc = prevEntry.description || '';
+        var curDesc = e.description || '';
+        if (curDesc.length > prevDesc.length) {
+          merged.description = curDesc;
+        }
+        // If either source is the currently-viewed log row, preserve that id
+        // so the "is-current" marker still highlights it.
+        merged._mergedIds = (prevEntry._mergedIds || [prevEntry.id]).concat([e.id]);
+        out[prev.index] = merged;
+        return;
+      }
+      byKey[key] = { ts: ts, index: out.length };
+      out.push(e);
+    });
+    return out;
+  }
+
+  function renderTimeline(entries, currentId, entityLabelLower) {
     var body = dom.detailBody;
     body.appendChild(document.createElement('hr'));
-    var heading = makeText('strong', 'Recent Activity on This Entity');
+    var heading = makeText('strong', 'Other recent changes to this ' + (entityLabelLower || 'item'));
     heading.style.display = 'block';
     heading.style.marginBottom = '12px';
     body.appendChild(heading);
 
+    var deduped = dedupTimeline(entries);
+
     var timeline = document.createElement('div');
     timeline.className = 'audit-timeline';
 
-    entries.forEach(function(e) {
+    deduped.forEach(function(e) {
+      var isCurrent = e.id === currentId || (e._mergedIds && e._mergedIds.indexOf(currentId) !== -1);
       var item = document.createElement('div');
-      item.className = 'audit-timeline-item' + (e.id === currentId ? ' is-current' : '');
+      item.className = 'audit-timeline-item' + (isCurrent ? ' is-current' : '');
 
       var dot = document.createElement('div');
       dot.className = 'audit-timeline-dot';
       var sc = ACTION_STYLES[e.action];
       if (sc) dot.style.background = sc.color;
 
-      var time = makeText('div', formatDate(e.created_at) + ' by ' + (e.actor_name || 'System'), 'audit-timeline-time');
+      var when = formatFriendlyDateTime(e.created_at);
+      var actor = e.actor_name || 'System';
+      var time = makeText('div', when + ' \u2022 ' + actor, 'audit-timeline-time');
+      time.title = formatFullDate(e.created_at);
       var desc = makeText('div', (e.action_display || e.action) + (e.description ? ' \u2014 ' + e.description : ''), 'audit-timeline-desc');
 
       item.appendChild(dot);

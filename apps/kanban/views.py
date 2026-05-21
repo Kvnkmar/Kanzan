@@ -372,7 +372,10 @@ class CardPositionViewSet(viewsets.ModelViewSet):
         position = serializer.validated_data["position"]
 
         try:
-            updated_card = move_card(card, target_column, position)
+            updated_card = move_card(
+                card, target_column, position,
+                actor=request.user, request=request,
+            )
         except ValueError as exc:
             return Response(
                 {"detail": str(exc)},
@@ -406,7 +409,10 @@ class CardPositionViewSet(viewsets.ModelViewSet):
             )
 
         try:
-            updated_card = move_card(card, target_column, position)
+            updated_card = move_card(
+                card, target_column, position,
+                actor=request.user, request=request,
+            )
         except ValueError as exc:
             return Response(
                 {"detail": str(exc)},

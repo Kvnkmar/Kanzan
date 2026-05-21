@@ -111,19 +111,37 @@ class TenantMiddleware:
             clear_current_tenant()
             return response
 
-        # --- Django admin: always pass through without tenant context.
-        # Access control is handled by the custom AdminSite (superuser-only).
-        if path.startswith("/admin/"):
-            request.tenant = None
-            set_current_tenant(None)
-            response = self.get_response(request)
-            clear_current_tenant()
-            return response
-
         # --- Resolve tenant ---
         host = request.get_host()
         host_bare = host.split(":")[0].lower()
         slug = _extract_slug(host, self.base_domain)
+
+        # --- Django admin: resolve tenant from subdomain if present,
+        # otherwise pass through without tenant context. Access control is
+        # handled by the custom AdminSite (superuser-only). Subdomain-scoped
+        # admin lets superusers create rows on TenantScopedModel without
+        # hitting the no-tenant-context guard in TenantScopedModel.save().
+        if path.startswith("/admin/"):
+            tenant = None
+            if slug is not None:
+                tenant = (
+                    Tenant.objects.filter(slug=slug, is_active=True)
+                    .select_related("settings")
+                    .first()
+                )
+            elif host_bare not in ("localhost", "127.0.0.1", self.base_domain):
+                tenant = (
+                    Tenant.objects.filter(domain=host_bare, is_active=True)
+                    .select_related("settings")
+                    .first()
+                )
+            request.tenant = tenant
+            set_current_tenant(tenant)
+            try:
+                response = self.get_response(request)
+            finally:
+                clear_current_tenant()
+            return response
 
         tenant = None
 

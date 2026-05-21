@@ -127,15 +127,16 @@ var TicketFeed = (function () {
         var ticketNumber = data.ticket_number;
         var subject = data.subject || '';
 
-        // Show a subtle toast for ticket events
+        // Show a subtle toast for ticket events.
+        // ticket_assigned is deliberately omitted — the assignee already
+        // gets a personalised bell flyout via NotificationConsumer, and
+        // surfacing a tenant-wide toast on top of that (plus the actor's
+        // own field-edit feedback) was triple-firing for assignments.
         if (typeof Toast !== 'undefined') {
             if (eventType === 'ticket_created') {
                 Toast.info('New ticket #' + ticketNumber + ': ' + truncate(subject, 50));
             } else if (eventType === 'ticket_closed') {
                 Toast.info('Ticket #' + ticketNumber + ' closed');
-            } else if (eventType === 'ticket_assigned') {
-                var assignee = data.new_assignee || 'someone';
-                Toast.info('Ticket #' + ticketNumber + ' assigned to ' + assignee);
             }
         }
 

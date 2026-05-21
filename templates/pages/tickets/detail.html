@@ -1168,8 +1168,13 @@ window.dispatchEvent(new Event('tiptap-ready'));
       payload[field] = (value === '' && field !== 'priority') ? null : value;
       Api.patch('/api/v1/tickets/tickets/' + ticketId + '/', payload)
         .then(function(ticket) {
-          var label = field.replace(/_/g, ' ');
-          Toast.success(label.charAt(0).toUpperCase() + label.slice(1) + ' updated');
+          // Skip the success toast for assignee — the assignee gets a
+          // bell flyout, the dropdown visually updates, and loadActivity()
+          // refreshes the timeline. Avoids triple-firing on assignments.
+          if (field !== 'assignee') {
+            var label = field.replace(/_/g, ' ');
+            Toast.success(label.charAt(0).toUpperCase() + label.slice(1) + ' updated');
+          }
           loadActivity();
           if (field === 'status' && ticket.status) {
             var statusObj = typeof ticket.status === 'object' ? ticket.status : null;
@@ -2157,6 +2162,33 @@ window.dispatchEvent(new Event('tiptap-ready'));
     });
   }
 
+  /* ── Canned-response text → TipTap HTML ──
+     Canned content is plain text (settings textarea). TipTap's insertContent
+     treats raw strings as HTML, which collapses newlines/indentation. Convert
+     blank-line-separated blocks into <p> and single newlines into <br>. If the
+     content already looks like HTML, pass it through unchanged. */
+  function cannedTextToTipTap(text) {
+    if (text == null) return '';
+    var s = String(text);
+    if (/<\s*(p|br|div|ul|ol|li|h[1-6]|blockquote|pre|table|strong|em|span)\b/i.test(s)) {
+      return s;
+    }
+    var escape = function(str) {
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    };
+    var normalized = s.replace(/\r\n?/g, '\n');
+    var blocks = normalized.split(/\n{2,}/);
+    return blocks.map(function(block) {
+      if (!block.length) return '<p></p>';
+      return '<p>' + escape(block).replace(/\n/g, '<br>') + '</p>';
+    }).join('');
+  }
+
   /* ── Canned Response Picker ── */
   (function() {
     var allCanned = [];
@@ -2229,9 +2261,11 @@ window.dispatchEvent(new Event('tiptap-ready'));
       var content = renderCannedContent(cr.content || '');
       var inner = commentEditor.editor || commentEditor;
       if (inner.commands) {
-        inner.chain().focus().insertContent(content).run();
+        inner.chain().focus().insertContent(cannedTextToTipTap(content), {
+          parseOptions: { preserveWhitespace: 'full' }
+        }).run();
       } else {
-        commentEditor.setContent(content);
+        commentEditor.setContent(cannedTextToTipTap(content));
       }
       Toast.info('Canned response inserted');
       // Increment usage count in background
@@ -2346,9 +2380,11 @@ window.dispatchEvent(new Event('tiptap-ready'));
       var content = renderContent(cr.content || '');
       var inner = descriptionEditor.editor || descriptionEditor;
       if (inner && inner.commands) {
-        inner.chain().focus().insertContent(content).run();
+        inner.chain().focus().insertContent(cannedTextToTipTap(content), {
+          parseOptions: { preserveWhitespace: 'full' }
+        }).run();
       } else if (descriptionEditor.setContent) {
-        descriptionEditor.setContent(content);
+        descriptionEditor.setContent(cannedTextToTipTap(content));
       }
       Toast.info('Canned response inserted');
       if (ticketId) {

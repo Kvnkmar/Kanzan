@@ -49,7 +49,10 @@ def create_default_roles(sender, instance, created, **kwargs):
     default_roles = [
         {"name": "Admin", "slug": "admin", "hierarchy_level": 10, "is_system": True},
         {"name": "Manager", "slug": "manager", "hierarchy_level": 20, "is_system": True},
+        {"name": "Team Lead", "slug": "team-lead", "hierarchy_level": 25, "is_system": True},
         {"name": "Agent", "slug": "agent", "hierarchy_level": 30, "is_system": True},
+        {"name": "IT", "slug": "it", "hierarchy_level": 30, "is_system": True},
+        {"name": "HR", "slug": "hr", "hierarchy_level": 30, "is_system": True},
         {"name": "Viewer", "slug": "viewer", "hierarchy_level": 40, "is_system": True},
     ]
 

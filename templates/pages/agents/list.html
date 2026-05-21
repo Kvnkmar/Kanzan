@@ -2,6 +2,8 @@
 {% block title %}Agents - Kanzen Suite{% endblock %}
 
 {% block content %}
+{% include "includes/page_back_button.html" %}
+
 <!-- Page Header -->
 <div class="ae-page-header">
   <div class="ae-page-header__left">
@@ -28,28 +30,36 @@
 {% if is_admin %}
 <!-- Change Permanent Role Modal (admin only) -->
 <div class="modal fade" id="changeRoleModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered modal-sm">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title"><i class="ti ti-shield me-2"></i>Change Role</h5>
+  <div class="modal-dialog modal-dialog-centered cr-dialog">
+    <div class="modal-content cr-modal">
+      <div class="modal-header cr-header">
+        <div class="cr-header-icon"><i class="ti ti-shield-half-filled"></i></div>
+        <div class="cr-header-text">
+          <h5 class="modal-title mb-0">Change permanent role</h5>
+          <div class="cr-header-sub">
+            <span>For <strong id="changeRoleTargetName">this user</strong></span>
+            <span class="cr-current-pill" id="changeRoleCurrentPill" hidden>
+              <i class="ti ti-point-filled"></i>
+              <span>Current:&nbsp;<span id="changeRoleCurrentName">—</span></span>
+            </span>
+          </div>
+        </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
-      <div class="modal-body">
-        <p class="text-muted small mb-3">
-          Update the permanent role for <strong id="changeRoleTargetName">this user</strong>.
-        </p>
-        <div class="mb-2">
-          <label class="form-label">New role</label>
-          <select class="form-select" id="changeRoleSelect">
-            <option value="">Loading roles…</option>
-          </select>
+      <div class="modal-body cr-body">
+        <div class="cr-cards" id="changeRoleCards" role="radiogroup" aria-label="Select a role">
+          <div class="cr-loading text-muted small py-4 text-center">
+            <i class="ti ti-loader-2 cr-loading-icon"></i>
+            <div class="mt-1">Loading roles…</div>
+          </div>
         </div>
-        <div id="changeRoleError" class="alert alert-danger d-none small py-2 mb-0"></div>
+        <div id="changeRoleError" class="alert alert-danger d-none small py-2 mb-0 mt-3"></div>
       </div>
-      <div class="modal-footer">
+      <div class="modal-footer cr-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="changeRoleConfirmBtn">
-          <span id="changeRoleConfirmLabel">Save</span>
+        <button type="button" class="btn btn-primary" id="changeRoleConfirmBtn" disabled>
+          <i class="ti ti-check me-1"></i>
+          <span id="changeRoleConfirmLabel">Save change</span>
         </button>
       </div>
     </div>
@@ -723,6 +733,130 @@
      ════════════════════════════════════════ */
 
   var changeRoleTargetMembershipId = null;
+  var changeRoleSelectedId = null;
+  var changeRoleCurrentId = null;
+
+  var CR_ROLE_META = {
+    admin:       { icon: 'ti-crown',          tone: 'admin',   blurb: 'Full control over the workspace, billing, and settings.' },
+    manager:     { icon: 'ti-briefcase',      tone: 'manager', blurb: 'Manages tickets, users, and content — no billing access.' },
+    'team-lead': { icon: 'ti-user-star',      tone: 'manager', blurb: 'Leads a small group of agents — can delete/export tickets, view ops config, and manage the agent inbox.' },
+    agent:       { icon: 'ti-headset',        tone: 'agent',   blurb: 'Works tickets, contacts, and inbound mail assigned to them.' },
+    it:          { icon: 'ti-device-desktop', tone: 'agent',   blurb: 'IT support agent — same ticketing rights as Agent, plus user lookup for support tickets.' },
+    hr:          { icon: 'ti-user-heart',     tone: 'agent',   blurb: 'HR agent — same ticketing rights as Agent, plus user lookup for employee tickets.' },
+    viewer:      { icon: 'ti-eye',            tone: 'viewer',  blurb: 'Read-only access — can view but not modify records.' }
+  };
+
+  function crRoleMeta(role) {
+    var meta = CR_ROLE_META[role && role.slug];
+    if (meta) return meta;
+    // Tenant-defined custom roles: prefer the stored description, only fall back to the generic blurb.
+    var desc = role && role.description ? String(role.description).trim() : '';
+    return {
+      icon: 'ti-shield',
+      tone: 'custom',
+      blurb: desc || ('Custom role at level ' + role.hierarchy_level + '.')
+    };
+  }
+
+  function renderChangeRoleLoading() {
+    var container = document.getElementById('changeRoleCards');
+    container.textContent = '';
+    var loading = document.createElement('div');
+    loading.className = 'cr-loading text-muted small py-4 text-center';
+    var spin = document.createElement('i');
+    spin.className = 'ti ti-loader-2 cr-loading-icon';
+    var label = document.createElement('div');
+    label.className = 'mt-1';
+    label.textContent = 'Loading roles…';
+    loading.appendChild(spin);
+    loading.appendChild(label);
+    container.appendChild(loading);
+  }
+
+  function renderChangeRoleCards(roles, currentRoleId) {
+    var container = document.getElementById('changeRoleCards');
+    container.textContent = '';
+
+    if (!roles.length) {
+      var empty = document.createElement('div');
+      empty.className = 'text-muted small py-3 text-center';
+      empty.textContent = 'No roles available.';
+      container.appendChild(empty);
+      return;
+    }
+
+    roles.forEach(function(r) {
+      var meta = crRoleMeta(r);
+      var card = document.createElement('button');
+      card.type = 'button';
+      card.className = 'cr-card cr-card--' + meta.tone;
+      card.setAttribute('role', 'radio');
+      card.setAttribute('aria-checked', 'false');
+      card.setAttribute('data-role-id', r.id);
+      if (r.id === currentRoleId) card.classList.add('is-current');
+
+      var iconWrap = document.createElement('span');
+      iconWrap.className = 'cr-card-icon';
+      var icon = document.createElement('i');
+      icon.className = 'ti ' + meta.icon;
+      iconWrap.appendChild(icon);
+
+      var body = document.createElement('span');
+      body.className = 'cr-card-body';
+
+      var top = document.createElement('span');
+      top.className = 'cr-card-top';
+      var name = document.createElement('span');
+      name.className = 'cr-card-name';
+      name.textContent = r.name;
+      top.appendChild(name);
+      var level = document.createElement('span');
+      level.className = 'cr-level-badge';
+      level.textContent = 'L' + r.hierarchy_level;
+      top.appendChild(level);
+      if (r.id === currentRoleId) {
+        var currentTag = document.createElement('span');
+        currentTag.className = 'cr-current-tag';
+        currentTag.textContent = 'Current';
+        top.appendChild(currentTag);
+      }
+
+      var blurb = document.createElement('span');
+      blurb.className = 'cr-card-blurb';
+      blurb.textContent = meta.blurb;
+
+      body.appendChild(top);
+      body.appendChild(blurb);
+
+      var check = document.createElement('span');
+      check.className = 'cr-card-check';
+      var checkIcon = document.createElement('i');
+      checkIcon.className = 'ti ti-check';
+      check.appendChild(checkIcon);
+
+      card.appendChild(iconWrap);
+      card.appendChild(body);
+      card.appendChild(check);
+
+      card.addEventListener('click', function() { selectChangeRoleCard(r.id); });
+      container.appendChild(card);
+    });
+  }
+
+  function selectChangeRoleCard(roleId) {
+    changeRoleSelectedId = roleId;
+    var cards = document.querySelectorAll('#changeRoleCards .cr-card');
+    cards.forEach(function(c) {
+      var on = c.getAttribute('data-role-id') === roleId;
+      c.classList.toggle('is-selected', on);
+      c.setAttribute('aria-checked', on ? 'true' : 'false');
+    });
+    var saveBtn = document.getElementById('changeRoleConfirmBtn');
+    if (saveBtn) {
+      // Disable save if the picked role matches the current role (no-op).
+      saveBtn.disabled = !roleId || roleId === changeRoleCurrentId;
+    }
+  }
 
   function openChangeRoleModal(member) {
     if (!IS_ADMIN) return;
@@ -730,35 +864,33 @@
     if (!modalEl) return;
 
     changeRoleTargetMembershipId = member.membership_id || member.id;
+    changeRoleCurrentId = member.permanent_role_id || null;
+    changeRoleSelectedId = null;
+
     document.getElementById('changeRoleTargetName').textContent =
       member.user_name || member.user_email || 'this user';
+
+    var pill = document.getElementById('changeRoleCurrentPill');
+    var currentName = member.permanent_role || member.role;
+    if (currentName) {
+      document.getElementById('changeRoleCurrentName').textContent = currentName;
+      pill.hidden = false;
+    } else {
+      pill.hidden = true;
+    }
 
     var errBox = document.getElementById('changeRoleError');
     errBox.classList.add('d-none');
     errBox.textContent = '';
 
-    var sel = document.getElementById('changeRoleSelect');
-    sel.textContent = '';
-    var loading = document.createElement('option');
-    loading.value = '';
-    loading.textContent = 'Loading roles…';
-    sel.appendChild(loading);
+    var saveBtn = document.getElementById('changeRoleConfirmBtn');
+    saveBtn.disabled = true;
+    document.getElementById('changeRoleConfirmLabel').textContent = 'Save change';
+
+    renderChangeRoleLoading();
 
     loadAssignableRoles().then(function(roles) {
-      sel.textContent = '';
-      var placeholder = document.createElement('option');
-      placeholder.value = '';
-      placeholder.textContent = 'Select a role…';
-      sel.appendChild(placeholder);
-      roles.forEach(function(r) {
-        var opt = document.createElement('option');
-        opt.value = r.id;
-        opt.textContent = r.name + ' (level ' + r.hierarchy_level + ')';
-        if (member.permanent_role_id && r.id === member.permanent_role_id) {
-          opt.selected = true;
-        }
-        sel.appendChild(opt);
-      });
+      renderChangeRoleCards(roles, changeRoleCurrentId);
     });
 
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
@@ -766,11 +898,15 @@
 
   function submitChangeRole() {
     if (!changeRoleTargetMembershipId) return;
-    var sel = document.getElementById('changeRoleSelect');
-    var roleId = sel.value;
+    var roleId = changeRoleSelectedId;
     var errBox = document.getElementById('changeRoleError');
     if (!roleId) {
       errBox.textContent = 'Please pick a role.';
+      errBox.classList.remove('d-none');
+      return;
+    }
+    if (roleId === changeRoleCurrentId) {
+      errBox.textContent = 'That is already the current role.';
       errBox.classList.remove('d-none');
       return;
     }
@@ -791,7 +927,7 @@
       })
       .finally(function() {
         btn.disabled = false;
-        document.getElementById('changeRoleConfirmLabel').textContent = 'Save';
+        document.getElementById('changeRoleConfirmLabel').textContent = 'Save change';
       });
   }
 

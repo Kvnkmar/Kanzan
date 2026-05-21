@@ -336,7 +336,7 @@ function initNotifications() {
     flyout.setAttribute('aria-hidden', 'false');
 
     if (flyoutHideTimer) clearTimeout(flyoutHideTimer);
-    flyoutHideTimer = setTimeout(hideFlyout, 5000);
+    flyoutHideTimer = setTimeout(hideFlyout, 3000);
   }
 
   if (flyoutClose) flyoutClose.addEventListener('click', function (e) {

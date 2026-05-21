@@ -1,0 +1,58 @@
+Django==6.0.2
+djangorestframework>=3.16.1,<4
+django-cors-headers>=4.6,<5
+django-filter>=24.3,<25
+drf-spectacular>=0.28,<0.29
+
+# Auth
+djangorestframework-simplejwt>=5.4,<6
+django-allauth>=65,<66
+PyJWT>=2.9,<3
+
+# Database & Cache
+psycopg[binary]>=3.2,<4
+django-redis>=5.4,<6
+redis>=5.2,<6
+
+# Billing
+stripe>=11,<12
+
+# Real-time
+channels>=4.2,<5
+channels-redis>=4.2,<5
+
+# Task Queue
+celery>=5.4,<6
+# django-celery-beat removed: incompatible with Django 6.0
+# Using Celery's built-in beat with shelve scheduler instead
+django-celery-results>=2.5,<3
+
+# File handling
+python-magic>=0.4,<0.5
+Pillow>=11,<12
+whitenoise>=6.8,<7
+mammoth>=1.12,<2
+
+# Email — in-process SMTP server (receives inbound mail without a 3rd-party webhook)
+aiosmtpd>=1.4,<2
+
+# Security & Config
+django-environ>=0.12,<1
+
+# Admin theme
+django-jazzmin>=3.0,<4
+
+# Excel export
+openpyxl>=3.1,<4
+
+# Servers (already installed but pinning)
+gunicorn>=25,<26
+uvicorn[standard]>=0.40,<1
+daphne>=4.2,<5
+
+# Celery monitoring
+flower>=2.0,<3
+
+# VoIP / Asterisk integration
+httpx>=0.27,<1
+websockets>=12,<14
