@@ -12204,7 +12204,7 @@ h4.fw-semibold, h4.fw-bold {
   border-radius: 12px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05),
               0 12px 40px -4px rgba(0, 0, 0, 0.12);
-  z-index: 1070;
+  z-index: var(--crm-z-tooltip);
   padding: 4px;
   animation: crm-dropdown-in 0.18s cubic-bezier(0.2, 0, 0, 1);
   scrollbar-width: thin;
@@ -12215,7 +12215,7 @@ h4.fw-semibold, h4.fw-bold {
 /* Portal-rendered menu: fixed position, renders above everything */
 .td-cselect-portal {
   position: fixed;
-  z-index: 1090;
+  z-index: var(--crm-z-toast);
   right: auto;
   min-width: 200px;
 }
@@ -13198,7 +13198,7 @@ body.is-mobile-sm .date-range-picker {
 /* Dashboard calendar hover tooltip */
 .mc-tooltip {
   position: absolute;
-  z-index: 9999;
+  z-index: var(--crm-z-tooltip);
   background: var(--crm-surface);
   color: var(--crm-text);
   border-radius: 8px;
@@ -15598,7 +15598,7 @@ body.is-mobile-sm .date-range-picker {
   border: 1px solid var(--crm-border);
   border-radius: var(--crm-radius-lg);
   box-shadow: var(--crm-shadow-lg);
-  z-index: 9999;
+  z-index: var(--crm-z-toast); /* command palette must clear softphone (--crm-z-flyout) */
   display: none;
   flex-direction: column;
   opacity: 0;
@@ -20779,7 +20779,7 @@ body.is-mobile-sm .date-range-picker {
   position: fixed;
   bottom: 88px;
   right: 24px;
-  z-index: 1081;
+  z-index: var(--crm-z-flyout);
   width: 320px;
   background: var(--crm-card-bg);
   border: 1px solid var(--crm-border);
@@ -20992,7 +20992,7 @@ body.is-mobile-sm .date-range-picker {
   position: fixed;
   top: 80px;
   right: 24px;
-  z-index: 1090;
+  z-index: var(--crm-z-toast);
   width: 340px;
   animation: softphone-slide-in 0.3s ease;
 }

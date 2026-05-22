@@ -128,7 +128,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 /* Filter dropdown — custom panel (avoids Bootstrap dropdown stacking conflicts) */
 .cal-filter-wrap {
   position: relative;
-  z-index: 1100;
+  z-index: var(--crm-z-toast); /* 1090 — above flyout/overlay; siblings can use --crm-z-modal */
 }
 
 /* ─── Unified header button sizing ─────────────────────────────
@@ -237,7 +237,9 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   background: var(--crm-surface);
   box-shadow: 0 10px 40px rgba(0,0,0,0.10);
   border-radius: 12px;
-  z-index: 2000;
+  /* Lives inside the .cal-filter-wrap stacking context (toast tier);
+     this value is only relative to siblings inside that wrap. */
+  z-index: 10;
   display: none;
 }
 .cal-filter-menu.open {
