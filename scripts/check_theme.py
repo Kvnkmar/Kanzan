@@ -67,39 +67,71 @@ INPUT_COLOR_RE = re.compile(r"""<input[^>]*\btype\s*=\s*["']color["'][^>]*>""", 
 DATA_HEX_ATTR_RE = re.compile(r"""\b(data-[a-z-]+)\s*=\s*["']\s*#[0-9a-fA-F]{3,8}\s*["']""", re.I)
 DJANGO_TAG_RE = re.compile(r"\{%.*?%\}|\{\{.*?\}\}", re.S)
 HTML_COMMENT_RE = re.compile(r"<!--.*?-->", re.S)
-SCRIPT_BLOCK_RE = re.compile(r"<script(?:\s[^>]*)?>.*?</script>", re.S | re.I)
+SCRIPT_BLOCK_RE = re.compile(r"(<script(?:\s[^>]*)?>)(.*?)(</script>)", re.S | re.I)
 CSS_COMMENT_RE = re.compile(r"/\*.*?\*/", re.S)
 CSS_ROOT_BLOCK_RE = re.compile(r"^:root\s*\{[^}]*\}", re.M | re.S)
 CSS_DATA_BS_BLOCK_RE = re.compile(r'^\[data-bs-theme="(?:dark|light)"\]\s*\{[^}]*\}', re.M | re.S)
+# JS line comment — // followed by anything up to EOL, but NOT preceded by a
+# character that would signal "this // is inside a string / URL". Lookbehind
+# excludes ':' (protocol like https://), quotes (string literal containing //),
+# '=', '(', ',', '[' (string-literal contexts). Block comments use CSS_COMMENT_RE.
+JS_LINE_COMMENT_RE = re.compile(r"""(?<![:'"=(,\[])//[^\n]*""")
 
 
 def is_in_allowlist_dir(path: Path) -> bool:
     return any(d in path.parents for d in ALLOWLIST_DIRS)
 
 
+def _blank_keep_newlines(m: re.Match) -> str:
+    """Replacement function: blank matched region but preserve newlines."""
+    return "".join("\n" if c == "\n" else " " for c in m.group(0))
+
+
+def mask_js_comments(text: str) -> str:
+    """Blank JS // line and /* */ block comments, preserving newlines.
+
+    Used inside <script> blocks AND on .js files so that hex literals inside
+    JS comments don't trigger false positives, but hex inside JS string
+    literals / object-dict values (e.g. `style.color = '#FF0000'` or
+    `COLORS = ['#FF0000', '#00FF00']`) still gets flagged.
+    """
+    text = CSS_COMMENT_RE.sub(_blank_keep_newlines, text)
+    text = JS_LINE_COMMENT_RE.sub(_blank_keep_newlines, text)
+    return text
+
+
 def mask_protected(text: str, suffix: str) -> str:
     """Replace protected regions with same-length whitespace so line numbers stay aligned."""
-    def blank(m):
-        # Preserve newlines so line counting stays accurate.
-        return "".join("\n" if c == "\n" else " " for c in m.group(0))
-
-    text = HTML_ENTITY_RE.sub(blank, text)
+    text = HTML_ENTITY_RE.sub(_blank_keep_newlines, text)
 
     if suffix == ".css":
-        text = CSS_COMMENT_RE.sub(blank, text)
-        text = CSS_ROOT_BLOCK_RE.sub(blank, text)
-        text = CSS_DATA_BS_BLOCK_RE.sub(blank, text)
+        text = CSS_COMMENT_RE.sub(_blank_keep_newlines, text)
+        text = CSS_ROOT_BLOCK_RE.sub(_blank_keep_newlines, text)
+        text = CSS_DATA_BS_BLOCK_RE.sub(_blank_keep_newlines, text)
     elif suffix == ".html":
-        text = HTML_COMMENT_RE.sub(blank, text)
-        text = DJANGO_TAG_RE.sub(blank, text)
-        text = INPUT_COLOR_RE.sub(blank, text)
-        text = DATA_HEX_ATTR_RE.sub(blank, text)
-        # JS inside templates is a known follow-up area (dict-literal hex
-        # not addressable by the property-aware sweep). Mask <script>
-        # blocks here; the regression check focuses on CSS + style attrs.
-        text = SCRIPT_BLOCK_RE.sub(blank, text)
-    # .js: no extra masking — we want hex in JS modules flagged.
+        text = HTML_COMMENT_RE.sub(_blank_keep_newlines, text)
+        text = DJANGO_TAG_RE.sub(_blank_keep_newlines, text)
+        text = INPUT_COLOR_RE.sub(_blank_keep_newlines, text)
+        text = DATA_HEX_ATTR_RE.sub(_blank_keep_newlines, text)
+        # Inside <script> blocks: blank the <script> tag itself (so any hex
+        # attribute on it can't appear elsewhere) and mask JS comments in
+        # the body, then leave the body otherwise visible to HEX_RE. Hex
+        # inside JS object dicts and string literals is now flagged.
+        text = SCRIPT_BLOCK_RE.sub(
+            lambda m: (
+                _blank_keep_newlines_str(m.group(1))
+                + mask_js_comments(m.group(2))
+                + _blank_keep_newlines_str(m.group(3))
+            ),
+            text,
+        )
+    elif suffix == ".js":
+        text = mask_js_comments(text)
     return text
+
+
+def _blank_keep_newlines_str(s: str) -> str:
+    return "".join("\n" if c == "\n" else " " for c in s)
 
 
 def scan_file(path: Path) -> list[tuple[int, str]]:

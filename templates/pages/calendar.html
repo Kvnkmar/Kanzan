@@ -361,7 +361,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
         </div>
         <label class="cal-filter-row">
           <input class="cal-filter-cb" type="checkbox" value="ticket_created" checked>
-          <span class="cal-filter-dot" style="background:#71717A;"></span>
+          <span class="cal-filter-dot" style="background:var(--status-neutral-dot);"></span>
           <span class="cal-filter-label">Ticket Created</span>
         </label>
         <label class="cal-filter-row">
@@ -392,7 +392,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
         </label>
         <label class="cal-filter-row">
           <input class="cal-filter-cb" type="checkbox" value="other" checked>
-          <span class="cal-filter-dot" style="background:#666666;"></span>
+          <span class="cal-filter-dot" style="background:var(--status-neutral-dot);"></span>
           <span class="cal-filter-label">Other Events</span>
         </label>
       </div>
@@ -585,38 +585,38 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 
   var EVENT_COLORS = {
     'ticket':         'var(--crm-primary)',
-    'ticket_created': '#71717A',
+    'ticket_created': 'var(--status-neutral-dot)',
     'ticket_due':     'var(--crm-accent)',
     'meeting':        'var(--crm-primary)',
     'call':           'var(--crm-accent)',
     'task':           'var(--crm-primary)',
     'reminder':       'var(--crm-primary-active)',
-    'other':          '#666666',
-    'default':        '#666666'
+    'other':          'var(--status-neutral-dot)',
+    'default':        'var(--status-neutral-dot)'
   };
 
   var EVENT_BAR_COLORS_LIGHT = {
     'ticket':         { bg: 'var(--crm-input-bg)', border: 'var(--crm-primary)', text: 'var(--crm-primary-active)' },
-    'ticket_created': { bg: 'var(--crm-hover-bg)', border: '#71717A', text: 'var(--crm-text-secondary)' },
+    'ticket_created': { bg: 'var(--crm-hover-bg)', border: 'var(--status-neutral-dot)', text: 'var(--crm-text-secondary)' },
     'ticket_due':     { bg: 'var(--status-danger-bg)', border: 'var(--crm-accent)', text: 'var(--crm-primary-active)' },
     'meeting':        { bg: 'var(--status-warning-bg)', border: 'var(--crm-primary)', text: 'var(--status-warning-text)' },
     'call':           { bg: 'var(--crm-input-bg)', border: 'var(--crm-accent)', text: 'var(--crm-primary-active)' },
     'task':           { bg: 'var(--status-warning-bg)', border: 'var(--crm-primary)', text: 'var(--status-warning-text)' },
     'reminder':       { bg: 'var(--crm-input-bg)', border: 'var(--crm-primary-active)', text: 'var(--status-info-text)' },
-    'other':          { bg: 'var(--crm-bg-elevated-2)', border: '#6B6B70', text: 'var(--crm-surface-elevated)' }
+    'other':          { bg: 'var(--crm-bg-elevated-2)', border: 'var(--status-neutral-dot)', text: 'var(--crm-surface-elevated)' }
   };
   var EVENT_BAR_COLORS_DARK = {
     'ticket':         { bg: 'rgba(220, 38, 38,0.12)', border: 'var(--crm-primary)', text: 'var(--crm-primary-300)' },
-    'ticket_created': { bg: 'rgba(255,255,255,0.05)', border: '#71717A', text: '#A1A1AA' },
+    'ticket_created': { bg: 'rgba(255,255,255,0.05)', border: 'var(--status-neutral-dot)', text: 'var(--status-neutral-text)' },
     'ticket_due':     { bg: 'rgba(225, 28, 43, 0.15)', border: 'var(--crm-accent)', text: 'var(--crm-primary-200)' },
     'meeting':        { bg: 'rgba(245,158,11,0.12)', border: 'var(--crm-primary)', text: 'var(--crm-accent)' },
     'call':           { bg: 'rgba(239, 68, 68,0.12)', border: 'var(--crm-accent)', text: 'var(--crm-primary-300)' },
     'task':           { bg: 'rgba(245,158,11,0.12)', border: 'var(--crm-primary)', text: 'var(--crm-accent)' },
     'reminder':       { bg: 'rgba(124,58,237,0.12)', border: 'var(--crm-primary-active)', text: 'var(--crm-primary-200)' },
-    'other':          { bg: 'rgba(255,255,255,0.06)', border: '#6B6B70', text: 'var(--status-neutral-dot)' }
+    'other':          { bg: 'rgba(255,255,255,0.06)', border: 'var(--status-neutral-dot)', text: 'var(--status-neutral-dot)' }
   };
-  var DEFAULT_BAR_LIGHT = { bg: 'var(--crm-bg-elevated-2)', border: '#6B6B70', text: 'var(--crm-surface-elevated)' };
-  var DEFAULT_BAR_DARK = { bg: 'rgba(255,255,255,0.06)', border: '#6B6B70', text: 'var(--status-neutral-dot)' };
+  var DEFAULT_BAR_LIGHT = { bg: 'var(--crm-bg-elevated-2)', border: 'var(--status-neutral-dot)', text: 'var(--crm-surface-elevated)' };
+  var DEFAULT_BAR_DARK = { bg: 'rgba(255,255,255,0.06)', border: 'var(--status-neutral-dot)', text: 'var(--status-neutral-dot)' };
 
   function isDarkMode() {
     return document.documentElement.getAttribute('data-bs-theme') === 'dark';

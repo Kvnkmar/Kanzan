@@ -803,7 +803,7 @@
   // ── Action badge ──
 
   function createActionBadge(action, actionDisplay) {
-    var sc = ACTION_STYLES[action] || { bg: '#6B6B701A', color: '#6B6B70', border: '#6B6B7033', icon: 'ti-point' };
+    var sc = ACTION_STYLES[action] || { bg: 'var(--status-neutral-bg)', color: 'var(--status-neutral-dot)', border: 'var(--status-neutral-border)', icon: 'ti-point' };
     var badge = document.createElement('span');
     badge.className = 'audit-action-badge';
     badge.style.background = sc.bg;
@@ -2091,12 +2091,12 @@
         dirBadge.textContent = 'Outbound';
         dirBadge.style.background = 'var(--crm-primary-light)';
         dirBadge.style.color = 'var(--crm-primary)';
-        dirBadge.style.border = '1px solid #C1121F33';
+        dirBadge.style.border = '1px solid var(--crm-primary-ring)';
       } else {
         dirBadge.textContent = 'Inbound';
         dirBadge.style.background = 'var(--status-neutral-bg)';
         dirBadge.style.color = 'var(--status-neutral-dot)';
-        dirBadge.style.border = '1px solid #A8A8AC33';
+        dirBadge.style.border = '1px solid var(--status-neutral-border)';
       }
       senderDiv.appendChild(dirBadge);
       var senderStrong = document.createElement('strong');
