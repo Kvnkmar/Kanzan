@@ -469,12 +469,12 @@
         dirBadge.textContent = 'Outbound';
         dirBadge.style.background = 'var(--crm-primary-light)';
         dirBadge.style.color = 'var(--crm-primary)';
-        dirBadge.style.border = '1px solid #C1121F33';
+        dirBadge.style.border = '1px solid var(--crm-primary-ring)';
       } else {
         dirBadge.textContent = 'Inbound';
         dirBadge.style.background = 'var(--status-neutral-bg)';
         dirBadge.style.color = 'var(--status-neutral-dot)';
-        dirBadge.style.border = '1px solid #A8A8AC33';
+        dirBadge.style.border = '1px solid var(--status-neutral-border)';
       }
       senderDiv.appendChild(dirBadge);
       var senderStrong = document.createElement('strong');

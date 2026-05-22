@@ -298,7 +298,7 @@
         var comp = c.company ? (typeof c.company === 'object' ? (c.company.name || '') : (c.company_name || '')) : '';
         var bgColor = avatarColor(fn);
         row.innerHTML = '<td class="ps-3"><input type="checkbox" class="contact-checkbox" data-contact-id="' + c.id + '"></td>' +
-          '<td><div class="d-flex align-items-center gap-3"><div class="avatar avatar-sm" style="background:' + bgColor + ';color:#fff;">' + ini + '</div><span class="fw-medium">' + escapeHtml(fn || 'Unnamed') + '</span></div></td>' +
+          '<td><div class="d-flex align-items-center gap-3"><div class="avatar avatar-sm" style="background:' + bgColor + ';color:var(--crm-text-on-primary);">' + ini + '</div><span class="fw-medium">' + escapeHtml(fn || 'Unnamed') + '</span></div></td>' +
           '<td>' + (c.email ? '<a href="mailto:' + escapeHtml(c.email) + '" class="email-link">' + escapeHtml(c.email) + '</a>' : '<span class="text-muted">--</span>') + '</td>' +
           '<td>' + (c.phone ? escapeHtml(c.phone) : '<span class="text-muted">--</span>') + '</td>' +
           '<td>' + (comp ? escapeHtml(comp) : '<span class="text-muted">--</span>') + '</td>' +
