@@ -1,6 +1,6 @@
-# Infra Surface — Verified 2026-05-11
+# Infra Surface — Verified 2026-05-22
 
-> Verified against `main @ bb36325`. Source of truth for **settings, middleware, ASGI, Celery, PM2, requirements, env, scripts**.
+> Verified against `main @ ea87bb2` (code state at `241e407`). Source of truth for **settings, middleware, ASGI, Celery, PM2, requirements, env, scripts, tests**. Pairs with `/CLAUDE.md`.
 
 ## Settings layout (`main/settings/`)
 
@@ -12,13 +12,15 @@ main/settings/
 └── prod.py         SECURE_SSL_REDIRECT, SECURE_PROXY_SSL_HEADER, HSTS, EMAIL_BACKEND=SMTP
 ```
 
-`pytest.ini` sets `DJANGO_SETTINGS_MODULE=main.settings`, `pythonpath=.`.
+`pytest.ini` sets `DJANGO_SETTINGS_MODULE=main.settings`, `pythonpath=.`. No `asyncio_mode` — pytest-asyncio defaults to `strict` (explicit decorators required).
 
-### INSTALLED_APPS (27 entries)
+### INSTALLED_APPS
 
-Order: `daphne` (must be first) → `jazzmin` (must be before `django.contrib.admin`) → Django core (admin, auth, contenttypes, sessions, messages, staticfiles, postgres) → third-party (rest_framework, rest_framework_simplejwt + token_blacklist, django_filters, corsheaders, drf_spectacular, channels, django_celery_results, allauth + account + socialaccount + Google/Microsoft/OIDC providers, whitenoise.runserver_nostatic) → 20 project apps (`main`, `tenants`, `accounts`, `billing`, `tickets`, `contacts`, `kanban`, `comments`, `notifications`, `messaging`, `attachments`, `analytics`, `agents`, `custom_fields`, `knowledge`, `notes`, `inbound_email`, `crm`, `newsfeed`, `voip`).
+Order: `daphne` (must be first) → `jazzmin` (must be before `django.contrib.admin`) → Django core (admin, auth, contenttypes, sessions, messages, staticfiles, postgres) → third-party (rest_framework, rest_framework_simplejwt + token_blacklist, django_filters, corsheaders, drf_spectacular, channels, django_celery_results, allauth + account + socialaccount + Google/Microsoft/OIDC providers, whitenoise.runserver_nostatic) → **21 project apps** (`main`, `tenants`, `accounts`, `api_keys`, `billing`, `tickets`, `contacts`, `kanban`, `comments`, `notifications`, `messaging`, `attachments`, `analytics`, `agents`, `custom_fields`, `knowledge`, `notes`, `inbound_email`, `crm`, `newsfeed`, `voip`).
 
-### MIDDLEWARE (13 layers, in order)
+> `django.contrib.sites` is **NOT** in INSTALLED_APPS. `ACCOUNT_LOGIN_METHODS = {"email"}` is a set. `AUTHENTICATION_BACKENDS` is not explicitly set — relies on Django defaults + allauth's import-time injection.
+
+### MIDDLEWARE (14 layers, in order)
 
 1. `SecurityMiddleware`
 2. `WhiteNoiseMiddleware`
@@ -29,10 +31,17 @@ Order: `daphne` (must be first) → `jazzmin` (must be before `django.contrib.ad
 7. `AuthenticationMiddleware`
 8. `AccountMiddleware` (allauth)
 9. **`SessionVersionMiddleware`** (custom — global logout via `User.auth_version`)
-10. **`TenantMiddleware`** (resolves tenant from subdomain or `TenantSettings.domain`; sets `request.tenant`; binds to async-safe `contextvars` context)
+10. **`TenantMiddleware`** (resolves tenant from subdomain or `TenantSettings.domain`; sets `request.tenant`; binds to async-safe `contextvars` context. `/admin/` has a dedicated branch — NOT in `EXEMPT_PATH_PREFIXES` — that resolves the tenant from the subdomain when present, so subdomain-scoped admin gets `request.tenant` set.)
 11. **`SubscriptionMiddleware`** (returns HTTP 402 when subscription is neither `is_active` nor `in_grace_period`)
-12. `MessageMiddleware`
-13. `XFrameOptionsMiddleware`
+12. **`apps.api_keys.middleware.RateLimitHeadersMiddleware`** ← NEW (emits `X-RateLimit-Limit/Remaining/Reset` from `request._kanzan_throttle_info`; zero overhead for non-API-key traffic)
+13. `MessageMiddleware`
+14. `XFrameOptionsMiddleware`
+
+### `TenantMiddleware.EXEMPT_PATH_PREFIXES` (16 entries)
+
+`/static/`, `/media/`, `/api/v1/accounts/auth/`, `/api/v1/billing/plans/`, `/api/v1/billing/webhook/`, `/api/v1/tickets/csat/`, `/api/docs/`, `/api/schema/`, `/accounts/`, `/inbound/email/`, `/login/`, `/register/`, `/logout/`, `/verify-email/`, `/verify-email-sent/`, `/setup-company/`, `/workspaces/`.
+
+> **`/admin/` is NOT exempt** — dedicated branch resolves tenant from subdomain. `/auth/handoff/` is also intentionally NOT exempt — it must resolve the current tenant to verify membership.
 
 ### Database / cache / sessions
 
@@ -45,16 +54,17 @@ Order: `daphne` (must be first) → `jazzmin` (must be before `django.contrib.ad
 
 ### REST framework
 
-- Auth: SimpleJWT (15m access, 7d refresh, rotate+blacklist, HS256) + SessionAuthentication
-- Permissions default: IsAuthenticated
-- Pagination: PageNumberPagination, PAGE_SIZE=50
-- Filter: DjangoFilterBackend, SearchFilter, OrderingFilter
-- Throttle: ScopedRateThrottle — `auth=10/min`, `api_default=200/min`, `api_heavy=30/min`, `webhook=60/min`
-- Schema: drf-spectacular (`/api/schema/` JSON, `/api/docs/` Swagger)
+- **`DEFAULT_AUTHENTICATION_CLASSES`** order: `JWTAuthentication` → **`apps.api_keys.authentication.APIKeyAuthentication`** → `SessionAuthentication` (JWT first; APIKey engages only when no `Bearer` header; Session as fallback)
+- Permissions default: `IsAuthenticated`
+- Pagination: `PageNumberPagination`, `PAGE_SIZE=50`
+- Filters: `DjangoFilterBackend`, `SearchFilter`, `OrderingFilter`
+- **Default throttle classes** (applied to every viewset): `ScopedRateThrottle`, **`apps.api_keys.throttling.APIKeyRateThrottle`**
+- **Throttle rates:** `auth=10/min`, `api_default=200/min`, `api_heavy=30/min`, `webhook=60/min` (ScopedRateThrottle — only `AuthViewSet` opts in via `throttle_scope`), **`api_key=1000/hour`** (`APIKeyRateThrottle` — `SimpleRateThrottle`-based, auto-engages when `request.auth` is an `APIKey`)
+- Schema: drf-spectacular (`SPECTACULAR_SETTINGS.TITLE="Kanzen Suite API"`). The `apps.api_keys.extensions.APIKeyAuthScheme` is registered by `apps/api_keys/apps.py::ready()` so Swagger UI's "Authorize" dialog shows an `ApiKeyAuth` option alongside the JWT bearer.
 
 ### Auth/SSO
 
-`ACCOUNT_LOGIN_METHODS = {"email"}` (must be a `set`). Allauth providers configured: Google, Microsoft, OpenID Connect.
+`ACCOUNT_LOGIN_METHODS = {"email"}` (must be a `set`). Allauth providers configured: Google, Microsoft, OpenID Connect. SimpleJWT: 15m access, 7d refresh, rotate+blacklist, HS256.
 
 ## ASGI (`main/asgi.py`)
 
@@ -64,21 +74,22 @@ ProtocolTypeRouter
 └── websocket  → AllowedHostsOriginValidator
                  → AuthMiddlewareStack
                    → WebSocketTenantMiddleware
-                     → URLRouter(messaging_ws + notification_ws + ticket_ws + voip_ws)
+                     → URLRouter(messaging_ws + notification_ws + ticket_ws + voip_ws + live_ws)
 ```
 
-Five WebSocket consumers (full breakdown in `api-surface.md`).
+Six WebSocket endpoints (full breakdown in `api-surface.md`). `WebSocketTenantMiddleware` decodes the `Host` header from scope, resolves Tenant via subdomain or `domain` field, sets `scope["tenant"]` and binds `set_current_tenant()` for the lifetime of the connection (cleared in `finally:`).
 
 ## Celery (`main/celery.py`)
 
 - App init reads `DJANGO_SETTINGS_MODULE`, then `app = Celery("main")`, `app.config_from_object("django.conf:settings", namespace="CELERY")`, `app.autodiscover_tasks()`
-- **Queue routing** (`task_routes`):
+- **Queue routing** (`task_routes` — 6 globs + default):
   ```
-  apps.billing.tasks.*                              → kanzan_webhooks
+  apps.billing.tasks.*                              → kanzan_webhooks    (dormant — apps/billing/tasks.py does not exist)
   apps.notifications.tasks.send_email_*             → kanzan_email
   apps.notifications.tasks.send_notification_email  → kanzan_email
   apps.inbound_email.tasks.*                        → kanzan_email
   apps.tickets.tasks.send_ticket_*                  → kanzan_email
+  apps.api_keys.tasks.send_api_key_*                → kanzan_email
   apps.voip.tasks.*                                 → kanzan_voip
   *                                                 → kanzan_default
   ```
@@ -101,18 +112,18 @@ Five WebSocket consumers (full breakdown in `api-surface.md`).
 
 Common: `cwd=/home/kavin/Kanzen`, `exec_mode=fork`, `watch=false`, `autorestart=true (max 10 restarts, min 10s uptime)`, `merge_logs=true`.
 
-> **Caveat:** `kanzan_voip` queue is in Celery routes but **not in worker `-Q`** — VoIP Celery tasks won't run unless the queue is added or a dedicated VoIP worker is started. `run_ari_listener` is **not in PM2** by default — start separately if VoIP is live.
+> **Caveat:** `kanzan_voip` queue is in Celery routes but **not in worker `-Q`** — VoIP Celery tasks won't run unless the queue is added or a dedicated VoIP worker is started. `run_ari_listener` is **not in PM2** by default — start separately if VoIP is live. Makefile `stop` and `restart` targets omit `kanzan-smtp` — manage that one independently.
 
 ### Development (`ecosystem.dev.config.js`) — 4 processes (no SMTP)
 
 - `kanzan-django` uses `python manage.py runserver 0.0.0.0:8001` for autoreload
-- `kanzan-celery-worker` watches `apps/*/tasks.py`, `apps/*/services.py`, `main/celery.py` (watch_delay 2s); concurrency `-c 2`
-- Lower memory caps
+- `kanzan-celery-worker` watches `apps/*/tasks.py`, `apps/*/services.py`, `main/celery.py` (watch_delay 2s); concurrency `-c 2 --max-tasks-per-child=50`
+- Lower memory caps; `max_restarts=50`, `min_uptime="3s"`
 - **VENV-path discrepancy:** dev config references `env/` while prod uses `.venv/`. The repo has a symlink `env -> .venv` so both paths resolve to the same venv on this machine.
 
-## Requirements (`requirements/`)
+## Requirements
 
-`base.txt` (production-grade pins, all `>=X,<Y`):
+### `requirements/base.txt` (production-grade pins, all `>=X,<Y`)
 - Django==6.0.2 · djangorestframework>=3.16.1,<4 · drf-spectacular>=0.28,<0.29
 - channels>=4.2,<5 · channels-redis>=4.2,<5
 - celery>=5.4,<6 · django-celery-results>=2.5,<3 (django-celery-beat removed)
@@ -123,13 +134,17 @@ Common: `cwd=/home/kavin/Kanzen`, `exec_mode=fork`, `watch=false`, `autorestart=
 - django-environ>=0.12,<1 · django-jazzmin>=3.0,<4 · django-filter>=24.3,<25 · django-cors-headers>=4.6,<5
 - aiosmtpd>=1.4,<2 · httpx>=0.27,<1 · websockets>=12,<14
 
-`dev.txt` adds:
+### `requirements/dev.txt` adds
 - pytest>=8.3,<9 · pytest-django>=4.9,<5 · pytest-asyncio>=0.24,<1 · pytest-cov>=6,<7
 - factory-boy>=3.3,<4 · faker>=33,<34
 - ruff>=0.8,<1
 - django-debug-toolbar>=4.4,<5 · django-extensions>=3.2,<4 · ipython>=8.31,<9
 
-`prod.txt` adds production extras (e.g., sentry-sdk if used; check the file when deploying).
+### `requirements/prod.txt`
+**Literally `-r base.txt` — zero production extras.**
+
+### Root `requirements.txt`
+Byte-identical duplicate of `requirements/base.txt` (convenience for tools that default to `./requirements.txt`, e.g. Render, some Heroku buildpacks). Keep them in sync.
 
 ## Environment variables
 
@@ -137,52 +152,48 @@ Common: `cwd=/home/kavin/Kanzen`, `exec_mode=fork`, `watch=false`, `autorestart=
 
 `base.py` also reads (NOT in `.env.example`): `BASE_PORT`, `EMAIL_BACKEND`, `DEFAULT_FROM_EMAIL`, `EMAIL_TIMEOUT`, `EMAIL_USE_SSL`, `IMAP_HOST` / `_PORT` / `_USER` / `_PASSWORD` / `_MAILBOX` / `_USE_SSL` / `_DEFAULT_TENANT_SLUG`, `SMTP_SERVER_HOST` / `_PORT` / `_HOSTNAME` / `_REQUIRE_AUTH` / `_AUTH_USERS` (JSON dict) / `_TLS_CERT_FILE` / `_TLS_KEY_FILE`, `INBOUND_EMAIL_WEBHOOK_SECRET`.
 
-Current dev `.env` includes Gmail SMTP/IMAP credentials (`kvnkmar012@gmail.com`) and uses `IMAP_DEFAULT_TENANT_SLUG=dpap` so unresolvable inbound mail routes to the `dpap` tenant.
+## Makefile (~25 documented targets)
 
-## Makefile (22 targets)
+`help`, `dev`, `dev-stop`, `start`, `stop`, `restart`, `status`, `restart-django`, `restart-workers`, `restart-celery`, `restart-backend`, `restart-all`, `migrate`, `makemigrations`, `migrate-check`, `migrate-full`, `collectstatic`, `shell`, `dbshell`, `test`, `test-fast`, `test-cov`, `lint`, `lint-fix`, `format`, `logs`, `logs-celery`, `logs-all`, `smoke`, `check`, `theme-check`, `theme-check-strict`, `theme-baseline`.
 
-`help`, `dev`, `dev-stop`, `start`, `stop`, `restart`, `status`, `restart-django`, `restart-workers`, `restart-celery`, `restart-backend`, `restart-all`, `migrate`, `makemigrations`, `migrate-check`, `migrate-full`, `collectstatic`, `shell`, `dbshell`, `test`, `test-fast`, `test-cov`, `lint`, `lint-fix`, `format`, `logs`, `logs-celery`, `logs-all`, `smoke`, `check`.
+> Pre-commit gate is `make check` (lint + migrate-check + test). **No CI/CD** — no `.github/`, no Dockerfile, no docker-compose. Deployment is PM2 on a single host.
 
-## Tests (`tests/` + `apps/*/tests/`)
+## Scripts
 
-- 54 root-level test modules (`tests/test_*.py`) — 13,368 lines total
-- 3 app-level test modules:
-  - `apps/tickets/tests/test_creation.py` (625 lines)
-  - `apps/tickets/tests/test_escalation.py` (600 lines)
-  - `apps/knowledge/tests/test_kb_gap_fill.py` (125 lines)
-- **57 modules total**
-- `conftest.py` defines **16 factories** (Tenant, User, Role with admin/manager/agent/viewer traits, Membership, TicketStatus, Queue, Ticket, Company, Contact, ContactGroup, Notification, Plan, Subscription, CustomFieldDefinition, Reminder, InboundEmail) and **20 fixtures** (3 autouse: `celery_eager`, `free_plan`, `clear_tenant_context`)
-- `tests/base.py` (299 lines) provides legacy `TenantTestCase` (tenant_a/tenant_b + admin/agent/viewer per tenant) and extended `KanzenBaseTestCase` (adds manager_a, agent_b, full status set, SLA policy, queue, contact)
+- `scripts/check_theme.py` — regression guard for theme leakage. Scans static/templates for new off-token hex literals against `scripts/.theme_baseline.json`. CSS comments + `:root`/`[data-bs-theme]` blocks + HTML `{% %}` tags + `<input type="color">` defaults + `data-*="hex"` attrs + entire `<script>` blocks are masked. **`.js` files have NO additional masking — JS hex IS flagged.** Allowlist: `apps/tenants/colors.py`, `scripts/check_theme.py`, `templates/pages/settings/tenant.html`, `static/js/theme.js`, `static/css/custom.css` + 4 email template dirs.
+- `scripts/.theme_baseline.json` — current tolerated count: **127 hex literals across 8 files** (custom-v15.css 83, landing_crm 21, verify_email_sent 3, calendar 2, kanban 1, landing 15, reminders 1, tickets-list 1).
 
-## Database (verified via `sqlite3 db.sqlite3 ".tables"`)
+## Tests
 
-- **112 tables** in dev DB
-- 29 apps with migrations recorded in `django_migrations`
-- Tickets has the highest count: 26 migrations
-- `oauth2_provider` (13), `auth` (12), `token_blacklist` (12), `django_celery_results` (14) come from third-party apps
+- **61 test modules total**: 54 root-level `tests/test_*.py` + 7 app-level
+  - `apps/knowledge/tests/test_kb_gap_fill.py`
+  - `apps/tickets/tests/test_creation.py`, `test_escalation.py`
+  - `apps/api_keys/tests/test_authentication.py`, `test_documentation.py`, `test_throttling.py`, `test_viewset.py` (**43 tests across 4 files**)
+- `conftest.py` defines **16 factories** + **20 fixtures** (3 autouse: `celery_eager`, `free_plan`, `clear_tenant_context`). `RoleFactory` declares 4 traits (admin/manager/agent/viewer); the new `team-lead`/`it`/`hr` roles are picked up via `Role.unscoped.get(slug=…)` from the signal-seeded set.
+- `tests/base.py` (legacy) provides `TenantTestCase` (tenant_a/tenant_b + admin/agent/viewer per tenant) and extended `KanzenBaseTestCase`
+- **API-keys test pattern:** `apps/api_keys/tests/test_viewset.py::test_email_task_queued_on_create` wraps the POST in `django_capture_on_commit_callbacks(execute=True)` because `transaction.on_commit` callbacks are otherwise discarded by `pytest.mark.django_db`'s atomic-rollback teardown. Canonical pattern for exercising post-commit Celery dispatch under pytest-django.
+- `pytest.ini` has no `asyncio_mode` set — defaults to `strict` (explicit `@pytest.mark.asyncio` required).
 
 ## Repo runtime / build artifacts
 
-- `db.sqlite3` (12 MB) — dev DB, in `.gitignore`
-- `celerybeat-schedule` (36 KB) — Beat shelve state, in `.gitignore`
-- `logs/` (~9 MB total) — PM2 process logs (one per process, error+out variants), in `.gitignore`
+- `db.sqlite3` (~12 MB) — dev DB, in `.gitignore`
+- `celerybeat-schedule` (~36 KB) — Beat shelve state, in `.gitignore`
+- `logs/` (~33 MB total — `celery-worker-error.log` alone is 16 MB) — PM2 process logs, in `.gitignore`. **No log rotation configured** — add `pm2 install pm2-logrotate` or `/etc/logrotate.d/` entry before disk pressure.
 - `tmp/emails/` — dev filebased EmailBackend output (only present when emails are sent), in `.gitignore`
 - `media/tenants/` and `media/inbound_emails/` — tenant uploads + inbound attachments
 - `__pycache__/` (root) — pytest-imported `conftest.py` bytecode (regenerated on test run)
 - `.pytest_cache/` — pytest internals, in `.gitignore`
-- `scripts/` — empty placeholder folder
 
 ## Quick reference
 
 ```
 Superuser:      admin@kanzen.local / Pl@nC-ICT_2024
-Django Admin:   http://localhost:8001/admin/
+Django Admin:   http://localhost:8001/admin/   (locked to is_superuser — see main/admin.py)
 
 Tenants:
-  DPAP:         http://dpap.localhost:8001      (custom domain: asmra.shop)
-  Meeting:      http://meeting.localhost:8001
-  Debug:        http://debug-test.localhost:8001
+  Straat-X:     http://straat-x.localhost:8001
 
-Flower:         http://localhost:5556 (admin:changeme)
-API Docs:       http://dpap.localhost:8001/api/docs/
+Flower:         http://localhost:5556 (admin:changeme — KANZAN_FLOWER_AUTH)
+API Docs:       http://straat-x.localhost:8001/api/docs/   (Authorize dialog shows both JWT Bearer and ApiKeyAuth)
+SMTP (in-process): port 2525 — `kanzan-smtp` PM2 process
 ```
