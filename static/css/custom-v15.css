@@ -6187,7 +6187,7 @@ h4.fw-semibold, h4.fw-bold {
   --crm-border-light: #F2F2F4;
   --crm-input-bg: #FFFFFF;
   --crm-input-bg-focus: #FFFFFF;
-  --crm-input-bg-border: #E4E4E7;
+  --crm-input-border: #E4E4E7;
 
   flex: 1;
   display: flex;
