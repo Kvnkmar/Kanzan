@@ -107,9 +107,12 @@
   --crm-gradient: linear-gradient(135deg, #C1121F 0%, #E11D2D 100%);
 
   /* Radii — consistent, modern */
-  --crm-radius-sm: 8px;
-  --crm-radius: 10px;
-  --crm-radius-lg: 14px;
+  --crm-radius-xs: 4px;        /* tight chips, dot-radius, kbd */
+  --crm-radius-sm: 8px;        /* small buttons, inputs */
+  --crm-radius-md: 6px;        /* in-between — popovers, narrow chips (gap between xs and sm) */
+  --crm-radius: 10px;          /* default — cards, modals (alias of --crm-radius-md visually) */
+  --crm-radius-lg: 14px;       /* large cards, modal frames */
+  --crm-radius-xl: 16px;       /* hero tiles, oversized panels */
   --crm-radius-pill: 9999px;
 
   /* Shadows — true depth, not flatness */
@@ -118,6 +121,43 @@
   --crm-shadow: 0 4px 8px -2px rgba(11, 11, 11, 0.06), 0 2px 4px -2px rgba(11, 11, 11, 0.04);
   --crm-shadow-lg: 0 12px 28px -6px rgba(11, 11, 11, 0.10), 0 4px 12px -4px rgba(11, 11, 11, 0.05);
   --crm-shadow-card-hover: 0 10px 28px -6px rgba(11, 11, 11, 0.10), 0 4px 12px -6px rgba(11, 11, 11, 0.04);
+
+  /* Typography — size scale (rem; multiply by 16px for px). Component CSS
+     migrates to these incrementally. Existing literal `font-size: 0.8125rem;`
+     etc. continues to work; the tokens give future refactors a snap-to grid
+     and let a single override re-tune density. */
+  --crm-text-xs:    0.6875rem;  /* 11px — captions, micro-labels */
+  --crm-text-sm:    0.75rem;    /* 12px — chip labels, dense tables */
+  --crm-text-base:  0.8125rem;  /* 13px — body default, form labels */
+  --crm-text-md:    0.875rem;   /* 14px — buttons, primary body */
+  --crm-text-lg:    1rem;       /* 16px — section headings */
+  --crm-text-xl:    1.125rem;   /* 18px — page sub-titles */
+  --crm-text-2xl:   1.25rem;    /* 20px — h3 / card titles */
+  --crm-text-3xl:   1.5rem;     /* 24px — page titles */
+
+  /* Typography — weight scale. The codebase currently uses 500 / 600 / 700
+     for ~95% of weights, with sporadic 450 / 550 / 650 / 800 drift — those
+     should normalise toward the four tokens below on future touches. */
+  --crm-weight-normal:    400;
+  --crm-weight-medium:    500;
+  --crm-weight-semibold:  600;
+  --crm-weight-bold:      700;
+
+  /* Z-index scale. Bootstrap reserves 1040 (modal-backdrop), 1050 (modal),
+     1060 (popover), 1070 (tooltip). The kanban filter and notification
+     flyout need to escape transformed parent stacking contexts; the tokens
+     below codify those layers so future bumps land on a known step instead
+     of magic numbers (1081, 1100, 2000, 99999 all currently exist). */
+  --crm-z-base:           1;
+  --crm-z-sticky:         10;
+  --crm-z-dropdown:       1000;
+  --crm-z-modal-backdrop: 1040;
+  --crm-z-modal:          1050;
+  --crm-z-popover:        1060;
+  --crm-z-tooltip:        1070;
+  --crm-z-flyout:         1080;   /* notif flyout, command palette */
+  --crm-z-overlay:        1085;   /* kanban filter, escape-stacking-context */
+  --crm-z-toast:          1090;   /* always above everything else app-side */
 
   /* Animation — duration scale */
   --crm-duration-instant: 80ms;
