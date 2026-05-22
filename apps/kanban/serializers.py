@@ -211,6 +211,17 @@ class BoardDetailSerializer(serializers.ModelSerializer):
         else:
             cards = list(cards)
 
+        # Hide orphan cards — those whose content object was soft-deleted,
+        # hard-deleted, or lives in another tenant. _content_object_cache was
+        # populated in get_columns() using each model's _default_manager, which
+        # for Ticket is the SoftDeleteTenantManager (excludes is_deleted=True).
+        cache = getattr(self, "_content_object_cache", {})
+        cards = [
+            card
+            for card in cards
+            if cache.get(card.content_type_id, {}).get(card.object_id) is not None
+        ]
+
         return {
             "id": str(column.id),
             "name": column.name,

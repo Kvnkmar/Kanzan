@@ -13,7 +13,7 @@ import datetime
 import logging
 
 from django.contrib.contenttypes.models import ContentType
-from django.db.models.signals import post_save, pre_save
+from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import Signal, receiver
 from django.utils import timezone
 
@@ -636,6 +636,42 @@ def sync_kanban_card_on_pipeline_stage_change(sender, instance, created, **kwarg
             "Ticket #%s: %s",
             instance.number,
             exc,
+        )
+
+
+@receiver(post_delete, sender=Ticket)
+def remove_kanban_cards_on_ticket_delete(sender, instance, **kwargs):
+    """
+    Remove orphaned ``CardPosition`` rows when a ticket is hard-deleted.
+
+    GenericForeignKey relationships are not cascaded by Django, so without this
+    handler a bulk-delete (or any hard delete) leaves ghost cards on every
+    kanban board pointing at a non-existent ticket. The serializer hides them
+    from the API, but the rows stick around.
+
+    Soft-delete (``is_deleted=True``) is intentionally NOT handled here so
+    that ``POST /tickets/{id}/restore/`` can restore the card alongside the
+    ticket. The serializer already hides cards whose content object is
+    soft-deleted (its ``_default_manager`` excludes ``is_deleted=True``).
+    """
+    try:
+        from apps.kanban.models import CardPosition
+
+        ticket_ct = ContentType.objects.get_for_model(Ticket)
+        deleted, _ = CardPosition.unscoped.filter(
+            content_type=ticket_ct,
+            object_id=instance.pk,
+        ).delete()
+        if deleted:
+            logger.info(
+                "Removed %d kanban card(s) for hard-deleted Ticket %s.",
+                deleted,
+                instance.pk,
+            )
+    except Exception:
+        logger.exception(
+            "Failed to remove kanban cards for hard-deleted Ticket %s.",
+            instance.pk,
         )
 
 
