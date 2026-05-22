@@ -1,6 +1,6 @@
 # Kanzen — Project Intelligence
 
-> Last refreshed: **2026-05-21** (post-API-keys merge + bell-flyout UX + throttle base-class swap + **7-role hierarchy: Team Lead / IT / HR added** via `accounts/0011`). Verified against branch `main` @ `fe0ad66` ("feat(api-keys): add quickstart page, sidebar entry, settings tab, and tests") **plus uncommitted working-tree changes**: `apps/api_keys/apps.py` registers the drf-spectacular OpenAPI extension in `ready()`; `apps/api_keys/throttling.py` now subclasses **`SimpleRateThrottle`** (not `ScopedRateThrottle`) so it engages on every API-key-authenticated request without per-viewset opt-in (skips JWT/session traffic by returning `None` from `get_cache_key`); `apps/api_keys/tests/{test_authentication,test_viewset}.py` cleanup + `django_capture_on_commit_callbacks` for the post-commit email task; and a bell-anchored notification flyout (`templates/includes/navbar.html` + `static/js/app.js` + `static/css/custom-v15.css`) replaces the generic `Toast.info` for new notifications — bell rings, badge bumps, peek-preview card auto-fades after 5s. The API-keys feature itself adds: a new `apps/api_keys/` app (model + auth class + viewset + throttle + middleware + drf-spectacular extension + **43 tests across 4 files**), `User.is_service_account` (migration `accounts/0010`), **three new `ActivityLog.Action` choices → total 26** (migration `comments/0009`), a new `/api/v1/api-keys/` router include (count 21 → 22), a new middleware `apps.api_keys.middleware.RateLimitHeadersMiddleware` (middleware count 13 → 14), `DEFAULT_THROTTLE_RATES["api_key"] = "1000/hour"`, a `Developer & Integrations` settings tab + reveal/regenerate/revoke modals, and a `/api/quickstart/` developer-guide page (frontend URL count 33 → 34). For deeper per-domain inventory see `docs/reference/{codebase-inventory,api-surface,frontend-surface,infra-surface}.md` — those reference docs were regenerated 2026-05-11 and DO NOT yet reflect the live broadcast layer, messaging attachments, OR the API-keys feature; refresh as needed.
+> Last refreshed: **2026-05-22** — verified against branch `main` @ `241e407` ("updates") with working tree CLEAN. The previous refresh (2026-05-21) tracked an in-flight working tree; everything it labelled "uncommitted" is now committed. Major deltas since the prior refresh: data migration `accounts/0011` seeds the **7-role hierarchy (Admin / Manager / Team Lead / IT / HR / Agent / Viewer)**, kanban drags now route through the tickets service layer (full audit + feed + SLA path), `Ticket.save()` auto-fills `company` from a linked contact, `Article.save()` resolves tenant from context for DRF-created articles, `main/admin.py` gained a full tenant picker on add/change forms (no longer just a list-view filter), a new `templates/includes/page_back_button.html` include is wired into 17 pages, the audit-log page got a "Insights" redesign, the notification flyout auto-fades in **3s** (not 5s), and `AgentAvailabilityViewSet.assignable_roles` excludes the `admin` slug. For deeper per-domain inventory see `docs/reference/{codebase-inventory,api-surface,frontend-surface,infra-surface}.md` — those reference docs were regenerated 2026-05-11 and DO NOT yet reflect the live broadcast layer, messaging attachments, the API-keys feature, the 7-role hierarchy, or any 241e407 changes; refresh as needed.
 
 ## Project Overview
 
@@ -41,48 +41,50 @@ API Docs:       http://straat-x.localhost:8001/api/docs/
 │   ├── crm/                       # Activity + Reminder (M2M contacts/tickets), lead/account scoring + LIVE signals
 │   ├── custom_fields/             # EAV custom fields per tenant + sync signals
 │   ├── inbound_email/             # SMTP+IMAP ingestion → tickets; agent inbox workflow; auto-assign
-│   ├── kanban/                    # Visual boards, columns, polymorphic CardPosition (Board.is_personal added)
+│   ├── kanban/                    # Visual boards, columns, polymorphic CardPosition; drags now route through tickets service
 │   ├── knowledge/                 # KB articles, categories, search, stale alerts, gap digest, allowed_groups M2M
 │   ├── messaging/                 # Real-time conversations (WS); Conversation.source_group; attachments on messages
 │   ├── nav/                       # URL-only helper (sidebar badge counts API — no models.py / no AppConfig)
 │   ├── newsfeed/                  # Internal announcements, reactions, read receipts + LIVE signals
 │   ├── notes/                     # Personal sticky notes (6 colors, pinning)
 │   ├── notifications/             # In-app + email notifications + WebSocket (handlers in signal_handlers.py)
-│   ├── tenants/                   # Tenant model, middleware, frontend views, frontend_urls, **live broadcast layer**, palette
+│   ├── tenants/                   # Tenant model, middleware, frontend views, frontend_urls, live broadcast layer, palette
 │   ├── tickets/                   # Core ticketing, SLA + business hours, CSAT, pipelines, macros, webhooks, deals
 │   └── voip/                      # Asterisk ARI integration, SIP softphone, call logs, recordings, queues
 ├── main/                          # Django project root (9 modules — includes admin.py)
 │   ├── settings/{__init__,base,dev,prod}.py  # __init__ chooses dev/prod based on DJANGO_DEBUG
-│   ├── admin.py                   # SuperuserOnlyAdminSite (locks /admin/ to is_superuser) + TenantFilteredAdmin mixin
-│   ├── celery.py                  # Celery app + queue routing (5 globs + default), autodiscover_tasks() (no include list)
+│   ├── admin.py                   # SuperuserOnlyAdminSite (locks /admin/ to is_superuser) + TenantFilteredAdmin mixin (full add/change/save flow with tenant picker)
+│   ├── celery.py                  # Celery app + queue routing (6 globs + default), autodiscover_tasks()
 │   ├── asgi.py                    # ProtocolTypeRouter: HTTP + WebSocket (6 consumer endpoints — see ASGI section)
 │   ├── context.py                 # contextvars-based tenant context (async-safe)
 │   ├── models.py                  # TimestampedModel, TenantScopedModel
 │   ├── managers.py                # TenantQuerySet, TenantAwareManager, SoftDeleteTenantManager
-│   └── urls.py                    # 21 /api/v1/ includes (inbound-email dual-mounted at emails/) + /api/docs/ + frontend URLs
-├── templates/                     # 51 files total
-│   ├── base.html                  # 254 lines — layout, palette <style>, toast container, notes panel, softphone (conditional), live-bus + live-connection JS, Flatpickr 3-CDN loader
-│   ├── includes/                  # navbar (with #liveStatusPill), sidebar (data-current-user-id), softphone, messages, kb_sidebar_widget (orphan)
-│   ├── pages/                     # 14 page subfolders + 7 root html files
-│   ├── landing/landing_crm.html   # Standalone marketing page (doesn't extend base.html)
+│   └── urls.py                    # 22 /api/v1/ includes (inbound-email dual-mounted at emails/) + /api/docs/ + frontend URLs
+├── templates/                     # 47 .html files total
+│   ├── base.html                  # 265 lines — layout, palette <style>, toast container, notes panel, softphone (conditional), live-bus + live-connection JS, Flatpickr 3-CDN loader, sidebar-collapse FOUC fix
+│   ├── includes/                  # 6 files — navbar (with #liveStatusPill + #notifFlyout), sidebar (data-current-user-id, several hidden nav items), softphone, messages, kb_sidebar_widget (orphan), page_back_button (NEW)
+│   ├── pages/                     # 17 subfolders + 8 root html files (incl. api_quickstart.html added in fe0ad66)
+│   ├── landing/landing_crm.html   # Standalone marketing page (doesn't extend base.html, 1,393 LOC)
 │   ├── auth/email/                # verify_email.{html,txt}
 │   ├── knowledge/email/           # article_rejected.{html,txt}
 │   ├── notifications/email/       # notification.{html,txt}
 │   └── tickets/email/             # ticket_created, reply_notification, csat_survey (html+txt)
 ├── static/
-│   ├── css/custom-v15.css         # 23,271 lines (live file referenced by base.html — Crimson Black v9; +API-keys settings tab/modals/quickstart + bell-flyout)
+│   ├── css/custom-v15.css         # 23,759 lines (live file referenced by base.html — Crimson Black v9)
 │   ├── css/custom.css             # 20,431 lines (committed snapshot — NOT loaded; allowlisted in theme check)
-│   └── js/                        # 13 vanilla-JS modules (incl. NEW live-bus.js + live-connection.js)
-├── tests/                         # 54 root pytest modules + 7 app-level (61 total, incl. 4 new api_keys/tests/test_*.py) + tests/base.py legacy scaffold
+│   ├── images/                    # Logo, favicon, hero artwork
+│   └── js/                        # 13 vanilla-JS modules (~4,031 LOC, incl. live-bus.js + live-connection.js)
+├── tests/                         # 54 root pytest modules + 7 app-level (61 total) + tests/base.py legacy scaffold
 ├── conftest.py                    # 16 factories + 20 fixtures (3 autouse: celery_eager, free_plan, clear_tenant_context)
 ├── pytest.ini                     # DJANGO_SETTINGS_MODULE=main.settings; pythonpath=. (3 lines, no asyncio_mode set)
 ├── requirements/{base,dev,prod}.txt   # prod.txt is literally `-r base.txt` — no extras
+├── requirements.txt               # ROOT — byte-identical duplicate of requirements/base.txt (convenience for tools defaulting to ./requirements.txt)
 ├── ecosystem.config.js            # PM2 prod: 5 processes (.venv/)
 ├── ecosystem.dev.config.js        # PM2 dev: 4 processes (env/ symlink to .venv/) — no SMTP, watch-mode reloads
-├── Makefile                       # 33 targets — dev/start/stop/migrate/test/theme-check/smoke/lint
-├── docs/                          # README + architecture.md (stale 2026-02-06) + reference/{4 docs} (last regen 2026-05-11)
+├── Makefile                       # ~25 documented targets — dev/start/stop/migrate/test/theme-check/smoke/lint
+├── docs/                          # README + architecture.md (stale 2026-02-06) + reference/{4 docs} (regen 2026-05-11)
 ├── tmp/emails/                    # Dev email capture (filebased EmailBackend)
-├── logs/                          # PM2 log files (one per process, error+out)
+├── logs/                          # PM2 log files (one per process, error+out) — ~33MB, no rotation configured
 ├── media/                         # User-uploaded: tenants/{id}/… and inbound_emails/{id}/…
 ├── scripts/                       # check_theme.py + .theme_baseline.json (theme-leakage regression guard)
 ├── db.sqlite3                     # Dev database (~12MB)
@@ -94,7 +96,7 @@ API Docs:       http://straat-x.localhost:8001/api/docs/
 
 ### Three-Layer Isolation
 
-1. **TenantMiddleware** (`apps/tenants/middleware.py`): Resolves tenant from subdomain (`{slug}.localhost`) or `TenantSettings.domain`. Sets `request.tenant` and binds context. Exempt paths include `/admin/`, `/static/`, `/media/`, `/api/v1/accounts/auth/`, `/api/v1/billing/plans/`, `/api/v1/billing/webhook/`, `/api/docs/`, `/accounts/`, `/login/`, `/register/`, `/logout/`, `/verify-email/*`, `/setup-company/`, `/workspaces/`.
+1. **TenantMiddleware** (`apps/tenants/middleware.py`): Resolves tenant from subdomain (`{slug}.localhost` / `{slug}.{BASE_DOMAIN}`), or `TenantSettings.domain` for custom domains. Sets `request.tenant` and binds context. **`EXEMPT_PATH_PREFIXES`** (16 entries): `/static/`, `/media/`, `/api/v1/accounts/auth/`, `/api/v1/billing/plans/`, `/api/v1/billing/webhook/`, `/api/v1/tickets/csat/`, `/api/docs/`, `/api/schema/`, `/accounts/`, `/inbound/email/`, `/login/`, `/register/`, `/logout/`, `/verify-email/`, `/verify-email-sent/`, `/setup-company/`, `/workspaces/`. **`/admin/` is NOT in the exempt list** — it has a dedicated branch (lines 119-144) that resolves the tenant from the subdomain when present, so a superuser browsing `straat-x.localhost:8001/admin/` gets `request.tenant=<Straat-X>` set, letting `TenantScopedModel.save()` succeed in admin create flows. Bare `localhost:8001/admin/` still has `request.tenant=None`. **`/auth/handoff/` intentionally NOT exempt** — it must resolve the current tenant to verify membership.
 
 2. **TenantAwareManager** (`main/managers.py`): Default `objects` manager auto-filters by `get_current_tenant()`. Returns **empty queryset** when no tenant in context (prevents leakage in admin/Celery — logs `TenantAwareManager: no tenant context for %s` at DEBUG). Use `Model.unscoped` for cross-tenant queries.
 
@@ -110,13 +112,19 @@ with tenant_context(tenant):   # Context-manager form (preferred for tasks)
 ```
 Uses `contextvars.ContextVar` named `"current_tenant"` — safe across asyncio tasks and Channels consumers.
 
-### Superuser Admin Lock (`main/admin.py`)
+### Superuser Admin Lock + Tenant-Filtered Mixin (`main/admin.py`, 106 lines)
 
-Replaces `admin.site.__class__` with `SuperuserOnlyAdminSite` so non-superusers are 403'd from `/admin/` regardless of `is_staff`. Also exposes `TenantFilteredAdmin` mixin — model-admins inheriting it auto-filter by `request.tenant` using `Model.unscoped` when available.
+- **`SuperuserOnlyAdminSite`** — replaces `admin.site.__class__` so non-superusers get 403 on `/admin/` regardless of `is_staff`. Implemented by overriding `has_permission(request)` to `request.user.is_active and request.user.is_superuser`.
+- **`TenantFilteredAdmin` mixin** — drop-in for any `ModelAdmin` of a `TenantScopedModel`. Three responsibilities:
+  1. `get_queryset(request)` — uses `model.unscoped.all()` when available, then filters by `request.tenant` if set. Bare-domain admins see all tenants.
+  2. `get_form(request, obj, change, **kwargs)` — injects a `tenant = forms.ModelChoiceField(queryset=Tenant.objects.filter(is_active=True))` into the add/change form (because `TenantScopedModel.tenant` is `editable=False`, admin's auto-form would otherwise omit it). Defaults to `obj.tenant_id` or `request.tenant`. Guards against Django's recursive `_get_form_for_get_fields(fields=None)` discovery pass to avoid leaking the synthetic field into `Meta.fields`.
+  3. `save_model(request, obj, form, change)` — backfills `obj.tenant` from `form.cleaned_data["tenant"]` (or `request.tenant`) so the no-context guard in `TenantScopedModel.save()` never trips during admin creates.
 
-## Live Broadcast Layer (uncommitted, 2026-05-14/15)
+`main/admin.py` itself does NOT register any models — it only exports the mixin and replaces the admin site class.
 
-A unified pub/sub real-time layer that fans server-side mutations into a single per-tenant WebSocket and a client-side `LiveBus`. Adds **one new WebSocket consumer** (`/ws/live/`) and bus-publishes events from 5 apps' signal handlers. Coexists with — does not replace — the existing per-domain consumers (chat, notifications, ticket-feed, presence, voip).
+## Live Broadcast Layer (committed)
+
+A unified pub/sub real-time layer that fans server-side mutations into a single per-tenant WebSocket and a client-side `LiveBus`. Adds one new WebSocket consumer (`/ws/live/`) and bus-publishes events from 5 apps' signal handlers. Coexists with — does not replace — the existing per-domain consumers (chat, notifications, ticket-feed, presence, voip).
 
 ### Backend
 
@@ -129,24 +137,24 @@ A unified pub/sub real-time layer that fans server-side mutations into a single 
 
 | App | File | Receivers (model.signal → publisher) | Verbs |
 |-----|------|--------------------------------------|-------|
-| `accounts` | `signals.py` (MODIFIED) | `TenantMembership.post_save/delete`, `Profile.post_save`, `User.post_save` (fans across every active membership) | `membership.created/updated/deleted`, `profile.created/updated`, `user.updated` |
-| `comments` | `signals.py` (NEW) | `Comment.post_save/delete` | `comment.created/updated/deleted` (payload `content_type="app_label.model"`, `object_id`) |
-| `contacts` | `signals.py` (NEW) | `Contact`, `Company`, `Account`, `ContactGroup` × `post_save/delete` (ContactEvent intentionally skipped — too noisy) | `contact.*`, `company.*`, `account.*`, `contact_group.*` (created/updated/deleted) |
-| `crm` | `signals.py` (NEW) | `Activity`, `Reminder` × `post_save/delete`. Reminder verb resolved by state: cancelled_at→`reminder.cancelled`, completed_at→`reminder.completed`, created→`reminder.created`, else `reminder.updated` | `activity.*`, `reminder.*` |
-| `newsfeed` | `signals.py` (NEW) | `NewsPost.post_save/delete`, `NewsPostReaction.post_save/delete` | `newsfeed.created/updated/deleted`, `newsfeed.reacted` (with `added: bool`) |
+| `accounts` | `signals.py` | `TenantMembership.post_save/delete`, `Profile.post_save`, `User.post_save` (fans across every active membership) | `membership.created/updated/deleted`, `profile.created/updated`, `user.updated` |
+| `comments` | `signals.py` | `Comment.post_save/delete` | `comment.created/updated/deleted` (payload `content_type="app_label.model"`, `object_id`) |
+| `contacts` | `signals.py` | `Contact`, `Company`, `Account`, `ContactGroup` × `post_save/delete` (ContactEvent intentionally skipped — too noisy) | `contact.*`, `company.*`, `account.*`, `contact_group.*` (created/updated/deleted) |
+| `crm` | `signals.py` | `Activity`, `Reminder` × `post_save/delete`. Reminder verb resolved by state: cancelled_at→`reminder.cancelled`, completed_at→`reminder.completed`, created→`reminder.created`, else `reminder.updated` | `activity.*`, `reminder.*` |
+| `newsfeed` | `signals.py` | `NewsPost.post_save/delete`, `NewsPostReaction.post_save/delete` | `newsfeed.created/updated/deleted`, `newsfeed.reacted` (with `added: bool`) |
 
-App configs (`apps/{accounts,comments,contacts,crm,newsfeed}/apps.py`) now import their `signals` module in `ready()`.
+App configs (`apps/{accounts,comments,contacts,crm,newsfeed}/apps.py`) import their `signals` module in `ready()`.
 
-**Tickets do NOT broadcast server-side to `live_tenant_*`** — `apps/tickets/signals.py` is unchanged in the working tree; `apps/tickets/services.py::broadcast_ticket_event` still publishes only to `ticket_feed_{tenant_id}`. The bridge to LiveBus is **client-side** in `static/js/ticket-feed.js` (normalises `ticket_created` → `ticket.created`, plus an aggregated `ticket.event`). Authenticated tenant pages therefore hold **two concurrent WebSockets** (`ws/live/` + `ws/tickets/feed/`) plus notifications.
+**Tickets do NOT broadcast server-side to `live_tenant_*`** — `apps/tickets/services.py::broadcast_ticket_event` publishes only to `ticket_feed_{tenant_id}`. The bridge to LiveBus is **client-side** in `static/js/ticket-feed.js` (normalises `ticket_created` → `ticket.created`, plus an aggregated `ticket.event`). Authenticated tenant pages therefore hold **two concurrent WebSockets** (`ws/live/` + `ws/tickets/feed/`) plus notifications.
 
 ### Frontend
 
 - **`static/js/live-bus.js`** (175 lines) — global `window.LiveBus`. API: `on(eventType, handler) → off`, `onMany(arr, handler) → off`, `publish(eventType, payload, opts)`, `debounce(fn, ms)`, `rafBatch(fn)`, `isConnected(channel)`, `setChannelState(channel, state)`. Wildcard `"*"` subscriber receives every event. Cross-tab fan-out via optional `BroadcastChannel('kanzan-live')` (silent fallback). Handler errors caught + logged; never break siblings.
 - **`static/js/live-connection.js`** (206 lines) — global `window.LiveConnection`. Single shared `wss?://host/ws/live/`. Skips pre-auth pages (`/login/`, `/register/`, `/verify-email/`, `/verify-email-sent/`, `/auth/handoff/`, `/landing/`, `/setup-company/`, `/workspaces/`) and pages without a Django `sessionid` cookie. Exponential backoff 1s→30s with ±20% jitter, **infinite retries**. 25s heartbeat ping with 8s pong timeout (any inbound message counts as pong). On reconnect: publishes `live.reconnected` so subscribers can refetch to fill gaps. Tab-visibility hook: regaining focus while closed forces immediate reconnect (clears backoff).
-- **Wiring in `templates/base.html`** — script load order (lines 141–158): Bootstrap → DOMPurify → `live-bus.js` (always) → `api.js` → `app.js` → `command-palette.js` → `custom-select.js` → **conditional on `tenant and user.is_authenticated`**: `live-connection.js` → `agent-availability.js` → `notes-panel.js` → `keyboard-shortcuts.js` → `ticket-feed.js` → (if `voip_enabled`) SIP.js CDN + `voip-softphone.js`.
-- **Live-status pill in `templates/includes/navbar.html` lines 24–31** — `#liveStatusPill` + `#liveStatusDot` + `#liveStatusLabel`. Hidden by default; surfaced by `app.js::initLiveStatusPill()` (lines ~520–582) when ANY tracked channel (`live`, `notifications`, `ticket_feed`) was previously open and is now reconnecting/closed. States: hidden (open), `--reconnecting` (yellow), `--offline` (red).
-- **`app.js::initSidebarUserLive()`** (lines 593–610) subscribes to `user.updated`, filters by `data-current-user-id` on `.sidebar-user`, mutates `#sidebarUserName/Email/Avatar`.
-- **`ticket-feed.js`** continues to own `ws/tickets/feed/` but also `LiveBus.publish('ticket.<verb>', …)` for sidebar/dashboard subscribers (event names normalised: `ticket_created` → `ticket.created`, plus aggregated `ticket.event`). Banner publishes `ticket.show_pending {count}` when user clicks Show.
+- **Wiring in `templates/base.html`** — script load order: Bootstrap → DOMPurify → `live-bus.js` (always) → `api.js` → `app.js` → `command-palette.js` → `custom-select.js` → **conditional on `tenant and user.is_authenticated`**: `live-connection.js` → `agent-availability.js` → `notes-panel.js` → `keyboard-shortcuts.js` → `ticket-feed.js` → (if `voip_enabled`) SIP.js CDN + `voip-softphone.js`.
+- **Live-status pill in `templates/includes/navbar.html`** — `#liveStatusPill` + `#liveStatusDot` + `#liveStatusLabel`. Hidden by default; surfaced by `app.js::initLiveStatusPill()` when ANY tracked channel (`live`, `notifications`, `ticket_feed`) was previously open and is now reconnecting/closed. States: hidden (open), `--reconnecting` (yellow), `--offline` (red).
+- **`app.js::initSidebarUserLive()`** subscribes to `user.updated`, filters by `data-current-user-id` on `.sidebar-user`, mutates `#sidebarUserName/Email/Avatar`.
+- **`ticket-feed.js`** continues to own `ws/tickets/feed/` but also `LiveBus.publish('ticket.<verb>', …)` for sidebar/dashboard subscribers (event names normalised: `ticket_created` → `ticket.created`, plus aggregated `ticket.event`). Banner publishes `ticket.show_pending {count}` when user clicks Show. **The tenant-wide `ticket_assigned` Toast was removed** — the assignee already gets a personalised bell flyout via `NotificationConsumer`, so the toast was triple-firing.
 
 ### Event Naming
 
@@ -167,12 +175,12 @@ All page subscribers use a `document.visibilityState !== "hidden"` guard + `visi
 
 ### Channel-Layer Groups (incl. existing)
 
-- `live_tenant_{tenant_id}` — **NEW**, primary live events (newsfeed, CRM, memberships, contacts, comments)
-- `notifications_{user_id}` — in-app notifications (existing)
-- `chat_{conversation_id}` — chat messages (existing — now carries `attachments` field; see Messaging Attachments)
-- `ticket_feed_{tenant_id}` — ticket lifecycle (existing; client republishes into LiveBus)
-- `ticket_{ticket_id}_presence` — agent presence on a ticket (existing)
-- `voip_{tenant_id}` — call state (existing)
+- `live_tenant_{tenant_id}` — primary live events (newsfeed, CRM, memberships, contacts, comments)
+- `notifications_{user_id}` — in-app notifications
+- `chat_{conversation_id}` — chat messages (carries `attachments` field — see Messaging Attachments)
+- `ticket_feed_{tenant_id}` — ticket lifecycle (client republishes into LiveBus)
+- `ticket_{ticket_id}_presence` — agent presence on a ticket
+- `voip_{tenant_id}` — call state
 
 ### Close codes (every consumer)
 
@@ -185,13 +193,11 @@ All page subscribers use a `document.visibilityState !== "hidden"` guard + `visi
 | `4003` | `ChatConsumer` (not a participant), presence/list/live consumers (not a tenant member) | Forbidden |
 | `4004` | `ChatConsumer` | Conversation belongs to a different tenant than the Host header |
 
-## Messaging Attachments (uncommitted, 2026-05-14/15)
+## Messaging Attachments (committed)
 
-The messaging app gained an attachment workflow. Code changes are minor but the behavioural contract shifted:
-
-- **`MessageCreateSerializer.body`** is now `CharField(allow_blank=True, required=False, default="")`. An attachment-only message is valid at the serializer layer — the **frontend** must still block a fully-empty send (no body AND no attachments).
-- **`MessageSerializer.attachments`** is a new `SerializerMethodField`. Uses `_prefetched_attachments` if set, else fetches via `Attachment` GenericFK by ContentType(Message).
-- **`MessageViewSet.broadcast`** (NEW) — `POST /api/v1/messaging/conversations/{conv}/messages/{msg}/broadcast/`. **Author-only.** Re-emits the message over the `chat_{conv_id}` group after the client has linked attachments. `_broadcast_message` is now a `@classmethod` that calls `cls._build_attachment_payload(message)` and includes `attachments` + `author_name` (fallback email if name blank) in the Channels payload.
+- **`MessageCreateSerializer.body`** is `CharField(allow_blank=True, required=False, default="")`. An attachment-only message is valid at the serializer layer — the **frontend** must still block a fully-empty send (no body AND no attachments).
+- **`MessageSerializer.attachments`** is a `SerializerMethodField`. Uses `_prefetched_attachments` if set, else fetches via `Attachment` GenericFK by ContentType(Message).
+- **`MessageViewSet.broadcast`** — `POST /api/v1/messaging/conversations/{conv}/messages/{msg}/broadcast/`. **Author-only.** Re-emits the message over the `chat_{conv_id}` group after the client has linked attachments. `_broadcast_message` is a `@classmethod` that calls `cls._build_attachment_payload(message)` and includes `attachments` + `author_name` (fallback email if name blank) in the Channels payload.
 - **`ChatConsumer._create_message`** also includes `"attachments": []` in inbound-sent payloads (forward-compat) and falls back to `email` for `author_name` when full name is blank.
 - **`templates/pages/messaging/chat.html`** adds a pending-attachments tray (`#pendingAttachments`, `#messageAttachInput`), `buildAttachmentBlock()` helper (image vs file chip rendering), with `target=_blank` links.
 
@@ -209,8 +215,8 @@ There are NO new WebSocket consumers from this work — chat still goes through 
 
 **tenants** (2): `Tenant` (name, slug unique, domain unique nullable, is_active, logo); `TenantSettings` (1:1; auth_method, SSO config, timezone, date_format, branding `primary_color`+`accent_color` with hex validators, `inbound_email_address`, business hours/days, `auto_close_days` (5), `csat_delay_minutes` (60), `auto_transition_on_assign`, `auto_send_ticket_created_email`, **`auto_assign_inbound_email_tickets`** — migration 0008). **Defaults: `primary_color="#6366F1"`, `accent_color="#F59E0B"`** — NOT Crimson Black. The Crimson Black `#C1121F`/`#E11D2D` is only the *fallback* in `apps/tenants/colors.py::derive_palette` when no settings exist or hex parsing fails.
 
-**accounts** (8 — `UserGroup` added in migration 0009; `User.is_service_account` boolean added in migration 0010):
-- `User(AbstractUser)` — email-based custom user, UUID PK, `auth_version` (PositiveIntegerField; bumped for global logout), `avatar`, `phone`, `username=None`, **`is_service_account`** (BooleanField, db_indexed; True for the hidden synthetic users minted by `apps.api_keys` — UI filters these out of staff lists).
+**accounts** (8 — `UserGroup` added in migration 0009; `User.is_service_account` added in migration 0010):
+- `User(AbstractUser)` — email-based custom user, UUID PK, `auth_version` (PositiveIntegerField; bumped for global logout), `avatar`, `phone`, `username=None`, **`is_service_account`** (BooleanField, db_indexed; True for hidden synthetic users minted by `apps.api_keys` — UI filters these out of staff lists).
 - `Permission` — **global** (not tenant-scoped). codename unique; nested `Action` TextChoices (view/create/update/delete/assign/export/manage — 7 members).
 - `Role(TenantScopedModel)` — M2M `permissions`, `hierarchy_level` (default 100), `is_system`. `unique_together=("tenant","slug")`.
 - `Profile(TenantScopedModel)` — UI/agent prefs (theme, density, signature, DND, language, date/time format, sidebar_collapsed, job_title, department, bio). `unique_together=("user","tenant")`.
@@ -221,7 +227,7 @@ There are NO new WebSocket consumers from this work — chat still goes through 
 
 ### Tickets — heaviest app (22 model classes)
 
-`Pipeline`, `PipelineStage`, `TicketStatus` (incl. `pauses_sla`, `is_closed`, `is_default`), `Queue` (`default_assignee`, `auto_assign`), `TicketCategory`, **`TicketCounter`** (NOT TenantScoped; OneToOne tenant; `last_number`; classmethod `next_number(tenant_id)` uses SELECT FOR UPDATE + F-expression), `Ticket` (~64 fields; soft delete via `SoftDeleteTenantManager`; CSAT; deal fields incl. `pipeline_stage`/`account`/`won_at`/`lost_at`/`won_reason`/`lost_reason`; `merged_into`; `auto_close_task_id`; `pre_wait_status`; `tags`+`custom_data` JSON; `follow_up_due_at`, `last_activity_at`; nested `Priority`/`Channel`/`TicketType` TextChoices), `TicketLink` (4 link types + circular guard via `_creates_circular_dependency` BFS), `SLAPolicy`, `EscalationRule`, `BusinessHours` (timezone IANA + schedule JSON; method `weekly_business_minutes`), `PublicHoliday`, `SLAPause` (`Reason`: waiting_on_customer/manual), `TicketActivity` (**27 event choices** after migration 0026 added inbound_call/inbound_call_completed), `CannedResponse` (UniqueConstraint on shortcut when non-empty), `Macro`, `SavedView` (`ResourceType`: ticket/contact; user-or-shared), `TicketAssignment` (immutable audit), `TicketWatcher` (reasons manual/mentioned/commented/cc, is_muted), `TimeEntry` (1–1440 mins, billable, started/ended), `TicketTemplate`, `Webhook` (HMAC SHA-256, 8 EventType members, auto-disable at 10 failures).
+`Pipeline`, `PipelineStage`, `TicketStatus` (incl. `pauses_sla`, `is_closed`, `is_default`), `Queue` (`default_assignee`, `auto_assign`), `TicketCategory`, **`TicketCounter`** (NOT TenantScoped; OneToOne tenant; `last_number`; classmethod `next_number(tenant_id)` uses SELECT FOR UPDATE + F-expression), `Ticket` (~64 fields; soft delete via `SoftDeleteTenantManager`; CSAT; deal fields incl. `pipeline_stage`/`account`/`won_at`/`lost_at`/`won_reason`/`lost_reason`; `merged_into`; `auto_close_task_id`; `pre_wait_status`; `tags`+`custom_data` JSON; `follow_up_due_at`, `last_activity_at`; nested `Priority`/`Channel`/`TicketType` TextChoices). **`Ticket.save()` (lines 601-612)** now auto-populates `company_id` from the linked Contact's company when the ticket has no company set explicitly — never overwrites an explicit company. `TicketLink` (4 link types + circular guard via `_creates_circular_dependency` BFS), `SLAPolicy`, `EscalationRule`, `BusinessHours` (timezone IANA + schedule JSON; method `weekly_business_minutes`), `PublicHoliday`, `SLAPause` (`Reason`: waiting_on_customer/manual), `TicketActivity` (**27 event choices** after migration 0026), `CannedResponse` (UniqueConstraint on shortcut when non-empty), `Macro`, `SavedView` (`ResourceType`: ticket/contact; user-or-shared), `TicketAssignment` (immutable audit), `TicketWatcher` (reasons manual/mentioned/commented/cc, is_muted), `TimeEntry` (1–1440 mins, billable, started/ended), `TicketTemplate`, `Webhook` (HMAC SHA-256, 8 EventType members, auto-disable at 10 failures).
 
 > Admin registers 17 of 22 — TicketLink, TicketCounter, Macro, TicketActivity are NOT in admin.
 
@@ -235,7 +241,7 @@ There are NO new WebSocket consumers from this work — chat still goes through 
 `InboundEmail` extends `TimestampedModel` (NOT TenantScopedModel — tenant nullable, resolved post-parse). `Direction` unified inbound+outbound; `SenderType` (customer/system/agent); `Status` (8 members); `InboxStatus` (4); `InboxAction` (3). Threading: `message_id` (indexed, stored without `<>`), `in_reply_to`, `references`. Idempotency keys: `"in:{tenant_id}:{message_id}"` / `"out:{tenant_id}:{ticket_id}:{message_id}"`. `is_read` indexed (migration 0007). `save()` enforces immutability of `linked_at/by` + `actioned_at/by` once set. `BounceLog` for hard bounces. **`IMAPPollState`** (`uid_validity`+`last_uid` watermark; never-backfill safety) — migration 0008. **Only InboundEmail is registered in admin** — BounceLog and IMAPPollState are not.
 
 ### Knowledge (6)
-`Category`, `Article` (status: draft/pending_review/published/rejected/flagged; visibility: internal/public; review workflow + `search_vector` Postgres SearchVectorField + GinIndex; PDF/DOCX via mammoth + sanitisation; **`allowed_groups` M2M to UserGroup** — migration 0005; auto-slug with collision suffix via `Article.unscoped` scan), `KBRevision`, `KBVote` (session_key-keyed; unique per article+session), `KBSearchGap`, `KBTicketLink`. **Only Category + Article registered in admin** — the other 4 are not.
+`Category`, `Article` (status: draft/pending_review/published/rejected/flagged; visibility: internal/public; review workflow + `search_vector` Postgres SearchVectorField + GinIndex; PDF/DOCX via mammoth + sanitisation; **`allowed_groups` M2M to UserGroup** — migration 0005; auto-slug with collision suffix via `Article.unscoped` scan). **`Article.save()` (lines 136-140)** now resolves the current tenant from `main.context.get_current_tenant()` before the slug-uniqueness scan, and falls back to `"article"` when `slugify(title)` is empty — bug fix for DRF-created articles arriving with `tenant_id=None`. `KBRevision`, `KBVote` (session_key-keyed; unique per article+session), `KBSearchGap`, `KBTicketLink`. **Only Category + Article registered in admin** — the other 4 are not.
 
 ### Kanban (3)
 `Board` (`resource_type` TICKET/DEAL, `is_default`, **`is_personal`** added in migration 0004 — personal boards are private to creator), `Column` (board, order, optional status FK, wip_limit, color), `CardPosition` (polymorphic GenericFK; unique on column+content_type+object_id).
@@ -248,7 +254,7 @@ There are NO new WebSocket consumers from this work — chat still goes through 
 
 **newsfeed** (3): `NewsPost` (announcement/update/celebration/incident/general — 5 categories; pinned/published/urgent), `NewsPostReaction` (6 emoji choices), `NewsPostRead` (NOT tenant-scoped — row existence = read).
 
-**notifications** (2): `Notification` (15 `NotificationType` choices), `NotificationPreference`. **`Notification` is NOT polymorphic** — it has only a `data` JSONField (no GenericFK; older docs that listed it as polymorphic are wrong).
+**notifications** (2): `Notification` (15 `NotificationType` choices), `NotificationPreference`. **`Notification` is NOT polymorphic** — it has only a `data` JSONField (no GenericFK).
 
 ### Agents / Custom Fields / Billing / Analytics / Attachments / Notes
 
@@ -265,7 +271,7 @@ There are NO new WebSocket consumers from this work — chat still goes through 
 **notes** (1): `QuickNote` (6 colors; pinning, position; per-user).
 
 ### API Keys (1)
-`APIKey(TenantScopedModel)` — fields: `name`, `service_user` (OneToOne to a hidden synthetic `User` with `is_service_account=True`; CASCADE), `role` (FK PROTECT — drives `HasTenantPermission`), `prefix` (first ~20 chars, indexed for lookup), `hashed_key` (SHA-512 hex; **cleartext never persisted**), `created_by` (PROTECT), `is_active`, `expires_at`, `last_used_at`/`last_used_ip`/`last_used_user_agent`, `request_count`. `unique_together=("tenant","name")`. Property `masked_prefix → "{prefix}…{hashed_key[-4:]}"`. **Cleartext is returned exactly once at creation/regeneration** — never recoverable afterward. Cleartext format: `kz_live_<tenant_slug>_<secret>`. Sister files in the app: `authentication.py` (DRF auth class; `Authorization: Api-Key …`; cross-tenant guard; timing-safe `secrets.compare_digest`; best-effort `last_used_*`/`request_count` update via `.update()` with no signals), `services.py` (mint/regenerate/revoke; each writes an `ActivityLog`; uses `transaction.on_commit` to queue creation email), `throttling.py` (**`SimpleRateThrottle`** subclass — per-`APIKey.pk` bucket, returns `None` for non-API-key auth; rate `1000/hour`), `middleware.py` (`RateLimitHeadersMiddleware` — emits `X-RateLimit-Limit/Remaining/Reset` from `request._kanzan_throttle_info`), `extensions.py` (drf-spectacular `APIKeyAuthScheme`; registered via `apps.py::ready()`), `views.py` (admin-only viewset; reveal/regenerate/revoke + email-task on create via `transaction.on_commit`), `tasks.py` (`send_api_key_created_email_task`).
+`APIKey(TenantScopedModel)` — fields: `name`, `service_user` (OneToOne to a hidden synthetic `User` with `is_service_account=True`; CASCADE), `role` (FK PROTECT — drives `HasTenantPermission`), `prefix` (first ~20 chars, indexed for lookup), `hashed_key` (SHA-512 hex; **cleartext never persisted**), `created_by` (PROTECT), `is_active`, `expires_at`, `last_used_at`/`last_used_ip`/`last_used_user_agent`, `request_count`. `unique_together=("tenant","name")`. Property `masked_prefix → "{prefix}…{hashed_key[-4:]}"`. **Cleartext is returned exactly once at creation/regeneration** — never recoverable afterward. Cleartext format: `kz_live_<slug6>_<token_urlsafe(32)>`. Sister files in the app: `authentication.py` (DRF auth class; `Authorization: Api-Key …`; cross-tenant guard; timing-safe `secrets.compare_digest`; best-effort `last_used_*`/`request_count` update via `.update()` with no signals), `services.py` (mint/regenerate/revoke; each writes an `ActivityLog`; uses `transaction.on_commit` to queue creation email), `throttling.py` (**`SimpleRateThrottle`** subclass — per-`APIKey.pk` bucket, returns `None` for non-API-key auth; rate `1000/hour`), `middleware.py` (`RateLimitHeadersMiddleware` — emits `X-RateLimit-Limit/Remaining/Reset` from `request._kanzan_throttle_info`), `extensions.py` (drf-spectacular `APIKeyAuthScheme`; registered via `apps.py::ready()`), `views.py` (admin-only viewset; regenerate/revoke + email-task on create via `transaction.on_commit`), `tasks.py` (`send_api_key_created_email_task`).
 
 ### VoIP (5)
 `VoIPSettings` (singleton via UniqueConstraint; encrypted ARI creds; STUN/TURN; `pjsip_context`; `recording_enabled`/`voicemail_enabled`/`is_active`; `asterisk_use_ssl` + related fields added in migration 0002), `Extension` (sip_username **globally unique**, encrypted password), `CallLog` (direction 3-choice, status 9-choice, `asterisk_channel_id` indexed, FKs to caller/callee Extension + Contact + Ticket; 4 indexes), `CallRecording` (1:1 CallLog; `tenants/{id}/recordings/YYYY/MM/{uuid}.{ext}`), `CallQueue` (5 ACD strategies + M2M Extension members).
@@ -277,37 +283,36 @@ There are NO new WebSocket consumers from this work — chat still goes through 
 
 **Hierarchy:** Admin(10) → Manager(20) → **Team Lead(25)** → Agent(30) / **IT(30)** / **HR(30)** → Viewer(40).
 
-**Default role seeding (`apps/tenants/signals.py::create_default_roles`)** runs on `Tenant.post_save (created=True)` and seeds **all seven** system roles: `admin` (10), `manager` (20), `team-lead` (25), `agent` (30), `it` (30), `hr` (30), `viewer` (40). All are marked `is_system=True`. Permission sets for the four perm-bearing system roles (admin/manager/team-lead/agent/it/hr — Viewer is intentionally permission-less and relies on the ≤40 view fallback in `HasTenantPermission`) come from `apps/accounts/defaults.py::ROLE_DEFINITIONS`. **Team Lead** (slug `team-lead`) is an elevated Agent — it has `ticket.delete/export`, `contact.delete/export`, `user.view`, `report.export`, the ops-config viewers (`queue.view`, `sla_policy.view`, `escalation_rule.view`), `kb_article.delete`, `kb_category.update`, `calendar_event.delete`, and `inbound_email.manage`. **IT** and **HR** (slugs `it`, `hr`) are departmental flavours of Agent that add only `user.view` — they get the same ticketing rights as Agent but show up as distinct entries in role pickers and reports. Backfill for existing tenants is via data migration `accounts/0011_seed_team_lead_it_hr_roles` (idempotent — uses `get_or_create` + `permissions.set()`). Test fixtures rely on this signal-driven seeding (e.g. `viewer_role` fixture in `conftest.py`).
+**Default role seeding (`apps/tenants/signals.py::create_default_roles`)** runs on `Tenant.post_save (created=True)` and seeds **all seven** system roles inline: `admin` (10), `manager` (20), `team-lead` (25), `agent` (30), `it` (30), `hr` (30), `viewer` (40). All are marked `is_system=True`. Permission sets for the **six** perm-bearing system roles (admin / manager / team-lead / agent / it / hr — Viewer is intentionally permission-less and relies on the ≤40 view fallback in `HasTenantPermission`) come from `apps/accounts/defaults.py::ROLE_DEFINITIONS` (6 entries, no Viewer). **Team Lead** (slug `team-lead`) is an elevated Agent — it has `ticket.delete/export`, `contact.delete/export`, `user.view`, `report.export`, the ops-config viewers (`queue.view`, `sla_policy.view`, `escalation_rule.view`), `kb_article.delete`, `kb_category.update`, `calendar_event.delete`, and `inbound_email.manage`. **IT** and **HR** (slugs `it`, `hr`) are departmental flavours of Agent that add only `user.view` — same ticketing rights as Agent but distinct entries in pickers and reports. Backfill for existing tenants is via data migration `accounts/0011_seed_team_lead_it_hr_roles` (idempotent — uses `get_or_create` + `permissions.set()`).
 
 - `is_admin`: `hierarchy_level ≤ 10`; `is_admin_or_manager`: `≤ 20`; `is_agent_or_above`: `≤ 30`. **Team Lead (25)** satisfies `is_agent_or_above` but NOT `is_admin_or_manager`. **IT/HR (30)** satisfy `is_agent_or_above`. Viewer (40) satisfies none of the three.
 - Non-manager row-scoping (`level > 20`): the membership sees only own/assigned tickets, linked contacts, filtered kanban cards, own reminders/activities (enforced by `IsTicketAccessible` and per-viewset `get_queryset` filters). Applies to Team Lead, Agent, IT, HR, Viewer.
 - **Always check `TenantMembership.effective_role`** — temporary role wins until `temporary_role_expires_at`. Used by context processor and permission classes.
+- **`AgentAvailabilityViewSet.assignable_roles`** (the role picker for grant_temp_role) **excludes the `admin` slug** to prevent privilege escalation through the UI. Each returned role dict also includes a `description` field.
 - **Permission classes** (`apps/accounts/permissions.py`):
   - `HasTenantPermission` — codename-based (ACTION_MAP maps 70+ DRF action names to `{resource}.{action}`); `apply_macro` → `update`; falls back to hierarchy defaults when the membership has no permissions in its qs (view → ≤40, create/update → ≤30, delete/other → ≤20).
-  - `IsTicketAccessible` — object-level row filtering for agents.
+  - `IsTicketAccessible` — object-level row filtering for agents (≤20 bypass; otherwise `created_by_id == user.pk OR assignee_id == user.pk`).
   - `IsTenantMember`, `IsTenantAdmin`, `IsTenantAdminOrManager`.
   - Helper `_get_membership()` caches the membership on `request._cached_tenant_membership` for repeated checks within a request.
-- `_role_required(20)` decorator gates admin/manager frontend pages (users, billing, agents, audit_log, groups). **Team Lead (25) does NOT pass `_role_required(20)`** by design — Team Lead is an elevated Agent, not a Manager. `_role_required(30)` gates the Outbound Emails page (admits Team Lead, Agent, IT, HR). **`/settings/` is `@_membership_required + @ensure_csrf_cookie`** — any member can load the page; API enforces admin-only writes (with a per-field allowlist for Managers — `auto_transition_on_assign`, `auto_send_ticket_created_email`, `auto_assign_inbound_email_tickets`).
+- `_role_required(20)` decorator gates admin/manager frontend pages (users, billing, agents, audit_log, groups). **Team Lead (25) does NOT pass `_role_required(20)`** by design. `_role_required(30)` gates the Outbound Emails page (admits Team Lead, Agent, IT, HR). **`/settings/` is `@_membership_required + @ensure_csrf_cookie`** — any member can load the page; API enforces admin-only writes (with a per-field allowlist for Managers — `auto_transition_on_assign`, `auto_send_ticket_created_email`, `auto_assign_inbound_email_tickets`).
 
 ## Signals (10 apps with signals.py + notifications/signal_handlers.py)
 
-Pre-existing committed: **accounts, custom_fields, knowledge, tenants, tickets, voip**. `notifications` uses `signal_handlers.py` (not `signals.py`).
-Newly added (uncommitted) for the live broadcast layer: **comments, contacts, crm, newsfeed**.
-`accounts/signals.py` was modified in the live work to add membership/profile/user broadcasters.
+Apps with `signals.py`: **accounts, comments, contacts, crm, custom_fields, knowledge, newsfeed, tenants, tickets, voip** (10). `notifications` uses `signal_handlers.py` (not `signals.py`).
 
 ### Tenants (`apps/tenants/signals.py`)
-- `Tenant.post_save (created=True)` → `create_tenant_settings`, `create_default_roles` (Admin/Manager/Agent/Viewer + permissions via `apps.accounts.defaults::ROLE_DEFINITIONS`).
+- `Tenant.post_save (created=True)` → `create_tenant_settings` + `create_default_roles` (inline lists **7 system roles**, each `is_system=True`) + `_assign_default_role_permissions` (iterates `ROLE_DEFINITIONS` from `apps/accounts/defaults.py`).
 
-### Accounts (`apps/accounts/signals.py` — MODIFIED for live layer)
+### Accounts (`apps/accounts/signals.py`) — drives live broadcast for user/profile/membership
 - `TenantMembership.post_save` → `create_profile_on_membership` (auto-creates Profile) + `broadcast_membership_save` (`membership.created/.updated`)
 - `TenantMembership.post_delete` → `broadcast_membership_delete`
 - `Profile.post_save` → `broadcast_profile_save` (`profile.created/.updated`)
 - `User.post_save` → `broadcast_user_save` (skips creation; on update fans `user.updated` across every active membership's tenant group via `values_list("tenant_id", flat=True)`)
 
-### Tickets (`apps/tickets/signals.py`) — 10 receivers (unchanged in working tree)
+### Tickets (`apps/tickets/signals.py`) — 10 receivers
 - `Ticket.pre_save` → `handle_ticket_status_change` (set resolved_at/closed_at, stash old values, check resolution breach)
 - `Ticket.post_save` → `fire_ticket_created_signal` + `fire_ticket_assigned_signal` (custom Django signals → webhooks + notification handlers)
-- `Ticket.post_save` → `log_ticket_activity` (writes ActivityLog; 2-second dedup; skips if `_skip_signal_logging` flag set)
+- `Ticket.post_save` → `log_ticket_activity` (writes ActivityLog; 2-second dedup; **respects `_skip_signal_logging` flag** set by service-layer functions)
 - `Ticket.post_save` → `sync_kanban_card_on_status_change`, `sync_kanban_card_on_pipeline_stage_change`, `create_kanban_card_on_ticket_save`
 - `Ticket.post_save` → `handle_sla_pause_on_status_change` (creates/closes `SLAPause` entering/leaving a `pauses_sla` status; shifts deadlines forward by business-adjusted pause duration)
 - `@receiver(ticket_closed)` → `check_kb_article_coverage` (flags `needs_kb_article` if category has <3 published articles)
@@ -318,7 +323,6 @@ Newly added (uncommitted) for the live broadcast layer: **comments, contacts, cr
 
 ### Knowledge (`apps/knowledge/signals.py`)
 - `Article.post_save` → `update_search_vector` (Postgres FTS; uses `.update()` to avoid recursion; skips on non-Postgres backends)
-- (Article review status transitions write audit log + email notifications — these are wired in views/services, not signals)
 
 ### Notifications (`apps/notifications/signal_handlers.py`)
 - `@receiver(ticket_assigned)` → `handle_ticket_assigned` (creates Notification, queues email task)
@@ -328,8 +332,8 @@ Newly added (uncommitted) for the live broadcast layer: **comments, contacts, cr
 ### VoIP (`apps/voip/signals.py`)
 - `CallLog.post_save` on terminal status (COMPLETED/MISSED/FAILED/BUSY/NO_ANSWER/VOICEMAIL) → writes `TicketActivity` + `comments.ActivityLog` + queues `process_call_recording`. `_timeline_logged` flag dedup; `_TERMINAL_STATUSES` frozenset at module top.
 
-### Live broadcast signals (NEW)
-See [Live Broadcast Layer](#live-broadcast-layer-uncommitted-2026-05-1415).
+### Live broadcast signals
+See [Live Broadcast Layer](#live-broadcast-layer-committed) — `comments/signals.py`, `contacts/signals.py`, `crm/signals.py`, `newsfeed/signals.py`.
 
 ## Dual-Write Logging
 
@@ -337,9 +341,11 @@ See [Live Broadcast Layer](#live-broadcast-layer-uncommitted-2026-05-1415).
 1. **TicketActivity** — human-readable timeline, 27 events. Endpoint: `/api/v1/tickets/tickets/{id}/timeline/`.
 2. **ActivityLog** — polymorphic audit trail with diffs+IP, 26 actions. Endpoint: `/api/v1/tickets/tickets/{id}/activity/`.
 
-**Dedup:** ViewSet sets `instance._skip_signal_logging = True` before save; signal checks flag. Use `serializer.instance` (not `self.get_object()`) in `perform_update` so the flag persists. 2-sec window in signal.
+**Dedup pattern:** The signal `log_ticket_activity` in `apps/tickets/signals.py` checks `instance._skip_signal_logging`. **Service-layer functions** (`assign_ticket`, `change_ticket_status`, `escalate_ticket`, `change_ticket_priority` in `apps/tickets/services.py`) set this flag before their `ticket.save(update_fields=…)` to prevent the post_save signal from double-writing an ActivityLog row that the service has already written explicitly. ViewSets also set it for direct mutations; use `serializer.instance` (not `self.get_object()`) in `perform_update` so the flag persists. 2-sec window in signal.
 
-**Service layer** (`apps/tickets/services.py`) — every mutation writes to BOTH logs atomically and broadcasts WebSocket events via `transaction.on_commit()`. Public functions: `create_ticket_activity`, `assign_ticket`, `transition_ticket_status`, `change_ticket_status`, `change_ticket_priority`, `log_ticket_comment`, `close_ticket`, `escalate_ticket`, `merge_tickets`, `split_ticket`, `bulk_update_tickets`, `apply_macro`/`render_macro`, `record_first_response`, `transition_pipeline_stage`, `initialize_sla`, `broadcast_ticket_event`, `validate_status_transition`, `resume_from_wait`. **Working-tree change** to `services.py`: `ALLOWED_TRANSITIONS["waiting"]` widened from `["open","in-progress"]` to `["open","in-progress","resolved","closed"]` — Waiting → Resolved/Closed are now legal status moves.
+**Service layer** (`apps/tickets/services.py`) — every mutation writes to BOTH logs atomically and broadcasts WebSocket events via `transaction.on_commit()`. Public functions: `create_ticket_activity`, `assign_ticket`, `transition_ticket_status`, `change_ticket_status`, `change_ticket_priority`, `log_ticket_comment`, `close_ticket`, `escalate_ticket`, `merge_tickets`, `split_ticket`, `bulk_update_tickets`, `apply_macro`/`render_macro`, `record_first_response`, `transition_pipeline_stage`, `initialize_sla`, `log_sla_change`, `broadcast_ticket_event`, `validate_status_transition`, `resume_from_wait`. Crucially, `ALLOWED_TRANSITIONS["waiting"]` is `["open","in-progress","resolved","closed"]` — Waiting → Resolved/Closed are legal status moves.
+
+**Kanban drags route through the service layer.** `apps/kanban/services.py::move_card(card_position, target_column, position, *, actor=None, request=None)` — when the dragged card is a `Ticket` AND the target column has a different status, the move calls `apps.tickets.services.change_ticket_status(content_obj, target_column.status, actor, request=request)` instead of a bare `save(update_fields=...)`. This means **kanban drags trigger the dual-write audit log + ticket-feed broadcast + SLA pause handling**, with the dragger captured as actor. Non-Ticket content (e.g. deals on personal boards) still falls back to the direct save. `CardPositionViewSet.move`/`reorder` pass `actor=request.user, request=request`.
 
 **Webhook service** (`apps/tickets/webhook_service.py`): `deliver_webhook` HMAC SHA-256 (`X-Webhook-Signature`), 10s timeout, auto-disable at 10 consecutive failures. `fire_webhooks(tenant, event_type, data)` dispatches async via Celery. Events: `ticket.created/updated/assigned/closed/reopened/comment`, `sla.breached`, `ticket.escalated` (8 EventType choices).
 
@@ -359,7 +365,7 @@ Single breach-detection entry point `get_effective_elapsed_minutes()`:
 
 ### Inbound (`apps/inbound_email/`)
 - **In-process SMTP server** (`smtp_server.py`) via `aiosmtpd`, launched by `run_smtp_server` management command (PM2 process `kanzan-smtp`). Validates RCPT against active tenants; rejects unknown with 550. Optional STARTTLS and LOGIN/PLAIN AUTH via env-configurable users dict.
-- **IMAP poller** (`imap_poller.py`) — shared Gmail-style mailbox; `poll_once()` fetches by UID > watermark (NOT UNSEEN — Gmail marks seen instantly). Driven by `fetch_inbound_emails_task` (Celery Beat, 60s). Disabled when `IMAP_HOST` is blank. **Safety guarantee:** never backfills — aborts the poll if UIDVALIDITY/UIDNEXT can't be parsed (regex extracts bare integers from bracketed `OK` response or untagged_responses dict, with `select_resp` fallback).
+- **IMAP poller** (`imap_poller.py`) — shared Gmail-style mailbox; `poll_once()` fetches by UID > watermark (NOT UNSEEN — Gmail marks seen instantly). Driven by `fetch_inbound_emails_task` (Celery Beat, 60s). Disabled when `IMAP_HOST` is blank. **Safety guarantee:** never backfills — aborts the poll if UIDVALIDITY/UIDNEXT can't be parsed.
 - **Tenant resolution** — 3 patterns via `resolve_tenant_from_address`: plus-addressing (`support+{slug}@...`), subdomain routing, custom `TenantSettings.inbound_email_address`. Fallback to `IMAP_DEFAULT_TENANT_SLUG` if configured.
 - **Filters** (`filters.py`) run BEFORE tenant resolution: loop detection (sender == `DEFAULT_FROM_EMAIL`), noreply senders, RFC 3834 Auto-Submitted / Precedence: bulk/junk/list, subject patterns. `classify_email()` → `bounce` / `auto_reply` / `loop` / `legitimate`. Bounces write `BounceLog` and flip `Contact.email_bouncing=True`.
 - **Threading** (`threading.py`) — `find_existing_ticket` 3-tier priority: In-Reply-To → References (reversed) → subject `[#N]` regex. All queries tenant-scoped. Outbound: `build_thread_headers(tenant, ticket, new_message_id)` reads last 10 related InboundEmails for Message-ID chain.
@@ -376,7 +382,7 @@ Single breach-detection entry point `get_effective_elapsed_minutes()`:
 ## Auto-Assign (Inbound Email → Agent)
 
 `apps/agents/services.py::pick_email_agent(tenant)`:
-1. Active tenant member with **`hierarchy_level == 30`** (pure Agent — excludes Admin/Manager).
+1. Active tenant member with **`hierarchy_level == 30`** (Agent / IT / HR — all three eligible since they share level 30).
 2. Must NOT be OFFLINE; agents with no `AgentAvailability` row are eligible.
 3. Pick the one with **fewest open tickets** (load balancing).
 4. Tie-break by **least-recently-assigned** (`MAX(TicketAssignment.created_at)`, NULLS FIRST for cold-start fairness).
@@ -396,9 +402,10 @@ Single breach-detection entry point `get_effective_elapsed_minutes()`:
 ## API Architecture
 
 ### Authentication
-- **API:** JWT (SimpleJWT) — 15min access, 7-day refresh, rotate + blacklist, HS256. **`APIKeyAuthentication`** (`apps.api_keys.authentication`) — `Authorization: Api-Key kz_live_<tenant_slug>_<secret>`. Returns `None` (not a 401) when the header is absent or uses a different scheme so JWT/Session can still try. Fails closed (401) on a valid-format but invalid/revoked/expired/cross-tenant key. Cross-tenant guard: when the Host already resolved to a tenant, the key's `tenant_id` must match. SHA-512 hash + `secrets.compare_digest`. Best-effort `last_used_*` + `request_count` update on each request via `.update()` (no signals).
+- **API:** JWT (SimpleJWT) — 15min access, 7-day refresh, rotate + blacklist, HS256. **`APIKeyAuthentication`** (`apps.api_keys.authentication`) — `Authorization: Api-Key kz_live_<slug6>_<secret>`. Returns `None` (not a 401) when the header is absent or uses a different scheme so JWT/Session can still try. Fails closed (401) on a valid-format but invalid/revoked/expired/cross-tenant key. Cross-tenant guard: when the Host already resolved to a tenant, the key's `tenant_id` must match. SHA-512 hash + `secrets.compare_digest`. Best-effort `last_used_*` + `request_count` update on each request via `.update()` (no signals).
+- **`DEFAULT_AUTHENTICATION_CLASSES` order in `main/settings/base.py:212-216`:** `JWTAuthentication` → `APIKeyAuthentication` → `SessionAuthentication`. JWT is tried FIRST; the API-key class engages only when no `Bearer` header is present (returns `None`).
 - **Frontend:** Session auth (Redis-backed cached_db, host-only cookie in dev).
-- **SSO:** django-allauth (Google, Microsoft, OpenID Connect) — `ACCOUNT_LOGIN_METHODS = {"email"}` (a set).
+- **SSO:** django-allauth (Google, Microsoft, OpenID Connect) — `ACCOUNT_LOGIN_METHODS = {"email"}` (a set). `django.contrib.sites` is NOT in INSTALLED_APPS, no `SITE_ID` — allauth ≥65 runs without the sites framework. `AUTHENTICATION_BACKENDS` is NOT explicitly set; relies on Django defaults + allauth's import-time injection.
 - **Global logout:** `User.auth_version` bumped invalidates all prior sessions; `SessionVersionMiddleware` enforces.
 
 ### `/api/v1/` Endpoint Map (22 router includes from `main/urls.py`, + 1 dual-mount)
@@ -406,16 +413,16 @@ Single breach-detection entry point `get_effective_elapsed_minutes()`:
 /tenants/            TenantViewSet (slug lookup), TenantSettingsViewSet (singleton; per-field Manager allowlist)
 /accounts/           AuthViewSet (throttle_scope="auth"), UserViewSet, RoleViewSet, ProfileViewSet, InvitationViewSet, TenantMembershipViewSet, UserGroupViewSet
 /api-keys/           APIKeyViewSet (admin-only; mint/list/reveal-once/regenerate/revoke; writes ActivityLog; queues creation-email task via transaction.on_commit)
-/tickets/            TicketViewSet (31 custom actions), TicketStatusViewSet, QueueViewSet, TicketCategoryViewSet, SLAPolicyViewSet, EscalationRuleViewSet, CannedResponseViewSet, MacroViewSet, SavedViewViewSet, BusinessHoursViewSet (singleton), PublicHolidayViewSet, TicketTemplateViewSet, WebhookViewSet, CSATSubmitView (public)
+/tickets/            TicketViewSet (~36 custom actions), TicketStatusViewSet, QueueViewSet, TicketCategoryViewSet, SLAPolicyViewSet, EscalationRuleViewSet, CannedResponseViewSet, MacroViewSet, SavedViewViewSet, BusinessHoursViewSet (singleton), PublicHolidayViewSet, TicketTemplateViewSet, WebhookViewSet, CSATSubmitView (public)
 /contacts/           ContactViewSet, CompanyViewSet, AccountViewSet, ContactGroupViewSet
 /billing/            PlanViewSet (AllowAny), SubscriptionViewSet (singleton + cancel/reactivate), InvoiceViewSet, UsageViewSet, checkout, webhook (CSRF-exempt, Stripe-signed)
-/kanban/             BoardViewSet (+detail), ColumnViewSet, CardPositionViewSet (+move/reorder/add-ticket)
+/kanban/             BoardViewSet (+detail), ColumnViewSet, CardPositionViewSet (+move/reorder/add-ticket; move now actor+request aware → routes Ticket status changes through services)
 /comments/           CommentViewSet, ActivityLogViewSet (read-only)
-/messaging/          ConversationViewSet (+add/remove/leave/search-participants), MessageViewSet (+ NEW broadcast action)
+/messaging/          ConversationViewSet (+add/remove/leave/search-participants), MessageViewSet (+ broadcast author-only action)
 /notifications/      NotificationViewSet (+mark_read, unread_count, admin-only cleanup), NotificationPreferenceViewSet
 /attachments/        AttachmentViewSet (multipart upload, cross-tenant validated)
 /analytics/          DashboardView (APIView), ReportDefinitionViewSet, DashboardWidgetViewSet, ExportJobViewSet, CalendarEventViewSet
-/agents/             AgentAvailabilityViewSet (10+ actions incl. grant_temp_role/revoke_temp_role/reactivate), CustomAgentStatusViewSet
+/agents/             AgentAvailabilityViewSet (10+ actions incl. grant_temp_role/revoke_temp_role/reactivate; assignable_roles excludes admin slug), CustomAgentStatusViewSet
 /custom-fields/      CustomFieldDefinitionViewSet, CustomFieldValueViewSet (read-only)
 /knowledge/          CategoryViewSet, ArticleViewSet (+submit_for_review/approve/reject/record_view/remove_file/preview_file/vote), KBSearchView
 /notes/              QuickNoteViewSet
@@ -429,11 +436,11 @@ Single breach-detection entry point `get_effective_elapsed_minutes()`:
 
 **Non-HTTP inbound channel:** `kanzan-smtp` PM2 process accepts mail on `SMTP_SERVER_HOST:SMTP_SERVER_PORT` (default `0.0.0.0:2525`) and feeds the same `InboundEmail` + Celery pipeline.
 
-**Docs:** `/api/docs/` (Swagger UI), `/api/schema/` (OpenAPI 3.0 JSON).
+**Docs:** `/api/docs/` (Swagger UI — shows both `ApiKeyAuth` and JWT Bearer in the Authorize dialog thanks to `apps.api_keys.extensions.APIKeyAuthScheme`), `/api/schema/` (OpenAPI 3.0 JSON).
 
-### TicketViewSet — 31 Custom Actions
+### TicketViewSet — ~36 Custom Actions
 
-Permission stack: `[IsAuthenticated, HasTenantPermission, IsTicketAccessible]`, `permission_resource = "ticket"`.
+Permission stack: `[IsAuthenticated, HasTenantPermission, IsTicketAccessible]`, `permission_resource = "ticket"`. `views.py` defines 36 `@action` decorators (both `detail=True` and `detail=False`; some are URL-path-mapped variants).
 
 - **Mutations:** `assign`, `close`, `change_status`, `change_stage`, `escalate`, `restore`, `merge`, `split` (Manager+ gates inside merge/split/bulk-delete)
 - **Timeline:** `comments`, `activity`, `timeline`, `mark_all_read`
@@ -444,20 +451,20 @@ Permission stack: `[IsAuthenticated, HasTenantPermission, IsTicketAccessible]`, 
 - **Time:** `time_entries`, `time_summary`, `time_entry_detail`
 - **Search:** `lookup` (number-only, ignores soft-delete), `search`, `teammates`, `team_progress` (Manager+ inside)
 
-**Working-tree change to `views.py`:** translates Django `ValidationError` → DRF `ValidationError` on status transition validation so clients get a clean 400 instead of 500.
+`views.py` translates Django `ValidationError` → DRF `ValidationError` on status transition validation so clients get a clean 400 instead of 500.
 
 ### Other notable @action surfaces
-- **`AgentAvailabilityViewSet`** (apps/agents/views.py): `set_status`, `my_status`, `all_members`, `assignable_roles` (admin), `role_permissions/{role_id}` (admin), `grant_temp_role` (admin), `revoke_temp_role`, `reactivate` (admin), `online`, `workload`. Drives `TenantMembership.temporary_role` + curated `temporary_permissions` overrides.
+- **`AgentAvailabilityViewSet`** (apps/agents/views.py): `set_status`, `my_status`, `all_members`, `assignable_roles` (admin — **excludes admin slug**), `role_permissions/{role_id}` (admin), `grant_temp_role` (admin), `revoke_temp_role`, `reactivate` (admin), `online`, `workload`. Drives `TenantMembership.temporary_role` + curated `temporary_permissions` overrides.
 - **`ReminderViewSet`**: `overdue`, `stats`, `complete`, `cancel`, `reschedule`, `bulk_action`.
 - **`InboxViewSet`**: `link`, `action` (url_path; method `take_action`), `ignore`. Agent inbox workflow on `/inbound-email/` and `/emails/`.
 - **`NewsPostViewSet`**: `react` (POST upsert / DELETE clear), `mark_read`, `mark_all_read`, `unread_count`. Dynamic permissions via `get_permissions()`.
 - **`ArticleViewSet`**: `submit_for_review`, `approve`, `reject`, `record_view`, `remove_file`, `preview_file` (mammoth+sanitiser), `vote`.
 - **`WebhookViewSet`**: `test`, `reset_failures`.
 - **`ConversationViewSet`**: `add_participant`, `leave`, `search_participants` (bypasses `user.view` perm), `remove_participant`.
-- **`MessageViewSet`**: **`broadcast` (NEW, author-only)** — re-emit a message over chat group after attachment linking.
+- **`MessageViewSet`**: `broadcast` (author-only) — re-emit a message over chat group after attachment linking.
 
-### REST Framework Config
-- Authentication: **`APIKeyAuthentication`, `JWTAuthentication`, `SessionAuthentication`** (default — Api-Key checked first; falls through to JWT then Session when header isn't `Api-Key`).
+### REST Framework Config (`main/settings/base.py:210-237`)
+- Authentication order: **`JWTAuthentication`, `APIKeyAuthentication`, `SessionAuthentication`** (JWT first; APIKey only engages when JWT defers; Session as fallback).
 - Pagination: PageNumberPagination, PAGE_SIZE=50.
 - Filtering: DjangoFilterBackend + SearchFilter + OrderingFilter.
 - Throttle classes (default, applied to every viewset): `ScopedRateThrottle`, `apps.api_keys.throttling.APIKeyRateThrottle`.
@@ -515,12 +522,12 @@ Stack: `ProtocolTypeRouter({"http": django_asgi_app, "websocket": AllowedHostsOr
 
 `WebSocketTenantMiddleware` (`apps/tenants/middleware.py`) decodes the `Host` header from scope, resolves Tenant via subdomain or `domain` field, sets `scope["tenant"]` and binds `set_current_tenant()` for the lifetime of the connection; clears in `finally:`.
 
-1. **Chat:** `ws/messaging/{conversation_id}/` → `ChatConsumer`. Actions: `send_message`, `typing`, `mark_read`. Group: `chat_{conversation_id}`. Limits: 10KB/msg, 5 msg/s, 2s typing cooldown. Validates participant + tenant. **Working-tree change**: outbound `chat_message` payload now includes `attachments: []` and falls back to `email` for `author_name`.
+1. **Chat:** `ws/messaging/{conversation_id}/` → `ChatConsumer`. Actions: `send_message`, `typing`, `mark_read`. Group: `chat_{conversation_id}`. Limits: 10KB/msg, 5 msg/s, 2s typing cooldown. Validates participant + tenant. Outbound `chat_message` payload includes `attachments: []` and falls back to `email` for `author_name`.
 2. **Notifications:** `ws/notifications/` → `NotificationConsumer`. Group: `notifications_{user_id}`. Inbound: `{action: "mark_read", notification_id}`. No tenant verification (user-scoped group).
 3. **Ticket Presence:** `ws/tickets/{ticket_id}/presence/` → `TicketPresenceConsumer`. Events: `agent_joined`, `agent_left`. Group: `ticket_{ticket_id}_presence`. Heartbeat support. **Known gap:** docstring mentions a `presence_list` event for newcomers to learn existing viewers; it is **not implemented** — newly joined clients only see their own `agent_joined` until other members trigger another broadcast.
 4. **Ticket Feed:** `ws/tickets/feed/` → `TicketListConsumer`. Events: `ticket_created/updated/assigned/closed/deleted`. Group: `ticket_feed_{tenant_id}`. Read-only (`receive_json` is a no-op). Client-side `ticket-feed.js` republishes events into `LiveBus` as `ticket.*`.
 5. **VoIP:** `ws/voip/events/` → `CallEventConsumer`. Events: `call_ringing/answered/ended/hold`. Group: `voip_{tenant_id}`.
-6. **Live (NEW):** `ws/live/` → `LiveEventConsumer`. Group: `live_tenant_{tenant_id}`. Read-only fan-out for newsfeed/CRM/contacts/comments/profile/membership events. Anon → close 4001; non-member → close 4003.
+6. **Live:** `ws/live/` → `LiveEventConsumer`. Group: `live_tenant_{tenant_id}`. Read-only fan-out for newsfeed/CRM/contacts/comments/profile/membership events. Anon → close 4001; non-member → close 4003.
 
 ## Celery Tasks & Beat Schedule
 
@@ -531,6 +538,7 @@ apps.notifications.tasks.send_email_*             → kanzan_email
 apps.notifications.tasks.send_notification_email  → kanzan_email
 apps.inbound_email.tasks.*                        → kanzan_email
 apps.tickets.tasks.send_ticket_*                  → kanzan_email
+apps.api_keys.tasks.send_api_key_*                → kanzan_email
 apps.voip.tasks.*                                 → kanzan_voip
 *                                                 → kanzan_default
 ```
@@ -549,13 +557,13 @@ Default queue: `kanzan_default`. No explicit `include` list — relies on `app.a
 | `cleanup-stale-calls` | `apps.voip.tasks.cleanup_stale_calls` | 3600s (hourly) |
 | `fetch-inbound-emails` | `apps.inbound_email.tasks.fetch_inbound_emails_task` | 60s |
 
-> Knowledge-base tasks register with `name="knowledge_base.alert_stale_articles"` / `name="knowledge_base.send_gap_digest"` (not the module path); both live in `apps/knowledge/tasks.py`.
+> Knowledge-base tasks register with `name="knowledge_base.alert_stale_articles"` / `name="knowledge_base.send_gap_digest"`; both live in `apps/knowledge/tasks.py`.
 
 > Celery Beat uses the **built-in shelve scheduler** (`celerybeat-schedule` file at repo root). `django-celery-beat` was removed — incompatible with Django 6.0.
 
 > `apps.crm.tasks.check_overdue_reminders` and `apps.tickets.tasks.check_sla_breach_warnings` exist in code but are **NOT in the Beat schedule**.
 
-### Task Inventory (23 tasks across 7 modules)
+### Task Inventory (~23 tasks across 7 modules)
 - **notifications**: `send_notification_email` (retries=3, default_retry_delay=60s, acks_late, kanzan_email), `cleanup_old_notifications` (batch 1000)
 - **analytics**: `process_export_job` (retries=3; CSV/XLSX; openpyxl optional → CSV fallback; routes to `kanzan_default`)
 - **inbound_email**: `fetch_inbound_emails_task`, `process_inbound_email_task` (retries=3, default_retry_delay=30s, acks_late, kanzan_email)
@@ -563,6 +571,7 @@ Default queue: `kanzan_default`. No explicit `include` list — relies on `app.a
 - **voip**: `process_call_recording`, `cleanup_stale_calls`, `sync_call_state` (queue `kanzan_voip`)
 - **crm**: `check_overdue_reminders` (max_retries=1, acks_late, NOT in Beat — escalates to managers if overdue >24h), `calculate_lead_scores`, `calculate_account_health_scores`
 - **knowledge**: `alert_stale_articles`, `send_gap_digest` (registered as `knowledge_base.*`)
+- **api_keys**: `send_api_key_created_email_task` (bind, retries=3, default_retry_delay=60s, acks_late, kanzan_email; cleartext NOT included in email)
 
 ## PM2 Processes — 5 prod / 4 dev
 
@@ -589,40 +598,41 @@ Common: `kill_timeout=8000ms` (15000ms for worker), `max_restarts=10`, `min_upti
 
 ## Frontend Architecture
 
-### JavaScript (`static/js/`, 13 modules, ~4,160 LOC — vanilla, no React/Vue)
+### JavaScript (`static/js/`, 13 modules, ~4,031 LOC — vanilla, no React/Vue)
 | Module | LOC | Role |
 |--------|----:|------|
-| **`live-bus.js` (NEW)** | 175 | Global pub/sub `window.LiveBus` (on/onMany/publish/debounce/rafBatch/isConnected/setChannelState + wildcards + BroadcastChannel cross-tab) |
-| **`live-connection.js` (NEW)** | 206 | Single shared `wss?:/ws/live/` socket; 25s heartbeat / 8s pong; backoff 1s→30s+jitter, infinite retries; visibility hook for instant reconnect; `live.reconnected` on recovery |
-| `api.js` | 90 | Central API client (CSRF from cookie, session credentials, JSON + multipart) |
-| `app.js` (MODIFIED) | 843 | Global init: alerts, sidebar collapse, density, notification WS, Toast (uses var() colours), `Kanzan.formatDate/formatDateTime/timeAgo`, sidebar badge polling, **`initLiveStatusPill()`**, **`initSidebarUserLive()`**, `initSidebarBadges()` (still uses legacy `kanzan:notification` CustomEvent). **Working-tree change**: new-notification WS handler no longer calls `Toast.info` — instead `ringBell()` swings the bell + `showFlyout(data)` displays a bell-anchored peek-preview card (`#notifFlyout`) for 5s with an animated progress bar; `updateBadge(count, {bump:true})` re-triggers the `.is-bumping` scale animation on the badge |
-| `ticket-feed.js` (MODIFIED) | 247 | WebSocket `ws/tickets/feed/`. Auto-connects via `data-ticket-feed` or URL match. Toasts + banner + row pulse. **Publishes into LiveBus** (lines 84–92): server `ticket_*` → `ticket.<verb>` + aggregated `ticket.event`. Banner click → `ticket.show_pending {count}` |
+| `live-bus.js` | 175 | Global pub/sub `window.LiveBus` (on/onMany/publish/debounce/rafBatch/isConnected/setChannelState + wildcards + BroadcastChannel cross-tab) |
+| `live-connection.js` | 206 | Single shared `wss?:/ws/live/` socket; 25s heartbeat / 8s pong; backoff 1s→30s+jitter, infinite retries; visibility hook for instant reconnect; `live.reconnected` on recovery |
+| `api.js` | 90 | Central API client (CSRF from cookie + meta fallback, session credentials, JSON + multipart) |
+| `app.js` | 843 | Global init: alerts, sidebar collapse, density, notification WS, Toast (uses var() colours), `Kanzan.formatDate/formatDateTime/timeAgo`, sidebar badge polling, `initLiveStatusPill()`, `initSidebarUserLive()`, `initSidebarBadges()` (still uses legacy `kanzan:notification` CustomEvent). New-notification WS handler calls `ringBell()` (swings the bell + radial halo for ~950ms) + `showFlyout(data)` displays a bell-anchored peek-preview card (`#notifFlyout`) for **3s** with an animated progress bar; `updateBadge(count, {bump:true})` re-triggers the `.is-bumping` scale animation on the badge |
+| `ticket-feed.js` | 247 | WebSocket `ws/tickets/feed/`. Auto-connects via `data-ticket-feed` or URL match. Banner + row pulse. Publishes into LiveBus (`ticket.<verb>` + aggregated `ticket.event`). Banner click → `ticket.show_pending {count}`. **Tenant-wide `ticket_assigned` toast removed** (assignee already gets bell flyout) |
 | `voip-softphone.js` | 710 | SIP.js 0.21.2 (CDN) + `CallEventConsumer`. Dial pad, DTMF, mute/hold/transfer/hangup, incoming-call modal |
 | `notes-panel.js` | 238 | Quick notes CRUD (6 colors, pinning, localStorage) |
 | `theme.js` | 77 | light/dark/system (default dark). Loaded SYNCHRONOUSLY in `<head>` to prevent FOUC. Persists `kanzan_theme` to localStorage. matchMedia listener |
 | `agent-availability.js` | 227 | Status toggle + persistence. Uses `var(--status-info-dot)` etc. inline |
 | `command-palette.js` | 337 | Cmd+K modal: static pages + dynamic search (200ms debounce on tickets/contacts) |
 | `custom-select.js` | 371 | `KanzenSelect` global with portal rendering + searchable when >8 options |
-| `rich-editor.js` | 191 | TipTap wrapper. Page-specific load (not in base.html) — used by ticket create/detail and KB article pages |
+| `rich-editor.js` | 191 | TipTap wrapper. Page-specific load (not in base.html) — used by ticket create/detail and KB article pages. **TipTap is loaded via importmap from `esm.sh`** (inline in `tickets/detail.html` lines 987–1000); the module expects `window.tiptap` already populated |
 | `keyboard-shortcuts.js` | 318 | Global hotkeys: j/k navigate, Enter open, Esc deselect; a/s/x row actions; Ctrl+K palette; c new ticket; ? help; g d/t/c/b go-to. Injects runtime `<style>` using `var(--crm-primary)` etc. Disabled inside inputs |
 
 ### CSS
-- **`static/css/custom-v15.css`** — **23,271 lines.** Live stylesheet, referenced from `base.html`. Design system "Crimson Black v9". Recent growth: API-keys Developer settings tab + reveal/regenerate/revoke modals + quickstart page (~+1.1k lines, fe0ad66) and the bell-anchored notification flyout + bell-ring/badge-bump animations (~+219 lines, uncommitted; respects `prefers-reduced-motion`).
-- **`static/css/custom.css`** — 20,431 lines. Committed snapshot of the previous version; **NOT loaded** by base.html. Allowlisted in `scripts/check_theme.py` (so its legacy hex literals don't trip the regression guard).
-- Foundation tokens added 2026-05-13 (in both `:root` and `[data-bs-theme="dark"]`): `--crm-text-on-primary/accent/dark`, `--crm-card-bg`, `--crm-input-bg{,-focus,-border}`, `--crm-scrollbar-{track,thumb,thumb-hover}`, `--crm-skeleton-{base,highlight}`, `--crm-overlay`.
-- Components: stat cards with left accent, soft badges, kanban drag-and-drop, chat bubbles (now incl. pending-attachments tray), timeline dots, toast notifications (with exit animation), notes panel, knowledge base, calendar, softphone widget, audit log tabs/stats, command palette, quick notes, **"light island" auth pinning** (hardcoded values for autofill — explained inline; the only place hex literals are intentionally kept).
+- **`static/css/custom-v15.css`** — **23,759 lines.** Live stylesheet, referenced from `base.html`. Design system "Crimson Black v9". Recent growth: API-keys settings tab + reveal/regenerate/revoke modals + quickstart page (fe0ad66), bell-anchored notification flyout + bell-ring/badge-bump animations (2ae1d2d), and **"AUDIT LOG — REDESIGNED (2026-05-15)"** section spanning lines 22494–23759 (~1,265 lines from 241e407). Respects `prefers-reduced-motion`.
+- **`static/css/custom.css`** — 20,431 lines. Committed snapshot of the previous version; **NOT loaded** by base.html. Allowlisted in `scripts/check_theme.py`.
+- Foundation tokens (in both `:root` and `[data-bs-theme="dark"]`): `--crm-text-on-primary/accent/dark`, `--crm-card-bg`, `--crm-input-bg{,-focus,-border}`, `--crm-scrollbar-{track,thumb,thumb-hover}`, `--crm-skeleton-{base,highlight}`, `--crm-overlay`.
+- Components: stat cards with left accent, soft badges, kanban drag-and-drop, chat bubbles (now incl. pending-attachments tray), timeline dots, toast notifications (with exit animation), notes panel, knowledge base, calendar, softphone widget, audit log tabs/stats, command palette, quick notes, **"light island" auth pinning** (hardcoded values for autofill — explained inline).
 - Font: Inter (Google Fonts), 0.875rem fluid base; mobile collapses sidebar <992px.
 
-### Theming Architecture (refactored 2026-05-13, refined in working tree)
+### Theming Architecture
 Per-tenant runtime theming flows: **`TenantSettings.primary_color/accent_color`** → `apps/tenants/colors.py::derive_palette()` → `tenant_palette` context var (`apps/tenants/context_processors.py`) → inline `<style>` block in `templates/base.html` (lines 30–86) → CSS custom properties resolved by every rule body.
 
-- **`apps/tenants/colors.py`** derives a **~21-value palette** from the tenant's primary + accent hex inputs (defaults `#C1121F` / `#E11D2D` — Crimson Black; note `TenantSettings` field defaults are `#6366F1`/`#F59E0B`, but the function-level fallback if the value is unset/malformed is Crimson Black): 50–900 scale, `primary_{hover,active,dark,light,subtle,ring,rgb}`, accent variants, and **`text_on_primary` / `text_on_accent`** picked by WCAG 2.x relative luminance (white vs near-black `#0B0B0B`, whichever wins ≥ 4.5:1). A `logger.warning` fires when the winning contrast is below WCAG AA so admins are alerted.
-- **`base.html` palette block** (lines 30–86) emits **~32 CSS variables** (palette + Bootstrap overrides + semantic-red retheme + focus glows + `--crm-gradient`). Selector `:root, [data-bs-theme="light"], [data-bs-theme="dark"]` so the override wins over `custom-v15.css`'s defaults by source order. **Working-tree tweak:** `--crm-gradient` was changed from `primary→accent` to `primary→primary_dark` for less-saturated brand bars.
+- **`apps/tenants/colors.py`** (159 lines) derives a **~21-value palette** from the tenant's primary + accent hex inputs (defaults `#C1121F` / `#E11D2D` — Crimson Black; note `TenantSettings` field defaults are `#6366F1`/`#F59E0B`, but the function-level fallback if the value is unset/malformed is Crimson Black): 50–900 scale, `primary_{hover,active,dark,light,subtle,ring,rgb}`, accent variants, and **`text_on_primary` / `text_on_accent`** picked by WCAG 2.x relative luminance (white vs near-black `#0B0B0B`, whichever wins ≥ 4.5:1). A `logger.warning` fires when the winning contrast is below WCAG AA so admins are alerted.
+- **`base.html` palette block** (lines 30–86) emits **~35 CSS variables** (palette + Bootstrap overrides + semantic-red retheme + focus glows + `--crm-gradient`). Selector `:root, [data-bs-theme="light"], [data-bs-theme="dark"]` so the override wins over `custom-v15.css`'s defaults by source order. `--crm-gradient` is `primary→primary_dark` for less-saturated brand bars.
 - **No hex literal in rule bodies.** Every brand red is routed through `var(--crm-primary*)`. Every white used as `color:` is `var(--crm-text-on-primary)`. Every neutral gray is property-aware (`color:` → `--crm-text-*`, `background:` → `--crm-surface*`, `border:` → `--crm-border*`). Status semantic colours route through the `--status-*` ramp.
 - **JS color dicts** (`static/js/app.js` `NOTIF_TYPE_CONFIG`, `Toast._colors`; `keyboard-shortcuts.js`; `agent-availability.js`) use `'var(--crm-*)'` / `'var(--status-*)'` string literals. Browsers resolve `var()` at CSS-value time when assigned via `element.style.X = '<var()>'`.
-- **`withAlpha(color, percent)` helper** (templates/pages/dashboard.html, tickets/list.html, contacts/list.html — NEW in working tree): when `color` is a hex, returns `hex+suffix`; when `color` is anything else (e.g. `var(--crm-primary)`), returns `color-mix(in srgb, <color> Y%, transparent)`. Replaces broken `color + '1A'` string concat patterns that silently dropped alpha on CSS-var inputs.
-- **Chart.js compatibility** (templates/pages/dashboard.html): 2D canvas does not resolve CSS `var()`, so charts use `cssVar(name, fallback)` + `resolveColor()` helpers that read via `getComputedStyle` first.
-- **Regression guard:** `scripts/check_theme.py` (run via `make theme-check`) scans static/templates for new off-token hex literals against a baseline (`scripts/.theme_baseline.json`). Strict mode (`make theme-check-strict`) fails on any hex outside the allowlist. Allowlist files: email templates (need inline hex for email clients), `templates/pages/settings/tenant.html` color picker, `apps/tenants/colors.py`, `static/js/theme.js`, `static/css/custom.css`. CSS comments + `:root`/`[data-bs-theme]` blocks + HTML `{% %}` tags + `<input type="color">` defaults + `data-*="hex"` attrs + entire `<script>` blocks are masked. Current baseline (`scripts/.theme_baseline.json`):
+- **`withAlpha(color, percent)` helper** (committed in `templates/pages/dashboard.html`, `tickets/list.html`, `contacts/list.html`): when `color` is a hex, returns `hex+suffix`; when `color` is anything else (e.g. `var(--crm-primary)`), returns `color-mix(in srgb, <color> Y%, transparent)`. Replaces broken `color + '1A'` string concat patterns.
+- **Dashboard chart colour map fix:** `STATUS_COLORS` and `PRIORITY_COLORS` in `dashboard.html` route through `--status-info-dot/--status-warning-dot/--status-danger-dot/--status-success-dot/--status-neutral-dot` instead of `--crm-primary/--crm-accent`. Rationale: Crimson Black tenants previously had every chart slice render in the same red.
+- **Chart.js compatibility** (`templates/pages/dashboard.html`): 2D canvas does not resolve CSS `var()`, so charts use `cssVar(name, fallback)` + `resolveColor()` helpers that read via `getComputedStyle` first.
+- **Regression guard:** `scripts/check_theme.py` (run via `make theme-check`) scans static/templates for new off-token hex literals against a baseline (`scripts/.theme_baseline.json`). Strict mode (`make theme-check-strict`) fails on any hex outside the allowlist. Allowlist files: `apps/tenants/colors.py`, `scripts/check_theme.py`, `templates/pages/settings/tenant.html`, `static/js/theme.js`, `static/css/custom.css`. Allowlist dirs: 4 email template dirs (`templates/{tickets,notifications,auth,knowledge}/email`), `tests/`, `.venv/`, `env/`, `node_modules/`, `.git/`. CSS comments + `:root`/`[data-bs-theme]` blocks + HTML `{% %}` tags + `<input type="color">` defaults + `data-*="hex"` attrs + entire `<script>` blocks are masked. **`.js` files have NO additional masking — JS hex IS flagged.** Current baseline:
 
 ```json
 {
@@ -636,19 +646,79 @@ Per-tenant runtime theming flows: **`TenantSettings.primary_color/accent_color`*
   "templates/pages/tickets/list.html": 1
 }
 ```
+Total: 127 tolerated hex literals across 8 files.
 
-> Baseline for `custom-v15.css` went from 67 → 83 in the working tree to absorb the intentional hex retained for browser autofill workaround + "light island" auth pinning + the white brand mark.
-
-- **Email templates excluded from sweep** — email clients strip `<style>` and require inline hex. Brand-coloured email tokens are left as literals; the right fix is to render them from `tenant_palette` at send time (separate refactor).
-
-### Templates (51 files total)
-- `templates/base.html` (254 lines) — layout + palette `<style>` + toast container + quick-notes panel + softphone include (conditional on `voip_enabled`) + DOMPurify v3.2.4 CDN + SIP.js 0.21.2 CDN (conditional) + Flatpickr 3-CDN-fallback global loader (jsdelivr → cdnjs → unpkg) + mobile detection IIFE (`is-mobile-html`/`is-mobile`/`is-mobile-sm` body classes based on touch + `screen.width<992/576`). Default theme: dark. Loads `static/css/custom-v15.css`. **Live-bus** always loaded; **live-connection** + agent-availability + notes + keyboard-shortcuts + ticket-feed conditional on `tenant and user.is_authenticated`.
-- `templates/includes/` (5 files) — `navbar.html` (with `#liveStatusPill` + the bell-anchored `#notifFlyout` peek-preview card added in working tree), `sidebar.html` (with `data-current-user-id`), `softphone.html`, `messages.html`, `kb_sidebar_widget.html` (**orphan** — no includer; check before removing).
-- `templates/pages/` — **14 subfolders** + 7 root files. Folders: agents/, analytics/, audit_log/, auth/, billing/, contacts/, emails/, **groups/**, inbound_email/, kanban/, knowledge/, messaging/, reminders/, settings/, tickets/, users/, voip/. Root: 403.html, calendar.html, dashboard.html, landing.html, login.html, profile.html, register.html.
-- `templates/landing/landing_crm.html` — standalone marketing page (doesn't extend `base.html`; tolerates landing-specific hex literals in the theme baseline).
+### Templates (47 .html files total)
+- `templates/base.html` (265 lines) — layout + palette `<style>` + toast container + quick-notes panel + softphone include (conditional on `voip_enabled`) + DOMPurify v3.2.4 CDN + SIP.js 0.21.2 CDN (conditional) + Flatpickr 3-CDN-fallback global loader (jsdelivr → cdnjs → unpkg) + mobile detection IIFE (`is-mobile-html`/`is-mobile`/`is-mobile-sm` body classes based on touch + `screen.width<992/576`) + **synchronous `kanzan_sidebar_collapsed` localStorage check at body open** to apply `.sidebar-collapsed` pre-paint and avoid FOUC. Default theme: dark. Loads `static/css/custom-v15.css`. **Live-bus** always loaded; **live-connection** + agent-availability + notes + keyboard-shortcuts + ticket-feed conditional on `tenant and user.is_authenticated`.
+- `templates/includes/` (6 files):
+  - `navbar.html` (189 lines) — `#liveStatusPill`, theme toggle, availability dropdown (gated `if user_role.hierarchy_level <= 30`), quick-create dropdown, notes toggle, notification cluster: `.notif-bell-btn#notifDropdown` + **`.notif-flyout#notifFlyout`** (lines 150–166) bell-anchored peek-preview card + standard notification dropdown menu (`#notifDropdownMenu`)
+  - `sidebar.html` (157 lines) — brand block, collapse button. **Several nav items are commented out** with `{% comment %}…{% endcomment %}` (Emails, Calls, Agents, Users, Settings, Billing) — the routes still exist but are reachable only via Settings page, user-footer dropdown, or direct URL. Footer dropdown (`.sidebar-user[data-current-user-id="{{user.id}}"]`) adds Profile / Settings / **API Quickstart** (added in fe0ad66) / Sign Out.
+  - `softphone.html` (169 lines) — floating widget, conditional on `voip_enabled`
+  - `messages.html` (21 lines) — Django messages framework iterator
+  - `kb_sidebar_widget.html` (158 lines) — **ORPHAN** (no template includes it; safe-deletion candidate)
+  - **`page_back_button.html`** (21 lines, NEW) — `<button#pageBackBtn>` hidden by default; only shows on non-sidebar pages (checks `window.location.pathname` against hardcoded list `['/dashboard/','/tickets/','/messaging/','/contacts/','/kanban/','/knowledge/','/calendar/','/reminders/','/analytics/','/audit-log/']`). Click → `history.back()` when `document.referrer` is same-origin, else `/dashboard/`. **Included by 17 page templates** (api_quickstart, audit_log/list, groups/list, kanban/board, agents/list, profile, reminders/list, tickets/list, billing/plans, analytics/overview, voip/call_history, users/list, calendar, inbound_email/list, knowledge/list, emails/list, contacts/list). **If a new top-level sidebar page is added, the hardcoded list must be updated** or Back will incorrectly render on sidebar pages.
+- `templates/pages/` — **17 subfolders + 8 root files**. Subfolders: agents/, analytics/, audit_log/, auth/, billing/, contacts/, emails/, groups/, inbound_email/, kanban/, knowledge/, messaging/, reminders/, settings/, tickets/, users/, voip/. Root: 403.html, **api_quickstart.html (443 lines)**, calendar.html, dashboard.html, landing.html, login.html, profile.html, register.html.
+- `templates/landing/landing_crm.html` (1,393 LOC) — standalone marketing page (doesn't extend `base.html`; tolerates landing-specific hex literals in the theme baseline).
 - Email templates (12 files / 6 pairs): `auth/email/verify_email.{html,txt}`, `tickets/email/{ticket_created,reply_notification,csat_survey}.{html,txt}`, `notifications/email/notification.{html,txt}`, `knowledge/email/article_rejected.{html,txt}`.
 
-### Context Processor (`apps/tenants/context_processors.py`)
+### Audit log page redesign (`templates/pages/audit_log/list.html`)
+
+Two top-level tabs (`pane-activity` default + `pane-inbound-email`). Activity pane gained a major **"Insights"** redesign in 241e407:
+- Hero block: live-pulse indicator + giant `#statTotal` count + stat tiles (today / this week / unique actors)
+- Side blocks: **Top contributor** (`.audit-insights-actor`), **Risk signal** (`#auditRiskBlock` — counts destructive actions this week)
+- Full-width **heat ribbon** (last 7 days) with `#heatPeakLabel`
+- Filter chip rail (`.audit-chiprail`) — toggle by action type with per-chip counts + clear-all button
+- Filter-dropdown panel: date range, actor multi-select, action multi-select
+- Day-grouped timeline (`.audit-timeline-stream#auditList` with `.audit-day-events` + `.audit-event` rows; trail line via `::before`)
+- Side drawer (`.offcanvas-end.audit-drawer`) for event detail with prev/next nav buttons
+- **`dedupTimeline()` helper** merges near-duplicate audit rows within a 2-second window keyed by `(action, object_id)` — prefers human actor over System and keeps the longest description
+- Detail panel gains a collapsible `<details>` "technical details" disclosure (raw UUID diffs + IP)
+- Traditional pagination, NOT infinite scroll
+
+### Kanban board page (`templates/pages/kanban/board.html`)
+
+Major overhaul in 241e407 (+691 lines). Now ships with a **filter panel ported from calendar.html**:
+- Personal vs shared boards (`boardIsPersonal` checkbox in create modal, defaults true)
+- Filter chips for assignee, priority, status, created-date with custom range
+- `.kanban-card-hidden` / `.kanban-column-hidden` CSS classes for client-side filter hiding
+- Filter panel teleported to `<body>` and uses fixed positioning at z-index 1085 to escape kanban transform stacking contexts
+- SortableJS 1.15.2 (CDN, page-specific) for column DnD; `onEnd` posts to position API
+- Drag handlers post to `CardPositionViewSet.move/reorder` which pass `actor=request.user, request=request` → ticket status changes route through `apps.tickets.services.change_ticket_status` (full audit/feed/SLA path)
+- Inline edit / delete-column / WIP-edit flow
+- Inline CSS lines 5–242; 1,380-line script block at end
+- CSS for filter chips is currently duplicated from `calendar.html` with a comment-noted TODO to lift into `custom-v15.css`
+
+### API quickstart page (`templates/pages/api_quickstart.html`, 443 lines)
+
+Developer guide for the API-keys feature, gated `@_membership_required`. Includes `page_back_button.html`. Sections (anchored with `id`s):
+1. `#what-is-the-api`
+2. `#get-an-api-key` — links to `/settings/#apiKeysPane`
+3. `#first-call` — 3-tab Bootstrap pill set (cURL / Python / JavaScript) with `<pre><code class="language-…">` blocks
+4. `#common-workflows` — 6 subsections: list-by-assignee, create ticket, add comment, upload attachment, KB search, subscribe to webhooks (with HMAC-SHA256 verification example)
+5. `#rate-limits` — explains `api_key=1000/hour` bucket + `X-RateLimit-*` headers
+6. Additional sections on errors / pagination
+
+### Settings hub (`templates/pages/settings/tenant.html`, 5,086 lines)
+
+Searchable hub with categorised cards on left, ~20 panes. Categories: Workspace (`generalPane`, `businessHoursPane`, `authPane`, `brandingPane`), Team (cards link to other pages), Channels (`signaturePane`), Support Operations (`categoriesPane`, `queuesPane`, `knowledgeBasePane`, `workflowPane`, `customStatusesPane`), Productivity (`cannedResponsesPane`), Preferences (`notificationsPane`, `themePane`, `languagePane`), Account (`passwordPane`, `dataPane`), **Developer & Integrations** (`apiKeysPane` + `apiDocsPane`).
+
+API-keys pane includes a name + role + expires-at form, filterable table (All / Active / Revoked-or-Expired), and three modals: `#apiKeyGenerateModal`, `#apiKeyRevealModal` (static backdrop — one-time cleartext reveal with copy button), plus regenerate + revoke confirmation modals.
+
+### Change-Role modal (`templates/pages/agents/list.html`)
+
+Old `<select>`-based picker replaced (241e407) with a card-grid picker (`.cr-card.cr-card--{admin|manager|team-lead|agent|it|hr|viewer|custom}`). Per-role metadata in `CR_ROLE_META` JS const: icon (`ti-crown`, `ti-briefcase`, `ti-user-star`, `ti-headset`, `ti-device-desktop`, `ti-user-heart`, `ti-eye`) + tone + blurb. "Save" is disabled when picked role equals current role.
+
+### TipTap canned-response helper (`templates/pages/tickets/detail.html`)
+
+New `cannedTextToTipTap(text)` helper (`detail.html:2165-2189`) — converts plain-text canned-response bodies into proper TipTap HTML: blank-line-separated `<p>`, single newline `<br>`. Pass-through when content already contains HTML tags. Used by both comment editor and description editor canned-response insertion paths.
+
+Also: inline field saves now **skip the success toast for `assignee`** — assignee already gets a bell flyout + dropdown updates + timeline refresh (no triple toast).
+
+### Calendar popover scroll bugfix (`templates/pages/calendar.html`)
+
+Day-events popover no longer closes when scrolling inside the popover itself. Adds `pop.contains(e.target)` guard in the scroll handler.
+
+### Context Processor (`apps/tenants/context_processors.py`, 81 lines)
 Injects into every template: `tenant`, `membership`, `user_role` (= `effective_role`), `is_admin`, `is_admin_or_manager`, `is_agent_or_above`, **`voip_enabled`** (queries `VoIPSettings.is_active`; controls softphone inclusion), **`tenant_palette`** (~21-key dict from `derive_palette`), `BASE_URL`. Caches membership on `request._cached_tenant_membership` to avoid double-fetch with DRF permission classes.
 
 ## Middleware Stack (14 layers)
@@ -661,7 +731,7 @@ Injects into every template: `tenant`, `membership`, `user_role` (= `effective_r
 7. AuthenticationMiddleware
 8. AccountMiddleware (allauth)
 9. **SessionVersionMiddleware** (custom — global logout via `User.auth_version`)
-10. **TenantMiddleware** (tenant resolution + async-safe context)
+10. **TenantMiddleware** (tenant resolution + async-safe context; `/admin/` has dedicated branch that resolves tenant from subdomain)
 11. **SubscriptionMiddleware** (billing enforcement — returns HTTP 402 when neither `is_active` nor `in_grace_period`)
 12. **RateLimitHeadersMiddleware** (`apps.api_keys.middleware` — emits `X-RateLimit-Limit/Remaining/Reset` on API-key requests; reads from `request._kanzan_throttle_info` stashed by `APIKeyRateThrottle`)
 13. MessageMiddleware
@@ -701,13 +771,14 @@ Injects into every template: `tenant`, `membership`, `user_role` (= `effective_r
 | Flatpickr | latest (3-CDN fallback) | Date pickers | base.html loader |
 | Chart.js | 4 (page-specific CDN) | Dashboard trends | — |
 | SortableJS | 1.15.2 (page-specific CDN) | Kanban DnD | — |
+| TipTap | 2 (esm.sh importmap, page-specific) | Rich text editor | — |
 | Jazzmin | ≥3.0,<4 | Admin theme | Custom sidebar + model icons |
 | daphne | ≥4.2,<5 | ASGI server | Listed in INSTALLED_APPS |
 | gunicorn | ≥25,<26 | WSGI/ASGI server | Production |
 | uvicorn[standard] | ≥0.40,<1 | ASGI worker | Production |
 | Flower | ≥2.0,<3 | Celery monitoring | Port 5556 |
 
-**Dev tools:** pytest ≥8.3, pytest-django ≥4.9, pytest-asyncio ≥0.24, pytest-cov ≥6, factory-boy ≥3.3, faker ≥33, ruff ≥0.8, django-debug-toolbar ≥4.4, django-extensions ≥3.2, ipython ≥8.31. **`requirements/prod.txt` has zero extras — just `-r base.txt`.**
+**Dev tools:** pytest ≥8.3, pytest-django ≥4.9, pytest-asyncio ≥0.24, pytest-cov ≥6, factory-boy ≥3.3, faker ≥33, ruff ≥0.8, django-debug-toolbar ≥4.4, django-extensions ≥3.2, ipython ≥8.31. **`requirements/prod.txt` has zero extras — just `-r base.txt`.** A root-level **`requirements.txt`** also exists and is byte-identical to `requirements/base.txt` (convenience for tools that default to `./requirements.txt`).
 
 ## Billing Plans
 
@@ -719,7 +790,7 @@ Injects into every template: `tenant`, `membership`, `user_role` (= `effective_r
 
 Plan also has: `has_realtime`, `has_custom_roles`, `max_custom_fields`, `max_calls_per_month`, `audit_retention_days` (NULL = unlimited).
 
-## Management Commands
+## Management Commands (7 total)
 
 ```bash
 # Tenancy
@@ -741,7 +812,7 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 ### In `.env.example` (16 keys)
 `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DATABASE_URL`, `REDIS_URL`, `BASE_DOMAIN`, `BASE_SCHEME`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `JWT_SECRET_KEY`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `KANZAN_FLOWER_AUTH`.
 
-### Read by `base.py` but NOT in `.env.example` (18+ keys)
+### Read by `base.py` but NOT in `.env.example` (10 keys)
 - **Base:** `BASE_PORT`
 - **IMAP:** `IMAP_HOST`, `IMAP_PORT`, `IMAP_USER`, `IMAP_PASSWORD`, `IMAP_MAILBOX`, `IMAP_USE_SSL`, `IMAP_DEFAULT_TENANT_SLUG`
 - **SMTP server:** `SMTP_SERVER_HOST`, `SMTP_SERVER_PORT`, `SMTP_SERVER_HOSTNAME`, `SMTP_SERVER_REQUIRE_AUTH`, `SMTP_SERVER_AUTH_USERS` (JSON dict), `SMTP_SERVER_TLS_CERT_FILE`, `SMTP_SERVER_TLS_KEY_FILE`
@@ -754,18 +825,15 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 
 ### Infrastructure
 - **Framework:** pytest + pytest-django.
-- **Module counts:** **54 root-level** `tests/test_*.py` + **7 app-level** (`apps/knowledge/tests/test_kb_gap_fill.py`, `apps/tickets/tests/test_{creation,escalation}.py`, plus 4 new `apps/api_keys/tests/test_{authentication,documentation,throttling,viewset}.py`) = **61 total** (~16,242 LOC in root; ~1,150 LOC for `apps/api_keys/tests/`; 43 test functions in api_keys split 15 / 19 / 5 / 4).
+- **Module counts:** **54 root-level** `tests/test_*.py` + **7 app-level** (`apps/knowledge/tests/test_kb_gap_fill.py`, `apps/tickets/tests/test_{creation,escalation}.py`, plus 4 in `apps/api_keys/tests/test_{authentication,documentation,throttling,viewset}.py`) = **61 total**.
 - **Config:** `pytest.ini` — `DJANGO_SETTINGS_MODULE=main.settings`, `pythonpath=.`. **No `asyncio_mode`** (pytest-asyncio defaults to `strict` — explicit decorators required). No `pyproject.toml`.
-- **Fixtures (`conftest.py`):** **16 factories + 20 fixtures (3 autouse:** `celery_eager`, `free_plan`, `clear_tenant_context`**).** `viewer_role`/`viewer_user`/`viewer_client` rely on the Viewer role being seeded by `apps/tenants/signals.py` on tenant creation.
+- **Fixtures (`conftest.py`):** **16 factories + 20 fixtures (3 autouse:** `celery_eager`, `free_plan`, `clear_tenant_context`**).** `viewer_role`/`viewer_user`/`viewer_client` rely on the Viewer role being seeded by `apps/tenants/signals.py` on tenant creation. **`RoleFactory` only declares 4 traits (admin/manager/agent/viewer)** — does not cover the new `team-lead`/`it`/`hr` roles; tests using `Role.unscoped.get(slug=...)` from the signal-seeded set work fine.
 - **Legacy base** (`tests/base.py`): `TenantTestCase` + `KanzenBaseTestCase` providing `tenant_a`/`tenant_b`, free + pro plans, all 4 roles per tenant, ticket statuses + SLA policy + helpers.
 - **Celery:** Eager mode (autouse fixture `celery_eager`).
+- **API-keys tests:** `apps/api_keys/tests/test_viewset.py::test_email_task_queued_on_create` wraps the POST in `django_capture_on_commit_callbacks(execute=True)` because `transaction.on_commit` callbacks are otherwise discarded by `pytest.mark.django_db`'s atomic-rollback teardown. Canonical pattern for exercising post-commit Celery dispatch under pytest-django.
+- **`Ticket.save()` company-auto-fill:** `tests/test_ticket_creation.py` gained 4 new tests in 241e407 — `test_company_auto_populated_from_contact_on_create`, `test_explicit_company_not_overwritten_by_contact`, `test_company_auto_populated_on_update_when_contact_linked_later`, `test_no_company_set_when_contact_has_no_company`.
 
-### Working-tree test edits
-- `tests/test_phase3_resolution.py` — one test was flipped: `test_waiting_to_resolved_blocked` (expected ValidationError) → `test_waiting_to_resolved_allowed` (Waiting → Resolved is now legal; SLA pause is cleared). Aligns with the `services.py` `ALLOWED_TRANSITIONS["waiting"]` widening.
-- `apps/api_keys/tests/test_authentication.py` — removed unused imports (`Role`, `APIKey`).
-- `apps/api_keys/tests/test_viewset.py::test_email_task_queued_on_create` — now wraps the POST in `django_capture_on_commit_callbacks(execute=True)` because `transaction.on_commit` callbacks are otherwise discarded by `pytest.mark.django_db`'s atomic-rollback teardown. This is the canonical pattern for exercising post-commit Celery dispatch under pytest-django.
-
-## Recent Migration Highlights (verify against `git log`)
+## Recent Migration Highlights
 
 | App | Latest | What it adds |
 |-----|--------|--------------|
@@ -778,7 +846,6 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 | **api_keys** | **0001_initial** | `APIKey` model (TenantScoped) — service-account credentials with prefix lookup + SHA-512 hash |
 | billing | 0002_plan_has_call_recording_plan_has_voip_and_more | VoIP feature flags on Plan |
 | comments | **0009_alter_activitylog_action** | ActivityLog action choices grow to **26** (adds api_key_created/regenerated/revoked) |
-| comments | 0008_alter_activitylog_action | ActivityLog action choices were at 23 (added reminder lifecycle + outbound_call_*) |
 | contacts | 0005_widen_phone_field | Wider phone field |
 | crm | 0004_reminder_m2m_contacts_tickets | **Reminder.contact/ticket FK → contacts/tickets ManyToMany** with data-preserving copy |
 | inbound_email | 0008_…_imappollstate | IMAPPollState model (uid_validity + last_uid watermark) |
@@ -794,6 +861,7 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 ## Performance Optimizations
 
 - **Analytics closed-status cache** — per-request `_closed_status_cache` in `DashboardView` avoids repeated DB lookups across `get_ticket_stats`/`get_agent_performance`/`get_due_today`/`get_overdue_tickets`.
+- **Analytics negative-delta guard** — `get_hourly_trends` filters `first_responded_at__gte=F("created_at")` and `resolved_at__gte=F("created_at")` so rows with logically-impossible negative deltas no longer poison the aggregate.
 - **Kanban N+1 fix** — `BoardDetailSerializer.get_columns` batch-fetches GenericFK content objects grouped by content_type; Tickets pre-select `status` and `assignee`.
 - **Kanban populate** — `populate_board_from_tickets` uses subquery `.exclude()` instead of loading all ticket IDs.
 - **Comment attachment prefetching** — ticket detail batch-fetches and sets `_prefetched_attachments`. Same pattern now used by `MessageSerializer.attachments`.
@@ -823,7 +891,8 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 - **Global logout via `auth_version`** — `SessionVersionMiddleware` invalidates sessions when user.auth_version is bumped.
 - **InboundEmail immutability** — `linked_at/by` and `actioned_at/by` raise `ValidationError` if changed once set.
 - **IMAP "never backfill"** — poll aborts cleanly rather than ingesting historical mail when UIDVALIDITY/UIDNEXT can't be parsed.
-- **Superuser-only admin** — `main/admin.py::SuperuserOnlyAdminSite` replaces the default site; non-superusers 403 on `/admin/`.
+- **Superuser-only admin** — `main/admin.py::SuperuserOnlyAdminSite` replaces the default site; non-superusers 403 on `/admin/`. Subdomain-scoped admin sets `request.tenant` so `TenantScopedModel.save()` succeeds.
+- **`AgentAvailabilityViewSet.assignable_roles` excludes admin slug** — prevents privilege escalation through the role-picker UI.
 
 ## Key Implementation Details
 
@@ -831,7 +900,10 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 - **`effective_role` everywhere.** Wherever you would normally compare `membership.role.hierarchy_level`, compare `membership.effective_role.hierarchy_level` instead so temporary role grants are honoured. The context processor and `HasTenantPermission` already do this; new code must follow.
 - **`has_effective_permission` honours `temporary_permissions` intersection** — use it instead of poking at `effective_role.permissions` directly.
 - **Ticket number per-tenant sequencing:** dedicated `TicketCounter` model (unscoped, SELECT FOR UPDATE) — replaces older max-number query approach.
-- **Signal dedup flag:** set `instance._skip_signal_logging = True` before save; use `serializer.instance` in `perform_update` so the flag reaches the signal. 2-sec window.
+- **Signal dedup flag:** set `instance._skip_signal_logging = True` before save; use `serializer.instance` in `perform_update` so the flag reaches the signal. 2-sec window. **Service-layer functions** (`assign_ticket`, `change_ticket_status`, `escalate_ticket`, `change_ticket_priority`) set this flag automatically before their save to prevent double-writing an ActivityLog row.
+- **Kanban drag → ticket service routing:** `apps/kanban/services.py::move_card(card_position, target_column, position, *, actor=None, request=None)` — when the card is a Ticket AND the target column has a different status, calls `apps.tickets.services.change_ticket_status(content_obj, target_column.status, actor, request=request)` instead of a bare `save(update_fields=…)`. This routes the move through dual-write audit + ticket-feed broadcast + SLA pause handling.
+- **`Ticket.save()` auto-populates `company`** from the linked Contact's company when no company is set explicitly; never overwrites.
+- **`Article.save()` resolves tenant from context** when `tenant_id` is unset (DRF-created articles); fallback slug `"article"`.
 - **Session cookie domain:** Dev host-only (per-origin); prod also host-only due to Chrome's strict `.localhost` policy. Cross-tenant handoffs use signed tokens.
 - **CSRF trusted origins:** Dev `http://localhost:8001` + `http://*.localhost:8001`; prod `https://*.{BASE_DOMAIN}`.
 - **File upload paths:** `tenants/{tenant_id}/attachments/YYYY/MM/{filename}` (attachments); `tenants/{tenant_id}/recordings/YYYY/MM/{uuid}.{ext}` (VoIP); `inbound_emails/{pk}/{filename}` (inbound).
@@ -861,10 +933,10 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 3. All apps need `migrations/__init__.py`.
 4. DRF upgraded 3.15.2 → 3.16.1 (Django 6.0 compatibility).
 5. `base.html` needs `user.is_authenticated` check (AnonymousUser has no `.email`).
-6. Role creation signal must include `hierarchy_level` (10/20/30/**40 for Viewer**).
+6. Role creation signal must include `hierarchy_level` (10/20/25/30/30/30/40 for the 7 system roles).
 7. Ticket stats JS reads `data.ticket_stats` (not `data.ticket_summary`).
 8. Flower package added to requirements/base.txt.
-9. **Viewer IS seeded by default** (`apps/tenants/signals.py:56`) alongside Admin / Manager / **Team Lead / Agent / IT / HR**. Older docs that said only four roles are seeded are wrong — the signal seeds **seven** system roles.
+9. **Viewer IS seeded by default** (`apps/tenants/signals.py:49-57`) alongside Admin / Manager / Team Lead / Agent / IT / HR — **7 system roles total**.
 10. `swagger_fake_view` check in `get_queryset()` to survive OpenAPI schema generation.
 11. Use `get_user_model()` (not direct import) in async consumers.
 12. Test fixtures: `UserFactory` uses `_after_postgeneration` with `skip_postgeneration_save = True`.
@@ -873,7 +945,7 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 15. **VoIP queue note** — `kanzan_voip` is defined in `celery.py` routes but the default worker's `-Q` list does not include it; add it or start a dedicated VoIP worker before enabling VoIP tasks.
 16. **PM2 process count** — 5 prod processes (django, celery-worker, celery-beat, flower, smtp). Makefile `stop`/`restart` omit `kanzan-smtp` — manage that one separately.
 17. **9 Beat tasks** including `fetch-inbound-emails` (60s), `calculate-lead-scores` (daily), `calculate-account-health-scores` (daily), `cleanup-stale-calls` (hourly), `kb-stale-alert`/`kb-gap-digest`. `check_overdue_reminders` and `check_sla_breach_warnings` exist in code but are NOT scheduled.
-18. **CSS versioning** — `static/css/custom-v15.css` is the live file referenced by `base.html` (**23,271 lines**). `custom.css` (20,431 lines) is a committed snapshot, not loaded, allowlisted in theme check.
+18. **CSS versioning** — `static/css/custom-v15.css` is the live file referenced by `base.html` (**23,759 lines**). `custom.css` (20,431 lines) is a committed snapshot, not loaded, allowlisted in theme check.
 19. **IMAP "never backfill" safety** — UIDVALIDITY/UIDNEXT must be parseable to bare integers; the poller aborts (returns 0) on first run rather than match `1:*`.
 20. **Tenant primary_color / accent_color override is supported** in `templates/base.html` (lines 30–86). `TenantSettings` defaults `#6366F1`/`#F59E0B`; `colors.py::derive_palette` falls back to Crimson Black `#C1121F`/`#E11D2D` if hex parsing fails. Validate any color string server-side if accepting user input.
 21. **Reminder M2M migration** — `contacts` and `tickets` are M2Ms (crm migration 0004), not single FKs. Older code referencing `reminder.contact` or `reminder.ticket` will break.
@@ -881,40 +953,48 @@ python manage.py run_ari_listener                              # VoIP Stasis eve
 23. **TicketActivity events** — 27 choices total after migration 0026.
 24. **ActivityLog actions** — **26 choices** total after comments migration 0009 (api_key_created/regenerated/revoked added on top of the 23 from migration 0008).
 25. **Temporary role overrides** (accounts migration 0007) — use `effective_role` (not `role`) wherever the active role matters.
-26. **API router include count is 22** — `main/urls.py` has 22 `/api/v1/*/` `path()` lines after `api-keys/` was added, but `inbound-email/` is dual-mounted at `emails/` with `namespace="emails_api"`, so there are 21 *unique* URLConfs.
-27. **Frontend URL count is 34** — `apps/tenants/frontend_urls.py` now includes `/api/quickstart/` (developer guide, any member can view) on top of `/groups/`, `/calls/`, `/inbound-email/`, and the older 28-page set.
+26. **API router include count is 22** — `main/urls.py` has 22 `/api/v1/*/` `path()` lines, but `inbound-email/` is dual-mounted at `emails/` with `namespace="emails_api"`, so there are 21 *unique* URLConfs.
+27. **Frontend URL count is 34** — `apps/tenants/frontend_urls.py` includes `/api/quickstart/` (developer guide), `/groups/`, `/calls/`, `/inbound-email/`, and the older 28-page set.
 28. **Total model class count is 83**, across 20 apps with `models.py` (api_keys adds `APIKey`; `nav` is URL-only — no models.py, no AppConfig, no migrations).
 29. **No new hex colour literals in CSS/JS/template rule bodies** (post-theming refactor, 2026-05-13). Token blocks (`:root`, `[data-bs-theme]`) are the ONLY place where new hex values are permitted. `make theme-check` enforces this against the baseline in `scripts/.theme_baseline.json`.
 30. **Use `var(--crm-text-on-primary)` (not `#FFFFFF`) for text/icon foregrounds on tenant-themed surfaces**. The value is computed per-tenant by WCAG luminance — falls to near-black automatically for light tenant primaries.
 31. **JS color strings use var() too** — `element.style.backgroundColor = 'var(--crm-primary)'` works because the browser resolves var() at CSS-value time. Hex literals in JS would silently break tenant theming.
-32. **Hex-alpha concat is forbidden** — `'#abc' + '1A'` breaks when the input becomes a `var(--crm-*)`. Use `withAlpha(color, percent)` helper (added in working tree) which falls back to `color-mix(in srgb, <color> Y%, transparent)`.
-33. **Chart.js can't resolve `var()`** — dashboard charts use `cssVar(name, fallback)` + `resolveColor()` (read via `getComputedStyle`) before painting to the canvas.
-34. **Live broadcast layer is uncommitted in working tree** (2026-05-14/15). 4 brand-new `signals.py` files (comments, contacts, crm, newsfeed), one new consumer (`apps/tenants/{live,consumers,routing}.py`), two new JS modules (`live-bus.js`, `live-connection.js`), and `app.js`/`ticket-feed.js` updates. Sign off carefully before committing — adds a 6th WebSocket consumer and broadcasts on every save/delete in 5 apps.
+32. **Hex-alpha concat is forbidden** — `'#abc' + '1A'` breaks when the input becomes a `var(--crm-*)`. Use the `withAlpha(color, percent)` helper present in dashboard.html / tickets/list.html / contacts/list.html.
+33. **Chart.js can't resolve `var()`** — dashboard charts use `cssVar(name, fallback)` + `resolveColor()` (read via `getComputedStyle`) before painting to the canvas. **Dashboard chart colour map** routes through `--status-*-dot` tokens (not `--crm-primary/--crm-accent`) so Crimson Black tenants don't collapse every slice into red.
+34. **Live broadcast layer is committed** at 241e407. 4 `signals.py` files (comments, contacts, crm, newsfeed), one new consumer (`apps/tenants/{live,consumers,routing}.py`), two new JS modules (`live-bus.js`, `live-connection.js`), and `app.js`/`ticket-feed.js` updates. Adds a 6th WebSocket consumer and broadcasts on every save/delete in 5 apps.
 35. **Comment broadcasts ignore `is_internal`** — internal comments are emitted on the tenant-wide live channel. Clients must filter; non-agent UI receives them. Known limitation flagged for follow-up (per-role groups).
 36. **TicketPresenceConsumer has a documented-but-unimplemented `presence_list`** — newly joined clients only see their own `agent_joined` until other members trigger another broadcast. Latent bug for the presence UI on first paint.
-37. **`UserGroup`** (accounts migration 0009) — new tenant-scoped model; M2M members; surfaces in `apps/tenants/frontend_urls.py` `/groups/` page and `Article.allowed_groups`. **Not registered in admin.**
-38. **`CustomAgentStatus`** (agents migration 0006) — tenants can now define custom status labels (e.g. "In Meeting", "Lunch") with a slug + color; `AgentAvailability.custom_status` FK lets agents pick one. **Not registered in admin.**
-39. **Messaging attachments (uncommitted)** — `MessageCreateSerializer.body` is now `allow_blank=True, required=False, default=""`. Attachment-only messages valid serializer-side; the frontend must enforce "neither body nor attachments → reject". New `POST .../messages/{id}/broadcast/` re-emits over chat group after attachments are linked (author-only). `_broadcast_message` now a `@classmethod`.
-40. **Status transition relaxation (uncommitted)** — `apps/tickets/services.py::ALLOWED_TRANSITIONS["waiting"]` now allows `resolved` and `closed` (was `open`, `in-progress` only). Test `test_phase3_resolution.py` flipped to expect success on Waiting → Resolved.
+37. **`UserGroup`** (accounts migration 0009) — tenant-scoped model; M2M members; surfaces in `apps/tenants/frontend_urls.py` `/groups/` page and `Article.allowed_groups`. **Not registered in admin.**
+38. **`CustomAgentStatus`** (agents migration 0006) — tenants can define custom status labels with slug + color; `AgentAvailability.custom_status` FK lets agents pick one. **Not registered in admin.**
+39. **Messaging attachments** — `MessageCreateSerializer.body` is `allow_blank=True, required=False, default=""`. Attachment-only messages valid serializer-side; the frontend must enforce "neither body nor attachments → reject". `POST .../messages/{id}/broadcast/` re-emits over chat group after attachments are linked (author-only). `_broadcast_message` is a `@classmethod`.
+40. **Status transition relaxation** — `apps/tickets/services.py::ALLOWED_TRANSITIONS["waiting"]` allows `resolved` and `closed` (was `open`, `in-progress` only).
 41. **`apps/billing/tasks.*` queue route is dormant** — `apps/billing/tasks.py` doesn't exist. The `kanzan_webhooks` route exists in `main/celery.py` for future use.
-42. **Notification is NOT polymorphic** — its `data` JSONField holds linkage info; there is no GenericFK. Older docs that listed Notification under "Polymorphic Models" are wrong. The 5 truly polymorphic models are: `Attachment`, `Comment`, `ActivityLog`, `CustomFieldValue`, `CardPosition`.
+42. **Notification is NOT polymorphic** — its `data` JSONField holds linkage info; there is no GenericFK. The 5 truly polymorphic models are: `Attachment`, `Comment`, `ActivityLog`, `CustomFieldValue`, `CardPosition`.
 43. **No CI/CD** — no `.github/` directory, no Dockerfile, no docker-compose, no GitLab CI. Pre-commit gate is `make check` (lint + migrate-check + test). Deployment is PM2 on a single host.
-44. **`BASE_SCHEME` IS in `.env.example`** at line 7 (older note saying otherwise was wrong).
-45. **`main/admin.py` is real** — `SuperuserOnlyAdminSite` + `TenantFilteredAdmin` mixin. 9 files in `main/`, not 8.
-46. **API keys are tenant-scoped service-account credentials** (`apps/api_keys/`, fe0ad66). Cleartext format `kz_live_<tenant_slug>_<secret>`; only `prefix` (indexed) + SHA-512 hash are persisted; the secret is shown exactly once at mint/regenerate time and is unrecoverable afterward. Auth class returns `None` (not 401) when the `Authorization` header is missing or uses a different scheme, so JWT/Session still get a chance. **Hidden synthetic users** back each key — they have `is_service_account=True` and must be filtered out of user-facing staff lists. Permission inheritance is via the key's `role` FK (drives `HasTenantPermission` as if a real user). Mint/regenerate/revoke all write an `ActivityLog` row (`api_key_created/regenerated/revoked`) and the create flow queues `send_api_key_created_email_task` via `transaction.on_commit`.
-47. **`APIKeyRateThrottle` is `SimpleRateThrottle`-based, not `ScopedRateThrottle`** (uncommitted working-tree change to `apps/api_keys/throttling.py`). It engages on every API-key-authenticated request without per-viewset `throttle_scope` opt-in; non-API-key auth (`request.auth` not an `APIKey`) returns `None` from `get_cache_key` and is skipped entirely. The throttle stashes `(limit, remaining, reset_epoch)` on **both** `request._kanzan_throttle_info` and `request._request._kanzan_throttle_info` so the response-path Django middleware (which sees the underlying `HttpRequest`) can read it regardless of which reference it holds.
+44. **`BASE_SCHEME` IS in `.env.example`** at line 7.
+45. **`main/admin.py` is a full add/change flow.** `SuperuserOnlyAdminSite` locks `/admin/` to superusers. `TenantFilteredAdmin` mixin filters list view by `request.tenant`, **injects a `tenant = forms.ModelChoiceField` on the add/change form** (because `TenantScopedModel.tenant` is `editable=False`), and overrides `save_model` to backfill `obj.tenant` from the form pick or `request.tenant` so the no-context guard in `TenantScopedModel.save()` never trips. Subdomain-scoped admin (e.g. `straat-x.localhost:8001/admin/`) sets `request.tenant` automatically.
+46. **API keys are tenant-scoped service-account credentials** (`apps/api_keys/`, fe0ad66). Cleartext format `kz_live_<slug6>_<token_urlsafe(32)>`; only `prefix` (indexed) + SHA-512 hash are persisted; the secret is shown exactly once at mint/regenerate time and is unrecoverable afterward. Auth class returns `None` (not 401) when the `Authorization` header is missing or uses a different scheme, so JWT/Session still get a chance. **Hidden synthetic users** back each key — they have `is_service_account=True` and must be filtered out of user-facing staff lists. Permission inheritance is via the key's `role` FK (drives `HasTenantPermission` as if a real user). Mint/regenerate/revoke all write an `ActivityLog` row (`api_key_created/regenerated/revoked`) and the create flow queues `send_api_key_created_email_task` via `transaction.on_commit`.
+47. **`APIKeyRateThrottle` is `SimpleRateThrottle`-based, not `ScopedRateThrottle`** (`apps/api_keys/throttling.py`). It engages on every API-key-authenticated request without per-viewset `throttle_scope` opt-in; non-API-key auth (`request.auth` not an `APIKey`) returns `None` from `get_cache_key` and is skipped entirely. The throttle stashes `(limit, remaining, reset_epoch)` on **both** `request._kanzan_throttle_info` and `request._request._kanzan_throttle_info` so the response-path Django middleware (which sees the underlying `HttpRequest`) can read it regardless of which reference it holds.
 48. **`RateLimitHeadersMiddleware`** (`apps.api_keys.middleware`) — slot 12 in the middleware stack, between `SubscriptionMiddleware` and `MessageMiddleware`. Pure read-side; only emits `X-RateLimit-*` headers when the throttle stashed info on the request. Cost is essentially zero for non-API-key traffic.
-49. **`drf-spectacular` OpenAPI extension for API keys** is registered by `apps/api_keys/apps.py::ready()` importing `apps.api_keys.extensions` (uncommitted working-tree change — the merge commit had the extension file but missed wiring it). Swagger UI's "Authorize" dialog gains an `ApiKeyAuth` option alongside the existing JWT bearer.
-50. **Notification UX (uncommitted working-tree change)** — new notifications no longer fire a generic `Toast.info`. Instead the bell icon (`#notifDropdown`) gets `.is-ringing` for ~950ms (CSS swing + radial halo) and the new bell-anchored card (`#notifFlyout`) slides in below the bell with a 5s auto-fade and animated progress bar. The unread-count badge gains `.is-bumping` for a one-shot scale animation. All animations respect `@media (prefers-reduced-motion: reduce)`. Files: `templates/includes/navbar.html` (DOM), `static/js/app.js::initNotifications` (`ringBell()`, `showFlyout(data)`, `hideFlyout()`), `static/css/custom-v15.css` (~+219 lines, `.notif-bell-btn`, `.notif-flyout*`, `.notification-badge.is-bumping`, `@keyframes notif-bell-ring/halo/badge-bump/flyout-timer`).
-51. **Seven system roles, not four** (data migration `accounts/0011_seed_team_lead_it_hr_roles`, 2026-05-21). Per-tenant defaults are now `admin` (10), `manager` (20), `team-lead` (25), `agent` (30), `it` (30), `hr` (30), `viewer` (40), all `is_system=True`. Permission sets for the perm-bearing roles come from `apps/accounts/defaults.py::ROLE_DEFINITIONS`; Viewer is intentionally permission-less and leans on the ≤40 view fallback in `HasTenantPermission`. **Team Lead** is an elevated Agent (delete/export tickets + contacts, view ops config, manage agent inbox, see users) — sits at level 25 so it **passes** `is_agent_or_above` (≤30) but **fails** `_role_required(20)` / `is_admin_or_manager`, by design. **IT / HR** are departmental flavours of Agent at level 30 with `user.view` added; they get the same ticketing rights as Agent but show up as distinct entries in pickers/reports. Agent-tier row-scoping (the `level > 20` cohort in `IsTicketAccessible` + per-viewset `get_queryset` filters) now applies to Team Lead, Agent, IT, HR, and Viewer.
+49. **`drf-spectacular` OpenAPI extension for API keys** is registered by `apps/api_keys/apps.py::ready()` importing `apps.api_keys.extensions`. Swagger UI's "Authorize" dialog gains an `ApiKeyAuth` option alongside the existing JWT bearer.
+50. **Notification UX** — new notifications no longer fire a generic `Toast.info`. Instead the bell icon (`#notifDropdown`) gets `.is-ringing` for ~950ms (CSS swing + radial halo) and the bell-anchored card (`#notifFlyout`) slides in below the bell with a **3s** auto-fade and animated progress bar. The unread-count badge gains `.is-bumping` for a one-shot scale animation. All animations respect `@media (prefers-reduced-motion: reduce)`.
+51. **Seven system roles, not four** (data migration `accounts/0011_seed_team_lead_it_hr_roles`, 2026-05-21). Per-tenant defaults are `admin` (10), `manager` (20), `team-lead` (25), `agent` (30), `it` (30), `hr` (30), `viewer` (40), all `is_system=True`. Permission sets for the **six** perm-bearing roles come from `apps/accounts/defaults.py::ROLE_DEFINITIONS`; Viewer is intentionally permission-less and leans on the ≤40 view fallback in `HasTenantPermission`. **Team Lead** is an elevated Agent (delete/export tickets + contacts, view ops config, manage agent inbox, see users) at level 25 — passes `is_agent_or_above` (≤30) but fails `_role_required(20)` / `is_admin_or_manager`, by design. **IT / HR** are departmental flavours of Agent at level 30 with `user.view` added; same ticketing rights as Agent but distinct entries in pickers/reports. Agent-tier row-scoping (the `level > 20` cohort in `IsTicketAccessible` + per-viewset `get_queryset` filters) applies to Team Lead, Agent, IT, HR, and Viewer.
+52. **`/admin/` is NOT in `TenantMiddleware.EXEMPT_PATH_PREFIXES`.** It has a dedicated branch (`middleware.py:119-144`) that resolves the tenant from the subdomain when present, so subdomain-scoped admin sets `request.tenant` and `TenantScopedModel.save()` works in admin creates. The `/admin/` access lock comes from `SuperuserOnlyAdminSite.has_permission()` (superuser-only), not from middleware exemption.
+53. **DRF authentication order is JWT first, then APIKey, then Session** (`main/settings/base.py:212-216`). The APIKey class is tried only when JWT defers (no `Bearer` header). Earlier doc revisions that said "Api-Key checked first" were wrong.
+54. **Kanban drags trigger the full ticket service** — `apps/kanban/services.py::move_card(actor=…, request=…)` routes Ticket cards through `apps.tickets.services.change_ticket_status` when the target column has a different status. Audit log, ticket-feed broadcast, SLA pause handling, ticket-closed signals all fire as if the user changed status from the ticket form.
+55. **`Ticket.save()` auto-fills `company` from a linked Contact** when no company is set. Never overwrites. 4 new tests in `tests/test_ticket_creation.py` cover this.
+56. **`Article.save()` resolves tenant from `get_current_tenant()`** before its slug-uniqueness scan, and falls back to `"article"` if `slugify(title)` is empty — fix for DRF-created articles arriving with `tenant_id=None`.
+57. **`page_back_button.html` is wired into 17 pages.** When adding a new top-level page that is reachable from the sidebar, update the hardcoded sidebar-paths array in `templates/includes/page_back_button.html` or the "Back" button will incorrectly render on the new page.
+58. **`requirements.txt` at repo root is byte-identical to `requirements/base.txt`** — convenience duplicate for tools that default to `./requirements.txt` (Render, some Heroku buildpacks). Keep them in sync.
+59. **Logs are not rotated.** `logs/` has grown to ~33MB across 11 PM2 files (`celery-worker-error.log` alone is 16MB). Add `pm2 install pm2-logrotate` or a logrotate.d entry before disk pressure becomes a problem.
 
 ## Documentation
 - `/CLAUDE.md` (this file) — day-to-day source of truth, kept current with refactors.
 - `/docs/README.md` — index for the docs folder.
-- `/docs/architecture.md` — long-form architecture doc (Version 1.0, dated 2026-02-06; **stale** — predates auto-assign, IMAPPollState, temporary-role, Reminder M2M, ActivityLog action expansion, `kanzan-smtp` PM2 process, `fetch-inbound-emails` Beat task, UserGroup, CustomAgentStatus, **and the live broadcast layer**). Use as broad design rationale; trust this CLAUDE.md and the verified `/docs/reference/` files for current shape.
-- `/docs/reference/codebase-inventory.md` — verified per-app model/migration/task/signal inventory (last regenerated 2026-05-11; predates `apps/{comments,contacts,crm,newsfeed}/signals.py` and the live layer).
-- `/docs/reference/api-surface.md` — every REST endpoint, custom action, WebSocket consumer, permission class.
-- `/docs/reference/frontend-surface.md` — every template, JS module, CSS file, frontend URL.
-- `/docs/reference/infra-surface.md` — settings, middleware, ASGI, Celery, PM2, requirements, env, scripts, tests.
+- `/docs/architecture.md` — long-form architecture doc (Version 1.0, dated 2026-02-06; **stale** — predates auto-assign, IMAPPollState, temporary-role, Reminder M2M, ActivityLog action expansion, `kanzan-smtp` PM2 process, `fetch-inbound-emails` Beat task, UserGroup, CustomAgentStatus, live broadcast layer, API keys, and 7-role hierarchy). Use as broad design rationale; trust this CLAUDE.md and the verified `/docs/reference/` files for current shape.
+- `/docs/reference/codebase-inventory.md` — verified per-app model/migration/task/signal inventory (last regenerated 2026-05-11; predates 7-role hierarchy, api_keys, live broadcast, UserGroup, CustomAgentStatus).
+- `/docs/reference/api-surface.md` — every REST endpoint, custom action, WebSocket consumer, permission class. (Predates `/ws/live/` and `/api/v1/api-keys/`.)
+- `/docs/reference/frontend-surface.md` — every template, JS module, CSS file, frontend URL. (Predates `/api/quickstart/`, `/calls/`, live-bus + live-connection JS, bell-flyout.)
+- `/docs/reference/infra-surface.md` — settings, middleware, ASGI, Celery, PM2, requirements, env, scripts, tests. (Predates RateLimitHeadersMiddleware → 13 layers vs current 14.)
 - `/scripts/check_theme.py` — regression guard for theme leakage. Run via `make theme-check` (delta vs baseline) / `make theme-check-strict` (zero-tolerance) / `make theme-baseline` (refresh after intentional changes).
 - `README.md` — minimal stub (1 line: `# Kanzen`); rely on the documents above for context.
