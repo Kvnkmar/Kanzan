@@ -82,11 +82,11 @@
   --crm-info: #4A4A4F;
   --crm-info-light: #F2F2F4;
 
-  /* Priority */
-  --crm-priority-urgent: #C1121F;
-  --crm-priority-high: #9A0E18;
-  --crm-priority-medium: #9A0E18;
-  --crm-priority-low: #8E8E92;
+  /* Priority — ladder matches badge ramp (danger / warning / info / neutral) */
+  --crm-priority-urgent: var(--status-danger-text);
+  --crm-priority-high: var(--status-warning-text);
+  --crm-priority-medium: var(--status-info-text);
+  --crm-priority-low: var(--status-neutral-text);
 
   /* Chat */
   --crm-chat-sent-bg: var(--crm-primary);
@@ -162,6 +162,10 @@
   --status-neutral-bg:      rgba(107, 114, 128, 0.10);
   --status-neutral-border:  rgba(107, 114, 128, 0.20);
   --status-neutral-dot:     #6B7280;
+
+  /* Foreground for solid-filled status-colored buttons (info/warning/success/danger).
+     Always white — the gradient end of each status pair is dark enough to meet AA. */
+  --crm-text-on-status:     #FFFFFF;
 
   /* ----------------------------------------------------------
      FOUNDATION TOKENS (Phase 1.A — light)
@@ -284,11 +288,11 @@
   --crm-info: #B5B5B8;
   --crm-info-light: rgba(245, 245, 245, 0.04);
 
-  /* Priority — red intensity scale + neutral for low */
-  --crm-priority-urgent: #E11C2B;
-  --crm-priority-high: #C1121F;
-  --crm-priority-medium: #9A0E18;
-  --crm-priority-low: #B5B5B8;
+  /* Priority — ladder matches badge ramp (danger / warning / info / neutral) */
+  --crm-priority-urgent: var(--status-danger-text);
+  --crm-priority-high: var(--status-warning-text);
+  --crm-priority-medium: var(--status-info-text);
+  --crm-priority-low: var(--status-neutral-text);
 
   /* Chat */
   --crm-chat-sent-bg: #C1121F;
@@ -352,6 +356,9 @@
   --status-neutral-bg:      rgba(245, 245, 245, 0.06);
   --status-neutral-border:  rgba(245, 245, 245, 0.12);
   --status-neutral-dot:     #71717A;
+
+  /* Foreground for solid-filled status-colored buttons (info/warning/success/danger). */
+  --crm-text-on-status:     #FFFFFF;
 
   /* ----------------------------------------------------------
      FOUNDATION TOKENS (Phase 1.A — dark)
@@ -3501,7 +3508,7 @@ h6, .h6 { font-size: 0.8125rem; font-weight: 600; line-height: 1.4; }
 .badge-priority-critical,
 .badge-priority-urgent  { background: var(--status-danger-bg);  color: var(--status-danger-text);  border: 1px solid var(--status-danger-border); }
 .badge-priority-high    { background: var(--status-warning-bg); color: var(--status-warning-text); border: 1px solid var(--status-warning-border); }
-.badge-priority-medium  { background: var(--status-warning-bg); color: var(--status-warning-text); border: 1px solid var(--status-warning-border); }
+.badge-priority-medium  { background: var(--status-info-bg);    color: var(--status-info-text);    border: 1px solid var(--status-info-border); }
 .badge-priority-low     { background: var(--status-neutral-bg); color: var(--status-neutral-text); border: 1px solid var(--status-neutral-border); }
 
 /* Status badges */
@@ -9715,7 +9722,7 @@ h4.fw-semibold, h4.fw-bold {
 }
 .priority-badge-urgent { background: var(--status-danger-bg);  color: var(--status-danger-text);  border: 1px solid var(--status-danger-border); }
 .priority-badge-high   { background: var(--status-warning-bg); color: var(--status-warning-text); border: 1px solid var(--status-warning-border); }
-.priority-badge-medium { background: var(--status-warning-bg); color: var(--status-warning-text); border: 1px solid var(--status-warning-border); }
+.priority-badge-medium { background: var(--status-info-bg);    color: var(--status-info-text);    border: 1px solid var(--status-info-border); }
 .priority-badge-low    { background: var(--status-neutral-bg); color: var(--status-neutral-text); border: 1px solid var(--status-neutral-border); }
 
 /* -- Priority Dot -- */
@@ -16526,7 +16533,7 @@ body.is-mobile-sm .date-range-picker {
 }
 .bulk-toolbar-info {
   font-size: 0.875rem;
-  color: var(--crm-text-on-primary);
+  color: var(--crm-text);
 }
 .bulk-toolbar-count {
   display: inline-flex;
@@ -16781,35 +16788,35 @@ body.is-mobile-sm .date-range-picker {
   transform: translateY(0);
 }
 
-/* Assign — indigo/primary */
-.bulk-card--assign { background: rgba(var(--crm-primary-rgb), 0.04); border-color: rgba(var(--crm-primary-rgb), 0.1); }
-.bulk-card--assign:hover { border-color: rgba(var(--crm-primary-rgb), 0.25); }
-.bulk-card--assign::before { background: linear-gradient(to bottom, var(--crm-primary), var(--crm-primary-active)); }
-.bulk-card-icon--assign { background: linear-gradient(135deg, rgba(var(--crm-primary-rgb), 0.15), rgba(var(--crm-primary-rgb), 0.1)); color: var(--crm-primary); }
-.bulk-card-btn--assign { background: linear-gradient(135deg, var(--crm-primary), var(--crm-primary-active)); }
-.bulk-card-btn--assign:hover { box-shadow: 0 4px 14px rgba(var(--crm-primary-rgb), 0.35); }
+/* Assign → info (blue) */
+.bulk-card--assign { background: var(--status-info-bg); border-color: rgba(59, 130, 246, 0.16); }
+.bulk-card--assign:hover { border-color: rgba(59, 130, 246, 0.32); }
+.bulk-card--assign::before { background: linear-gradient(to bottom, var(--status-info-dot), var(--status-info-text)); }
+.bulk-card-icon--assign { background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(59, 130, 246, 0.10)); color: var(--status-info-text); }
+.bulk-card-btn--assign { background: linear-gradient(135deg, var(--status-info-dot), var(--status-info-text)); color: var(--crm-text-on-status); }
+.bulk-card-btn--assign:hover { color: var(--crm-text-on-status); box-shadow: 0 4px 14px rgba(59, 130, 246, 0.35); }
 
-/* Status — blue/info */
-.bulk-card--status { background: rgba(var(--crm-accent-rgb), 0.04); border-color: rgba(var(--crm-accent-rgb), 0.1); }
-.bulk-card--status:hover { border-color: rgba(var(--crm-accent-rgb), 0.25); }
-.bulk-card--status::before { background: linear-gradient(to bottom, var(--crm-accent), var(--crm-primary)); }
-.bulk-card-icon--status { background: linear-gradient(135deg, rgba(var(--crm-accent-rgb), 0.15), rgba(var(--crm-primary-rgb), 0.1)); color: var(--crm-accent); }
-.bulk-card-btn--status { background: linear-gradient(135deg, var(--crm-accent), var(--crm-primary)); }
-.bulk-card-btn--status:hover { box-shadow: 0 4px 14px rgba(var(--crm-accent-rgb), 0.35); }
+/* Status → warning (amber) */
+.bulk-card--status { background: var(--status-warning-bg); border-color: rgba(245, 158, 11, 0.18); }
+.bulk-card--status:hover { border-color: rgba(245, 158, 11, 0.36); }
+.bulk-card--status::before { background: linear-gradient(to bottom, var(--status-warning-dot), var(--status-warning-text)); }
+.bulk-card-icon--status { background: linear-gradient(135deg, rgba(245, 158, 11, 0.20), rgba(245, 158, 11, 0.10)); color: var(--status-warning-text); }
+.bulk-card-btn--status { background: linear-gradient(135deg, var(--status-warning-dot), var(--status-warning-text)); color: var(--crm-text-on-status); }
+.bulk-card-btn--status:hover { color: var(--crm-text-on-status); box-shadow: 0 4px 14px rgba(245, 158, 11, 0.38); }
 
-/* Priority — amber/warning */
-.bulk-card--priority { background: rgba(var(--crm-primary-rgb), 0.04); border-color: rgba(var(--crm-primary-rgb), 0.1); }
-.bulk-card--priority:hover { border-color: rgba(var(--crm-primary-rgb), 0.25); }
-.bulk-card--priority::before { background: linear-gradient(to bottom, var(--crm-primary), var(--crm-primary-active)); }
-.bulk-card-icon--priority { background: linear-gradient(135deg, rgba(var(--crm-primary-rgb), 0.15), rgba(var(--crm-primary-rgb), 0.1)); color: var(--crm-primary); }
-.bulk-card-btn--priority { background: linear-gradient(135deg, var(--crm-primary), var(--crm-primary-active)); color: #000; }
-.bulk-card-btn--priority:hover { color: #000; box-shadow: 0 4px 14px rgba(var(--crm-primary-rgb), 0.35); }
+/* Priority → success (green) */
+.bulk-card--priority { background: var(--status-success-bg); border-color: rgba(34, 197, 94, 0.16); }
+.bulk-card--priority:hover { border-color: rgba(34, 197, 94, 0.32); }
+.bulk-card--priority::before { background: linear-gradient(to bottom, var(--status-success-dot), var(--status-success-text)); }
+.bulk-card-icon--priority { background: linear-gradient(135deg, rgba(34, 197, 94, 0.18), rgba(34, 197, 94, 0.10)); color: var(--status-success-text); }
+.bulk-card-btn--priority { background: linear-gradient(135deg, var(--status-success-dot), var(--status-success-text)); color: var(--crm-text-on-status); }
+.bulk-card-btn--priority:hover { color: var(--crm-text-on-status); box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35); }
 
-/* Danger zone */
+/* Danger zone — the ONLY red surface in the modal, so it actually reads as danger */
 .bulk-danger-zone {
   margin-top: 0.875rem;
   padding-top: 0.875rem;
-  border-top: 1px solid var(--crm-border);
+  border-top: 1px dashed var(--crm-border);
 }
 .bulk-danger-inner {
   display: flex;
@@ -16818,11 +16825,14 @@ body.is-mobile-sm .date-range-picker {
   gap: 0.75rem;
   padding: 0.875rem 1rem;
   border-radius: 0.75rem;
-  background: rgba(var(--crm-accent-rgb), 0.04);
-  border: 1px solid rgba(var(--crm-accent-rgb), 0.1);
-  transition: border-color 0.2s ease;
+  background: var(--status-danger-bg);
+  border: 1px solid rgba(193, 18, 31, 0.18);
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
-.bulk-danger-inner:hover { border-color: rgba(var(--crm-accent-rgb), 0.2); }
+.bulk-danger-inner:hover {
+  border-color: rgba(193, 18, 31, 0.32);
+  background: rgba(193, 18, 31, 0.06);
+}
 .bulk-danger-info {
   display: flex;
   align-items: center;
@@ -16832,15 +16842,15 @@ body.is-mobile-sm .date-range-picker {
   width: 32px; height: 32px;
   border-radius: 8px;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(var(--crm-accent-rgb), 0.1);
-  color: var(--crm-danger);
+  background: rgba(193, 18, 31, 0.12);
+  color: var(--status-danger-dot);
   font-size: 1rem;
   flex-shrink: 0;
 }
 .bulk-danger-label {
   font-size: 0.8125rem;
   font-weight: 650;
-  color: var(--crm-danger);
+  color: var(--status-danger-text);
   display: block;
   line-height: 1.2;
 }
@@ -16855,27 +16865,27 @@ body.is-mobile-sm .date-range-picker {
   flex-shrink: 0;
   border-radius: 0.5rem;
   font-size: 0.775rem;
-  font-weight: 600;
-  padding: 0.4rem 1rem;
-  color: var(--crm-danger);
-  background: rgba(var(--crm-accent-rgb), 0.08);
-  border: 1px solid rgba(var(--crm-accent-rgb), 0.18);
-  transition: background-color var(--crm-duration-base) var(--crm-ease-out), color var(--crm-duration-base) var(--crm-ease-out), border-color var(--crm-duration-base) var(--crm-ease-out), box-shadow var(--crm-duration-base) var(--crm-ease-out), opacity var(--crm-duration-base) var(--crm-ease-out);
+  font-weight: 650;
+  padding: 0.45rem 1.1rem;
+  color: var(--crm-text-on-status);
+  background: linear-gradient(135deg, var(--status-danger-dot), var(--crm-primary-active));
+  border: 1px solid transparent;
+  box-shadow: 0 2px 6px rgba(193, 18, 31, 0.18);
+  transition: background-color var(--crm-duration-base) var(--crm-ease-out), color var(--crm-duration-base) var(--crm-ease-out), border-color var(--crm-duration-base) var(--crm-ease-out), box-shadow var(--crm-duration-base) var(--crm-ease-out), transform var(--crm-duration-base) var(--crm-ease-out);
   white-space: nowrap;
 }
 .bulk-delete-btn:hover {
-  background: var(--crm-danger);
-  color: var(--crm-text-on-primary);
-  border-color: var(--crm-danger);
-  box-shadow: 0 4px 14px rgba(var(--crm-accent-rgb), 0.3);
+  color: var(--crm-text-on-status);
+  box-shadow: 0 6px 18px rgba(193, 18, 31, 0.38);
   transform: translateY(-1px);
 }
-.bulk-delete-btn:active { transform: translateY(0); }
+.bulk-delete-btn:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(193, 18, 31, 0.25); }
 
-/* Footer */
+/* Footer — "Clear Selection" on the left, helper hint on the right (no redundant Done) */
 .bulk-modal-footer {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   padding: 0.875rem 1.5rem;
   border-top: 1px solid var(--crm-border);
@@ -16892,17 +16902,30 @@ body.is-mobile-sm .date-range-picker {
   transition: background-color var(--crm-duration-fast) var(--crm-ease-out), color var(--crm-duration-fast) var(--crm-ease-out), border-color var(--crm-duration-fast) var(--crm-ease-out), box-shadow var(--crm-duration-fast) var(--crm-ease-out), opacity var(--crm-duration-fast) var(--crm-ease-out);
 }
 .bulk-footer-btn:hover { color: var(--crm-text); border-color: var(--crm-text-muted); background: var(--crm-bg); }
-.bulk-footer-close {
-  font-size: 0.775rem;
-  font-weight: 600;
-  color: var(--crm-text-on-primary);
-  background: var(--crm-primary);
-  border: none;
-  border-radius: 2rem;
-  padding: 0.375rem 1.25rem;
-  transition: background-color var(--crm-duration-fast) var(--crm-ease-out), color var(--crm-duration-fast) var(--crm-ease-out), border-color var(--crm-duration-fast) var(--crm-ease-out), box-shadow var(--crm-duration-fast) var(--crm-ease-out), opacity var(--crm-duration-fast) var(--crm-ease-out);
+.bulk-footer-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--crm-text-muted);
+  letter-spacing: 0.01em;
 }
-.bulk-footer-close:hover { background: var(--crm-primary-hover); color: var(--crm-text-on-primary); box-shadow: 0 2px 8px rgba(var(--crm-primary-rgb), 0.25); }
+.bulk-footer-hint .ti-bolt {
+  font-size: 0.85rem;
+  color: var(--status-warning-dot);
+}
+.bulk-footer-kbd {
+  font-family: var(--bs-font-monospace, ui-monospace, SFMono-Regular, monospace);
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 0.1rem 0.4rem;
+  border-radius: 0.3rem;
+  background: var(--crm-bg);
+  border: 1px solid var(--crm-border);
+  color: var(--crm-text);
+  line-height: 1;
+}
 
 /* ── Dark-mode overrides ── */
 [data-bs-theme="dark"] .bulk-modal {
@@ -16919,15 +16942,15 @@ body.is-mobile-sm .date-range-picker {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
   border-color: rgba(255, 255, 255, 0.1);
 }
-[data-bs-theme="dark"] .bulk-card--assign { background: rgba(var(--crm-primary-rgb), 0.06); border-color: rgba(var(--crm-primary-rgb), 0.1); }
-[data-bs-theme="dark"] .bulk-card--assign:hover { border-color: rgba(var(--crm-primary-rgb), 0.25); }
-[data-bs-theme="dark"] .bulk-card--status { background: rgba(var(--crm-accent-rgb), 0.06); border-color: rgba(var(--crm-accent-rgb), 0.08); }
-[data-bs-theme="dark"] .bulk-card--status:hover { border-color: rgba(var(--crm-accent-rgb), 0.2); }
-[data-bs-theme="dark"] .bulk-card--priority { background: rgba(var(--crm-primary-rgb), 0.06); border-color: rgba(var(--crm-primary-rgb), 0.08); }
-[data-bs-theme="dark"] .bulk-card--priority:hover { border-color: rgba(var(--crm-primary-rgb), 0.2); }
-[data-bs-theme="dark"] .bulk-card-icon--assign { background: rgba(var(--crm-primary-rgb), 0.12); color: var(--crm-primary-400); }
-[data-bs-theme="dark"] .bulk-card-icon--status { background: rgba(var(--crm-accent-rgb), 0.12); color: var(--crm-primary-400); }
-[data-bs-theme="dark"] .bulk-card-icon--priority { background: rgba(var(--crm-primary-rgb), 0.12); color: var(--crm-primary); }
+[data-bs-theme="dark"] .bulk-card--assign { background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.16); }
+[data-bs-theme="dark"] .bulk-card--assign:hover { border-color: rgba(59, 130, 246, 0.34); }
+[data-bs-theme="dark"] .bulk-card--status { background: rgba(245, 158, 11, 0.08); border-color: rgba(245, 158, 11, 0.16); }
+[data-bs-theme="dark"] .bulk-card--status:hover { border-color: rgba(245, 158, 11, 0.34); }
+[data-bs-theme="dark"] .bulk-card--priority { background: rgba(34, 197, 94, 0.08); border-color: rgba(34, 197, 94, 0.16); }
+[data-bs-theme="dark"] .bulk-card--priority:hover { border-color: rgba(34, 197, 94, 0.34); }
+[data-bs-theme="dark"] .bulk-card-icon--assign { background: rgba(59, 130, 246, 0.16); color: var(--status-info-text); }
+[data-bs-theme="dark"] .bulk-card-icon--status { background: rgba(245, 158, 11, 0.16); color: var(--status-warning-text); }
+[data-bs-theme="dark"] .bulk-card-icon--priority { background: rgba(34, 197, 94, 0.16); color: var(--status-success-text); }
 [data-bs-theme="dark"] .bulk-card-hint { color: var(--crm-text-muted); }
 [data-bs-theme="dark"] .bulk-card .td-cselect-trigger {
   background: rgba(255, 255, 255, 0.04);
@@ -16970,21 +16993,18 @@ body.is-mobile-sm .date-range-picker {
   color: var(--crm-text) !important;
   padding: 0.5rem;
 }
-[data-bs-theme="dark"] .bulk-card-btn--priority,
-[data-bs-theme="dark"] .bulk-card-btn--priority:hover { color: var(--crm-text-on-primary); }
 [data-bs-theme="dark"] .bulk-danger-zone { border-top-color: rgba(255, 255, 255, 0.06); }
-[data-bs-theme="dark"] .bulk-danger-inner { background: rgba(var(--crm-accent-rgb), 0.06); border-color: rgba(var(--crm-accent-rgb), 0.1); }
-[data-bs-theme="dark"] .bulk-danger-inner:hover { border-color: rgba(var(--crm-accent-rgb), 0.2); }
-[data-bs-theme="dark"] .bulk-danger-icon { background: rgba(var(--crm-accent-rgb), 0.12); color: var(--crm-primary-300); }
-[data-bs-theme="dark"] .bulk-danger-label { color: var(--crm-primary-300); }
+[data-bs-theme="dark"] .bulk-danger-inner { background: rgba(220, 27, 42, 0.10); border-color: rgba(220, 27, 42, 0.22); }
+[data-bs-theme="dark"] .bulk-danger-inner:hover { background: rgba(220, 27, 42, 0.14); border-color: rgba(220, 27, 42, 0.38); }
+[data-bs-theme="dark"] .bulk-danger-icon { background: rgba(220, 27, 42, 0.18); color: var(--status-danger-text); }
+[data-bs-theme="dark"] .bulk-danger-label { color: var(--status-danger-text); }
 [data-bs-theme="dark"] .bulk-danger-hint { color: var(--crm-text-muted); }
-[data-bs-theme="dark"] .bulk-delete-btn { background: rgba(var(--crm-accent-rgb), 0.08); border-color: rgba(var(--crm-accent-rgb), 0.15); color: var(--crm-primary-300); }
-[data-bs-theme="dark"] .bulk-delete-btn:hover { background: var(--crm-danger); color: var(--crm-text-on-primary); border-color: var(--crm-danger); }
+[data-bs-theme="dark"] .bulk-delete-btn { background: linear-gradient(135deg, var(--status-danger-dot), var(--crm-primary-active)); border-color: transparent; color: var(--crm-text-on-status); }
+[data-bs-theme="dark"] .bulk-delete-btn:hover { color: var(--crm-text-on-status); box-shadow: 0 6px 18px rgba(220, 27, 42, 0.45); }
 [data-bs-theme="dark"] .bulk-modal-footer { border-top-color: rgba(255, 255, 255, 0.06); background: transparent; }
 [data-bs-theme="dark"] .bulk-footer-btn { border-color: rgba(255, 255, 255, 0.08); color: var(--crm-text-muted); }
 [data-bs-theme="dark"] .bulk-footer-btn:hover { border-color: rgba(255, 255, 255, 0.15); color: var(--crm-text); background: rgba(255, 255, 255, 0.04); }
-[data-bs-theme="dark"] .bulk-footer-close { background: var(--crm-primary); }
-[data-bs-theme="dark"] .bulk-footer-close:hover { background: var(--crm-primary-hover); }
+[data-bs-theme="dark"] .bulk-footer-kbd { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.1); color: var(--crm-text); }
 
 /* (checkbox/select-all styles moved into main ticket list section) */
 
