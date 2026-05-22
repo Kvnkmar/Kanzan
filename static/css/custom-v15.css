@@ -3939,7 +3939,7 @@ textarea.form-control { height: auto; min-height: 80px; resize: vertical; }
   padding: 0.5rem 0.75rem;
   border-radius: 8px;
   font-size: 0.8125rem;
-  font-weight: 450;
+  font-weight: var(--crm-weight-medium);
   color: var(--crm-text);
   transition:
     background-color var(--crm-duration-fast) var(--crm-ease-out),
@@ -8146,7 +8146,7 @@ h4.fw-semibold, h4.fw-bold {
 .st-toggle-label {
   display: block;
   font-size: 0.8125rem;
-  font-weight: 550;
+  font-weight: var(--crm-weight-semibold);
   color: var(--crm-text);
   line-height: 1.3;
 }
