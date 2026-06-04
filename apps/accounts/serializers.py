@@ -295,6 +295,45 @@ class UserGroupSerializer(serializers.ModelSerializer):
     def get_member_count(self, obj):
         return obj.members.count()
 
+    def validate_member_ids(self, value):
+        """
+        A user may belong to at most one UserGroup per tenant. Strict:
+        any submitted user already in a *different* group blocks the save,
+        even if they were a legacy member of this group before the change.
+        Admins must uncheck the duplicate from one side first.
+        """
+        if not value:
+            return value
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None) if request else None
+        if tenant is None:
+            return value
+
+        submitted_ids = {u.id for u in value}
+        qs = UserGroup.objects.filter(
+            tenant=tenant, members__id__in=submitted_ids,
+        )
+        if self.instance is not None:
+            qs = qs.exclude(id=self.instance.id)
+
+        conflicts = qs.values_list(
+            "name",
+            "members__first_name",
+            "members__last_name",
+            "members__email",
+        ).filter(members__id__in=submitted_ids).distinct()
+
+        if conflicts:
+            parts = []
+            for group_name, fn, ln, em in conflicts:
+                display = (f"{fn or ''} {ln or ''}".strip()) or em
+                parts.append(f"{display} is already in '{group_name}'")
+            raise serializers.ValidationError(
+                "A user can only belong to one group at a time. "
+                "Remove them from the other group first. " + "; ".join(parts)
+            )
+        return value
+
 
 # ---------------------------------------------------------------------------
 # JWT Token (custom claim)

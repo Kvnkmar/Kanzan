@@ -212,15 +212,21 @@ function initNavbarScroll() {
 // at CSS-resolution time).
 // -----------------------------------------------------------------------
 var NOTIF_TYPE_CONFIG = {
-  ticket_assigned:      { icon: 'ti ti-user-check',           color: 'var(--crm-primary)',        label: 'Assigned' },
-  ticket_updated:       { icon: 'ti ti-edit',                 color: 'var(--status-danger-text)', label: 'Updated' },
-  ticket_comment:       { icon: 'ti ti-message',              color: 'var(--crm-primary)',        label: 'Comment' },
-  mention:              { icon: 'ti ti-at',                   color: 'var(--status-danger-text)', label: 'Mention' },
-  message:              { icon: 'ti ti-message',              color: 'var(--status-info-text)',   label: 'Message' },
-  sla_breach:           { icon: 'ti ti-alert-triangle',       color: 'var(--status-danger-text)', label: 'SLA Alert' },
-  payment_failed:       { icon: 'ti ti-credit-card',          color: 'var(--status-warning-text)', label: 'Payment' },
-  subscription_change:  { icon: 'ti ti-crown',                color: 'var(--status-success-text)', label: 'Billing' },
-  invitation:           { icon: 'ti ti-mail-forward',         color: 'var(--status-info-text)',   label: 'Invite' },
+  ticket_assigned:               { icon: 'ti ti-user-check',           color: 'var(--crm-primary)',        label: 'Assigned' },
+  ticket_updated:                { icon: 'ti ti-edit',                 color: 'var(--status-danger-text)', label: 'Updated' },
+  ticket_comment:                { icon: 'ti ti-message',              color: 'var(--crm-primary)',        label: 'Comment' },
+  mention:                       { icon: 'ti ti-at',                   color: 'var(--status-danger-text)', label: 'Mention' },
+  message:                       { icon: 'ti ti-message',              color: 'var(--status-info-text)',   label: 'Message' },
+  sla_breach:                    { icon: 'ti ti-alert-triangle',       color: 'var(--status-danger-text)', label: 'SLA Alert' },
+  payment_failed:                { icon: 'ti ti-credit-card',          color: 'var(--status-warning-text)', label: 'Payment' },
+  subscription_change:           { icon: 'ti ti-crown',                color: 'var(--status-success-text)', label: 'Billing' },
+  invitation:                    { icon: 'ti ti-mail-forward',         color: 'var(--status-info-text)',   label: 'Invite' },
+  // Inbox Hub (Phase 1)
+  hub_email_assigned:            { icon: 'ti ti-inbox',                color: 'var(--crm-primary)',        label: 'Hub Email' },
+  hub_email_reassigned:          { icon: 'ti ti-arrow-right',          color: 'var(--crm-primary)',        label: 'Reassigned' },
+  hub_email_escalated_to_me:     { icon: 'ti ti-alert-octagon',        color: 'var(--status-danger-text)', label: 'Escalated' },
+  hub_email_sla_breach_warning:  { icon: 'ti ti-clock-exclamation',    color: 'var(--status-warning-text)', label: 'SLA Warning' },
+  hub_email_sla_breached:        { icon: 'ti ti-alert-triangle',       color: 'var(--status-danger-text)', label: 'SLA Breach' },
 };
 
 function getNotifConfig(type) {
@@ -675,7 +681,20 @@ function initSidebarUserLive() {
     if (!payload || String(payload.id) !== String(currentUserId)) return;
     if (nameEl && payload.full_name) nameEl.textContent = payload.full_name;
     if (emailEl && payload.email)    emailEl.textContent = payload.email;
-    if (avatarEl && payload.initial) avatarEl.textContent = payload.initial;
+    if (avatarEl) {
+      if (payload.avatar) {
+        // Quote + escape any embedded quotes — guards against CSS-context
+        // confusion from filenames containing quotes/parentheses.
+        var safeUrl = String(payload.avatar).replace(/"/g, '\\"');
+        avatarEl.style.backgroundImage = 'url("' + safeUrl + '")';
+        avatarEl.classList.add('has-image');
+        avatarEl.textContent = '';
+      } else if (payload.initial) {
+        avatarEl.style.backgroundImage = '';
+        avatarEl.classList.remove('has-image');
+        avatarEl.textContent = payload.initial;
+      }
+    }
   });
 }
 
@@ -695,12 +714,13 @@ function initSidebarBadges() {
   }
 
   var badgeMap = {
-    tickets:  'sidebarBadgeTickets',
-    emails:   'sidebarBadgeEmails',
-    messages: 'sidebarBadgeMessages',
-    calendar: 'sidebarBadgeCalendar',
+    tickets:   'sidebarBadgeTickets',
+    emails:    'sidebarBadgeEmails',
+    messages:  'sidebarBadgeMessages',
+    calendar:  'sidebarBadgeCalendar',
     reminders: 'sidebarBadgeReminders',
     knowledge: 'sidebarBadgeKnowledge',
+    inbox_hub: 'sidebarBadgeInboxHub',
   };
 
   // Public pages (login, register, landing, etc.) don't render the
@@ -735,6 +755,11 @@ function initSidebarBadges() {
     reminder_overdue: 'sidebarBadgeReminders',
     kb_review_requested: 'sidebarBadgeKnowledge',
     kb_article_reviewed: 'sidebarBadgeKnowledge',
+    hub_email_assigned: 'sidebarBadgeInboxHub',
+    hub_email_reassigned: 'sidebarBadgeInboxHub',
+    hub_email_escalated_to_me: 'sidebarBadgeInboxHub',
+    hub_email_sla_breach_warning: 'sidebarBadgeInboxHub',
+    hub_email_sla_breached: 'sidebarBadgeInboxHub',
   };
   document.addEventListener('kanzan:notification', function(e) {
     var type = e && e.detail && e.detail.type;
@@ -742,6 +767,18 @@ function initSidebarBadges() {
       fetchAndApply();
     }
   });
+
+  // LiveBus: hub_email.created fans out to every connected agent — bump
+  // the Inbox Hub badge for any tenant member, not just the recipient
+  // of a Notification row (those land on assign/escalate, not on park).
+  if (window.LiveBus) {
+    LiveBus.onMany(
+      ['hub_email.created', 'hub_email.assigned', 'hub_email.reassigned',
+       'hub_email.transitioned', 'hub_email.escalated',
+       'hub_email.converted_to_ticket', 'hub_email.dismissed'],
+      LiveBus.debounce(fetchAndApply, 500)
+    );
+  }
 
   // Also refresh when the user opens the Messages page or sends one
   // (chat code dispatches this event after read/send actions so the

@@ -173,6 +173,10 @@
                 </li>
               </ul>
             </div>
+            <div class="form-text mt-1" id="memberPickerHint" style="display:none;">
+              <i class="ti ti-info-circle"></i>
+              <span id="memberPickerHintText"></span>
+            </div>
           </div>
         </form>
       </div>
@@ -367,6 +371,21 @@
     });
   }
 
+  // Build a map: user_id -> group_name for every user already in some
+  // OTHER group (i.e. not the one currently being edited). Currently-
+  // selected users are always shown so legacy users in multiple groups
+  // can be seen and unchecked.
+  function getOtherGroupMemberMap() {
+    var map = {};
+    groups.forEach(function(g) {
+      if (g.id === editingGroupId) return;
+      (g.members || []).forEach(function(m) {
+        if (m && m.id && !(m.id in map)) map[m.id] = g.name || 'another group';
+      });
+    });
+    return map;
+  }
+
   function renderMemberPicker() {
     var list = document.getElementById('memberPickerList');
     if (!usersLoaded) {
@@ -374,13 +393,30 @@
       return;
     }
     var q = (document.getElementById('memberSearchInput').value || '').toLowerCase().trim();
-    var filtered = q ? users.filter(function(u) {
+    var otherGroupMap = getOtherGroupMemberMap();
+
+    // Filter 1: exclude users in other groups (unless already selected here).
+    var visible = users.filter(function(u) {
+      if (selectedUserIds.has(u.id)) return true;
+      return !(u.id in otherGroupMap);
+    });
+    // Filter 2: apply search query.
+    var filtered = q ? visible.filter(function(u) {
       var name = ((u.first_name || '') + ' ' + (u.last_name || '')).toLowerCase();
       return name.indexOf(q) !== -1 || (u.email || '').toLowerCase().indexOf(q) !== -1;
-    }) : users.slice();
+    }) : visible.slice();
 
     if (!filtered.length) {
-      setHtml(list, '<li class="list-group-item text-center text-muted small py-3">' + (users.length ? 'No users match.' : 'No users in this workspace yet.') + '</li>');
+      var hiddenCount = users.length - visible.length;
+      var msg;
+      if (q) {
+        msg = 'No users match.';
+      } else if (hiddenCount > 0 && !visible.length) {
+        msg = 'All users are already in other groups.';
+      } else {
+        msg = 'No users in this workspace yet.';
+      }
+      setHtml(list, '<li class="list-group-item text-center text-muted small py-3">' + msg + '</li>');
       return;
     }
 
@@ -398,14 +434,22 @@
     filtered.forEach(function(u) {
       var fn = ((u.first_name || '') + ' ' + (u.last_name || '')).trim() || u.email;
       var checked = selectedUserIds.has(u.id);
-      html += '<li class="list-group-item d-flex align-items-center gap-2" style="cursor:pointer;" data-user-id="' + escapeHtml(u.id) + '">' +
+      var inOther = otherGroupMap[u.id];   // legacy duplicate?
+      var rowClass = 'list-group-item d-flex align-items-center gap-2' + (inOther ? ' bg-danger-subtle' : '');
+      var conflictBadge = inOther
+        ? '<span class="badge bg-danger-subtle text-danger ms-1" title="Also in another group — uncheck to resolve">' +
+            '<i class="ti ti-alert-triangle"></i> in &lsquo;' + escapeHtml(inOther) + '&rsquo;' +
+          '</span>'
+        : '';
+      html += '<li class="' + rowClass + '" style="cursor:pointer;" data-user-id="' + escapeHtml(u.id) + '">' +
         '<input type="checkbox" class="form-check-input m-0 member-checkbox" data-user-id="' + escapeHtml(u.id) + '"' + (checked ? ' checked' : '') + '>' +
         '<div class="user-avatar user-avatar-sm" style="background:' + avatarColor(fn) + ';">' + escapeHtml(getInitials(fn)) + '</div>' +
-        '<div class="flex-grow-1"><div class="fw-medium small">' + escapeHtml(fn) + '</div><div class="text-muted" style="font-size:0.75rem;">' + escapeHtml(u.email) + '</div></div>' +
+        '<div class="flex-grow-1"><div class="fw-medium small">' + escapeHtml(fn) + conflictBadge + '</div><div class="text-muted" style="font-size:0.75rem;">' + escapeHtml(u.email) + '</div></div>' +
         '</li>';
     });
     setHtml(list, html);
     updateSelectedCount();
+    updatePickerFooter(otherGroupMap, users.length - visible.length);
 
     list.querySelectorAll('.list-group-item').forEach(function(row) {
       row.addEventListener('click', function(e) {
@@ -424,10 +468,43 @@
     if (checked) selectedUserIds.add(userId);
     else selectedUserIds.delete(userId);
     updateSelectedCount();
+    // Re-evaluate footer + save button (conflicts may now be resolved).
+    updatePickerFooter(getOtherGroupMemberMap(), 0);
   }
 
   function updateSelectedCount() {
     document.getElementById('selectedMemberCount').textContent = selectedUserIds.size;
+  }
+
+  /** Update footer hint + disable Save when selected users conflict. */
+  function updatePickerFooter(otherGroupMap, hiddenCount) {
+    var hint = document.getElementById('memberPickerHint');
+    var hintText = document.getElementById('memberPickerHintText');
+    var saveBtn = document.getElementById('groupSubmitBtn');
+
+    // Selected users who are also in another group = blocking conflicts.
+    var conflictCount = 0;
+    selectedUserIds.forEach(function(uid) {
+      if (uid in otherGroupMap) conflictCount += 1;
+    });
+
+    if (hint && hintText) {
+      if (conflictCount > 0) {
+        hint.className = 'form-text mt-1 text-danger';
+        hintText.textContent = conflictCount + ' selected user' +
+          (conflictCount === 1 ? ' is' : 's are') +
+          ' already in another group. Uncheck them (or remove from the other group) before saving.';
+        hint.style.display = '';
+      } else if (hiddenCount > 0) {
+        hint.className = 'form-text mt-1 text-muted';
+        hintText.textContent = hiddenCount + ' user' + (hiddenCount === 1 ? ' is' : 's are') +
+          ' hidden because they already belong to another group.';
+        hint.style.display = '';
+      } else {
+        hint.style.display = 'none';
+      }
+    }
+    if (saveBtn) saveBtn.disabled = conflictCount > 0;
   }
 
   function loadGroups() {
@@ -594,7 +671,10 @@
       showAlert('groupModalAlert', escapeHtml(msg), 'danger');
       Toast.error(msg);
     }).finally(function() {
-      btn.disabled = false; sp.classList.add('d-none');
+      sp.classList.add('d-none');
+      // Re-evaluate Save state via the picker footer (which knows whether
+      // any selected user still conflicts with another group).
+      updatePickerFooter(getOtherGroupMemberMap(), 0);
     });
   }
 

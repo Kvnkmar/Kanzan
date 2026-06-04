@@ -43,6 +43,7 @@ urlpatterns = [
     path("profile/", views.profile_page, name="profile"),
     path("api/quickstart/", views.api_quickstart_page, name="api-quickstart"),
     path("inbound-email/", views.inbound_email_page, name="inbound-email"),
+    path("inbox-hub/", views.inbox_hub_page, name="inbox-hub"),
     path("reminders/", views.reminders_page, name="reminders"),
     path("audit-log/", views.audit_log_page, name="audit-log"),
     path("calls/", views.calls_page, name="calls"),

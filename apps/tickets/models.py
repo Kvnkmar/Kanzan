@@ -155,6 +155,15 @@ class Queue(TenantScopedModel):
         related_name="default_queues",
     )
     auto_assign = models.BooleanField(default=False)
+    # Optional ownership link to an Inbox Hub Department. Hub-driven routing
+    # consults this; legacy ticket flow is unaffected when null.
+    department = models.ForeignKey(
+        "inbox_hub.Department",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="queues",
+    )
 
     class Meta:
         ordering = ["name"]

@@ -793,6 +793,11 @@ def inbound_email_page(request):
 
 
 @_membership_required
+def inbox_hub_page(request):
+    return render(request, "pages/inbox_hub/list.html")
+
+
+@_membership_required
 def reminders_page(request):
     return render(request, "pages/reminders/list.html")
 

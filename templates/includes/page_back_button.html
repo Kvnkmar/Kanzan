@@ -12,7 +12,7 @@
 (function(){
   var btn = document.getElementById('pageBackBtn');
   if (!btn) return;
-  var sidebarPaths = ['/dashboard/','/tickets/','/messaging/','/contacts/','/kanban/','/knowledge/','/calendar/','/reminders/','/analytics/','/audit-log/'];
+  var sidebarPaths = ['/dashboard/','/tickets/','/messaging/','/contacts/','/kanban/','/knowledge/','/calendar/','/reminders/','/analytics/','/audit-log/','/inbox-hub/'];
   var current = window.location.pathname;
   if (!current.endsWith('/')) current += '/';
   if (sidebarPaths.indexOf(current) !== -1) return;

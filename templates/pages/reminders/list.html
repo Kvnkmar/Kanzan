@@ -56,7 +56,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .flatpickr-time {
   flex-shrink: 0; display: flex !important; align-items: center; justify-content: center;
   height: 52px; max-height: 52px !important; padding: 8px 16px; margin: 0;
-  border-top: 1px solid #EEF0F3 !important; background: transparent !important; overflow: visible;
+  border-top: 1px solid var(--crm-border) !important; background: transparent !important; overflow: visible;
 }
 .flatpickr-time input { color: var(--crm-text) !important; font-weight: 600; font-size: 1rem; font-family: 'Inter', sans-serif; background: transparent !important; border: none; }
 .flatpickr-time input:hover,
@@ -118,10 +118,1218 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 [data-bs-theme="dark"] .numInputWrapper span:hover { background: rgba(255,255,255,0.08) !important; }
 [data-bs-theme="dark"] .flatpickr-footer { background: transparent; border-top: none; }
 
-/* Priority + status pills (soft, design-system aligned) */
-.reminder-pill {
-  display: inline-flex; align-items: center;
-  padding: 3px 10px;
+/* ── Reminders v2 — split-pane workspace ─────────────────────────── */
+
+/* Page hero — compact summary strip replaces the old 5 stat cards */
+.rm-hero {
+  display: flex; flex-direction: column; gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+.rm-hero-top {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  flex-wrap: wrap; gap: 0.75rem;
+}
+.rm-hero-title { display: flex; align-items: center; gap: 0.875rem; min-width: 0; }
+.rm-hero-title .ae-page-icon { flex-shrink: 0; }
+.rm-hero-title h1 { margin: 0; line-height: 1.15; }
+.rm-hero-title p { margin: 0.125rem 0 0; font-size: 0.8125rem; color: var(--crm-text-muted); }
+.rm-hero-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+.rm-hero-actions .btn-primary { display: inline-flex; align-items: center; gap: 0.375rem; }
+
+/* Summary strip — tight inline counts under the title */
+.rm-summary {
+  display: inline-flex; align-items: center; flex-wrap: wrap;
+  gap: 0.25rem; padding: 0.375rem;
+  background: var(--bs-body-bg, var(--crm-surface));
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-radius: 12px;
+  width: fit-content;
+  max-width: 100%;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
+}
+.rm-summary-item {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.75rem; color: var(--crm-text-secondary);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.12s;
+  white-space: nowrap;
+  position: relative;
+}
+.rm-summary-item:hover {
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  color: var(--crm-text);
+}
+.rm-summary-item:active { transform: translateY(1px); }
+.rm-summary-item.is-active {
+  background: rgba(var(--crm-primary-rgb), 0.10);
+  color: var(--crm-primary-active);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px rgba(var(--crm-primary-rgb), 0.18);
+}
+.rm-summary-item.is-active::after {
+  content: 'ON';
+  font-size: 0.5625rem; font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 0 0.25rem;
+  border-radius: 3px;
+  background: var(--crm-primary);
+  color: var(--crm-text-on-primary);
+  line-height: 1.4;
+}
+.rm-summary-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--crm-text-muted);
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(0,0,0,0); /* placeholder for halo on active */
+  transition: box-shadow 0.15s;
+}
+.rm-summary-item--overdue .rm-summary-dot   { background: var(--crm-primary); }
+.rm-summary-item--mine .rm-summary-dot      { background: rgba(245,158,11,1); }
+.rm-summary-item--pending .rm-summary-dot   { background: rgba(59,130,246,1); }
+.rm-summary-item--today .rm-summary-dot     { background: var(--crm-accent, var(--crm-primary)); }
+.rm-summary-item--done .rm-summary-dot      { background: rgba(34,197,94,1); }
+.rm-summary-item.is-active .rm-summary-dot {
+  box-shadow: 0 0 0 3px rgba(var(--crm-primary-rgb), 0.18);
+}
+.rm-summary-num {
+  font-weight: 700; color: var(--crm-text);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.875rem;
+}
+.rm-summary-item.is-active .rm-summary-num { color: var(--crm-primary-active); }
+[data-bs-theme="dark"] .rm-summary { border-color: rgba(255,255,255,0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.18); }
+[data-bs-theme="dark"] .rm-summary-item:hover { background: rgba(255,255,255,0.06); }
+[data-bs-theme="dark"] .rm-summary-item.is-active {
+  background: rgba(var(--crm-accent-rgb), 0.22);
+  color: var(--crm-primary-300);
+  box-shadow: inset 0 0 0 1px rgba(var(--crm-accent-rgb), 0.36);
+}
+[data-bs-theme="dark"] .rm-summary-item.is-active .rm-summary-num { color: var(--crm-primary-300); }
+[data-bs-theme="dark"] .rm-summary-item.is-active .rm-summary-dot {
+  box-shadow: 0 0 0 3px rgba(var(--crm-accent-rgb), 0.22);
+}
+
+/* Workload progress banner — productivity-oriented strip above the workspace */
+.rm-workload {
+  display: flex; align-items: center; gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.75rem 1.125rem;
+  background: linear-gradient(135deg,
+    rgba(var(--crm-primary-rgb), 0.05),
+    rgba(var(--crm-primary-rgb), 0.02) 60%,
+    transparent);
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-radius: 12px;
+  position: relative; overflow: hidden;
+}
+.rm-workload::before {
+  content: '';
+  position: absolute; right: -40px; top: -40px;
+  width: 160px; height: 160px;
+  background: radial-gradient(circle, rgba(var(--crm-primary-rgb), 0.10), transparent 70%);
+  pointer-events: none;
+}
+[data-bs-theme="dark"] .rm-workload {
+  background: linear-gradient(135deg,
+    rgba(var(--crm-accent-rgb), 0.10),
+    rgba(var(--crm-accent-rgb), 0.04) 60%,
+    transparent);
+}
+[data-bs-theme="dark"] .rm-workload::before {
+  background: radial-gradient(circle, rgba(var(--crm-accent-rgb), 0.18), transparent 70%);
+}
+.rm-workload-icon {
+  width: 40px; height: 40px; flex-shrink: 0;
+  border-radius: 12px;
+  background: rgba(var(--crm-primary-rgb), 0.10);
+  color: var(--crm-primary-active);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.125rem;
+  position: relative;
+}
+[data-bs-theme="dark"] .rm-workload-icon {
+  background: rgba(var(--crm-accent-rgb), 0.22);
+  color: var(--crm-primary-300);
+}
+.rm-workload-text { flex: 1; min-width: 0; position: relative; }
+.rm-workload-title {
+  font-size: 0.875rem; font-weight: 700; color: var(--crm-text);
+  line-height: 1.3;
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+.rm-workload-tone {
+  font-size: 0.625rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 0.0625rem 0.5rem;
+  border-radius: 999px;
+}
+.rm-workload-tone--good {
+  background: rgba(34,197,94,0.14); color: var(--status-success-text);
+}
+.rm-workload-tone--warn {
+  background: rgba(245,158,11,0.16); color: var(--status-warning-text);
+}
+.rm-workload-tone--bad {
+  background: rgba(var(--crm-primary-rgb), 0.14); color: var(--crm-primary-active);
+}
+.rm-workload-tone--idle {
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  color: var(--crm-text-muted);
+}
+.rm-workload-sub {
+  margin-top: 2px;
+  font-size: 0.75rem; color: var(--crm-text-muted);
+}
+.rm-workload-progress {
+  display: flex; align-items: center; gap: 0.625rem;
+  min-width: 220px;
+  position: relative;
+}
+@media (max-width: 575px) {
+  .rm-workload { flex-direction: column; align-items: stretch; gap: 0.625rem; }
+  .rm-workload-progress { min-width: 0; }
+}
+.rm-workload-bar {
+  flex: 1;
+  height: 7px;
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  border-radius: 999px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 1px rgba(0,0,0,0.05);
+}
+.rm-workload-fill {
+  height: 100%;
+  background: linear-gradient(90deg,
+    var(--crm-primary),
+    rgba(var(--crm-primary-rgb), 0.85));
+  border-radius: 999px;
+  transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);
+  position: relative;
+}
+.rm-workload-fill::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg,
+    transparent, rgba(255,255,255,0.35), transparent);
+  background-size: 200% 100%;
+  animation: rm-workload-shimmer 2.5s ease-in-out infinite;
+  border-radius: 999px;
+}
+.rm-workload-fill--complete {
+  background: linear-gradient(90deg,
+    rgba(34,197,94,0.95),
+    rgba(34,197,94,0.75));
+}
+@keyframes rm-workload-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rm-workload-fill::after { animation: none; opacity: 0; }
+}
+.rm-workload-pct {
+  font-weight: 700;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--crm-text);
+  min-width: 44px; text-align: right;
+}
+
+/* The workspace grid — left list + right detail */
+.rm-workspace {
+  display: grid;
+  grid-template-columns: minmax(340px, 400px) 1fr;
+  gap: 1rem;
+  align-items: stretch;
+}
+@media (max-width: 991px) {
+  .rm-workspace { grid-template-columns: 1fr; }
+  .rm-detail { position: static; min-height: 0; }
+  .rm-detail.is-mobile-open {
+    position: fixed; inset: 0; z-index: 1080;
+    border-radius: 0; box-shadow: -8px 0 40px rgba(0,0,0,0.25);
+    overflow-y: auto;
+  }
+  .rm-detail-back { display: inline-flex !important; }
+}
+
+/* ── LEFT: list pane ─────────────────────────────────────────────── */
+.rm-list {
+  background: var(--bs-body-bg, var(--crm-surface));
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-radius: 14px;
+  display: flex; flex-direction: column;
+  min-height: 540px;
+  max-height: calc(100vh - 2rem);
+  position: sticky;
+  top: 1rem;
+  align-self: flex-start;
+  overflow: hidden;
+}
+@media (max-width: 991px) {
+  .rm-list { position: static; max-height: none; min-height: 0; }
+}
+.rm-list-toolbar {
+  padding: 0.75rem 0.875rem;
+  border-bottom: 1px solid var(--bs-border-color, var(--crm-border));
+  display: flex; flex-direction: column; gap: 0.5rem;
+  background: var(--bs-body-bg, var(--crm-surface));
+}
+.rm-list-toolbar-top {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+}
+.rm-search {
+  position: relative; flex: 1; min-width: 0;
+}
+.rm-search .ti {
+  position: absolute; left: 0.625rem; top: 50%; transform: translateY(-50%);
+  color: var(--crm-text-muted); font-size: 0.9375rem; pointer-events: none;
+}
+.rm-search input {
+  width: 100%;
+  padding: 0.4rem 0.6rem 0.4rem 2rem;
+  font-size: 0.8125rem;
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-radius: 8px;
+  background: var(--bs-body-bg, var(--crm-surface));
+  color: var(--crm-text);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.rm-search input:focus {
+  outline: none;
+  border-color: var(--crm-primary);
+  box-shadow: 0 0 0 3px rgba(var(--crm-primary-rgb), 0.12);
+}
+.rm-segmented {
+  display: inline-flex;
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-radius: 8px;
+  padding: 2px;
+  background: var(--bs-body-bg, var(--crm-surface));
+  gap: 2px;
+}
+.rm-segmented .btn {
+  border: none !important;
+  border-radius: 6px !important;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.7188rem;
+  font-weight: 600;
+  color: var(--crm-text-secondary);
+  background: transparent;
+  display: inline-flex; align-items: center; gap: 4px;
+  transition: background 0.12s, color 0.12s;
+}
+.rm-segmented .btn:hover { background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2)); color: var(--crm-text); }
+.rm-segmented .btn.active {
+  background: rgba(var(--crm-primary-rgb), 0.12);
+  color: var(--crm-primary-active);
+}
+[data-bs-theme="dark"] .rm-segmented { border-color: rgba(255,255,255,0.10); background: transparent; }
+[data-bs-theme="dark"] .rm-segmented .btn:hover { background: rgba(255,255,255,0.06); color: var(--crm-text); }
+[data-bs-theme="dark"] .rm-segmented .btn.active { background: rgba(var(--crm-accent-rgb), 0.22); color: var(--crm-primary-300); }
+.rm-list-filters {
+  display: flex; gap: 0.4rem; flex-wrap: wrap;
+}
+.rm-list-filters .form-select-sm {
+  font-size: 0.75rem;
+  padding-top: 0.275rem; padding-bottom: 0.275rem;
+  flex: 1; min-width: 110px;
+}
+
+/* Scrollable list body */
+.rm-list-body {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  padding: 0.5rem 0.25rem;
+}
+.rm-list-body::-webkit-scrollbar { width: 8px; }
+.rm-list-body::-webkit-scrollbar-thumb { background: var(--crm-scrollbar-thumb, rgba(0,0,0,0.15)); border-radius: 999px; }
+.rm-list-body::-webkit-scrollbar-thumb:hover { background: var(--crm-scrollbar-thumb-hover, rgba(0,0,0,0.25)); }
+
+/* Active-filter banner — shown above the list when a quick filter or column filter is set */
+.rm-filter-banner {
+  display: none;
+  align-items: center; gap: 0.5rem;
+  margin: 0.5rem 0.5rem 0.25rem;
+  padding: 0.4rem 0.6rem;
+  background: rgba(var(--crm-primary-rgb), 0.06);
+  border: 1px dashed rgba(var(--crm-primary-rgb), 0.28);
+  border-radius: 9px;
+  font-size: 0.6875rem;
+  color: var(--crm-primary-active);
+  font-weight: 600;
+}
+.rm-filter-banner.is-visible { display: flex; }
+.rm-filter-banner i { font-size: 0.875rem; }
+.rm-filter-banner .rm-filter-banner-chips { display: inline-flex; gap: 0.25rem; flex-wrap: wrap; }
+.rm-filter-banner .rm-filter-banner-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 0.0625rem 0.4rem;
+  background: var(--crm-surface);
+  border: 1px solid rgba(var(--crm-primary-rgb), 0.22);
+  border-radius: 999px;
+  font-weight: 700;
+  color: var(--crm-primary-active);
+  text-transform: capitalize;
+}
+.rm-filter-banner .rm-filter-banner-clear {
+  margin-left: auto;
+  background: none; border: none; padding: 0.0625rem 0.375rem;
+  color: var(--crm-primary-active); font-weight: 700; font-size: 0.6875rem;
+  cursor: pointer; border-radius: 6px;
+  display: inline-flex; align-items: center; gap: 3px;
+}
+.rm-filter-banner .rm-filter-banner-clear:hover {
+  background: rgba(var(--crm-primary-rgb), 0.10);
+}
+[data-bs-theme="dark"] .rm-filter-banner {
+  background: rgba(var(--crm-accent-rgb), 0.12);
+  border-color: rgba(var(--crm-accent-rgb), 0.40);
+  color: var(--crm-primary-300);
+}
+[data-bs-theme="dark"] .rm-filter-banner .rm-filter-banner-chip {
+  background: var(--crm-surface);
+  border-color: rgba(var(--crm-accent-rgb), 0.40);
+  color: var(--crm-primary-300);
+}
+[data-bs-theme="dark"] .rm-filter-banner .rm-filter-banner-clear { color: var(--crm-primary-300); }
+[data-bs-theme="dark"] .rm-filter-banner .rm-filter-banner-clear:hover {
+  background: rgba(var(--crm-accent-rgb), 0.18);
+}
+
+/* Quick-add inline row — slim creator at the top of the list */
+.rm-quick-add {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--bs-border-color, var(--crm-border));
+  background: linear-gradient(180deg, rgba(var(--crm-primary-rgb), 0.03), transparent);
+  transition: background 0.18s;
+  position: relative;
+}
+.rm-quick-add:focus-within {
+  background: linear-gradient(180deg, rgba(var(--crm-primary-rgb), 0.07), transparent);
+}
+[data-bs-theme="dark"] .rm-quick-add {
+  background: linear-gradient(180deg, rgba(var(--crm-accent-rgb), 0.06), transparent);
+}
+[data-bs-theme="dark"] .rm-quick-add:focus-within {
+  background: linear-gradient(180deg, rgba(var(--crm-accent-rgb), 0.12), transparent);
+}
+.rm-quick-add-plus {
+  width: 28px; height: 28px; flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(var(--crm-primary-rgb), 0.10);
+  color: var(--crm-primary-active);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.9375rem;
+  transition: background 0.15s, transform 0.15s;
+}
+.rm-quick-add:focus-within .rm-quick-add-plus {
+  background: var(--crm-primary);
+  color: var(--crm-text-on-primary);
+  transform: rotate(90deg);
+}
+[data-bs-theme="dark"] .rm-quick-add-plus {
+  background: rgba(var(--crm-accent-rgb), 0.20);
+  color: var(--crm-primary-300);
+}
+.rm-quick-add input {
+  flex: 1; min-width: 0;
+  border: none;
+  background: transparent;
+  font-size: 0.8125rem;
+  color: var(--crm-text);
+  outline: none;
+  padding: 0.2rem 0;
+}
+.rm-quick-add input::placeholder { color: var(--crm-text-muted); }
+.rm-quick-add-hint {
+  display: none;
+  font-size: 0.625rem;
+  color: var(--crm-text-muted);
+  white-space: nowrap;
+  padding: 0 0.25rem;
+}
+.rm-quick-add:focus-within .rm-quick-add-hint { display: inline-flex; align-items: center; gap: 4px; }
+.rm-quick-add-hint .rm-kbd-key { font-size: 0.5625rem; min-width: 16px; height: 16px; }
+
+/* List item hover quick-actions — appear on the right on hover */
+.rm-item-hover-actions {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex; gap: 0.25rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 2;
+}
+.rm-item-hover-actions::before {
+  content: '';
+  position: absolute;
+  inset: -8px -6px -8px -28px;
+  background: linear-gradient(90deg, transparent, var(--bs-tertiary-bg, var(--crm-bg-elevated-2)) 55%);
+  z-index: -1;
+  border-radius: 8px;
+}
+.rm-item.is-selected .rm-item-hover-actions::before {
+  background: linear-gradient(90deg, transparent, rgba(var(--crm-primary-rgb), 0.10) 55%);
+}
+[data-bs-theme="dark"] .rm-item.is-selected .rm-item-hover-actions::before {
+  background: linear-gradient(90deg, transparent, rgba(var(--crm-accent-rgb), 0.18) 55%);
+}
+.rm-item:hover .rm-item-hover-actions,
+.rm-item:focus-within .rm-item-hover-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+.rm-item-quick-btn {
+  width: 26px; height: 26px;
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  background: var(--bs-body-bg, var(--crm-surface));
+  border-radius: 7px;
+  color: var(--crm-text-secondary);
+  font-size: 0.875rem;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.12s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.rm-item-quick-btn:hover {
+  transform: scale(1.08);
+  border-color: rgba(var(--crm-primary-rgb), 0.36);
+  color: var(--crm-primary-active);
+}
+.rm-item-quick-btn--complete:hover {
+  background: rgba(34,197,94,0.14);
+  border-color: rgba(34,197,94,0.45);
+  color: var(--status-success-text);
+}
+.rm-item-quick-btn--reschedule:hover {
+  background: rgba(245,158,11,0.16);
+  border-color: rgba(245,158,11,0.45);
+  color: var(--status-warning-text);
+}
+[data-bs-theme="dark"] .rm-item-quick-btn {
+  background: var(--crm-surface);
+  border-color: rgba(255,255,255,0.12);
+  color: var(--crm-text-secondary);
+}
+
+/* Lifecycle timeline strip in detail pane */
+.rm-timeline {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: center;
+  gap: 0;
+  margin: 0 0 1rem;
+  padding: 0.75rem 0.5rem 0.625rem;
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  border-radius: 10px;
+}
+.rm-tl-step {
+  display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
+  text-align: center;
+  min-width: 0;
+}
+.rm-tl-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--bs-body-bg, var(--crm-surface));
+  border: 2px solid var(--crm-text-muted);
+  color: var(--crm-text-muted);
+  font-size: 0.875rem;
+  position: relative;
+  z-index: 1;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+.rm-tl-line {
+  height: 2px;
+  background: var(--crm-text-muted);
+  opacity: 0.25;
+  border-radius: 2px;
+  width: 100%;
+  margin: 0 -4px; /* tighten to dots */
+  align-self: center;
+}
+.rm-tl-line.is-done {
+  opacity: 1;
+  background: var(--crm-primary);
+}
+.rm-tl-step.is-done .rm-tl-dot {
+  background: var(--crm-primary);
+  border-color: var(--crm-primary);
+  color: var(--crm-text-on-primary);
+  box-shadow: 0 2px 6px rgba(var(--crm-primary-rgb), 0.25);
+}
+.rm-tl-step.is-current .rm-tl-dot {
+  background: rgba(245,158,11,0.16);
+  border-color: rgba(245,158,11,1);
+  color: var(--status-warning-text);
+}
+.rm-tl-step.is-overdue .rm-tl-dot {
+  background: rgba(var(--crm-primary-rgb), 0.16);
+  border-color: var(--crm-primary);
+  color: var(--crm-primary-active);
+  animation: rm-tl-pulse 1.6s ease-in-out infinite;
+}
+.rm-tl-step.is-cancelled .rm-tl-dot {
+  background: rgba(107,114,128,0.20);
+  border-color: rgba(107,114,128,0.9);
+  color: var(--crm-text-secondary);
+}
+@keyframes rm-tl-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(var(--crm-primary-rgb), 0.30); }
+  50%      { box-shadow: 0 0 0 6px rgba(var(--crm-primary-rgb), 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rm-tl-step.is-overdue .rm-tl-dot { animation: none; }
+}
+.rm-tl-label {
+  font-size: 0.625rem; font-weight: 700;
+  color: var(--crm-text); text-transform: uppercase; letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+.rm-tl-sub {
+  font-size: 0.625rem;
+  color: var(--crm-text-muted);
+  white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+  max-width: 100%;
+}
+[data-bs-theme="dark"] .rm-tl-dot { background: var(--crm-surface); }
+[data-bs-theme="dark"] .rm-tl-step.is-done .rm-tl-dot,
+[data-bs-theme="dark"] .rm-tl-line.is-done { background: var(--crm-primary); border-color: var(--crm-primary); }
+
+/* Live countdown chip — placed inline with the Scheduled value */
+.rm-countdown {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.rm-countdown::before {
+  content: '';
+  width: 5px; height: 5px; border-radius: 50%;
+  background: currentColor;
+  animation: rm-cd-blink 1.6s ease-in-out infinite;
+}
+@keyframes rm-cd-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+@media (prefers-reduced-motion: reduce) { .rm-countdown::before { animation: none; } }
+.rm-countdown--upcoming {
+  background: rgba(59,130,246,0.12);
+  color: var(--status-info-text);
+  border-color: rgba(59,130,246,0.24);
+}
+.rm-countdown--soon {
+  background: rgba(245,158,11,0.16);
+  color: var(--status-warning-text);
+  border-color: rgba(245,158,11,0.30);
+}
+.rm-countdown--overdue {
+  background: rgba(var(--crm-primary-rgb), 0.12);
+  color: var(--crm-primary-active);
+  border-color: rgba(var(--crm-primary-rgb), 0.28);
+}
+[data-bs-theme="dark"] .rm-countdown--upcoming { background: rgba(96,165,250,0.20); color: var(--status-info-text); border-color: rgba(96,165,250,0.36); }
+[data-bs-theme="dark"] .rm-countdown--soon { background: rgba(245,158,11,0.22); color: var(--status-warning-text); border-color: rgba(245,158,11,0.38); }
+[data-bs-theme="dark"] .rm-countdown--overdue { background: rgba(var(--crm-accent-rgb), 0.20); color: var(--crm-primary-300); border-color: rgba(var(--crm-accent-rgb), 0.40); }
+
+/* Skeleton loader rows */
+.rm-skel { margin: 0.25rem; padding: 0.625rem; border-radius: 9px; display: flex; gap: 0.5rem; align-items: center; }
+.rm-skel-avatar { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; }
+.rm-skel-body { flex: 1; display: flex; flex-direction: column; gap: 0.375rem; }
+.rm-skel-line { height: 10px; border-radius: 5px; background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2)); }
+.rm-skel-line--sm { width: 40%; height: 8px; }
+.rm-skel-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--bs-tertiary-bg, var(--crm-bg-elevated-2)) 0%,
+    rgba(var(--crm-primary-rgb), 0.06) 50%,
+    var(--bs-tertiary-bg, var(--crm-bg-elevated-2)) 100%
+  );
+  background-size: 200% 100%;
+  animation: rm-shimmer 1.4s ease-in-out infinite;
+}
+@keyframes rm-shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .rm-skel-shimmer { animation: none; }
+}
+
+/* Group sections */
+.rm-group { margin-bottom: 0.5rem; }
+.rm-group:last-child { margin-bottom: 0; }
+.rm-group-header {
+  display: flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.625rem 0.375rem;
+  font-size: 0.6875rem; font-weight: 700;
+  color: var(--crm-text-muted);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.rm-group-header-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--crm-text-muted); }
+.rm-group--overdue   .rm-group-header-dot { background: var(--crm-primary); }
+.rm-group--today     .rm-group-header-dot { background: var(--crm-accent, var(--crm-primary)); }
+.rm-group--upcoming  .rm-group-header-dot { background: rgba(59,130,246,1); }
+.rm-group--done      .rm-group-header-dot { background: rgba(34,197,94,1); }
+.rm-group--cancelled .rm-group-header-dot { background: rgba(107,114,128,1); }
+.rm-group-count {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  color: var(--crm-text-secondary);
+  padding: 0.0625rem 0.4rem;
+  border-radius: 999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+/* List item rows */
+.rm-item {
+  position: relative;
+  display: flex; align-items: flex-start; gap: 0.5rem;
+  padding: 0.625rem 0.625rem 0.625rem 0.75rem;
+  border-radius: 9px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s, box-shadow 0.15s;
+  margin: 0 0.25rem 0.125rem;
+}
+.rm-item:hover {
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  transform: translateX(2px);
+}
+.rm-item.is-selected {
+  background: rgba(var(--crm-primary-rgb), 0.08);
+  border-color: rgba(var(--crm-primary-rgb), 0.22);
+  box-shadow: 0 1px 6px rgba(var(--crm-primary-rgb), 0.10);
+  transform: translateX(2px);
+}
+.rm-item.is-just-selected { animation: rm-item-pulse 0.6s ease-out; }
+@keyframes rm-item-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(var(--crm-primary-rgb), 0.40); }
+  100% { box-shadow: 0 0 0 8px rgba(var(--crm-primary-rgb), 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rm-item, .rm-item.is-just-selected { transition: none; animation: none; transform: none; }
+}
+[data-bs-theme="dark"] .rm-item.is-selected {
+  background: rgba(var(--crm-accent-rgb), 0.16);
+  border-color: rgba(var(--crm-accent-rgb), 0.32);
+}
+.rm-item-check {
+  margin-top: 0.125rem;
+  flex-shrink: 0;
+}
+.rm-item-priority-bar {
+  position: absolute; left: 0; top: 8px; bottom: 8px;
+  width: 3px; border-radius: 0 3px 3px 0;
+  background: transparent;
+}
+.rm-item[data-priority="urgent"] .rm-item-priority-bar { background: var(--crm-primary); }
+.rm-item[data-priority="high"]   .rm-item-priority-bar { background: rgba(245,158,11,1); }
+.rm-item[data-priority="medium"] .rm-item-priority-bar { background: rgba(59,130,246,1); }
+.rm-item[data-priority="low"]    .rm-item-priority-bar { background: rgba(107,114,128,0.6); }
+
+.rm-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1875rem; }
+.rm-item-subject {
+  font-size: 0.8125rem; font-weight: 600;
+  color: var(--crm-text);
+  line-height: 1.3;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rm-item.is-done .rm-item-subject,
+.rm-item.is-cancelled .rm-item-subject {
+  color: var(--crm-text-secondary);
+  text-decoration: line-through;
+  text-decoration-color: rgba(0,0,0,0.18);
+}
+[data-bs-theme="dark"] .rm-item.is-done .rm-item-subject,
+[data-bs-theme="dark"] .rm-item.is-cancelled .rm-item-subject {
+  text-decoration-color: rgba(255,255,255,0.18);
+}
+.rm-item-meta {
+  display: flex; align-items: center; gap: 0.4rem;
+  font-size: 0.6875rem; color: var(--crm-text-muted);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rm-item-meta i { font-size: 0.8125rem; opacity: 0.85; }
+.rm-item-meta .rm-meta-sep { color: var(--crm-text-muted); opacity: 0.6; }
+.rm-item-meta .rm-meta-overdue { color: var(--crm-primary-active); font-weight: 600; }
+[data-bs-theme="dark"] .rm-item-meta .rm-meta-overdue { color: var(--crm-primary-300); }
+.rm-item-meta .rm-meta-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 0 0.4rem;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  color: var(--crm-text-secondary);
+  font-weight: 600;
+}
+.rm-item-avatar {
+  width: 26px; height: 26px; border-radius: 50%;
+  background: rgba(var(--crm-primary-rgb), 0.12);
+  color: var(--crm-primary-active);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 0.6875rem; font-weight: 700;
+  flex-shrink: 0;
+}
+.rm-item-avatar--unassigned {
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  color: var(--crm-text-muted);
+}
+[data-bs-theme="dark"] .rm-item-avatar { background: rgba(var(--crm-accent-rgb), 0.20); color: var(--crm-primary-300); }
+[data-bs-theme="dark"] .rm-item-avatar--unassigned { background: rgba(255,255,255,0.06); color: var(--crm-text-muted); }
+
+/* Empty / loading list states */
+.rm-list-state {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 2.5rem 1rem; gap: 0.75rem;
+  text-align: center; color: var(--crm-text-muted);
+}
+.rm-list-state-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.375rem;
+  color: var(--crm-text-muted);
+}
+.rm-list-state-title { font-weight: 600; color: var(--crm-text); font-size: 0.9375rem; }
+.rm-list-state-text { font-size: 0.8125rem; }
+
+/* Bulk action bar — slides above the list footer when any items are checked */
+.rm-bulk-bar {
+  display: none;
+  align-items: center; gap: 0.5rem;
+  padding: 0.5rem 0.625rem;
+  border-top: 1px solid var(--bs-border-color, var(--crm-border));
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+}
+.rm-bulk-bar.is-visible { display: flex; }
+.rm-bulk-bar .rm-bulk-count {
+  font-size: 0.7188rem; font-weight: 600;
+  padding: 0.125rem 0.55rem; border-radius: 999px;
+  background: rgba(var(--crm-primary-rgb), 0.12); color: var(--crm-primary-active);
+  margin-right: auto;
+}
+[data-bs-theme="dark"] .rm-bulk-bar { background: rgba(255,255,255,0.04); }
+[data-bs-theme="dark"] .rm-bulk-bar .rm-bulk-count { background: rgba(var(--crm-accent-rgb), 0.22); color: var(--crm-primary-300); }
+.rm-bulk-bar .btn-sm { padding: 0.2rem 0.5rem; font-size: 0.7188rem; }
+
+/* Pagination footer */
+.rm-pagination {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 0.5rem; padding: 0.5rem 0.875rem;
+  border-top: 1px solid var(--bs-border-color, var(--crm-border));
+  font-size: 0.7188rem; color: var(--crm-text-muted);
+}
+.rm-pagination .rm-page-btns { display: inline-flex; gap: 0.25rem; }
+.rm-pagination .rm-page-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 26px; height: 26px;
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-radius: 7px;
+  background: transparent;
+  color: var(--crm-text-secondary);
+  cursor: pointer;
+  transition: background 0.12s, border-color 0.12s;
+  padding: 0;
+}
+.rm-pagination .rm-page-btn:hover:not(:disabled) {
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  color: var(--crm-text);
+}
+.rm-pagination .rm-page-btn:disabled { opacity: 0.4; cursor: default; }
+.rm-pagination .rm-page-label {
+  font-variant-numeric: tabular-nums;
+  color: var(--crm-text);
+  font-weight: 600;
+  padding: 0 0.25rem;
+}
+[data-bs-theme="dark"] .rm-pagination .rm-page-btn { border-color: rgba(255,255,255,0.10); }
+[data-bs-theme="dark"] .rm-pagination .rm-page-btn:hover:not(:disabled) { background: rgba(255,255,255,0.06); }
+
+/* ── RIGHT: detail/edit pane ─────────────────────────────────────── */
+.rm-detail {
+  background: var(--bs-body-bg, var(--crm-surface));
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-radius: 14px;
+  display: flex; flex-direction: column;
+  min-height: 540px;
+  position: sticky;
+  top: 1rem;
+  align-self: flex-start;
+  max-height: calc(100vh - 2rem);
+  overflow: hidden;
+}
+.rm-detail-back {
+  display: none;
+  position: absolute;
+  top: 0.875rem; left: 0.875rem;
+  z-index: 2;
+}
+
+/* Empty placeholder when nothing is selected */
+.rm-detail-empty {
+  flex: 1;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  text-align: center; gap: 0.875rem;
+  padding: 3rem 2rem;
+  position: relative;
+  overflow: hidden;
+}
+/* Subtle dot-grid backdrop — only visible behind the empty state */
+.rm-detail-empty::before {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at center, var(--bs-tertiary-bg, var(--crm-bg-elevated-2)) 1px, transparent 1.6px);
+  background-size: 22px 22px;
+  opacity: 0.55;
+  mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 70%);
+  -webkit-mask-image: radial-gradient(ellipse at center, rgba(0,0,0,0.45) 0%, rgba(0,0,0,0) 70%);
+  pointer-events: none;
+}
+.rm-detail-empty > * { position: relative; }
+.rm-detail-empty-icon {
+  width: 72px; height: 72px; border-radius: 20px;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(var(--crm-primary-rgb), 0.18), rgba(var(--crm-primary-rgb), 0.08) 60%, rgba(var(--crm-primary-rgb), 0.02) 100%);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.875rem;
+  color: var(--crm-primary-active);
+  box-shadow:
+    0 0 0 8px rgba(var(--crm-primary-rgb), 0.04),
+    0 8px 24px rgba(var(--crm-primary-rgb), 0.10);
+  animation: rm-bell-breathe 4s ease-in-out infinite;
+}
+@keyframes rm-bell-breathe {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.04); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .rm-detail-empty-icon { animation: none; }
+}
+[data-bs-theme="dark"] .rm-detail-empty-icon {
+  color: var(--crm-primary-300);
+  background:
+    radial-gradient(circle at 30% 30%, rgba(var(--crm-accent-rgb), 0.28), rgba(var(--crm-accent-rgb), 0.12) 60%, rgba(var(--crm-accent-rgb), 0.04) 100%);
+  box-shadow:
+    0 0 0 8px rgba(var(--crm-accent-rgb), 0.08),
+    0 8px 24px rgba(var(--crm-accent-rgb), 0.18);
+}
+.rm-detail-empty-title {
+  font-weight: 700; font-size: 1.0625rem;
+  color: var(--crm-text);
+  letter-spacing: -0.01em;
+}
+.rm-detail-empty-text {
+  font-size: 0.8125rem; color: var(--crm-text-muted);
+  max-width: 340px;
+  line-height: 1.5;
+}
+.rm-detail-empty .btn { margin-top: 0.25rem; }
+
+/* ── Today's focus card (replaces the generic empty state) ──────── */
+.rm-focus {
+  flex: 1;
+  display: flex; flex-direction: column;
+  padding: 1.25rem 1.25rem 1rem;
+  gap: 1rem;
+  overflow-y: auto;
+  position: relative;
+}
+.rm-focus::-webkit-scrollbar { width: 8px; }
+.rm-focus::-webkit-scrollbar-thumb { background: var(--crm-scrollbar-thumb, rgba(0,0,0,0.15)); border-radius: 999px; }
+.rm-focus-header {
+  display: flex; align-items: center; gap: 0.875rem;
+  padding-bottom: 0.625rem;
+  border-bottom: 1px solid var(--bs-border-color-translucent, var(--crm-border));
+}
+.rm-focus-header-icon {
+  width: 44px; height: 44px; border-radius: 12px;
+  background: linear-gradient(135deg, var(--crm-primary), var(--crm-primary-400, var(--crm-primary)));
+  color: var(--crm-text-on-primary);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.25rem;
+  box-shadow: 0 6px 18px rgba(var(--crm-primary-rgb), 0.28);
+}
+.rm-focus-header-text { flex: 1; min-width: 0; }
+.rm-focus-greeting {
+  font-size: 1rem; font-weight: 700; color: var(--crm-text);
+  letter-spacing: -0.01em;
+}
+.rm-focus-date {
+  font-size: 0.75rem; color: var(--crm-text-muted);
+  font-variant-numeric: tabular-nums;
+  margin-top: 1px;
+}
+
+/* Section label inside focus card */
+.rm-focus-label {
+  font-size: 0.625rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--crm-text-muted);
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+  display: flex; align-items: center; gap: 0.5rem;
+}
+.rm-focus-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--bs-border-color-translucent, var(--crm-border));
+  opacity: 0.6;
+}
+
+/* Hero "up next" card */
+.rm-focus-hero {
+  position: relative;
+  padding: 1rem 1.125rem 0.875rem;
+  border-radius: 14px;
+  background:
+    radial-gradient(circle at top right, rgba(var(--crm-primary-rgb), 0.10), transparent 60%),
+    var(--bs-body-bg, var(--crm-surface));
+  border: 1px solid rgba(var(--crm-primary-rgb), 0.20);
+  overflow: hidden;
+}
+.rm-focus-hero.is-overdue {
+  border-color: rgba(var(--crm-primary-rgb), 0.42);
+  background:
+    radial-gradient(circle at top right, rgba(var(--crm-primary-rgb), 0.16), transparent 60%),
+    var(--bs-body-bg, var(--crm-surface));
+}
+.rm-focus-hero.is-allclear {
+  border-color: rgba(34,197,94,0.30);
+  background:
+    radial-gradient(circle at top right, rgba(34,197,94,0.10), transparent 60%),
+    var(--bs-body-bg, var(--crm-surface));
+}
+[data-bs-theme="dark"] .rm-focus-hero {
+  background:
+    radial-gradient(circle at top right, rgba(var(--crm-accent-rgb), 0.16), transparent 60%),
+    var(--crm-surface);
+  border-color: rgba(var(--crm-accent-rgb), 0.32);
+}
+[data-bs-theme="dark"] .rm-focus-hero.is-overdue {
+  border-color: rgba(var(--crm-accent-rgb), 0.55);
+}
+[data-bs-theme="dark"] .rm-focus-hero.is-allclear {
+  border-color: rgba(34,197,94,0.40);
+}
+.rm-focus-hero-top {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+}
+.rm-focus-hero-priority {
+  width: 4px;
+  align-self: stretch;
+  border-radius: 4px;
+  background: rgba(var(--crm-primary-rgb), 0.55);
+  flex-shrink: 0;
+}
+.rm-focus-hero[data-priority="urgent"] .rm-focus-hero-priority { background: var(--crm-primary); }
+.rm-focus-hero[data-priority="high"]   .rm-focus-hero-priority { background: rgba(245,158,11,1); }
+.rm-focus-hero[data-priority="medium"] .rm-focus-hero-priority { background: rgba(59,130,246,1); }
+.rm-focus-hero[data-priority="low"]    .rm-focus-hero-priority { background: rgba(107,114,128,0.6); }
+.rm-focus-hero-body { flex: 1; min-width: 0; }
+.rm-focus-hero-subject {
+  font-size: 0.9375rem; font-weight: 700;
+  color: var(--crm-text);
+  line-height: 1.3;
+  word-break: break-word;
+}
+.rm-focus-hero-meta {
+  margin-top: 0.4rem;
+  display: flex; align-items: center; gap: 0.5rem;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: var(--crm-text-secondary);
+}
+.rm-focus-hero-meta .rm-meta-sep { color: var(--crm-text-muted); opacity: 0.6; }
+.rm-focus-hero-actions {
+  margin-top: 0.875rem;
+  display: flex; gap: 0.375rem; flex-wrap: wrap;
+}
+.rm-focus-hero-actions .btn {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.75rem; font-weight: 600;
+}
+
+/* "All clear" empty hero variant */
+.rm-focus-hero-empty {
+  display: flex; align-items: center; gap: 0.75rem;
+}
+.rm-focus-hero-empty-icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  background: rgba(34,197,94,0.14);
+  color: var(--status-success-text);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1rem; flex-shrink: 0;
+}
+.rm-focus-hero-empty-title { font-size: 0.875rem; font-weight: 700; color: var(--crm-text); }
+.rm-focus-hero-empty-text { font-size: 0.75rem; color: var(--crm-text-muted); margin-top: 1px; }
+
+/* Mini list of upcoming reminders */
+.rm-focus-list {
+  display: flex; flex-direction: column; gap: 0.25rem;
+}
+.rm-focus-list-row {
+  display: flex; align-items: center; gap: 0.625rem;
+  padding: 0.5rem 0.625rem;
+  border-radius: 9px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.12s, border-color 0.12s, transform 0.12s;
+}
+.rm-focus-list-row:hover {
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  border-color: var(--bs-border-color-translucent, var(--crm-border));
+  transform: translateX(2px);
+}
+.rm-focus-list-time {
+  font-size: 0.75rem; font-weight: 700;
+  color: var(--crm-text);
+  font-variant-numeric: tabular-nums;
+  min-width: 64px;
+}
+.rm-focus-list-subject {
+  flex: 1; min-width: 0;
+  font-size: 0.8125rem; font-weight: 500;
+  color: var(--crm-text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.rm-focus-list-row .rm-pill { font-size: 0.625rem; padding: 1px 7px; }
+.rm-focus-list-empty {
+  font-size: 0.75rem; color: var(--crm-text-muted);
+  padding: 0.5rem 0.625rem;
+  font-style: italic;
+}
+
+/* Quick-add lane in focus card */
+.rm-focus-quickadd {
+  display: flex; gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+.rm-focus-quickadd input {
+  flex: 1; min-width: 0;
+  height: 38px;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-radius: 9px;
+  background: var(--bs-body-bg, var(--crm-surface));
+  color: var(--crm-text);
+  font-size: 0.8125rem;
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+.rm-focus-quickadd input:focus {
+  outline: none;
+  border-color: var(--crm-primary);
+  box-shadow: 0 0 0 3px rgba(var(--crm-primary-rgb), 0.12);
+}
+
+/* Keyboard hint chip */
+.rm-kbd-hint {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  margin-top: 0.625rem;
+  font-size: 0.6875rem;
+  color: var(--crm-text-muted);
+}
+.rm-kbd-key {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px;
+  padding: 0 0.3rem;
+  background: var(--bs-body-bg, var(--crm-surface));
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.625rem; font-weight: 700;
+  color: var(--crm-text-secondary);
+  line-height: 1;
+}
+[data-bs-theme="dark"] .rm-kbd-key {
+  background: var(--crm-surface);
+  border-color: rgba(255,255,255,0.12);
+  color: var(--crm-text);
+}
+
+/* Detail header strip */
+.rm-detail-header {
+  padding: 1rem 1.125rem 0.75rem;
+  border-bottom: 1px solid var(--bs-border-color, var(--crm-border));
+  display: flex; flex-direction: column; gap: 0.5rem;
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(var(--crm-primary-rgb), 0.04), transparent 70%);
+}
+.rm-detail-header::after {
+  content: '';
+  position: absolute; left: 1.125rem; right: 1.125rem; bottom: -1px;
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(var(--crm-primary-rgb), 0.32) 30%,
+    rgba(var(--crm-primary-rgb), 0.32) 70%,
+    transparent);
+  opacity: 0.55;
+}
+[data-bs-theme="dark"] .rm-detail-header {
+  background: linear-gradient(180deg, rgba(var(--crm-accent-rgb), 0.08), transparent 70%);
+}
+[data-bs-theme="dark"] .rm-detail-header::after {
+  background: linear-gradient(90deg,
+    transparent,
+    rgba(var(--crm-accent-rgb), 0.40) 30%,
+    rgba(var(--crm-accent-rgb), 0.40) 70%,
+    transparent);
+}
+.rm-detail-header-top {
+  display: flex; align-items: flex-start; gap: 0.75rem;
+}
+.rm-detail-icon {
+  width: 40px; height: 40px; border-radius: 11px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.125rem; flex-shrink: 0;
+  background: linear-gradient(135deg, var(--crm-primary), var(--crm-primary-400, var(--crm-primary)));
+  color: var(--crm-text-on-primary);
+  box-shadow: 0 4px 14px rgba(var(--crm-primary-rgb), 0.25);
+}
+.rm-detail-icon--success {
+  background: rgba(34,197,94,0.16); color: var(--status-success-text); box-shadow: none;
+}
+.rm-detail-icon--muted {
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2)); color: var(--crm-text-muted); box-shadow: none;
+}
+.rm-detail-titlewrap { flex: 1; min-width: 0; }
+.rm-detail-title {
+  font-size: 1.0625rem; font-weight: 700;
+  color: var(--crm-text);
+  margin: 0; line-height: 1.3;
+  word-break: break-word;
+}
+.rm-detail-pills { display: flex; gap: 0.375rem; flex-wrap: wrap; margin-top: 0.375rem; }
+.rm-detail-close {
+  background: none; border: none; padding: 0.25rem 0.375rem; border-radius: 6px;
+  color: var(--crm-text-muted); cursor: pointer; transition: background 0.12s, color 0.12s;
+  font-size: 1rem; line-height: 1; flex-shrink: 0;
+}
+.rm-detail-close:hover { background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2)); color: var(--crm-text); }
+
+/* Soft pills (re-used for priority + status) */
+.rm-pill {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 9px;
   border-radius: 999px;
   font-size: 0.6875rem;
   font-weight: 600;
@@ -131,231 +1339,159 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   border: 1px solid transparent;
   white-space: nowrap;
 }
-.reminder-pill--priority-urgent   { background: rgba(var(--crm-primary-rgb), 0.10); color: var(--crm-primary-active); border-color: rgba(var(--crm-primary-rgb), 0.18); }
-.reminder-pill--priority-high     { background: rgba(245,158,11,0.14); color: var(--status-warning-text); border-color: rgba(245,158,11,0.25); }
-.reminder-pill--priority-medium   { background: rgba(59,130,246,0.12); color: var(--status-info-text); border-color: rgba(59,130,246,0.22); }
-.reminder-pill--priority-low      { background: rgba(107,114,128,0.14); color: var(--crm-text-secondary); border-color: rgba(107,114,128,0.22); }
-.reminder-pill--status-overdue    { background: rgba(var(--crm-primary-rgb), 0.10); color: var(--crm-primary-active); border-color: rgba(var(--crm-primary-rgb), 0.18); }
-.reminder-pill--status-pending    { background: rgba(245,158,11,0.14); color: var(--status-warning-text); border-color: rgba(245,158,11,0.25); }
-.reminder-pill--status-completed  { background: rgba(34,197,94,0.13); color: var(--status-success-text); border-color: rgba(34,197,94,0.22); }
-.reminder-pill--status-cancelled  { background: rgba(107,114,128,0.14); color: var(--crm-text-secondary); border-color: rgba(107,114,128,0.22); }
-[data-bs-theme="dark"] .reminder-pill--priority-urgent,
-[data-bs-theme="dark"] .reminder-pill--status-overdue   { background: rgba(var(--crm-accent-rgb), 0.16); color: var(--crm-primary-300); border-color: rgba(var(--crm-accent-rgb), 0.32); }
-[data-bs-theme="dark"] .reminder-pill--priority-high,
-[data-bs-theme="dark"] .reminder-pill--status-pending   { background: rgba(245,158,11,0.18); color: var(--status-warning-text); border-color: rgba(245,158,11,0.32); }
-[data-bs-theme="dark"] .reminder-pill--priority-medium  { background: rgba(96,165,250,0.18); color: var(--status-info-text); border-color: rgba(96,165,250,0.32); }
-[data-bs-theme="dark"] .reminder-pill--priority-low,
-[data-bs-theme="dark"] .reminder-pill--status-cancelled { background: rgba(148,163,184,0.18); color: var(--crm-text-secondary); border-color: rgba(148,163,184,0.32); }
-[data-bs-theme="dark"] .reminder-pill--status-completed { background: rgba(34,197,94,0.18); color: var(--status-success-text); border-color: rgba(34,197,94,0.32); }
-
-/* Row action buttons — uniform ghost icon buttons with colored hover */
-.reminder-actions { display: inline-flex; align-items: center; gap: 4px; }
-.reminder-action-btn {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 28px; height: 28px;
-  padding: 0;
-  border: 1px solid var(--bs-border-color, var(--crm-border));
-  background: transparent;
-  border-radius: 8px;
-  color: var(--bs-body-color, var(--crm-text-secondary));
-  cursor: pointer;
-  transition: background 0.12s, border-color 0.12s, color 0.12s;
-  font-size: 0.875rem;
-  line-height: 1;
+.rm-pill::before {
+  content: '';
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+  opacity: 0.85;
 }
-.reminder-action-btn:hover { background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2)); }
-.reminder-action-btn--complete:hover  { background: rgba(34,197,94,0.12);  border-color: rgba(34,197,94,0.40);  color: var(--status-success-text); }
-.reminder-action-btn--reschedule:hover{ background: rgba(245,158,11,0.14); border-color: rgba(245,158,11,0.42); color: var(--status-warning-text); }
-.reminder-action-btn--cancel:hover    { background: rgba(var(--crm-primary-rgb), 0.10);  border-color: rgba(var(--crm-primary-rgb), 0.32);  color: var(--crm-primary-active); }
-[data-bs-theme="dark"] .reminder-action-btn { border-color: rgba(255,255,255,0.10); color: var(--crm-text-secondary); }
-[data-bs-theme="dark"] .reminder-action-btn:hover { background: rgba(255,255,255,0.06); }
-[data-bs-theme="dark"] .reminder-action-btn--complete:hover  { background: rgba(34,197,94,0.20);  color: var(--status-success-text); }
-[data-bs-theme="dark"] .reminder-action-btn--reschedule:hover{ background: rgba(245,158,11,0.22); color: var(--status-warning-text); }
-[data-bs-theme="dark"] .reminder-action-btn--cancel:hover    { background: rgba(var(--crm-accent-rgb), 0.20);  color: var(--crm-primary-300); }
+.rm-pill--priority-urgent   { background: rgba(var(--crm-primary-rgb), 0.10); color: var(--crm-primary-active); border-color: rgba(var(--crm-primary-rgb), 0.18); }
+.rm-pill--priority-high     { background: rgba(245,158,11,0.14); color: var(--status-warning-text); border-color: rgba(245,158,11,0.25); }
+.rm-pill--priority-medium   { background: rgba(59,130,246,0.12); color: var(--status-info-text); border-color: rgba(59,130,246,0.22); }
+.rm-pill--priority-low      { background: rgba(107,114,128,0.14); color: var(--crm-text-secondary); border-color: rgba(107,114,128,0.22); }
+.rm-pill--status-overdue    { background: rgba(var(--crm-primary-rgb), 0.10); color: var(--crm-primary-active); border-color: rgba(var(--crm-primary-rgb), 0.18); }
+.rm-pill--status-pending    { background: rgba(245,158,11,0.14); color: var(--status-warning-text); border-color: rgba(245,158,11,0.25); }
+.rm-pill--status-completed  { background: rgba(34,197,94,0.13); color: var(--status-success-text); border-color: rgba(34,197,94,0.22); }
+.rm-pill--status-cancelled  { background: rgba(107,114,128,0.14); color: var(--crm-text-secondary); border-color: rgba(107,114,128,0.22); }
+[data-bs-theme="dark"] .rm-pill--priority-urgent,
+[data-bs-theme="dark"] .rm-pill--status-overdue   { background: rgba(var(--crm-accent-rgb), 0.16); color: var(--crm-primary-300); border-color: rgba(var(--crm-accent-rgb), 0.32); }
+[data-bs-theme="dark"] .rm-pill--priority-high,
+[data-bs-theme="dark"] .rm-pill--status-pending   { background: rgba(245,158,11,0.18); color: var(--status-warning-text); border-color: rgba(245,158,11,0.32); }
+[data-bs-theme="dark"] .rm-pill--priority-medium  { background: rgba(96,165,250,0.18); color: var(--status-info-text); border-color: rgba(96,165,250,0.32); }
+[data-bs-theme="dark"] .rm-pill--priority-low,
+[data-bs-theme="dark"] .rm-pill--status-cancelled { background: rgba(148,163,184,0.18); color: var(--crm-text-secondary); border-color: rgba(148,163,184,0.32); }
+[data-bs-theme="dark"] .rm-pill--status-completed { background: rgba(34,197,94,0.18); color: var(--status-success-text); border-color: rgba(34,197,94,0.32); }
 
-/* ── Polish pass ─────────────────────────────────────────────── */
-
-/* Stat cards laid out as icon + text */
-.reminder-stat-card { flex-direction: row; align-items: center; gap: 0.875rem; padding: 0.875rem 1rem 0.875rem 1.125rem; }
-.reminder-stat-card .reminder-stat-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
-.reminder-stat-card .reminder-stat-icon {
-  width: 38px; height: 38px; border-radius: 11px;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 1.125rem; flex-shrink: 0;
+/* Scrollable detail body */
+.rm-detail-body {
+  flex: 1; min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.125rem;
 }
-.reminder-stat-icon--danger   { background: rgba(var(--crm-primary-rgb), 0.10); color: var(--crm-primary-active); }
-.reminder-stat-icon--warning  { background: rgba(245,158,11,0.14); color: var(--status-warning-text); }
-.reminder-stat-icon--info     { background: rgba(59,130,246,0.12); color: var(--status-info-text); }
-.reminder-stat-icon--purple   { background: rgba(var(--crm-accent-rgb), 0.14); color: var(--crm-primary-active); }
-.reminder-stat-icon--success  { background: rgba(34,197,94,0.13); color: var(--status-success-text); }
-[data-bs-theme="dark"] .reminder-stat-icon--danger   { background: rgba(var(--crm-accent-rgb), 0.20); color: var(--crm-primary-300); }
-[data-bs-theme="dark"] .reminder-stat-icon--warning  { background: rgba(245,158,11,0.20); color: var(--status-warning-text); }
-[data-bs-theme="dark"] .reminder-stat-icon--info     { background: rgba(96,165,250,0.20); color: var(--status-info-text); }
-[data-bs-theme="dark"] .reminder-stat-icon--purple   { background: rgba(var(--crm-accent-rgb), 0.22); color: var(--crm-primary-300); }
-[data-bs-theme="dark"] .reminder-stat-icon--success  { background: rgba(34,197,94,0.20); color: var(--status-success-text); }
+.rm-detail-body::-webkit-scrollbar { width: 8px; }
+.rm-detail-body::-webkit-scrollbar-thumb { background: var(--crm-scrollbar-thumb, rgba(0,0,0,0.15)); border-radius: 999px; }
+.rm-detail-body::-webkit-scrollbar-thumb:hover { background: var(--crm-scrollbar-thumb-hover, rgba(0,0,0,0.25)); }
 
-/* Toolbar (Mine/All segmented + filters + new) */
-.reminder-toolbar { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
-.reminder-segmented {
-  display: inline-flex;
-  border: 1px solid var(--bs-border-color, var(--crm-border));
-  border-radius: 9px;
-  padding: 2px;
-  background: var(--bs-body-bg, var(--crm-surface));
-  gap: 2px;
+.rm-info-grid {
+  display: grid;
+  grid-template-columns: minmax(120px, max-content) 1fr;
+  column-gap: 0.875rem; row-gap: 0.625rem;
+  font-size: 0.8125rem;
 }
-.reminder-segmented .btn {
-  border: none !important;
-  border-radius: 7px !important;
-  padding: 0.3rem 0.7rem;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--crm-text-secondary);
-  background: transparent;
-  display: inline-flex; align-items: center; gap: 4px;
-  transition: background 0.12s, color 0.12s;
-}
-.reminder-segmented .btn:hover { background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2)); color: var(--crm-text); }
-.reminder-segmented .btn.active {
-  background: rgba(var(--crm-primary-rgb), 0.12);
-  color: var(--crm-primary-active);
-  box-shadow: 0 1px 2px rgba(var(--crm-primary-rgb), 0.10);
-}
-[data-bs-theme="dark"] .reminder-segmented { border-color: rgba(255,255,255,0.10); background: transparent; }
-[data-bs-theme="dark"] .reminder-segmented .btn:hover { background: rgba(255,255,255,0.06); color: var(--crm-text); }
-[data-bs-theme="dark"] .reminder-segmented .btn.active { background: rgba(var(--crm-accent-rgb), 0.22); color: var(--crm-primary-300); }
-
-/* Table rows ─ tighter, richer */
-.reminder-table tbody tr { transition: background-color 0.12s; }
-.reminder-table tbody td { vertical-align: middle; padding-top: 0.65rem; padding-bottom: 0.65rem; }
-.reminder-table tbody tr:hover .reminder-subject { color: var(--crm-primary); }
-
-/* Subject primary cell (subject + muted notes-preview) */
-.reminder-subject { font-weight: 600; color: var(--crm-text); line-height: 1.3; display: block; }
-.reminder-subject-meta {
-  display: block; font-size: 0.6875rem; color: var(--crm-text-muted);
-  margin-top: 2px; line-height: 1.3; max-width: 260px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-}
-
-/* Tiny initials avatar for assignee */
-.reminder-assignee { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
-.reminder-assignee-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.reminder-avatar {
-  width: 22px; height: 22px; border-radius: 50%;
-  background: rgba(var(--crm-primary-rgb), 0.12);
-  color: var(--crm-primary-active);
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 0.625rem; font-weight: 700; letter-spacing: 0.02em;
-  flex-shrink: 0;
-}
-.reminder-avatar--unassigned {
-  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
-  color: var(--crm-text-muted);
-}
-[data-bs-theme="dark"] .reminder-avatar { background: rgba(var(--crm-accent-rgb), 0.20); color: var(--crm-primary-300); }
-[data-bs-theme="dark"] .reminder-avatar--unassigned { background: rgba(255,255,255,0.06); color: var(--crm-text-muted); }
-
-/* Overdue row tint + accent bar */
-.reminder-table tr.is-overdue td { background: rgba(var(--crm-primary-rgb), 0.04); }
-.reminder-table tr.is-overdue td:first-child { box-shadow: inset 3px 0 0 var(--crm-primary, var(--crm-accent)); }
-[data-bs-theme="dark"] .reminder-table tr.is-overdue td { background: rgba(var(--crm-accent-rgb), 0.06); }
-
-/* Quiet done/cancel chip when row is not actionable */
-.reminder-done-chip {
-  display: inline-flex; align-items: center; gap: 4px;
+.rm-info-label {
   font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--crm-text-muted);
+  font-weight: 600;
+  align-self: center;
 }
-.reminder-done-chip i { font-size: 0.875rem; opacity: 0.7; }
-
-/* Empty state row */
-.reminder-empty-cell { padding: 3rem 1rem !important; }
-
-/* Pagination footer bar */
-.reminder-pagination-bar {
-  display: flex; align-items: center; justify-content: space-between;
-  gap: 0.75rem; padding: 0.75rem 0.25rem 0;
+.rm-info-value {
+  color: var(--crm-text);
+  font-weight: 500;
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
 }
-.reminder-pagination-bar .pagination { margin: 0; }
-.reminder-pagination-info { font-size: 0.75rem; color: var(--crm-text-muted); font-variant-numeric: tabular-nums; }
+.rm-info-value a { color: var(--crm-primary-active); text-decoration: none; }
+.rm-info-value a:hover { text-decoration: underline; }
+.rm-info-value .rm-meta-overdue { color: var(--crm-primary-active); font-weight: 600; }
 
-/* Bulk-action bar */
-.reminder-bulk-bar {
-  display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.5rem 0.875rem;
-  border: 1px solid var(--bs-border-color, var(--crm-border));
-  background: var(--bs-body-bg, var(--crm-surface));
+.rm-section-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--crm-text-muted);
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem;
+}
+.rm-notes-box {
+  padding: 0.75rem 0.875rem;
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
   border-radius: 10px;
-  margin-top: 0.5rem;
-  box-shadow: var(--crm-shadow-xs);
-}
-.reminder-bulk-bar .selected-count {
-  font-size: 0.75rem; font-weight: 600;
-  padding: 0.125rem 0.55rem; border-radius: 999px;
-  background: rgba(var(--crm-primary-rgb), 0.10); color: var(--crm-primary-active);
-  margin-right: auto;
-}
-[data-bs-theme="dark"] .reminder-bulk-bar { border-color: rgba(255,255,255,0.10); background: var(--crm-surface); }
-[data-bs-theme="dark"] .reminder-bulk-bar .selected-count { background: rgba(var(--crm-accent-rgb), 0.22); color: var(--crm-primary-300); }
-
-/* ── Modal polish ────────────────────────────────────────────── */
-
-/* Header w/ icon + subtitle */
-.reminder-modal-header { display: flex; align-items: center; gap: 0.75rem; min-width: 0; }
-.reminder-modal-header > div { min-width: 0; }
-.reminder-modal-icon {
-  width: 38px; height: 38px; border-radius: 11px;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 1.125rem; flex-shrink: 0;
-  background: linear-gradient(135deg, var(--crm-primary), var(--crm-primary-400));
-  color: var(--crm-text-on-primary);
-  box-shadow: 0 4px 14px rgba(var(--crm-primary-rgb), 0.25);
-}
-.reminder-modal-icon--warning {
-  background: rgba(245,158,11,0.16);
-  color: var(--status-warning-text);
-  box-shadow: none;
-}
-.reminder-modal-icon--neutral {
-  background: rgba(var(--crm-primary-rgb), 0.10);
-  color: var(--crm-primary-active);
-  box-shadow: none;
-}
-[data-bs-theme="dark"] .reminder-modal-icon--warning {
-  background: rgba(245,158,11,0.22); color: var(--status-warning-text);
-}
-[data-bs-theme="dark"] .reminder-modal-icon--neutral {
-  background: rgba(var(--crm-accent-rgb), 0.22); color: var(--crm-primary-300);
-}
-.reminder-modal-subtitle {
-  margin: 2px 0 0; font-size: 0.75rem; color: var(--crm-text-muted);
+  font-size: 0.8125rem;
+  color: var(--crm-text);
+  white-space: pre-wrap;
+  line-height: 1.5;
 }
 
-/* Subject input feels primary */
-.reminder-subject-input { font-size: 0.9375rem; font-weight: 500; padding: 0.6rem 0.85rem; }
+/* Detail action bar at the bottom of the pane */
+.rm-detail-actions {
+  padding: 0.75rem 1.125rem;
+  border-top: 1px solid var(--bs-border-color, var(--crm-border));
+  display: flex; gap: 0.4rem; flex-wrap: wrap;
+  background: var(--bs-body-bg, var(--crm-surface));
+}
+.rm-detail-actions .btn {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem; font-weight: 600;
+}
+.rm-detail-actions .btn-link {
+  color: var(--crm-text-muted);
+  text-decoration: none;
+}
+.rm-detail-actions .btn-link:hover { color: var(--crm-text); }
 
-/* Input-group with left icon prefix (Scheduled at) */
-.reminder-input-group .input-group-text {
+/* Edit / Create form */
+.rm-form .form-label {
+  font-size: 0.6875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--crm-text-muted);
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+/* Lock all form inputs to the same height/padding/font as the rendered
+ * KanzenSelect trigger (40px, 0.5rem 0.75rem, 0.8125rem) so single-row
+ * fields visually line up exactly. Textareas stay auto-height. */
+.rm-form .form-control,
+.rm-form .form-select,
+.rm-form .td-cselect-trigger {
+  height: 40px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+  border-radius: 8px;
+}
+.rm-form textarea.form-control {
+  height: auto;
+  min-height: 96px;
+  padding-top: 0.625rem;
+  padding-bottom: 0.625rem;
+}
+.rm-form .input-group { min-height: 40px; }
+.rm-form .input-group-text {
   background: transparent;
   border-right: none;
   color: var(--crm-text-muted);
-  padding-right: 0.25rem;
+  padding: 0.5rem 0.25rem 0.5rem 0.75rem;
+  font-size: 0.875rem;
 }
-.reminder-input-group .form-control,
-.reminder-input-group .flatpickr-input {
+.rm-form .input-group .form-control,
+.rm-form .input-group .flatpickr-input {
   border-left: none;
   padding-left: 0.4rem;
 }
-.reminder-input-group:focus-within .input-group-text { color: var(--crm-primary); }
-
-/* Priority dropdown — coloured leading dot reflects selected value */
-.reminder-priority-field { position: relative; }
-.reminder-priority-field::before {
+.rm-form .input-group:focus-within .input-group-text { color: var(--crm-primary); }
+.rm-form .rm-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.875rem;
+  margin-bottom: 0.875rem;
+}
+@media (max-width: 575px) {
+  .rm-form .rm-form-row { grid-template-columns: 1fr; }
+}
+.rm-form .rm-form-group { margin-bottom: 0.875rem; }
+/* Priority field: a colored dot sits inside the LEFT padding of the rendered
+ * select trigger. KanzenSelect (custom-select.js) replaces the native
+ * <select> with a .td-cselect-trigger button, so we have to push the dot's
+ * positioning AND the trigger's text padding off the rendered widget, not
+ * the (hidden) underlying <select>. */
+.rm-form .rm-priority-field { position: relative; }
+.rm-form .rm-priority-field::before {
   content: '';
   position: absolute;
-  left: 0.85rem;
-  top: 50%;
+  left: 0.85rem; top: 50%;
   transform: translateY(-50%);
   width: 8px; height: 8px;
   border-radius: 50%;
@@ -363,271 +1499,349 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   pointer-events: none;
   z-index: 2;
   transition: background-color 0.15s ease;
-  box-shadow: 0 0 0 1px var(--crm-surface);
 }
-.reminder-priority-field[data-priority="low"]::before    { background: rgba(107,114,128,0.85); }
-.reminder-priority-field[data-priority="medium"]::before { background: rgba(59,130,246,0.95); }
-.reminder-priority-field[data-priority="high"]::before   { background: rgba(245,158,11,1); }
-.reminder-priority-field[data-priority="urgent"]::before { background: var(--crm-primary); }
-.reminder-priority-field > .form-select { padding-left: 2.25rem !important; }
+.rm-form .rm-priority-field[data-priority="low"]::before    { background: rgba(107,114,128,0.85); }
+.rm-form .rm-priority-field[data-priority="medium"]::before { background: rgba(59,130,246,0.95); }
+.rm-form .rm-priority-field[data-priority="high"]::before   { background: rgba(245,158,11,1); }
+.rm-form .rm-priority-field[data-priority="urgent"]::before { background: var(--crm-primary); }
+/* Native fallback (KanzenSelect disabled / not yet bound) */
+.rm-form .rm-priority-field > .form-select { padding-left: 2.25rem !important; }
+/* KanzenSelect-rendered trigger button */
+.rm-form .rm-priority-field .td-cselect-trigger { padding-left: 2.25rem !important; }
+.rm-form .rm-priority-field .td-cselect-text { padding-left: 0 !important; }
 
-/* Ghost-style Cancel button */
-.reminder-modal-cancel {
-  color: var(--crm-text-muted) !important;
-  text-decoration: none;
-  font-weight: 500;
-  padding: 0.375rem 0.875rem;
+/* Reschedule mini-modal icon */
+.rm-modal-icon {
+  width: 38px; height: 38px; border-radius: 11px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.125rem; flex-shrink: 0;
+  background: rgba(245,158,11,0.16);
+  color: var(--status-warning-text);
 }
-.reminder-modal-cancel:hover {
-  color: var(--crm-text) !important;
-  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
-}
-[data-bs-theme="dark"] .reminder-modal-cancel:hover {
-  background: rgba(255,255,255,0.06);
-}
+[data-bs-theme="dark"] .rm-modal-icon { background: rgba(245,158,11,0.22); }
+
+/* Selection accent */
+.rm-item.is-selected .rm-item-subject { color: var(--crm-primary-active); }
+[data-bs-theme="dark"] .rm-item.is-selected .rm-item-subject { color: var(--crm-primary-300); }
+
+/* Mobile back button */
+.rm-detail-back .btn { padding: 0.25rem 0.5rem; font-size: 0.75rem; }
 </style>
 {% endblock %}
 
 {% block content %}
 {% include "includes/page_back_button.html" %}
 
-<!-- Page Header -->
-<div class="page-header" style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.75rem;">
-  <div style="display:flex;align-items:center;gap:0.875rem;">
-    <div class="ae-page-icon">
-      <i class="ti ti-bell"></i>
+<!-- Hero -->
+<div class="rm-hero">
+  <div class="rm-hero-top">
+    <div class="rm-hero-title">
+      <div class="ae-page-icon">
+        <i class="ti ti-bell"></i>
+      </div>
+      <div>
+        <h1 class="page-title">Reminders</h1>
+        <p>Stay on top of follow-ups, callbacks, and due dates.</p>
+      </div>
     </div>
-    <div>
-      <h1 class="page-title" style="margin:0;">Reminders</h1>
-      <p class="text-muted mb-0" style="font-size:0.8125rem;">Stay on top of follow-ups, callbacks, and due dates.</p>
-    </div>
-  </div>
-  <div class="reminder-toolbar">
-    <div class="reminder-segmented" role="group" aria-label="Scope">
-      <button type="button" class="btn active" id="filterAllBtn" title="Show all reminders">
-        <i class="ti ti-users"></i> All
-      </button>
-      <button type="button" class="btn" id="filterMineBtn" title="Show only my reminders">
-        <i class="ti ti-user"></i> Mine
+    <div class="rm-hero-actions">
+      <button class="btn btn-sm btn-primary" id="newReminderBtn" title="Create a new reminder (N)">
+        <i class="ti ti-plus"></i> New Reminder
       </button>
     </div>
-    <select class="form-select form-select-sm" id="statusFilter" style="width:auto;">
-      <option value="" selected>All Statuses</option>
-      <option value="overdue">Overdue</option>
-      <option value="pending">Pending</option>
-      <option value="completed">Completed</option>
-      <option value="cancelled">Cancelled</option>
-    </select>
-    <select class="form-select form-select-sm" id="priorityFilter" style="width:auto;">
-      <option value="">All Priorities</option>
-      <option value="urgent">Urgent</option>
-      <option value="high">High</option>
-      <option value="medium">Medium</option>
-      <option value="low">Low</option>
-    </select>
-    <button class="btn btn-sm btn-primary" id="newReminderBtn">
-      <i class="ti ti-plus"></i> New Reminder
-    </button>
   </div>
-</div>
-
-<!-- Stats Row -->
-<div class="fd-summary-row mb-3" id="reminderStats">
-  <div class="fd-summary-card reminder-stat-card fd-summary-card--danger">
-    <div class="reminder-stat-text">
-      <span class="fd-summary-label">Overdue</span>
-      <span class="fd-summary-value" id="statOverdue">-</span>
+  <div class="rm-summary" id="summaryStrip" role="tablist" aria-label="Quick filters">
+    <div class="rm-summary-item rm-summary-item--overdue" data-filter="overdue" role="tab" tabindex="0">
+      <span class="rm-summary-dot"></span>
+      <span class="rm-summary-num" id="statOverdue">0</span>
+      <span>Overdue</span>
     </div>
-    <span class="reminder-stat-icon reminder-stat-icon--danger" aria-hidden="true">
-      <i class="ti ti-alert-triangle"></i>
-    </span>
-  </div>
-  <div class="fd-summary-card reminder-stat-card fd-summary-card--warning">
-    <div class="reminder-stat-text">
-      <span class="fd-summary-label">My Overdue</span>
-      <span class="fd-summary-value" id="statMyOverdue">-</span>
+    <div class="rm-summary-item rm-summary-item--mine" data-filter="mine-overdue" role="tab" tabindex="0">
+      <span class="rm-summary-dot"></span>
+      <span class="rm-summary-num" id="statMyOverdue">0</span>
+      <span>Mine</span>
     </div>
-    <span class="reminder-stat-icon reminder-stat-icon--warning" aria-hidden="true">
-      <i class="ti ti-user-exclamation"></i>
-    </span>
-  </div>
-  <div class="fd-summary-card reminder-stat-card fd-summary-card--info">
-    <div class="reminder-stat-text">
-      <span class="fd-summary-label">Pending</span>
-      <span class="fd-summary-value" id="statPending">-</span>
+    <div class="rm-summary-item rm-summary-item--pending" data-filter="pending" role="tab" tabindex="0">
+      <span class="rm-summary-dot"></span>
+      <span class="rm-summary-num" id="statPending">0</span>
+      <span>Pending</span>
     </div>
-    <span class="reminder-stat-icon reminder-stat-icon--info" aria-hidden="true">
-      <i class="ti ti-clock-hour-3"></i>
-    </span>
-  </div>
-  <div class="fd-summary-card reminder-stat-card fd-summary-card--purple">
-    <div class="reminder-stat-text">
-      <span class="fd-summary-label">Due Today</span>
-      <span class="fd-summary-value" id="statDueToday">-</span>
+    <div class="rm-summary-item rm-summary-item--today" data-filter="today" role="tab" tabindex="0">
+      <span class="rm-summary-dot"></span>
+      <span class="rm-summary-num" id="statDueToday">0</span>
+      <span>Due today</span>
     </div>
-    <span class="reminder-stat-icon reminder-stat-icon--purple" aria-hidden="true">
-      <i class="ti ti-calendar-event"></i>
-    </span>
-  </div>
-  <div class="fd-summary-card reminder-stat-card fd-summary-card--success">
-    <div class="reminder-stat-text">
-      <span class="fd-summary-label">Completed Today</span>
-      <span class="fd-summary-value" id="statCompletedToday">-</span>
-    </div>
-    <span class="reminder-stat-icon reminder-stat-icon--success" aria-hidden="true">
-      <i class="ti ti-circle-check"></i>
-    </span>
-  </div>
-</div>
-
-<!-- Reminders Table -->
-<div class="card">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-hover reminder-table mb-0" style="font-size:0.8125rem;">
-        <thead>
-          <tr>
-            <th style="padding-left:1rem;">
-              <input type="checkbox" id="selectAll" class="form-check-input">
-            </th>
-            <th>Contacts</th>
-            <th>Subject</th>
-            <th>Tickets</th>
-            <th>Assigned To</th>
-            <th>Scheduled</th>
-            <th>Overdue</th>
-            <th>Priority</th>
-            <th>Status</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="remindersTableBody">
-          <tr>
-            <td colspan="10" class="text-center py-5">
-              <div class="spinner-border spinner-border-sm text-primary me-2" role="status"></div>
-              <span class="text-muted">Loading reminders...</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <div class="rm-summary-item rm-summary-item--done" data-filter="completed-today" role="tab" tabindex="0">
+      <span class="rm-summary-dot"></span>
+      <span class="rm-summary-num" id="statCompletedToday">0</span>
+      <span>Done today</span>
     </div>
   </div>
 </div>
 
-<!-- Bulk Actions Bar -->
-<div class="reminder-bulk-bar" id="bulkBar" style="display:none;">
-  <span class="selected-count" id="selectedCount">0 selected</span>
-  <button class="btn btn-sm btn-success" id="bulkCompleteBtn">
-    <i class="ti ti-check"></i> Complete
-  </button>
-  <button class="btn btn-sm btn-warning" id="bulkRescheduleBtn">
-    <i class="ti ti-calendar"></i> Reschedule
-  </button>
-  <button class="btn btn-sm btn-secondary" id="bulkCancelBtn">
-    <i class="ti ti-x"></i> Cancel
-  </button>
+<!-- Workload progress banner -->
+<div class="rm-workload" id="workloadBanner" aria-live="polite">
+  <span class="rm-workload-icon" aria-hidden="true"><i class="ti ti-target-arrow"></i></span>
+  <div class="rm-workload-text">
+    <div class="rm-workload-title" id="workloadTitle">
+      <span id="workloadTitleText">Loading your day…</span>
+      <span class="rm-workload-tone rm-workload-tone--idle" id="workloadTone" style="display:none;">IDLE</span>
+    </div>
+    <div class="rm-workload-sub" id="workloadSub">Pulling your reminders.</div>
+  </div>
+  <div class="rm-workload-progress" title="Today's completion progress">
+    <div class="rm-workload-bar"><div class="rm-workload-fill" id="workloadFill" style="width:0%"></div></div>
+    <span class="rm-workload-pct" id="workloadPct">—</span>
+  </div>
 </div>
 
-<!-- Pagination -->
-<div id="paginationNav" class="reminder-pagination-bar" style="display:none;">
-  <span class="reminder-pagination-info" id="paginationInfo">—</span>
-  <ul class="pagination pagination-sm mb-0">
-    <li class="page-item" id="prevPage"><a class="page-link" href="#">Prev</a></li>
-    <li class="page-item disabled"><span class="page-link" id="pageInfo">1 / 1</span></li>
-    <li class="page-item" id="nextPage"><a class="page-link" href="#">Next</a></li>
-  </ul>
-</div>
-
-<!-- New/Edit Reminder Modal -->
-<div class="modal fade" id="reminderModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="reminder-modal-header">
-          <span class="reminder-modal-icon" aria-hidden="true"><i class="ti ti-bell-plus"></i></span>
-          <div>
-            <h5 class="modal-title" id="reminderModalTitle">New Reminder</h5>
-            <p class="reminder-modal-subtitle" id="reminderModalSubtitle">Track a follow-up, callback, or due date.</p>
-          </div>
+<!-- Workspace -->
+<div class="rm-workspace">
+  <!-- LEFT: list pane -->
+  <aside class="rm-list" aria-label="Reminder list">
+    <div class="rm-list-toolbar">
+      <div class="rm-list-toolbar-top">
+        <div class="rm-segmented" role="group" aria-label="Scope">
+          <button type="button" class="btn active" id="filterAllBtn" title="Show all reminders">
+            <i class="ti ti-users"></i> All
+          </button>
+          <button type="button" class="btn" id="filterMineBtn" title="Show only mine">
+            <i class="ti ti-user"></i> Mine
+          </button>
         </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="reminderId">
-
-        <div class="mb-3">
-          <label class="form-label" for="reminderSubject">Subject</label>
-          <input type="text" class="form-control reminder-subject-input" id="reminderSubject" placeholder="What should we remind you about?" required>
-        </div>
-
-        <div class="mb-3">
-          <label class="form-label" for="reminderScheduledAt">Scheduled at</label>
-          <div class="input-group reminder-input-group">
-            <span class="input-group-text" aria-hidden="true"><i class="ti ti-calendar-event"></i></span>
-            <input type="text" class="form-control" id="reminderScheduledAt" placeholder="Select date & time" readonly required>
-          </div>
-        </div>
-
-        <div class="row g-3 mb-3">
-          <div class="col-12 col-sm-6">
-            <label class="form-label" for="reminderPriority">Priority</label>
-            <div class="reminder-priority-field" data-priority="medium">
-              <select class="form-select" id="reminderPriority" style="padding-left: 2.25rem;">
-                <option value="low">Low</option>
-                <option value="medium" selected>Medium</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
-            </div>
-          </div>
-          <div class="col-12 col-sm-6">
-            <label class="form-label" for="reminderAssignedTo">Assigned to</label>
-            <select class="form-select" id="reminderAssignedTo">
-              <option value="">Unassigned</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="row g-3 mb-3">
-          <div class="col-12 col-sm-6">
-            <label class="form-label" for="reminderContact">Contact</label>
-            <select class="form-select" id="reminderContact">
-              <option value="">No contact</option>
-            </select>
-          </div>
-          <div class="col-12 col-sm-6">
-            <label class="form-label" for="reminderTicket">Ticket</label>
-            <select class="form-select" id="reminderTicket">
-              <option value="">No ticket</option>
-            </select>
-          </div>
-        </div>
-
-        <div class="mb-0">
-          <label class="form-label" for="reminderNotes">Notes</label>
-          <textarea class="form-control" id="reminderNotes" rows="3" placeholder="Optional context, links, or details..."></textarea>
+        <div class="rm-search">
+          <i class="ti ti-search"></i>
+          <input type="text" id="searchInput" placeholder="Search subject or notes…" autocomplete="off">
         </div>
       </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-link reminder-modal-cancel" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="saveReminderBtn">
-          <i class="ti ti-check me-1"></i>Save Reminder
+      <div class="rm-list-filters">
+        <select class="form-select form-select-sm" id="statusFilter">
+          <option value="" selected>All statuses</option>
+          <option value="overdue">Overdue</option>
+          <option value="pending">Pending</option>
+          <option value="completed">Completed</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+        <select class="form-select form-select-sm" id="priorityFilter">
+          <option value="">All priorities</option>
+          <option value="urgent">Urgent</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <label class="d-flex align-items-center gap-1 ps-1" style="font-size:0.7188rem;color:var(--crm-text-muted);">
+          <input type="checkbox" id="selectAll" class="form-check-input" style="margin:0;"> Select
+        </label>
+      </div>
+    </div>
+
+    <div class="rm-quick-add" id="quickAddRow">
+      <span class="rm-quick-add-plus" aria-hidden="true"><i class="ti ti-plus"></i></span>
+      <input type="text" id="quickAddInput" placeholder="Quick add — type a subject and press Enter" autocomplete="off">
+      <span class="rm-quick-add-hint" id="quickAddHint">
+        <span class="rm-kbd-key">↵</span> save · <span class="rm-kbd-key">esc</span> clear
+      </span>
+    </div>
+
+    <div class="rm-filter-banner" id="filterBanner" aria-live="polite">
+      <i class="ti ti-filter"></i>
+      <span>Filtered by</span>
+      <div class="rm-filter-banner-chips" id="filterBannerChips"></div>
+      <button type="button" class="rm-filter-banner-clear" id="filterBannerClear" title="Clear all filters">
+        <i class="ti ti-x"></i> Clear
+      </button>
+    </div>
+
+    <div class="rm-list-body" id="listBody"></div>
+
+    <div class="rm-bulk-bar" id="bulkBar" aria-live="polite">
+      <span class="rm-bulk-count" id="selectedCount">0 selected</span>
+      <button class="btn btn-sm btn-success" id="bulkCompleteBtn" title="Mark as complete">
+        <i class="ti ti-check"></i> Complete
+      </button>
+      <button class="btn btn-sm btn-warning" id="bulkRescheduleBtn" title="Reschedule">
+        <i class="ti ti-calendar"></i> Reschedule
+      </button>
+      <button class="btn btn-sm btn-outline-secondary" id="bulkCancelBtn" title="Cancel">
+        <i class="ti ti-x"></i> Cancel
+      </button>
+    </div>
+
+    <div class="rm-pagination" id="paginationNav" style="display:none;">
+      <span id="paginationInfo">—</span>
+      <div class="rm-page-btns">
+        <button class="rm-page-btn" id="prevPage" title="Previous page" aria-label="Previous page">
+          <i class="ti ti-chevron-left"></i>
+        </button>
+        <span class="rm-page-label" id="pageInfo">1 / 1</span>
+        <button class="rm-page-btn" id="nextPage" title="Next page" aria-label="Next page">
+          <i class="ti ti-chevron-right"></i>
         </button>
       </div>
     </div>
-  </div>
+  </aside>
+
+  <!-- RIGHT: detail / edit pane -->
+  <section class="rm-detail" id="detailPane" aria-label="Reminder details">
+    <div class="rm-detail-back">
+      <button class="btn btn-sm btn-outline-secondary" id="detailBackBtn">
+        <i class="ti ti-arrow-left"></i> Back
+      </button>
+    </div>
+
+    <!-- Today's focus card (renders when nothing is selected) -->
+    <div class="rm-focus" id="detailEmpty">
+      <div class="rm-focus-header">
+        <span class="rm-focus-header-icon" aria-hidden="true"><i class="ti ti-sparkles"></i></span>
+        <div class="rm-focus-header-text">
+          <div class="rm-focus-greeting" id="focusGreeting">Your day at a glance</div>
+          <div class="rm-focus-date" id="focusDate">—</div>
+        </div>
+        <button class="btn btn-sm btn-primary" id="newReminderBtnEmpty" title="Create new reminder (N)">
+          <i class="ti ti-plus"></i>
+        </button>
+      </div>
+
+      <div>
+        <div class="rm-focus-label">Up next</div>
+        <div id="focusHeroMount"></div>
+      </div>
+
+      <div>
+        <div class="rm-focus-label">Coming up</div>
+        <div class="rm-focus-list" id="focusList"></div>
+      </div>
+
+      <div class="rm-focus-quickadd">
+        <input type="text" id="focusQuickAdd" placeholder="Add a reminder for today — type and press Enter" autocomplete="off">
+      </div>
+
+      <div class="rm-kbd-hint" style="justify-content:center;">
+        <span class="rm-kbd-key">N</span> new <span style="opacity:0.5;">·</span>
+        <span class="rm-kbd-key">↵</span> create from input <span style="opacity:0.5;">·</span>
+        <span class="rm-kbd-key">Esc</span> close
+      </div>
+    </div>
+
+    <!-- View mode -->
+    <div id="detailView" style="display:none; flex:1; flex-direction:column; min-height:0;">
+      <div class="rm-detail-header">
+        <div class="rm-detail-header-top">
+          <span class="rm-detail-icon" id="detailIcon"><i class="ti ti-bell"></i></span>
+          <div class="rm-detail-titlewrap">
+            <h2 class="rm-detail-title" id="detailTitle">—</h2>
+            <div class="rm-detail-pills" id="detailPills"></div>
+          </div>
+          <button class="rm-detail-close" id="detailCloseBtn" title="Close" aria-label="Close">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+      </div>
+      <div class="rm-detail-body">
+        <div class="rm-timeline" id="detailTimeline"></div>
+        <div class="rm-info-grid" id="detailInfoGrid"></div>
+        <div id="detailNotesSection" style="display:none;">
+          <div class="rm-section-label">Notes</div>
+          <div class="rm-notes-box" id="detailNotesBody"></div>
+        </div>
+      </div>
+      <div class="rm-detail-actions" id="detailActions"></div>
+    </div>
+
+    <!-- Edit / Create mode -->
+    <div id="detailForm" style="display:none; flex:1; flex-direction:column; min-height:0;">
+      <div class="rm-detail-header">
+        <div class="rm-detail-header-top">
+          <span class="rm-detail-icon" id="formIcon"><i class="ti ti-bell-plus"></i></span>
+          <div class="rm-detail-titlewrap">
+            <h2 class="rm-detail-title" id="formTitle">New reminder</h2>
+            <p class="m-0" style="font-size:0.75rem; color:var(--crm-text-muted);" id="formSubtitle">Track a follow-up, callback, or due date.</p>
+          </div>
+          <button class="rm-detail-close" id="formCloseBtn" title="Cancel" aria-label="Cancel">
+            <i class="ti ti-x"></i>
+          </button>
+        </div>
+      </div>
+      <div class="rm-detail-body">
+        <form class="rm-form" id="reminderForm" onsubmit="return false;">
+          <input type="hidden" id="reminderId">
+
+          <div class="rm-form-group">
+            <label class="form-label" for="reminderSubject">Subject</label>
+            <input type="text" class="form-control" id="reminderSubject" placeholder="What should we remind you about?" required>
+          </div>
+
+          <div class="rm-form-group">
+            <label class="form-label" for="reminderScheduledAt">Scheduled at</label>
+            <div class="input-group">
+              <span class="input-group-text" aria-hidden="true"><i class="ti ti-calendar-event"></i></span>
+              <input type="text" class="form-control" id="reminderScheduledAt" placeholder="Select date & time" readonly required>
+            </div>
+          </div>
+
+          <div class="rm-form-row">
+            <div>
+              <label class="form-label" for="reminderPriority">Priority</label>
+              <div class="rm-priority-field" data-priority="medium">
+                <select class="form-select" id="reminderPriority">
+                  <option value="low">Low</option>
+                  <option value="medium" selected>Medium</option>
+                  <option value="high">High</option>
+                  <option value="urgent">Urgent</option>
+                </select>
+              </div>
+            </div>
+            <div>
+              <label class="form-label" for="reminderAssignedTo">Assigned to</label>
+              <select class="form-select" id="reminderAssignedTo">
+                <option value="">Unassigned</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="rm-form-row">
+            <div>
+              <label class="form-label" for="reminderContact">Contact</label>
+              <select class="form-select" id="reminderContact">
+                <option value="">No contact</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label" for="reminderTicket">Ticket</label>
+              <select class="form-select" id="reminderTicket">
+                <option value="">No ticket</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="rm-form-group" style="margin-bottom:0.25rem;">
+            <label class="form-label" for="reminderNotes">Notes</label>
+            <textarea class="form-control" id="reminderNotes" rows="4" placeholder="Optional context, links, or details…"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="rm-detail-actions">
+        <button class="btn btn-link" id="formCancelBtn">Cancel</button>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-primary btn-sm" id="saveReminderBtn">
+            <i class="ti ti-check"></i> <span id="saveReminderLabel">Save reminder</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
 </div>
 
-<!-- Reschedule Modal -->
+<!-- Reschedule modal (lightweight focused dialog kept) -->
 <div class="modal fade" id="rescheduleModal" tabindex="-1">
   <div class="modal-dialog modal-sm">
     <div class="modal-content">
       <div class="modal-header">
-        <div class="reminder-modal-header">
-          <span class="reminder-modal-icon reminder-modal-icon--warning" aria-hidden="true"><i class="ti ti-calendar-time"></i></span>
+        <div class="d-flex align-items-center gap-2">
+          <span class="rm-modal-icon" aria-hidden="true"><i class="ti ti-calendar-time"></i></span>
           <div>
-            <h5 class="modal-title">Reschedule</h5>
-            <p class="reminder-modal-subtitle">Pick a new date and time.</p>
+            <h5 class="modal-title mb-0">Reschedule</h5>
+            <p class="m-0" style="font-size:0.75rem;color:var(--crm-text-muted);">Pick a new date and time.</p>
           </div>
         </div>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -636,7 +1850,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
         <input type="hidden" id="rescheduleReminderId">
         <div class="mb-3">
           <label class="form-label" for="rescheduleAt">New date &amp; time</label>
-          <div class="input-group reminder-input-group">
+          <div class="input-group">
             <span class="input-group-text" aria-hidden="true"><i class="ti ti-calendar-event"></i></span>
             <input type="text" class="form-control" id="rescheduleAt" placeholder="Select date & time" readonly required>
           </div>
@@ -647,32 +1861,11 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
         </div>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-link reminder-modal-cancel" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-link" style="color:var(--crm-text-muted);" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-primary" id="confirmRescheduleBtn">
           <i class="ti ti-calendar-time me-1"></i>Reschedule
         </button>
       </div>
-    </div>
-  </div>
-</div>
-
-<!-- Detail Modal -->
-<div class="modal fade" id="detailModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <div class="reminder-modal-header">
-          <span class="reminder-modal-icon reminder-modal-icon--neutral" aria-hidden="true"><i class="ti ti-bell"></i></span>
-          <h5 class="modal-title mb-0">Reminder Details</h5>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="detailModalBody">
-        <div class="text-center py-4">
-          <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
-        </div>
-      </div>
-      <div class="modal-footer" id="detailModalFooter"></div>
     </div>
   </div>
 </div>
@@ -686,7 +1879,29 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 
   var API_BASE = '/api/v1/crm/reminders/';
 
-  // --- Flatpickr (matches ticket section's date picker) ---
+  // ── Tiny DOM helper: build elements without innerHTML ────────────
+  function el(tag, attrs, children) {
+    var node = document.createElement(tag);
+    if (attrs) {
+      Object.keys(attrs).forEach(function(k) {
+        if (k === 'className') node.className = attrs[k];
+        else if (k === 'text') node.textContent = attrs[k];
+        else if (k === 'dataset') Object.assign(node.dataset, attrs[k]);
+        else if (k === 'style') node.style.cssText = attrs[k];
+        else node.setAttribute(k, attrs[k]);
+      });
+    }
+    if (children) {
+      (Array.isArray(children) ? children : [children]).forEach(function(c) {
+        if (c == null) return;
+        node.appendChild(typeof c === 'string' ? document.createTextNode(c) : c);
+      });
+    }
+    return node;
+  }
+  function icon(name) { return el('i', { className: 'ti ti-' + name }); }
+
+  // ── Flatpickr attach helper ──────────────────────────────────────
   function attachFlatpickr(selector, opts) {
     return flatpickr(selector, Object.assign({
       enableTime: true,
@@ -703,12 +1918,8 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
           instance.altInput.setAttribute('placeholder', 'Select date & time');
           instance.altInput.style.cursor = 'pointer';
         }
-        var footer = document.createElement('div');
-        footer.className = 'flatpickr-footer';
-        var okBtn = document.createElement('button');
-        okBtn.type = 'button';
-        okBtn.className = 'flatpickr-done-btn';
-        okBtn.textContent = 'OK';
+        var footer = el('div', { className: 'flatpickr-footer' });
+        var okBtn = el('button', { type: 'button', className: 'flatpickr-done-btn', text: 'OK' });
         okBtn.addEventListener('click', function() { instance.close(); });
         footer.appendChild(okBtn);
         instance.calendarContainer.appendChild(footer);
@@ -718,463 +1929,1017 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   attachFlatpickr('#reminderScheduledAt', { minDate: 'today' });
   attachFlatpickr('#rescheduleAt', { minDate: 'today' });
 
-  // Sync coloured dot inside the Priority dropdown trigger.
-  function syncPriorityDot() {
-    var sel = document.getElementById('reminderPriority');
-    var field = sel && sel.closest('.reminder-priority-field');
-    if (field) field.dataset.priority = sel.value || 'medium';
-  }
-  var priorityEl = document.getElementById('reminderPriority');
-  if (priorityEl) priorityEl.addEventListener('change', syncPriorityDot);
-  var currentPage = 1;
-  var totalPages = 1;
-  var mineOnly = false;
-  var selectedIds = new Set();
+  // ── State ─────────────────────────────────────────────────────────
+  var state = {
+    page: 1,
+    totalPages: 1,
+    mineOnly: false,
+    status: '',
+    priority: '',
+    quickFilter: null,
+    search: '',
+    selectedId: null,
+    selectedReminder: null,
+    mode: 'empty',
+    formIsEdit: false,
+    items: [],
+    checked: new Set(),
+  };
 
-  function softBadge(text, kind) {
-    var span = document.createElement('span');
-    span.className = 'reminder-pill reminder-pill--' + kind;
-    span.textContent = text;
-    return span;
-  }
-
-  function priorityBadge(priority) {
-    var labels = { urgent: 'Urgent', high: 'High', medium: 'Medium', low: 'Low' };
-    return softBadge(labels[priority] || priority, 'priority-' + priority);
-  }
-
-  function statusBadge(st) {
-    var labels = {
-      overdue: 'Overdue', pending: 'Pending',
-      completed: 'Completed', cancelled: 'Cancelled',
-    };
-    return softBadge(labels[st] || st, 'status-' + st);
-  }
-
-  function getFilters() {
-    var params = new URLSearchParams();
-    params.set('page', currentPage);
-    var st = document.getElementById('statusFilter').value;
-    if (st) params.set('status', st);
-    var pr = document.getElementById('priorityFilter').value;
-    if (pr) params.set('priority', pr);
-    if (mineOnly) params.set('mine', 'true');
-    return params.toString();
-  }
-
-  function createTextCell(text, opts) {
-    var td = document.createElement('td');
-    if (opts && opts.style) td.style.cssText = opts.style;
-    if (opts && opts.className) td.className = opts.className;
-    td.textContent = text || '-';
-    return td;
-  }
-
+  // ── Formatting helpers ───────────────────────────────────────────
   function initials(name) {
     if (!name) return '?';
     var parts = String(name).trim().split(/\s+/).slice(0, 2);
     return parts.map(function(p) { return p[0]; }).join('').toUpperCase() || '?';
   }
-
-  function formatScheduled(iso) {
+  function formatDateTime(iso) {
     if (!iso) return '-';
     if (window.Kanzan && Kanzan.formatDateTime) return Kanzan.formatDateTime(iso);
     return new Date(iso).toLocaleString();
   }
-
-  function buildReminderRow(r) {
-    var tr = document.createElement('tr');
-    tr.dataset.id = r.id;
-    var isActionable = r.status === 'overdue' || r.status === 'pending';
-    if (r.status === 'overdue') tr.classList.add('is-overdue');
-
-    // Checkbox
-    var tdCheck = document.createElement('td');
-    tdCheck.style.paddingLeft = '1rem';
-    var cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.className = 'form-check-input reminder-check';
-    cb.dataset.id = r.id;
-    if (!isActionable) cb.disabled = true;
-    tdCheck.appendChild(cb);
-    tr.appendChild(tdCheck);
-
-    // Contacts (comma-separated names)
-    var contactsList = r.contacts_display || [];
-    var contactsText = contactsList
-      .map(function(c) { return c.name || c.email; })
-      .filter(Boolean)
-      .join(', ');
-    tr.appendChild(createTextCell(contactsText || '-'));
-
-    // Subject (bold) + muted notes preview when present
-    var tdSubject = document.createElement('td');
-    var subjectEl = document.createElement('span');
-    subjectEl.className = 'reminder-subject';
-    subjectEl.textContent = r.subject || '';
-    tdSubject.appendChild(subjectEl);
-    if (r.notes) {
-      var metaEl = document.createElement('span');
-      metaEl.className = 'reminder-subject-meta';
-      var noteSnippet = String(r.notes).replace(/\s+/g, ' ').trim();
-      metaEl.textContent = noteSnippet;
-      metaEl.title = noteSnippet;
-      tdSubject.appendChild(metaEl);
+  // Compact, friendly date: "Today 5:00 PM", "Tomorrow 9:00 AM", "Yesterday 11:35 AM",
+  // "In 3 days · Mon", "3 days ago · Tue", or absolute date if further out.
+  function formatRelative(iso) {
+    if (!iso) return '-';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '-';
+    var now = new Date();
+    var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    var startOfThat  = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+    var dayDiff = Math.round((startOfThat - startOfToday) / 86400000);
+    var timeStr = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    if (dayDiff === 0)  return 'Today ' + timeStr;
+    if (dayDiff === 1)  return 'Tomorrow ' + timeStr;
+    if (dayDiff === -1) return 'Yesterday ' + timeStr;
+    if (dayDiff > 1 && dayDiff <= 6)   return 'In ' + dayDiff + ' days · ' + d.toLocaleDateString([], { weekday: 'short' });
+    if (dayDiff < -1 && dayDiff >= -6) return Math.abs(dayDiff) + ' days ago · ' + d.toLocaleDateString([], { weekday: 'short' });
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: d.getFullYear() === now.getFullYear() ? undefined : 'numeric' }) + ' · ' + timeStr;
+  }
+  function timeAgo(iso) {
+    if (!iso) return '';
+    if (window.Kanzan && Kanzan.timeAgo) return Kanzan.timeAgo(iso);
+    return new Date(iso).toLocaleString();
+  }
+  function priorityPill(p) {
+    var labels = { urgent: 'Urgent', high: 'High', medium: 'Medium', low: 'Low' };
+    return el('span', { className: 'rm-pill rm-pill--priority-' + p, text: labels[p] || p });
+  }
+  function statusPill(s) {
+    var labels = { overdue: 'Overdue', pending: 'Pending', completed: 'Completed', cancelled: 'Cancelled' };
+    return el('span', { className: 'rm-pill rm-pill--status-' + s, text: labels[s] || s });
+  }
+  function groupKeyFor(r) {
+    if (r.status === 'overdue') return 'overdue';
+    if (r.status === 'pending') {
+      var d = new Date(r.scheduled_at);
+      var now = new Date();
+      if (d.toDateString() === now.toDateString()) return 'today';
+      return 'upcoming';
     }
-    tr.appendChild(tdSubject);
+    if (r.status === 'completed') return 'done';
+    return 'cancelled';
+  }
+  var GROUP_LABELS = {
+    overdue:   'Overdue',
+    today:     'Today',
+    upcoming:  'Upcoming',
+    done:      'Completed',
+    cancelled: 'Cancelled',
+  };
+  var GROUP_ORDER = ['overdue', 'today', 'upcoming', 'done', 'cancelled'];
 
-    // Tickets (clickable links, comma-separated)
-    var tdTicket = document.createElement('td');
-    var ticketsList = r.tickets_display || [];
-    if (ticketsList.length) {
-      ticketsList.forEach(function(t, idx) {
-        var link = document.createElement('a');
-        link.href = '/tickets/' + t.number + '/';
-        link.textContent = '#' + t.number;
-        link.title = t.subject || '';
-        tdTicket.appendChild(link);
-        if (idx < ticketsList.length - 1) {
-          tdTicket.appendChild(document.createTextNode(', '));
-        }
-      });
-    } else {
-      tdTicket.textContent = '-';
+  // ── Filter helpers ─────────────────────────────────────────────────
+  function getFilterParams() {
+    var params = new URLSearchParams();
+    params.set('page', state.page);
+    if (state.status)   params.set('status',   state.status);
+    if (state.priority) params.set('priority', state.priority);
+    if (state.mineOnly) params.set('mine', 'true');
+    if (state.search)   params.set('search', state.search);
+
+    if (state.quickFilter === 'overdue') {
+      params.set('status', 'overdue');
+    } else if (state.quickFilter === 'mine-overdue') {
+      params.set('status', 'overdue');
+      params.set('mine', 'true');
+    } else if (state.quickFilter === 'pending') {
+      params.set('status', 'pending');
+    } else if (state.quickFilter === 'today') {
+      params.set('due', 'today');
+    } else if (state.quickFilter === 'completed-today') {
+      params.set('status', 'completed');
+      params.set('completed', 'today');
     }
-    tr.appendChild(tdTicket);
+    return params.toString();
+  }
 
-    // Assigned to with initials avatar
-    var tdAssigned = document.createElement('td');
-    var assigneeWrap = document.createElement('span');
-    assigneeWrap.className = 'reminder-assignee';
-    var avatar = document.createElement('span');
-    if (r.assigned_to_name) {
-      avatar.className = 'reminder-avatar';
-      avatar.textContent = initials(r.assigned_to_name);
-    } else {
-      avatar.className = 'reminder-avatar reminder-avatar--unassigned';
-      avatar.textContent = '?';
-    }
-    var nameEl = document.createElement('span');
-    nameEl.className = 'reminder-assignee-name';
-    nameEl.textContent = r.assigned_to_name || 'Unassigned';
-    assigneeWrap.appendChild(avatar);
-    assigneeWrap.appendChild(nameEl);
-    tdAssigned.appendChild(assigneeWrap);
-    tr.appendChild(tdAssigned);
+  function setQuickFilter(name) {
+    state.quickFilter = (state.quickFilter === name) ? null : name;
+    state.page = 1;
+    document.querySelectorAll('.rm-summary-item').forEach(function(elm) {
+      elm.classList.toggle('is-active', elm.dataset.filter === state.quickFilter);
+    });
+    loadReminders();
+  }
 
-    // Scheduled (locale-aware)
-    tr.appendChild(createTextCell(formatScheduled(r.scheduled_at)));
-
-    // Overdue
-    var tdOverdue = document.createElement('td');
-    if (r.overdue_display) {
-      var overdueSpan = document.createElement('span');
-      overdueSpan.className = 'text-danger fw-semibold';
-      overdueSpan.textContent = r.overdue_display;
-      tdOverdue.appendChild(overdueSpan);
-    } else {
-      tdOverdue.textContent = '-';
-    }
-    tr.appendChild(tdOverdue);
-
-    // Priority badge
-    var tdPriority = document.createElement('td');
-    tdPriority.appendChild(priorityBadge(r.priority));
-    tr.appendChild(tdPriority);
-
-    // Status badge
-    var tdStatus = document.createElement('td');
-    tdStatus.appendChild(statusBadge(r.status));
-    tr.appendChild(tdStatus);
-
-    // Actions
-    var tdActions = document.createElement('td');
-    if (isActionable) {
-      var btnGroup = document.createElement('div');
-      btnGroup.className = 'reminder-actions';
-
-      function makeActionBtn(variant, iconClass, label, handler) {
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.className = 'reminder-action-btn reminder-action-btn--' + variant;
-        b.title = label;
-        b.setAttribute('aria-label', label);
-        b.dataset.id = r.id;
-        var icon = document.createElement('i');
-        icon.className = iconClass;
-        b.appendChild(icon);
-        b.addEventListener('click', handler);
-        return b;
-      }
-
-      btnGroup.appendChild(makeActionBtn('complete', 'ti ti-check', 'Complete',
-        function() { completeReminder(r.id); }));
-      btnGroup.appendChild(makeActionBtn('reschedule', 'ti ti-calendar', 'Reschedule',
-        function() { openReschedule(r.id); }));
-      btnGroup.appendChild(makeActionBtn('cancel', 'ti ti-x', 'Cancel',
-        function() { cancelReminder(r.id); }));
-
-      tdActions.appendChild(btnGroup);
-    } else if (r.status === 'completed' || r.status === 'cancelled') {
-      var chip = document.createElement('span');
-      chip.className = 'reminder-done-chip';
-      var chipIcon = document.createElement('i');
-      chipIcon.className = r.status === 'completed' ? 'ti ti-check' : 'ti ti-x';
-      chip.appendChild(chipIcon);
-      var ts = r.completed_at || r.cancelled_at;
-      var label = r.status === 'completed' ? 'Done' : 'Cancelled';
-      if (ts && window.Kanzan && Kanzan.timeAgo) {
-        chip.appendChild(document.createTextNode(label + ' · ' + Kanzan.timeAgo(ts)));
-      } else {
-        chip.appendChild(document.createTextNode(label));
-      }
-      tdActions.appendChild(chip);
-    }
-    tr.appendChild(tdActions);
-
-    // Click row to view details (skip clicks on checkboxes, buttons, links)
-    tr.style.cursor = 'pointer';
-    tr.addEventListener('click', function(e) {
-      if (e.target.closest('input, button, a')) return;
-      showDetail(r);
+  // ── List rendering ─────────────────────────────────────────────────
+  function buildItem(r) {
+    var item = el('div', {
+      className: 'rm-item' +
+        (r.status === 'completed' ? ' is-done' :
+         r.status === 'cancelled' ? ' is-cancelled' : '') +
+        (state.selectedId === r.id ? ' is-selected' : ''),
+      dataset: { id: r.id, priority: r.priority || 'medium' },
     });
 
-    return tr;
-  }
+    item.appendChild(el('span', { className: 'rm-item-priority-bar' }));
 
-  function buildDetailRow(label, value) {
-    var row = document.createElement('div');
-    row.className = 'd-flex justify-content-between py-2';
-    row.style.borderBottom = '1px solid var(--bs-border-color-translucent)';
-    var lbl = document.createElement('span');
-    lbl.className = 'text-muted';
-    lbl.textContent = label;
-    var val = document.createElement('span');
-    val.className = 'fw-semibold text-end';
-    val.style.maxWidth = '60%';
-    if (typeof value === 'string' || typeof value === 'number') {
-      val.textContent = value;
-    } else if (value instanceof HTMLElement) {
-      val.appendChild(value);
+    var cb = el('input', {
+      type: 'checkbox',
+      className: 'form-check-input rm-item-check',
+      dataset: { id: r.id },
+    });
+    cb.checked = state.checked.has(r.id);
+    var isActionable = r.status === 'overdue' || r.status === 'pending';
+    if (!isActionable) cb.disabled = true;
+    cb.addEventListener('click', function(e) { e.stopPropagation(); });
+    cb.addEventListener('change', function() {
+      if (this.checked) state.checked.add(r.id);
+      else state.checked.delete(r.id);
+      updateBulkBar();
+    });
+    item.appendChild(cb);
+
+    // Avatar
+    var avatar;
+    if (r.assigned_to_name) {
+      avatar = el('span', { className: 'rm-item-avatar', text: initials(r.assigned_to_name), title: r.assigned_to_name });
+    } else {
+      avatar = el('span', { className: 'rm-item-avatar rm-item-avatar--unassigned', text: '?', title: 'Unassigned' });
     }
-    row.appendChild(lbl);
-    row.appendChild(val);
-    return row;
-  }
+    item.appendChild(avatar);
 
-  function showDetail(r) {
-    var body = document.getElementById('detailModalBody');
-    var footer = document.getElementById('detailModalFooter');
-    body.textContent = '';
-    footer.textContent = '';
+    // Body
+    var body = el('div', { className: 'rm-item-body' });
+    body.appendChild(el('div', { className: 'rm-item-subject', text: r.subject || '(untitled)' }));
 
-    // Subject header
-    var subjectEl = document.createElement('h5');
-    subjectEl.className = 'mb-3';
-    subjectEl.textContent = r.subject || 'Untitled';
-    body.appendChild(subjectEl);
-
-    var details = document.createElement('div');
-
-    details.appendChild(buildDetailRow('Status', statusBadge(r.status)));
-    details.appendChild(buildDetailRow('Priority', priorityBadge(r.priority)));
-    details.appendChild(buildDetailRow('Scheduled', r.scheduled_at ? new Date(r.scheduled_at).toLocaleString() : '-'));
+    var meta = el('div', { className: 'rm-item-meta' });
+    var whenLabel = formatRelative(r.scheduled_at);
+    var when = el('span', {
+      style: 'display:inline-flex;align-items:center;gap:3px;',
+      title: formatDateTime(r.scheduled_at),
+    }, [
+      icon('clock'),
+      whenLabel,
+    ]);
+    meta.appendChild(when);
 
     if (r.overdue_display) {
-      var overdueSpan = document.createElement('span');
-      overdueSpan.className = 'text-danger fw-semibold';
-      overdueSpan.textContent = r.overdue_display;
-      details.appendChild(buildDetailRow('Overdue', overdueSpan));
+      meta.appendChild(el('span', { className: 'rm-meta-sep', text: '·' }));
+      meta.appendChild(el('span', { className: 'rm-meta-overdue', text: r.overdue_display }));
     }
 
-    details.appendChild(buildDetailRow('Assigned To', r.assigned_to_name || 'Unassigned'));
-
-    var contactsArr = r.contacts_display || [];
-    if (contactsArr.length) {
-      var contactWrap = document.createElement('div');
-      contactWrap.style.display = 'flex';
-      contactWrap.style.flexDirection = 'column';
-      contactWrap.style.alignItems = 'flex-end';
-      contactWrap.style.gap = '2px';
-      contactsArr.forEach(function(c) {
-        var line = document.createElement('span');
-        line.textContent = c.name || c.email || '-';
-        contactWrap.appendChild(line);
-      });
-      details.appendChild(buildDetailRow(
-        contactsArr.length > 1 ? 'Contacts' : 'Contact',
-        contactWrap
-      ));
-    } else {
-      details.appendChild(buildDetailRow('Contact', '-'));
+    var tickets = r.tickets_display || [];
+    if (tickets.length) {
+      meta.appendChild(el('span', { className: 'rm-meta-sep', text: '·' }));
+      var chipText = '#' + tickets[0].number + (tickets.length > 1 ? ' +' + (tickets.length - 1) : '');
+      meta.appendChild(el('span', { className: 'rm-meta-chip', text: chipText }));
     }
 
-    var ticketsArr = r.tickets_display || [];
-    if (ticketsArr.length) {
-      var ticketWrap = document.createElement('div');
-      ticketWrap.style.display = 'flex';
-      ticketWrap.style.flexDirection = 'column';
-      ticketWrap.style.alignItems = 'flex-end';
-      ticketWrap.style.gap = '2px';
-      ticketsArr.forEach(function(t) {
-        var link = document.createElement('a');
-        link.href = '/tickets/' + t.number + '/';
-        link.textContent = '#' + t.number + (t.subject ? ' — ' + t.subject : '');
-        ticketWrap.appendChild(link);
-      });
-      details.appendChild(buildDetailRow(
-        ticketsArr.length > 1 ? 'Tickets' : 'Ticket',
-        ticketWrap
-      ));
-    } else {
-      details.appendChild(buildDetailRow('Ticket', '-'));
-    }
+    body.appendChild(meta);
+    item.appendChild(body);
 
-    details.appendChild(buildDetailRow('Created By', r.created_by_name || '-'));
-    details.appendChild(buildDetailRow('Created', r.created_at ? new Date(r.created_at).toLocaleString() : '-'));
-
-    if (r.completed_at) {
-      details.appendChild(buildDetailRow('Completed', new Date(r.completed_at).toLocaleString()));
-    }
-    if (r.cancelled_at) {
-      details.appendChild(buildDetailRow('Cancelled', new Date(r.cancelled_at).toLocaleString()));
-    }
-
-    body.appendChild(details);
-
-    // Notes section
-    if (r.notes) {
-      var notesHeader = document.createElement('h6');
-      notesHeader.className = 'mt-3 mb-2 text-muted';
-      notesHeader.textContent = 'Notes';
-      body.appendChild(notesHeader);
-      var notesBody = document.createElement('div');
-      notesBody.className = 'p-2 rounded';
-      notesBody.style.background = 'var(--bs-tertiary-bg)';
-      notesBody.style.fontSize = '0.8125rem';
-      notesBody.style.whiteSpace = 'pre-wrap';
-      notesBody.textContent = r.notes;
-      body.appendChild(notesBody);
-    }
-
-    // Footer actions
-    var isActionable = r.status === 'overdue' || r.status === 'pending';
+    // Hover quick-actions — Complete + Reschedule (only on actionable rows)
     if (isActionable) {
-      var btnComplete = document.createElement('button');
-      btnComplete.className = 'btn btn-success btn-sm';
-      btnComplete.textContent = 'Complete';
-      btnComplete.addEventListener('click', function() {
-        bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();
+      var actions = el('div', { className: 'rm-item-hover-actions' });
+
+      var doneBtn = el('button', {
+        type: 'button',
+        className: 'rm-item-quick-btn rm-item-quick-btn--complete',
+        title: 'Mark complete',
+        'aria-label': 'Mark complete',
+      }, [icon('check')]);
+      doneBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
         completeReminder(r.id);
       });
+      actions.appendChild(doneBtn);
 
-      var btnReschedule = document.createElement('button');
-      btnReschedule.className = 'btn btn-warning btn-sm';
-      btnReschedule.textContent = 'Reschedule';
-      btnReschedule.addEventListener('click', function() {
-        bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();
+      var snoozeBtn = el('button', {
+        type: 'button',
+        className: 'rm-item-quick-btn rm-item-quick-btn--reschedule',
+        title: 'Snooze 1 day',
+        'aria-label': 'Snooze 1 day',
+      }, [icon('zzz')]);
+      snoozeBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        snoozeReminder(r.id, 1);
+      });
+      actions.appendChild(snoozeBtn);
+
+      var resBtn = el('button', {
+        type: 'button',
+        className: 'rm-item-quick-btn rm-item-quick-btn--reschedule',
+        title: 'Reschedule',
+        'aria-label': 'Reschedule',
+      }, [icon('calendar-time')]);
+      resBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
         openReschedule(r.id);
       });
+      actions.appendChild(resBtn);
 
-      var btnCancel = document.createElement('button');
-      btnCancel.className = 'btn btn-outline-secondary btn-sm';
-      btnCancel.textContent = 'Cancel Reminder';
-      btnCancel.addEventListener('click', function() {
-        bootstrap.Modal.getInstance(document.getElementById('detailModal')).hide();
-        cancelReminder(r.id);
-      });
-
-      footer.appendChild(btnComplete);
-      footer.appendChild(btnReschedule);
-      footer.appendChild(btnCancel);
+      item.appendChild(actions);
     }
 
-    var btnClose = document.createElement('button');
-    btnClose.className = 'btn btn-secondary btn-sm';
-    btnClose.textContent = 'Close';
-    btnClose.setAttribute('data-bs-dismiss', 'modal');
-    footer.appendChild(btnClose);
+    item.addEventListener('click', function(e) {
+      if (e.target.closest('input[type="checkbox"], a, button')) return;
+      selectReminder(r);
+    });
 
-    new bootstrap.Modal(document.getElementById('detailModal')).show();
+    return item;
   }
 
-  function loadReminders() {
-    Api.get(API_BASE + '?' + getFilters()).then(function(data) {
-      var results = data.results || data;
-      var tbody = document.getElementById('remindersTableBody');
-      tbody.textContent = '';
-      selectedIds.clear();
-      updateBulkBar();
+  function buildGroup(key, reminders) {
+    var section = el('section', { className: 'rm-group rm-group--' + key });
+    var header = el('header', { className: 'rm-group-header' }, [
+      el('span', { className: 'rm-group-header-dot' }),
+      document.createTextNode(GROUP_LABELS[key]),
+      el('span', { className: 'rm-group-count', text: String(reminders.length) }),
+    ]);
+    section.appendChild(header);
+    reminders.forEach(function(r) { section.appendChild(buildItem(r)); });
+    return section;
+  }
 
-      if (!results || results.length === 0) {
-        var emptyRow = document.createElement('tr');
-        var emptyCell = document.createElement('td');
-        emptyCell.colSpan = 10;
-        emptyCell.className = 'reminder-empty-cell';
-        var empty = document.createElement('div');
-        empty.className = 'empty-state';
-        var emptyIcon = document.createElement('div');
-        emptyIcon.className = 'empty-icon';
-        var emptyIconEl = document.createElement('i');
-        emptyIconEl.className = 'ti ti-bell-off';
-        emptyIcon.appendChild(emptyIconEl);
-        var emptyTitle = document.createElement('h5');
-        emptyTitle.className = 'empty-title';
-        emptyTitle.textContent = 'No reminders here yet';
-        var emptyText = document.createElement('p');
-        emptyText.className = 'empty-text';
-        emptyText.textContent = 'Try clearing filters, or create one to track a follow-up or callback.';
-        var newBtn = document.createElement('button');
-        newBtn.className = 'btn btn-sm btn-primary';
-        var newIcon = document.createElement('i');
-        newIcon.className = 'ti ti-plus me-1';
-        newBtn.appendChild(newIcon);
-        newBtn.appendChild(document.createTextNode('New Reminder'));
-        newBtn.addEventListener('click', function() {
-          document.getElementById('newReminderBtn').click();
-        });
-        empty.appendChild(emptyIcon);
-        empty.appendChild(emptyTitle);
-        empty.appendChild(emptyText);
-        empty.appendChild(newBtn);
-        emptyCell.appendChild(empty);
-        emptyRow.appendChild(emptyCell);
-        tbody.appendChild(emptyRow);
-        document.getElementById('paginationNav').style.display = 'none';
-        return;
+  function renderSkeletons(count) {
+    var body = document.getElementById('listBody');
+    body.textContent = '';
+    for (var i = 0; i < count; i++) {
+      var wrap = el('div', { className: 'rm-skel' }, [
+        el('div', { className: 'rm-skel-avatar rm-skel-shimmer' }),
+        el('div', { className: 'rm-skel-body' }, [
+          el('div', { className: 'rm-skel-line rm-skel-shimmer', style: 'width:' + (60 + (i * 7) % 30) + '%;' }),
+          el('div', { className: 'rm-skel-line rm-skel-line--sm rm-skel-shimmer' }),
+        ]),
+      ]);
+      body.appendChild(wrap);
+    }
+  }
+
+  // ── Filter banner ─────────────────────────────────────────────────
+  var QUICK_LABELS = {
+    overdue:           { label: 'Overdue',         tone: 'overdue'   },
+    'mine-overdue':    { label: 'My overdue',      tone: 'overdue'   },
+    pending:           { label: 'Pending',         tone: 'pending'   },
+    today:             { label: 'Due today',       tone: 'today'     },
+    'completed-today': { label: 'Done today',      tone: 'done'      },
+  };
+  function renderFilterBanner() {
+    var banner = document.getElementById('filterBanner');
+    var chips = document.getElementById('filterBannerChips');
+    chips.textContent = '';
+    var any = false;
+
+    if (state.quickFilter && QUICK_LABELS[state.quickFilter]) {
+      chips.appendChild(el('span', { className: 'rm-filter-banner-chip', text: QUICK_LABELS[state.quickFilter].label }));
+      any = true;
+    }
+    if (state.status && !state.quickFilter) {
+      chips.appendChild(el('span', { className: 'rm-filter-banner-chip', text: state.status }));
+      any = true;
+    }
+    if (state.priority) {
+      chips.appendChild(el('span', { className: 'rm-filter-banner-chip', text: state.priority + ' priority' }));
+      any = true;
+    }
+    if (state.search) {
+      chips.appendChild(el('span', { className: 'rm-filter-banner-chip', text: '"' + state.search + '"' }));
+      any = true;
+    }
+    if (state.mineOnly && state.quickFilter !== 'mine-overdue') {
+      chips.appendChild(el('span', { className: 'rm-filter-banner-chip', text: 'Mine only' }));
+      any = true;
+    }
+    banner.classList.toggle('is-visible', any);
+  }
+
+  function clearAllFilters() {
+    state.quickFilter = null;
+    state.status = '';
+    state.priority = '';
+    state.search = '';
+    state.mineOnly = false;
+    state.page = 1;
+    document.querySelectorAll('.rm-summary-item').forEach(function(elm) { elm.classList.remove('is-active'); });
+    document.getElementById('statusFilter').value = '';
+    document.getElementById('priorityFilter').value = '';
+    document.getElementById('searchInput').value = '';
+    document.getElementById('filterAllBtn').classList.add('active');
+    document.getElementById('filterMineBtn').classList.remove('active');
+    renderFilterBanner();
+    loadReminders();
+  }
+
+  function renderList(items) {
+    var body = document.getElementById('listBody');
+    body.textContent = '';
+
+    if (!items || items.length === 0) {
+      var hasFilters = !!(state.quickFilter || state.status || state.priority || state.search || state.mineOnly);
+      var emptyEl = el('div', { className: 'rm-list-state' }, [
+        el('div', { className: 'rm-list-state-icon' }, [icon(hasFilters ? 'filter-off' : 'bell-off')]),
+        el('div', { className: 'rm-list-state-title', text: hasFilters ? 'No matches' : 'No reminders here' }),
+        el('div', {
+          className: 'rm-list-state-text',
+          text: hasFilters
+            ? 'Nothing matches the current filters. Try clearing them or adjusting the scope.'
+            : 'Create one to track a follow-up, callback, or due date.',
+        }),
+      ]);
+      if (hasFilters) {
+        var clearBtn = el('button', { className: 'btn btn-sm btn-outline-secondary mt-2' }, [
+          icon('filter-off'), document.createTextNode(' Clear filters'),
+        ]);
+        clearBtn.addEventListener('click', clearAllFilters);
+        emptyEl.appendChild(clearBtn);
+      } else {
+        var newBtn = el('button', { className: 'btn btn-sm btn-primary mt-2' }, [
+          el('i', { className: 'ti ti-plus me-1' }),
+          document.createTextNode('New reminder'),
+        ]);
+        newBtn.addEventListener('click', openNewForm);
+        emptyEl.appendChild(newBtn);
       }
+      body.appendChild(emptyEl);
+      return;
+    }
 
-      results.forEach(function(r) {
-        tbody.appendChild(buildReminderRow(r));
+    var groups = {};
+    items.forEach(function(r) {
+      var key = groupKeyFor(r);
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(r);
+    });
+    GROUP_ORDER.forEach(function(key) {
+      if (groups[key] && groups[key].length) {
+        body.appendChild(buildGroup(key, groups[key]));
+      }
+    });
+  }
+
+  // ── Detail rendering ───────────────────────────────────────────────
+  function showEmpty() {
+    state.mode = 'empty';
+    state.selectedId = null;
+    state.selectedReminder = null;
+    document.getElementById('detailEmpty').style.display = '';
+    document.getElementById('detailView').style.display = 'none';
+    document.getElementById('detailForm').style.display = 'none';
+    document.getElementById('detailPane').classList.remove('is-mobile-open');
+    document.querySelectorAll('.rm-item.is-selected').forEach(function(elm) { elm.classList.remove('is-selected'); });
+    stopCountdownTimer();
+    renderFocusCard();
+  }
+
+  function showView() {
+    state.mode = 'view';
+    document.getElementById('detailEmpty').style.display = 'none';
+    document.getElementById('detailView').style.display = 'flex';
+    document.getElementById('detailForm').style.display = 'none';
+  }
+
+  function showForm() {
+    state.mode = 'form';
+    document.getElementById('detailEmpty').style.display = 'none';
+    document.getElementById('detailView').style.display = 'none';
+    document.getElementById('detailForm').style.display = 'flex';
+    stopCountdownTimer();
+  }
+
+  function appendInfoRow(grid, label, valueNode) {
+    grid.appendChild(el('div', { className: 'rm-info-label', text: label }));
+    var v = el('div', { className: 'rm-info-value' });
+    if (typeof valueNode === 'string' || typeof valueNode === 'number') {
+      v.textContent = String(valueNode);
+    } else if (valueNode instanceof Node) {
+      v.appendChild(valueNode);
+    }
+    grid.appendChild(v);
+  }
+
+  // ── Workload banner ──────────────────────────────────────────────
+  // Productivity-oriented strip above the workspace. Pulls from /stats/ and
+  // computes today's completion ratio + a contextual tone (good/warn/bad/idle).
+  function renderWorkloadBanner(stats) {
+    if (!stats) return;
+    var overdue = stats.total_overdue || 0;
+    var dueToday = stats.due_today != null ? stats.due_today : 0;
+    var doneToday = stats.completed_today || 0;
+    var pending = stats.pending != null ? stats.pending : 0;
+
+    // "Today" totals = remaining (dueToday) + completed (doneToday)
+    var totalToday = dueToday + doneToday;
+    var pct = totalToday > 0 ? Math.round((doneToday / totalToday) * 100) : 0;
+
+    var titleText, subText, toneClass, toneLabel;
+    if (overdue > 0) {
+      titleText = overdue + ' overdue · clear the backlog first';
+      subText = pending + ' pending · ' + doneToday + ' completed today';
+      toneClass = 'rm-workload-tone--bad';
+      toneLabel = 'Attention';
+    } else if (totalToday === 0 && pending === 0) {
+      titleText = 'Nothing on your plate. Use the quiet time.';
+      subText = 'No reminders scheduled — create one when something comes up.';
+      toneClass = 'rm-workload-tone--idle';
+      toneLabel = 'Clear';
+    } else if (totalToday === 0) {
+      titleText = pending + ' upcoming · nothing due today';
+      subText = 'Your day is clear. Future reminders are queued.';
+      toneClass = 'rm-workload-tone--good';
+      toneLabel = 'On track';
+    } else if (dueToday === 0 && doneToday > 0) {
+      titleText = 'All today’s reminders done. ' + doneToday + ' completed.';
+      subText = 'Great pace. ' + pending + ' upcoming on later days.';
+      toneClass = 'rm-workload-tone--good';
+      toneLabel = 'Done';
+    } else {
+      titleText = doneToday + ' of ' + totalToday + ' completed today';
+      subText = dueToday + ' still due · ' + pending + ' total pending';
+      toneClass = pct >= 70 ? 'rm-workload-tone--good' : 'rm-workload-tone--warn';
+      toneLabel = pct >= 70 ? 'On track' : 'In progress';
+    }
+
+    document.getElementById('workloadTitleText').textContent = titleText;
+    document.getElementById('workloadSub').textContent = subText;
+
+    var tone = document.getElementById('workloadTone');
+    tone.style.display = '';
+    tone.className = 'rm-workload-tone ' + toneClass;
+    tone.textContent = toneLabel;
+
+    var fill = document.getElementById('workloadFill');
+    fill.style.width = pct + '%';
+    fill.classList.toggle('rm-workload-fill--complete', pct === 100 && totalToday > 0);
+    document.getElementById('workloadPct').textContent = totalToday === 0 ? '—' : pct + '%';
+  }
+
+  // ── Today's focus card ────────────────────────────────────────────
+  // Renders inside the right pane when no reminder is selected. Picks the
+  // most urgent reminder from state.items as the hero, lists the next 4
+  // upcoming below it, and exposes a quick-add lane.
+  function renderFocusCard() {
+    var greeting;
+    var hour = new Date().getHours();
+    if (hour < 5)       greeting = 'Burning the midnight oil';
+    else if (hour < 12) greeting = 'Good morning';
+    else if (hour < 17) greeting = 'Good afternoon';
+    else if (hour < 22) greeting = 'Good evening';
+    else                greeting = 'Wrapping up the day';
+    document.getElementById('focusGreeting').textContent = greeting;
+    document.getElementById('focusDate').textContent = new Date().toLocaleDateString([], {
+      weekday: 'long', month: 'long', day: 'numeric',
+    });
+
+    // Filter out done/cancelled, sort by urgency: overdue first then by date
+    var active = (state.items || []).filter(function(r) {
+      return r.status === 'overdue' || r.status === 'pending';
+    }).sort(function(a, b) {
+      if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+      if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+      return new Date(a.scheduled_at) - new Date(b.scheduled_at);
+    });
+
+    var hero = active[0] || null;
+    var rest = active.slice(1, 5);
+
+    // Hero
+    var heroMount = document.getElementById('focusHeroMount');
+    heroMount.textContent = '';
+    if (hero) {
+      var card = el('div', { className: 'rm-focus-hero', dataset: { priority: hero.priority || 'medium' } });
+      if (hero.status === 'overdue') card.classList.add('is-overdue');
+      var top = el('div', { className: 'rm-focus-hero-top' }, [
+        el('div', { className: 'rm-focus-hero-priority' }),
+        el('div', { className: 'rm-focus-hero-body' }, [
+          el('div', { className: 'rm-focus-hero-subject', text: hero.subject || '(untitled)' }),
+          (function() {
+            var meta = el('div', { className: 'rm-focus-hero-meta' });
+            meta.appendChild(el('span', {}, [icon('clock'), ' ' + formatRelative(hero.scheduled_at)]));
+            var cd = countdownData(hero.scheduled_at);
+            if (cd) {
+              meta.appendChild(el('span', { className: 'rm-meta-sep', text: '·' }));
+              meta.appendChild(el('span', { className: 'rm-countdown rm-countdown--' + cd.variant, text: cd.text }));
+            }
+            meta.appendChild(el('span', { className: 'rm-meta-sep', text: '·' }));
+            meta.appendChild(priorityPill(hero.priority || 'medium'));
+            if (hero.assigned_to_name) {
+              meta.appendChild(el('span', { className: 'rm-meta-sep', text: '·' }));
+              meta.appendChild(el('span', {}, [icon('user'), ' ' + hero.assigned_to_name]));
+            }
+            return meta;
+          })(),
+        ]),
+      ]);
+      card.appendChild(top);
+
+      var actions = el('div', { className: 'rm-focus-hero-actions' });
+      var doneBtn = el('button', { className: 'btn btn-success btn-sm' }, [icon('check'), ' Complete']);
+      doneBtn.addEventListener('click', function() { completeReminder(hero.id); });
+      actions.appendChild(doneBtn);
+
+      var snoozeBtn = el('button', { className: 'btn btn-outline-warning btn-sm' }, [icon('zzz'), ' Snooze 1 day']);
+      snoozeBtn.addEventListener('click', function() { snoozeReminder(hero.id, 1); });
+      actions.appendChild(snoozeBtn);
+
+      var resBtn = el('button', { className: 'btn btn-outline-secondary btn-sm' }, [icon('calendar-time'), ' Reschedule']);
+      resBtn.addEventListener('click', function() { openReschedule(hero.id); });
+      actions.appendChild(resBtn);
+
+      var viewBtn = el('button', { className: 'btn btn-link btn-sm', style: 'color:var(--crm-primary-active);text-decoration:none;' }, [
+        document.createTextNode('Open '), icon('arrow-right'),
+      ]);
+      viewBtn.addEventListener('click', function() { selectReminder(hero); });
+      actions.appendChild(viewBtn);
+
+      card.appendChild(actions);
+      heroMount.appendChild(card);
+    } else {
+      var empty = el('div', { className: 'rm-focus-hero is-allclear' }, [
+        el('div', { className: 'rm-focus-hero-empty' }, [
+          el('div', { className: 'rm-focus-hero-empty-icon' }, [icon('circle-check')]),
+          el('div', {}, [
+            el('div', { className: 'rm-focus-hero-empty-title', text: 'All clear.' }),
+            el('div', { className: 'rm-focus-hero-empty-text', text: 'No active reminders. Add one below or press N for the full form.' }),
+          ]),
+        ]),
+      ]);
+      heroMount.appendChild(empty);
+    }
+
+    // Coming-up list
+    var listMount = document.getElementById('focusList');
+    listMount.textContent = '';
+    if (!rest.length) {
+      listMount.appendChild(el('div', { className: 'rm-focus-list-empty', text: hero ? 'Just one to focus on. Nice.' : 'Your queue is empty.' }));
+    } else {
+      rest.forEach(function(r) {
+        var row = el('div', { className: 'rm-focus-list-row' }, [
+          el('div', { className: 'rm-focus-list-time', text: formatRelative(r.scheduled_at) }),
+          el('div', { className: 'rm-focus-list-subject', text: r.subject || '(untitled)' }),
+          priorityPill(r.priority || 'medium'),
+        ]);
+        row.addEventListener('click', function() { selectReminder(r); });
+        listMount.appendChild(row);
       });
+    }
+  }
 
-      // Pagination
+  // ── Snooze action ─────────────────────────────────────────────────
+  // Reuses the /reschedule/ endpoint. Pushes scheduled_at forward by `days`
+  // days, anchored to whichever is later (current scheduled_at or now).
+  function snoozeReminder(id, days) {
+    var rem = (state.items || []).find(function(r) { return r.id === id; }) || state.selectedReminder;
+    var anchor = rem && rem.scheduled_at ? new Date(rem.scheduled_at) : new Date();
+    if (anchor.getTime() < Date.now()) anchor = new Date(); // never snooze into the past
+    anchor.setDate(anchor.getDate() + (days || 1));
+    var iso = anchor.toISOString();
+    Api.post(API_BASE + id + '/reschedule/', {
+      scheduled_at: iso,
+      note: 'Snoozed by ' + (days || 1) + ' day(s)',
+    }).then(function() {
+      Toast.success('Snoozed by ' + (days || 1) + ' day' + (days === 1 ? '' : 's') + '.');
+      loadReminders();
+      loadStats();
+    }).catch(function(err) { Toast.error(err.detail || 'Snooze failed.'); });
+  }
+
+  // ── Countdown ─────────────────────────────────────────────────────
+  function countdownData(iso) {
+    if (!iso) return null;
+    var diff = new Date(iso).getTime() - Date.now();
+    var abs = Math.abs(diff);
+    var days = Math.floor(abs / 86400000);
+    var hours = Math.floor(abs / 3600000) % 24;
+    var mins = Math.max(1, Math.floor(abs / 60000) % 60);
+    var totalHours = Math.floor(abs / 3600000);
+    var label;
+    if (days === 0 && totalHours < 1)     label = mins + 'm';
+    else if (days === 0)                  label = totalHours + 'h ' + mins + 'm';
+    else if (days < 7)                    label = days + 'd ' + hours + 'h';
+    else                                  label = days + 'd';
+    var text = diff >= 0 ? 'in ' + label : label + ' overdue';
+    var variant;
+    if (diff < 0)                          variant = 'overdue';
+    else if (diff < 60 * 60 * 1000)        variant = 'soon';    // within 1 hour
+    else                                   variant = 'upcoming';
+    return { text: text, variant: variant };
+  }
+  function buildCountdownChip(iso) {
+    var d = countdownData(iso);
+    if (!d) return null;
+    return el('span', {
+      className: 'rm-countdown rm-countdown--' + d.variant,
+      id: 'countdownChip',
+      text: d.text,
+    });
+  }
+  // ── Lifecycle timeline ────────────────────────────────────────────
+  function renderTimeline(r) {
+    var host = document.getElementById('detailTimeline');
+    host.textContent = '';
+
+    var nowStatus = r.status; // 'overdue' | 'pending' | 'completed' | 'cancelled'
+
+    // Step 1 — Created
+    var step1 = el('div', { className: 'rm-tl-step is-done' }, [
+      el('div', { className: 'rm-tl-dot' }, [icon('plus')]),
+      el('div', { className: 'rm-tl-label', text: 'Created' }),
+      el('div', { className: 'rm-tl-sub', text: r.created_at ? timeAgo(r.created_at) : '—' }),
+    ]);
+    host.appendChild(step1);
+
+    var line1 = el('div', { className: 'rm-tl-line' });
+    if (nowStatus !== 'pending') line1.classList.add('is-done');
+    host.appendChild(line1);
+
+    // Step 2 — Scheduled
+    var step2Cls = 'rm-tl-step ';
+    var step2Label = 'Scheduled';
+    if (nowStatus === 'overdue')        step2Cls += 'is-overdue';
+    else if (nowStatus === 'pending')   step2Cls += 'is-current';
+    else                                step2Cls += 'is-done';
+    var step2 = el('div', { className: step2Cls }, [
+      el('div', { className: 'rm-tl-dot' }, [icon(nowStatus === 'overdue' ? 'alert-triangle' : 'clock')]),
+      el('div', { className: 'rm-tl-label', text: step2Label }),
+      el('div', { className: 'rm-tl-sub', text: r.scheduled_at ? formatRelative(r.scheduled_at) : '—' }),
+    ]);
+    host.appendChild(step2);
+
+    var line2 = el('div', { className: 'rm-tl-line' });
+    if (nowStatus === 'completed' || nowStatus === 'cancelled') line2.classList.add('is-done');
+    host.appendChild(line2);
+
+    // Step 3 — Completed / Cancelled / pending placeholder
+    var step3, step3Label, step3Sub, step3IconName, step3Class;
+    if (nowStatus === 'completed') {
+      step3Label = 'Completed';
+      step3IconName = 'circle-check';
+      step3Sub = r.completed_at ? timeAgo(r.completed_at) : 'Done';
+      step3Class = 'rm-tl-step is-done';
+    } else if (nowStatus === 'cancelled') {
+      step3Label = 'Cancelled';
+      step3IconName = 'ban';
+      step3Sub = r.cancelled_at ? timeAgo(r.cancelled_at) : '—';
+      step3Class = 'rm-tl-step is-cancelled';
+    } else {
+      step3Label = 'Complete';
+      step3IconName = 'circle';
+      step3Sub = '—';
+      step3Class = 'rm-tl-step';
+    }
+    step3 = el('div', { className: step3Class }, [
+      el('div', { className: 'rm-tl-dot' }, [icon(step3IconName)]),
+      el('div', { className: 'rm-tl-label', text: step3Label }),
+      el('div', { className: 'rm-tl-sub', text: step3Sub }),
+    ]);
+    host.appendChild(step3);
+  }
+
+  // Countdown auto-refresh
+  var countdownTimer = null;
+  function startCountdownTimer() {
+    stopCountdownTimer();
+    countdownTimer = setInterval(function() {
+      if (!state.selectedReminder) return;
+      var chip = document.getElementById('countdownChip');
+      if (!chip) return;
+      var d = countdownData(state.selectedReminder.scheduled_at);
+      if (!d) return;
+      chip.textContent = d.text;
+      chip.className = 'rm-countdown rm-countdown--' + d.variant;
+      chip.id = 'countdownChip';
+    }, 60000);
+  }
+  function stopCountdownTimer() {
+    if (countdownTimer) { clearInterval(countdownTimer); countdownTimer = null; }
+  }
+
+  function renderDetail(r) {
+    state.selectedId = r.id;
+    state.selectedReminder = r;
+
+    document.getElementById('detailTitle').textContent = r.subject || '(untitled)';
+
+    var iconEl = document.getElementById('detailIcon');
+    iconEl.className = 'rm-detail-icon';
+    iconEl.textContent = '';
+    if (r.status === 'completed') {
+      iconEl.classList.add('rm-detail-icon--success');
+      iconEl.appendChild(icon('circle-check'));
+    } else if (r.status === 'cancelled') {
+      iconEl.classList.add('rm-detail-icon--muted');
+      iconEl.appendChild(icon('ban'));
+    } else {
+      iconEl.appendChild(icon('bell'));
+    }
+
+    var pills = document.getElementById('detailPills');
+    pills.textContent = '';
+    pills.appendChild(statusPill(r.status));
+    pills.appendChild(priorityPill(r.priority));
+
+    // Lifecycle timeline strip
+    renderTimeline(r);
+
+    var grid = document.getElementById('detailInfoGrid');
+    grid.textContent = '';
+
+    // Scheduled row carries a live countdown chip for active reminders
+    var scheduledVal = el('span', { style: 'display:inline-flex;align-items:center;gap:0.5rem;flex-wrap:wrap;' });
+    scheduledVal.appendChild(document.createTextNode(formatDateTime(r.scheduled_at)));
+    if (r.status === 'overdue' || r.status === 'pending') {
+      var chip = buildCountdownChip(r.scheduled_at);
+      if (chip) scheduledVal.appendChild(chip);
+    }
+    appendInfoRow(grid, 'Scheduled', scheduledVal);
+
+    if (r.overdue_display) {
+      appendInfoRow(grid, 'Overdue by', el('span', { className: 'rm-meta-overdue', text: r.overdue_display }));
+    }
+    if (r.status === 'completed' && r.completed_at) {
+      appendInfoRow(grid, 'Completed', formatDateTime(r.completed_at));
+    }
+    if (r.status === 'cancelled' && r.cancelled_at) {
+      appendInfoRow(grid, 'Cancelled', formatDateTime(r.cancelled_at));
+    }
+
+    // Assignee with avatar
+    var assigneeWrap = el('span', { style: 'display:inline-flex;align-items:center;gap:0.5rem;' });
+    var av;
+    if (r.assigned_to_name) {
+      av = el('span', { className: 'rm-item-avatar', style: 'width:24px;height:24px;', text: initials(r.assigned_to_name) });
+    } else {
+      av = el('span', { className: 'rm-item-avatar rm-item-avatar--unassigned', style: 'width:24px;height:24px;', text: '?' });
+    }
+    assigneeWrap.appendChild(av);
+    assigneeWrap.appendChild(el('span', { text: r.assigned_to_name || 'Unassigned' }));
+    appendInfoRow(grid, 'Assigned to', assigneeWrap);
+
+    // Contacts
+    var contacts = r.contacts_display || [];
+    if (contacts.length) {
+      var wrap = el('span', { style: 'display:inline-flex;gap:0.375rem;flex-wrap:wrap;' });
+      contacts.forEach(function(c) {
+        var chip = el('a', {
+          href: '/contacts/' + (c.id || '') + '/',
+          className: 'rm-meta-chip',
+          style: 'color:var(--crm-primary-active);text-decoration:none;',
+          text: c.name || c.email || '—',
+        });
+        wrap.appendChild(chip);
+      });
+      appendInfoRow(grid, contacts.length > 1 ? 'Contacts' : 'Contact', wrap);
+    } else {
+      appendInfoRow(grid, 'Contact', '—');
+    }
+
+    // Tickets
+    var tickets = r.tickets_display || [];
+    if (tickets.length) {
+      var wrap2 = el('span', { style: 'display:inline-flex;gap:0.375rem;flex-wrap:wrap;' });
+      tickets.forEach(function(t) {
+        var link = el('a', {
+          href: '/tickets/' + t.number + '/',
+          className: 'rm-meta-chip',
+          style: 'color:var(--crm-primary-active);text-decoration:none;',
+          title: t.subject || '',
+          text: '#' + t.number,
+        });
+        wrap2.appendChild(link);
+      });
+      appendInfoRow(grid, tickets.length > 1 ? 'Tickets' : 'Ticket', wrap2);
+    } else {
+      appendInfoRow(grid, 'Ticket', '—');
+    }
+
+    appendInfoRow(grid, 'Created by', r.created_by_name || '—');
+    if (r.created_at) {
+      appendInfoRow(grid, 'Created', formatDateTime(r.created_at) + ' (' + timeAgo(r.created_at) + ')');
+    }
+
+    // Notes
+    var notesSection = document.getElementById('detailNotesSection');
+    if (r.notes && r.notes.trim()) {
+      notesSection.style.display = '';
+      document.getElementById('detailNotesBody').textContent = r.notes;
+    } else {
+      notesSection.style.display = 'none';
+    }
+
+    // Actions
+    var actions = document.getElementById('detailActions');
+    actions.textContent = '';
+    var isActionable = r.status === 'overdue' || r.status === 'pending';
+
+    function makeBtn(cls, ic, label, handler) {
+      var b = el('button', { className: 'btn ' + cls }, [icon(ic), document.createTextNode(' ' + label)]);
+      b.addEventListener('click', handler);
+      return b;
+    }
+
+    if (isActionable) {
+      actions.appendChild(makeBtn('btn-success btn-sm', 'check', 'Complete', function() { completeReminder(r.id); }));
+      actions.appendChild(makeBtn('btn-outline-warning btn-sm', 'zzz', 'Snooze 1d', function() { snoozeReminder(r.id, 1); }));
+      actions.appendChild(makeBtn('btn-warning btn-sm', 'calendar-time', 'Reschedule', function() { openReschedule(r.id); }));
+      actions.appendChild(makeBtn('btn-outline-secondary btn-sm', 'x', 'Cancel', function() { cancelReminder(r.id); }));
+    }
+
+    var editBtn = makeBtn('btn-outline-secondary btn-sm ms-auto', 'edit', 'Edit', function() { openEditForm(r); });
+    actions.appendChild(editBtn);
+
+    showView();
+    if (r.status === 'overdue' || r.status === 'pending') startCountdownTimer();
+    else stopCountdownTimer();
+  }
+
+  function selectReminder(r) {
+    state.selectedId = r.id;
+    state.selectedReminder = r;
+    renderDetail(r);
+    document.querySelectorAll('.rm-item').forEach(function(elm) {
+      elm.classList.toggle('is-selected', elm.dataset.id === r.id);
+      elm.classList.remove('is-just-selected');
+    });
+    var selected = document.querySelector('.rm-item.is-selected');
+    if (selected) {
+      // Force reflow then re-add for animation restart.
+      void selected.offsetWidth;
+      selected.classList.add('is-just-selected');
+    }
+    if (window.innerWidth <= 991) {
+      document.getElementById('detailPane').classList.add('is-mobile-open');
+    }
+  }
+
+  // ── Form (create + edit) ───────────────────────────────────────────
+  function resetForm() {
+    document.getElementById('reminderId').value = '';
+    document.getElementById('reminderSubject').value = '';
+    var sa = document.getElementById('reminderScheduledAt');
+    if (sa._flatpickr) sa._flatpickr.clear(); else sa.value = '';
+    document.getElementById('reminderPriority').value = 'medium';
+    syncPriorityDot();
+    document.getElementById('reminderNotes').value = '';
+    document.getElementById('reminderContact').value = '';
+    document.getElementById('reminderTicket').value = '';
+    document.getElementById('reminderAssignedTo').value = '';
+  }
+
+  function loadFormDropdowns(selected) {
+    selected = selected || {};
+    Api.get('/api/v1/agents/agents/all-members/').then(function(data) {
+      populateSelect(
+        document.getElementById('reminderAssignedTo'),
+        data.results || data || [],
+        'user_id',
+        function(u) { return u.user_name || u.user_email || u.email; },
+        'Unassigned'
+      );
+      if (selected.assigned_to) document.getElementById('reminderAssignedTo').value = selected.assigned_to;
+    }).catch(function() {});
+
+    Api.get('/api/v1/contacts/contacts/?page_size=100').then(function(data) {
+      populateSelect(
+        document.getElementById('reminderContact'),
+        data.results || [],
+        'id',
+        function(c) {
+          return ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email || String(c.id);
+        },
+        'No contact'
+      );
+      if (selected.contact) document.getElementById('reminderContact').value = selected.contact;
+    }).catch(function() {});
+
+    Api.get('/api/v1/tickets/tickets/?page_size=50&ordering=-created_at').then(function(data) {
+      populateSelect(
+        document.getElementById('reminderTicket'),
+        data.results || [],
+        'id',
+        function(t) { return '#' + t.number + ' — ' + (t.subject || '').substring(0, 50); },
+        'No ticket'
+      );
+      if (selected.ticket) document.getElementById('reminderTicket').value = selected.ticket;
+    }).catch(function() {});
+  }
+
+  function openNewForm() {
+    state.formIsEdit = false;
+    resetForm();
+    document.getElementById('formTitle').textContent = 'New reminder';
+    document.getElementById('formSubtitle').textContent = 'Track a follow-up, callback, or due date.';
+    var iconEl = document.getElementById('formIcon');
+    iconEl.textContent = '';
+    iconEl.appendChild(icon('bell-plus'));
+    document.getElementById('saveReminderLabel').textContent = 'Save reminder';
+    loadFormDropdowns();
+    showForm();
+    setTimeout(function() { document.getElementById('reminderSubject').focus(); }, 80);
+  }
+
+  function openEditForm(r) {
+    state.formIsEdit = true;
+    state.selectedReminder = r;
+    resetForm();
+    document.getElementById('reminderId').value = r.id;
+    document.getElementById('reminderSubject').value = r.subject || '';
+    var sa = document.getElementById('reminderScheduledAt');
+    if (r.scheduled_at && sa._flatpickr) sa._flatpickr.setDate(r.scheduled_at, true);
+    document.getElementById('reminderPriority').value = r.priority || 'medium';
+    syncPriorityDot();
+    document.getElementById('reminderNotes').value = r.notes || '';
+    var firstContact = (r.contacts_display && r.contacts_display[0]) ? r.contacts_display[0].id : '';
+    var firstTicket  = (r.tickets_display && r.tickets_display[0]) ? r.tickets_display[0].id : '';
+    document.getElementById('formTitle').textContent = 'Edit reminder';
+    document.getElementById('formSubtitle').textContent = r.subject || '';
+    var iconEl = document.getElementById('formIcon');
+    iconEl.textContent = '';
+    iconEl.appendChild(icon('edit'));
+    document.getElementById('saveReminderLabel').textContent = 'Update reminder';
+    loadFormDropdowns({
+      assigned_to: r.assigned_to || '',
+      contact: firstContact,
+      ticket: firstTicket,
+    });
+    showForm();
+    setTimeout(function() { document.getElementById('reminderSubject').focus(); }, 80);
+  }
+
+  function syncPriorityDot() {
+    var sel = document.getElementById('reminderPriority');
+    var field = sel && sel.closest('.rm-priority-field');
+    if (field) field.dataset.priority = sel.value || 'medium';
+  }
+  document.getElementById('reminderPriority').addEventListener('change', syncPriorityDot);
+
+  function populateSelect(sel, items, valueKey, labelFn, defaultLabel) {
+    sel.textContent = '';
+    sel.appendChild(el('option', { value: '', text: defaultLabel || 'None' }));
+    (items || []).forEach(function(item) {
+      sel.appendChild(el('option', { value: item[valueKey], text: labelFn(item) }));
+    });
+  }
+
+  // ── API actions ────────────────────────────────────────────────────
+  function loadReminders() {
+    // Show skeletons while we fetch — only when the list is currently empty
+    // (avoids a flash when paginating or auto-refetching via LiveBus).
+    var body = document.getElementById('listBody');
+    if (!body.querySelector('.rm-item')) renderSkeletons(5);
+    renderFilterBanner();
+
+    Api.get(API_BASE + '?' + getFilterParams()).then(function(data) {
+      var results = data.results || data;
+      state.items = results || [];
+      state.checked.clear();
+      updateBulkBar();
+      renderList(state.items);
+
       if (data.count !== undefined) {
         var pageSize = results.length || 50;
-        totalPages = Math.ceil(data.count / pageSize) || 1;
-        document.getElementById('pageInfo').textContent = currentPage + ' / ' + totalPages;
+        state.totalPages = Math.ceil(data.count / pageSize) || 1;
+        document.getElementById('pageInfo').textContent = state.page + ' / ' + state.totalPages;
         var infoEl = document.getElementById('paginationInfo');
         if (infoEl) {
           var label = data.count === 1 ? '1 reminder' : data.count + ' reminders';
           infoEl.textContent = 'Showing ' + results.length + ' of ' + label;
         }
         document.getElementById('paginationNav').style.display = '';
-        document.getElementById('prevPage').classList.toggle('disabled', currentPage <= 1);
-        document.getElementById('nextPage').classList.toggle('disabled', !data.next);
+        document.getElementById('prevPage').disabled = state.page <= 1;
+        document.getElementById('nextPage').disabled = !data.next;
+      } else {
+        document.getElementById('paginationNav').style.display = 'none';
       }
 
-      bindCheckboxes();
+      if (state.selectedId) {
+        var found = state.items.find(function(r) { return r.id === state.selectedId; });
+        if (found) renderDetail(found);
+        else if (state.mode === 'view') showEmpty();
+      }
+
+      // Refresh the focus card whenever we're in empty mode (or about to be)
+      if (state.mode === 'empty') renderFocusCard();
     }).catch(function(err) {
       console.error('Failed to load reminders', err);
-      var tbody = document.getElementById('remindersTableBody');
-      tbody.textContent = '';
-      var errRow = document.createElement('tr');
-      var errCell = document.createElement('td');
-      errCell.colSpan = 10;
-      errCell.className = 'text-center py-4 text-danger';
-      errCell.textContent = 'Failed to load reminders.';
-      errRow.appendChild(errCell);
-      tbody.appendChild(errRow);
+      var body = document.getElementById('listBody');
+      body.textContent = '';
+      var errState = el('div', { className: 'rm-list-state' }, [
+        el('div', { className: 'rm-list-state-icon' }, [icon('alert-triangle')]),
+        el('div', { className: 'rm-list-state-title', text: 'Failed to load' }),
+        el('div', { className: 'rm-list-state-text', text: 'Try refreshing the page.' }),
+      ]);
+      body.appendChild(errState);
     });
   }
 
@@ -1185,6 +2950,8 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
       document.getElementById('statPending').textContent = data.pending != null ? data.pending : 0;
       document.getElementById('statDueToday').textContent = data.due_today != null ? data.due_today : 0;
       document.getElementById('statCompletedToday').textContent = data.completed_today || 0;
+
+      renderWorkloadBanner(data);
 
       var badge = document.getElementById('sidebarBadgeReminders');
       if (badge && data.total_overdue > 0) {
@@ -1221,89 +2988,168 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     }).catch(function(err) { Toast.error(err.detail || 'Failed to cancel reminder.'); });
   }
 
-  function bindCheckboxes() {
-    document.querySelectorAll('.reminder-check').forEach(function(cb) {
-      cb.addEventListener('change', function() {
-        if (this.checked) selectedIds.add(this.dataset.id);
-        else selectedIds.delete(this.dataset.id);
-        updateBulkBar();
-      });
-    });
-  }
-
+  // ── Bulk actions ───────────────────────────────────────────────────
   function updateBulkBar() {
     var bar = document.getElementById('bulkBar');
-    if (selectedIds.size > 0) {
-      bar.style.display = '';
-      document.getElementById('selectedCount').textContent = selectedIds.size + ' selected';
+    if (state.checked.size > 0) {
+      bar.classList.add('is-visible');
+      document.getElementById('selectedCount').textContent = state.checked.size + ' selected';
     } else {
-      bar.style.display = 'none';
+      bar.classList.remove('is-visible');
     }
   }
-
   function bulkAction(action, extra) {
-    var payload = { action: action, reminder_ids: Array.from(selectedIds) };
+    var payload = { action: action, reminder_ids: Array.from(state.checked) };
     if (extra) Object.assign(payload, extra);
     Api.post(API_BASE + 'bulk-action/', payload).then(function(data) {
       Toast.success(data.updated + ' reminder(s) updated.');
-      selectedIds.clear();
+      state.checked.clear();
       updateBulkBar();
       loadReminders();
       loadStats();
     }).catch(function(err) { Toast.error(err.detail || 'Bulk action failed.'); });
   }
 
-  // Event listeners
-  document.getElementById('selectAll').addEventListener('change', function() {
-    var checked = this.checked;
-    selectedIds.clear();
-    document.querySelectorAll('.reminder-check:not(:disabled)').forEach(function(cb) {
-      cb.checked = checked;
-      if (checked) selectedIds.add(cb.dataset.id);
+  // ── Event wiring ───────────────────────────────────────────────────
+  document.getElementById('newReminderBtn').addEventListener('click', openNewForm);
+  document.getElementById('newReminderBtnEmpty').addEventListener('click', openNewForm);
+  document.getElementById('detailCloseBtn').addEventListener('click', showEmpty);
+  document.getElementById('formCloseBtn').addEventListener('click', function() {
+    if (state.selectedReminder) renderDetail(state.selectedReminder);
+    else showEmpty();
+  });
+  document.getElementById('formCancelBtn').addEventListener('click', function() {
+    if (state.selectedReminder) renderDetail(state.selectedReminder);
+    else showEmpty();
+  });
+  document.getElementById('detailBackBtn').addEventListener('click', function() {
+    document.getElementById('detailPane').classList.remove('is-mobile-open');
+  });
+  document.getElementById('filterBannerClear').addEventListener('click', clearAllFilters);
+
+  // Quick-add: Enter to create with smart-default schedule
+  // - if it's before 5pm today, default to today @ 17:00
+  // - else default to tomorrow @ 09:00
+  function defaultQuickAddDate() {
+    var now = new Date();
+    var d = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 0, 0, 0);
+    if (now.getTime() >= d.getTime()) {
+      d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 9, 0, 0, 0);
+    }
+    return d;
+  }
+  function quickCreate(inputEl, opts) {
+    opts = opts || {};
+    var subject = inputEl.value.trim();
+    if (!subject) return;
+    inputEl.disabled = true;
+    Api.post(API_BASE, {
+      subject: subject,
+      scheduled_at: (opts.date || defaultQuickAddDate()).toISOString(),
+      priority: opts.priority || 'medium',
+      contacts: [],
+      tickets: [],
+    }).then(function(saved) {
+      Toast.success('Reminder created.');
+      inputEl.value = '';
+      inputEl.disabled = false;
+      inputEl.focus();
+      loadReminders();
+      loadStats();
+      if (saved && saved.id && opts.openDetail !== false) {
+        state.selectedId = saved.id;
+        renderDetail(saved);
+      }
+    }).catch(function(err) {
+      inputEl.disabled = false;
+      var msg = (err && err.detail) ? err.detail : 'Failed to create reminder.';
+      Toast.error(msg);
     });
-    updateBulkBar();
+  }
+
+  var quickAddInput = document.getElementById('quickAddInput');
+  quickAddInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { this.value = ''; this.blur(); return; }
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    quickCreate(this, {});
   });
 
-  document.getElementById('filterMineBtn').addEventListener('click', function() {
-    mineOnly = true;
-    this.classList.add('active');
-    document.getElementById('filterAllBtn').classList.remove('active');
-    currentPage = 1;
-    loadReminders();
-  });
+  // Focus-card quick-add — defaults to today's smart-default time and stays
+  // on the focus card (doesn't auto-open the detail).
+  var focusQuickAdd = document.getElementById('focusQuickAdd');
+  if (focusQuickAdd) {
+    focusQuickAdd.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') { this.value = ''; this.blur(); return; }
+      if (e.key !== 'Enter') return;
+      e.preventDefault();
+      quickCreate(this, { openDetail: false });
+    });
+  }
 
   document.getElementById('filterAllBtn').addEventListener('click', function() {
-    mineOnly = false;
+    state.mineOnly = false;
     this.classList.add('active');
     document.getElementById('filterMineBtn').classList.remove('active');
-    currentPage = 1;
+    state.page = 1;
     loadReminders();
   });
-
+  document.getElementById('filterMineBtn').addEventListener('click', function() {
+    state.mineOnly = true;
+    this.classList.add('active');
+    document.getElementById('filterAllBtn').classList.remove('active');
+    state.page = 1;
+    loadReminders();
+  });
   document.getElementById('statusFilter').addEventListener('change', function() {
-    currentPage = 1;
+    state.status = this.value;
+    state.page = 1;
     loadReminders();
   });
-
   document.getElementById('priorityFilter').addEventListener('change', function() {
-    currentPage = 1;
+    state.priority = this.value;
+    state.page = 1;
     loadReminders();
   });
 
-  document.getElementById('prevPage').addEventListener('click', function(e) {
-    e.preventDefault();
-    if (currentPage > 1) { currentPage--; loadReminders(); }
+  var searchTimer = null;
+  document.getElementById('searchInput').addEventListener('input', function() {
+    var val = this.value.trim();
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function() {
+      state.search = val;
+      state.page = 1;
+      loadReminders();
+    }, 250);
   });
 
-  document.getElementById('nextPage').addEventListener('click', function(e) {
-    e.preventDefault();
-    if (currentPage < totalPages) { currentPage++; loadReminders(); }
+  document.querySelectorAll('.rm-summary-item').forEach(function(elm) {
+    elm.addEventListener('click', function() { setQuickFilter(this.dataset.filter); });
+    elm.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setQuickFilter(this.dataset.filter); }
+    });
+  });
+
+  document.getElementById('prevPage').addEventListener('click', function() {
+    if (state.page > 1) { state.page--; loadReminders(); }
+  });
+  document.getElementById('nextPage').addEventListener('click', function() {
+    if (state.page < state.totalPages) { state.page++; loadReminders(); }
+  });
+
+  document.getElementById('selectAll').addEventListener('change', function() {
+    var checked = this.checked;
+    state.checked.clear();
+    document.querySelectorAll('.rm-item-check:not(:disabled)').forEach(function(cb) {
+      cb.checked = checked;
+      if (checked) state.checked.add(cb.dataset.id);
+    });
+    updateBulkBar();
   });
 
   document.getElementById('bulkCompleteBtn').addEventListener('click', function() {
     bulkAction('complete');
   });
-
   document.getElementById('bulkRescheduleBtn').addEventListener('click', function() {
     document.getElementById('rescheduleReminderId').value = '__bulk__';
     var at = document.getElementById('rescheduleAt');
@@ -1311,9 +3157,8 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     document.getElementById('rescheduleNote').value = '';
     new bootstrap.Modal(document.getElementById('rescheduleModal')).show();
   });
-
   document.getElementById('bulkCancelBtn').addEventListener('click', function() {
-    if (!confirm('Cancel ' + selectedIds.size + ' reminder(s)?')) return;
+    if (!confirm('Cancel ' + state.checked.size + ' reminder(s)?')) return;
     bulkAction('cancel');
   });
 
@@ -1339,91 +3184,15 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     }
   });
 
-  // Helper to populate a select dropdown
-  function populateSelect(sel, items, valueKey, labelFn, defaultLabel) {
-    sel.textContent = '';
-    var defaultOpt = document.createElement('option');
-    defaultOpt.value = '';
-    defaultOpt.textContent = defaultLabel || 'None';
-    sel.appendChild(defaultOpt);
-    (items || []).forEach(function(item) {
-      var opt = document.createElement('option');
-      opt.value = item[valueKey];
-      opt.textContent = labelFn(item);
-      sel.appendChild(opt);
-    });
-  }
-
-  // New reminder modal
-  document.getElementById('newReminderBtn').addEventListener('click', function() {
-    document.getElementById('reminderId').value = '';
-    document.getElementById('reminderSubject').value = '';
-    var sa = document.getElementById('reminderScheduledAt');
-    if (sa._flatpickr) sa._flatpickr.clear(); else sa.value = '';
-    document.getElementById('reminderPriority').value = 'medium';
-    syncPriorityDot();
-    document.getElementById('reminderNotes').value = '';
-    document.getElementById('reminderModalTitle').textContent = 'New Reminder';
-    document.getElementById('reminderContact').value = '';
-    document.getElementById('reminderTicket').value = '';
-
-    // Load users for assignment dropdown
-    Api.get('/api/v1/agents/agents/all-members/').then(function(data) {
-      populateSelect(
-        document.getElementById('reminderAssignedTo'),
-        data.results || data || [],
-        'user_id',
-        function(u) { return u.user_name || u.user_email || u.email; },
-        'Unassigned'
-      );
-    }).catch(function() {});
-
-    // Load contacts for the Contact dropdown
-    Api.get('/api/v1/contacts/contacts/?page_size=100').then(function(data) {
-      populateSelect(
-        document.getElementById('reminderContact'),
-        data.results || [],
-        'id',
-        function(c) {
-          return ((c.first_name || '') + ' ' + (c.last_name || '')).trim() || c.email || String(c.id);
-        },
-        'No contact'
-      );
-    }).catch(function() {});
-
-    // Load tickets for the Ticket dropdown
-    Api.get('/api/v1/tickets/tickets/?page_size=50&ordering=-created_at').then(function(data) {
-      populateSelect(
-        document.getElementById('reminderTicket'),
-        data.results || [],
-        'id',
-        function(t) { return '#' + t.number + ' — ' + (t.subject || '').substring(0, 50); },
-        'No ticket'
-      );
-    }).catch(function() {});
-
-    new bootstrap.Modal(document.getElementById('reminderModal')).show();
-  });
-
   document.getElementById('saveReminderBtn').addEventListener('click', function() {
     var id = document.getElementById('reminderId').value;
     var subject = document.getElementById('reminderSubject').value.trim();
     var scheduledAtRaw = document.getElementById('reminderScheduledAt').value;
 
-    // Validation
-    if (!subject) {
-      Toast.error('Subject is required.');
-      return;
-    }
-    if (!scheduledAtRaw) {
-      Toast.error('Scheduled date/time is required.');
-      return;
-    }
+    if (!subject) { Toast.error('Subject is required.'); return; }
+    if (!scheduledAtRaw) { Toast.error('Scheduled date/time is required.'); return; }
     var scheduledDate = new Date(scheduledAtRaw);
-    if (isNaN(scheduledDate.getTime())) {
-      Toast.error('Invalid date/time.');
-      return;
-    }
+    if (isNaN(scheduledDate.getTime())) { Toast.error('Invalid date/time.'); return; }
 
     var contactVal = document.getElementById('reminderContact').value;
     var ticketVal = document.getElementById('reminderTicket').value;
@@ -1439,11 +3208,13 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     if (assignedTo) payload.assigned_to = assignedTo;
 
     var promise = id ? Api.patch(API_BASE + id + '/', payload) : Api.post(API_BASE, payload);
-    promise.then(function() {
+    promise.then(function(saved) {
       Toast.success(id ? 'Reminder updated.' : 'Reminder created.');
-      bootstrap.Modal.getInstance(document.getElementById('reminderModal')).hide();
+      if (saved && saved.id) state.selectedId = saved.id;
       loadReminders();
       loadStats();
+      if (saved && saved.id) renderDetail(saved);
+      else showEmpty();
     }).catch(function(err) {
       var msg = 'Failed to save reminder.';
       if (err && typeof err === 'object') {
@@ -1455,19 +3226,18 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     });
   });
 
-  // Initial load
+  // ── Keyboard shortcuts ─────────────────────────────────────────────
+  document.addEventListener('keydown', function(e) {
+    if (/INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+    if (e.key === 'n' || e.key === 'N') { e.preventDefault(); openNewForm(); }
+    if (e.key === 'Escape' && state.mode !== 'empty') { showEmpty(); }
+  });
+
+  // ── Initial load ───────────────────────────────────────────────────
   loadReminders();
   loadStats();
 
-  /* ── LiveBus: keep reminders live without polling ────────────────
-   *
-   * Server signals (apps/crm/signals.py) broadcast reminder.created /
-   * .updated / .completed / .cancelled / .deleted whenever a reminder
-   * changes in this tenant. We refetch the visible page and the stat
-   * counters together so the overdue/pending/completed pills stay
-   * accurate. Burst-safe via debounce; visibility-aware to avoid
-   * burning requests on hidden tabs.
-   */
+  /* LiveBus: keep reminders live without polling */
   if (window.LiveBus) {
     var refetchReminders = LiveBus.debounce(function () {
       if (document.visibilityState === 'hidden') return;
@@ -1482,9 +3252,6 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
       ],
       function () { refetchReminders(); }
     );
-
-    // Catch-up after a reconnect (the gap may have included a reminder
-    // marked complete by another user that we missed).
     LiveBus.on('live.reconnected', function () { refetchReminders(); });
 
     document.addEventListener('visibilitychange', function () {

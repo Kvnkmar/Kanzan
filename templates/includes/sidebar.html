@@ -29,18 +29,21 @@
     <!-- Inbox -->
     <div class="nav-section">
       <span class="nav-section-label">Inbox</span>
+      <a href="{% url 'frontend:inbox-hub' %}" class="sidebar-link {% if request.resolver_match.url_name == 'inbox-hub' %}active{% endif %}" data-sidebar-tooltip="Inbox Hub">
+        <i class="ti ti-inbox"></i>
+        <span class="sidebar-link-text">Inbox Hub</span>
+        <span class="badge sidebar-badge" id="sidebarBadgeInboxHub" style="display:none;"></span>
+      </a>
       <a href="{% url 'frontend:ticket-list' %}" class="sidebar-link {% if 'ticket' in request.resolver_match.url_name %}active{% endif %}" data-sidebar-tooltip="Tickets">
         <i class="ti ti-ticket"></i>
         <span class="sidebar-link-text">Tickets</span>
         <span class="badge sidebar-badge" id="sidebarBadgeTickets" style="display:none;"></span>
       </a>
-      {% comment %} Emails tab hidden — preserved for future re-enable
       <a href="{% url 'frontend:emails' %}" class="sidebar-link {% if request.resolver_match.url_name == 'emails' %}active{% endif %}" data-sidebar-tooltip="Emails">
         <i class="ti ti-mail"></i>
         <span class="sidebar-link-text">Emails</span>
         <span class="badge sidebar-badge" id="sidebarBadgeEmails" style="display:none;"></span>
       </a>
-      {% endcomment %}
       <a href="{% url 'frontend:messaging' %}" class="sidebar-link {% if request.resolver_match.url_name == 'messaging' %}active{% endif %}" data-sidebar-tooltip="Messages">
         <i class="ti ti-message"></i>
         <span class="sidebar-link-text">Messages</span>
@@ -133,10 +136,10 @@
   <div class="sidebar-footer">
     <div class="sidebar-user dropdown" data-current-user-id="{{ user.id }}">
       <div class="sidebar-user-trigger" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-        <div class="user-avatar-sidebar" id="sidebarUserAvatar">
-          {% with name=user.get_full_name|default:user.email %}
-          {{ name|make_list|first|upper }}
-          {% endwith %}
+        <div class="user-avatar-sidebar{% if user.avatar %} has-image{% endif %}"
+             id="sidebarUserAvatar"
+             {% if user.avatar %}style="background-image:url('{{ user.avatar.url }}');"{% endif %}>
+          {% if not user.avatar %}{% with name=user.get_full_name|default:user.email %}{{ name|make_list|first|upper }}{% endwith %}{% endif %}
         </div>
         <div class="user-info">
           <span class="user-name" id="sidebarUserName">{{ user.get_full_name|default:"User" }}</span>

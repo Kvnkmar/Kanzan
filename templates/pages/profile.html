@@ -4,136 +4,158 @@
 {% block content %}
 {% include "includes/page_back_button.html" %}
 
-<!-- Profile Header Card -->
-<div class="pf-header">
-  <div class="pf-header-accent"></div>
-  <div class="pf-header-body">
-    <div class="pf-header-left">
-      <div class="pf-avatar-wrap">
-        <div class="pf-avatar" id="profileAvatar"></div>
-        <label class="pf-avatar-edit" for="avatarInput" title="Change photo">
+<div class="pf2-shell" data-current-user-id="{{ user.id }}">
+
+  {# Hero — cover band + avatar + identity + inline stats #}
+  <section class="pf2-hero">
+    <div class="pf2-cover"></div>
+    <div class="pf2-hero-body">
+      <div class="pf2-avatar-wrap">
+        <div class="pf2-avatar" id="profileAvatar"></div>
+        <label class="pf2-avatar-edit" for="avatarInput" title="Change photo">
           <i class="ti ti-camera"></i>
         </label>
         <input type="file" id="avatarInput" accept="image/jpeg,image/png,image/webp" class="d-none">
       </div>
-      <div class="pf-header-info">
-        <h1 class="pf-hero-name" id="profileFullName">--</h1>
-        <p class="pf-hero-email" id="profileEmail">--</p>
+
+      <div class="pf2-identity">
+        <div class="pf2-identity-top">
+          <h1 class="pf2-name" id="profileFullName">--</h1>
+          <span class="pf2-role-badge" id="profileRoleBadge">--</span>
+        </div>
+        <div class="pf2-identity-meta">
+          <span class="pf2-meta-item"><i class="ti ti-mail"></i><span id="profileEmail">--</span></span>
+          <span class="pf2-meta-dot"></span>
+          <span class="pf2-meta-item"><i class="ti ti-calendar"></i>Joined <span id="profileJoined">--</span></span>
+        </div>
+      </div>
+
+      <div class="pf2-stats">
+        <a class="pf2-stat" href="/tickets/?view=agent_inbox" title="Open assigned tickets">
+          <span class="pf2-stat-value" id="statOpen">--</span>
+          <span class="pf2-stat-label">Open</span>
+        </a>
+        <a class="pf2-stat" href="/tickets/?view=closed" title="Resolved or closed tickets">
+          <span class="pf2-stat-value" id="statResolved">--</span>
+          <span class="pf2-stat-label">Resolved</span>
+        </a>
+        <div class="pf2-stat pf2-stat--static" title="All tickets ever assigned to you">
+          <span class="pf2-stat-value" id="statTotal">--</span>
+          <span class="pf2-stat-label">Total</span>
+        </div>
       </div>
     </div>
-    <div class="pf-header-right">
-      <span class="pf-role-badge" id="profileRoleBadge">--</span>
-      <div class="pf-header-details">
-        <span class="pf-meta-item"><i class="ti ti-briefcase"></i> <span id="profileTitleDisplay">--</span></span>
-        <span class="pf-meta-dot"></span>
-        <span class="pf-meta-item"><i class="ti ti-building"></i> <span id="profileDeptDisplay">--</span></span>
-        <span class="pf-meta-dot"></span>
-        <span class="pf-meta-item"><i class="ti ti-calendar"></i> Joined <span id="profileJoined">--</span></span>
-      </div>
-    </div>
-  </div>
-</div>
+  </section>
 
-<!-- Tab Navigation -->
-<div class="pf-tabs">
-  <button class="pf-tab active" data-tab="personal" type="button">
-    <i class="ti ti-user"></i> Personal Info
-  </button>
-  <button class="pf-tab" data-tab="work" type="button">
-    <i class="ti ti-briefcase"></i> Work Info
-  </button>
-</div>
+  {# Two-column card grid #}
+  <div class="pf2-grid">
 
-<!-- Tab Panels -->
-<div class="pf-panels">
-
-  <!-- ═══ Personal Information ═══ -->
-  <div class="pf-panel active" id="panel-personal">
-    <div class="pf-section">
-      <div class="pf-section-header">
+    {# Personal — inline edit rows #}
+    <section class="pf2-card">
+      <header class="pf2-card-head">
         <div>
-          <h3 class="pf-section-title">Personal Information</h3>
-          <p class="pf-section-desc">Update your name and contact details</p>
+          <h2 class="pf2-card-title">Personal Information</h2>
+          <p class="pf2-card-sub">Click any field to edit · saves automatically</p>
         </div>
-      </div>
-      <div id="personalAlert"></div>
-      <form id="personalForm">
-        <div class="pf-form-grid">
-          <div class="pf-field">
-            <label for="firstName" class="pf-label">First Name</label>
-            <input type="text" class="form-control" id="firstName" placeholder="Your first name">
-          </div>
-          <div class="pf-field">
-            <label for="lastName" class="pf-label">Last Name</label>
-            <input type="text" class="form-control" id="lastName" placeholder="Your last name">
-          </div>
-          <div class="pf-field">
-            <label for="emailField" class="pf-label">Email Address</label>
-            <div class="pf-input-locked">
-              <input type="email" class="form-control" id="emailField" disabled>
-              <span class="pf-locked-icon" title="Email cannot be changed"><i class="ti ti-lock"></i></span>
-            </div>
-          </div>
-          <div class="pf-field">
-            <label for="phoneField" class="pf-label">Phone Number</label>
-            <input type="text" class="form-control" id="phoneField" placeholder="+1 (555) 000-0000">
-          </div>
-        </div>
-        <div class="pf-form-actions">
-          <button type="submit" class="btn btn-primary" id="savePersonalBtn">
-            <span class="spinner-border spinner-border-sm d-none me-1" id="personalSpinner" role="status"></span>
-            Save Changes
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
+        <i class="ti ti-user pf2-card-glyph"></i>
+      </header>
+      <ul class="pf2-rows">
+        <li class="pf2-row" data-field="first_name" data-target="user" data-label="First name" data-placeholder="Your first name">
+          <div class="pf2-row-label">First name</div>
+          <div class="pf2-row-value" data-empty="Add first name">--</div>
+          <i class="ti ti-pencil pf2-row-pencil"></i>
+        </li>
+        <li class="pf2-row" data-field="last_name" data-target="user" data-label="Last name" data-placeholder="Your last name">
+          <div class="pf2-row-label">Last name</div>
+          <div class="pf2-row-value" data-empty="Add last name">--</div>
+          <i class="ti ti-pencil pf2-row-pencil"></i>
+        </li>
+        <li class="pf2-row pf2-row--locked" data-field="email" data-label="Email">
+          <div class="pf2-row-label">Email</div>
+          <div class="pf2-row-value" id="emailValue">--</div>
+          <i class="ti ti-lock pf2-row-pencil" title="Email cannot be changed"></i>
+        </li>
+        <li class="pf2-row" data-field="phone" data-target="user" data-label="Phone" data-placeholder="+1 (555) 000-0000" data-type="tel">
+          <div class="pf2-row-label">Phone</div>
+          <div class="pf2-row-value" data-empty="Add phone number">--</div>
+          <i class="ti ti-pencil pf2-row-pencil"></i>
+        </li>
+      </ul>
+    </section>
 
-  <!-- ═══ Work Information ═══ -->
-  <div class="pf-panel" id="panel-work">
-    <div class="pf-section">
-      <div class="pf-section-header">
+    {# Work — inline edit rows #}
+    <section class="pf2-card">
+      <header class="pf2-card-head">
         <div>
-          <h3 class="pf-section-title">Work Information</h3>
-          <p class="pf-section-desc">Your role and team details</p>
+          <h2 class="pf2-card-title">Work Information</h2>
+          <p class="pf2-card-sub">Visible to teammates in pickers and mentions</p>
         </div>
-      </div>
-      <div id="workAlert"></div>
-      <form id="workForm">
-        <div class="pf-form-grid">
-          <div class="pf-field">
-            <label for="jobTitle" class="pf-label">Job Title</label>
-            <input type="text" class="form-control" id="jobTitle" placeholder="e.g. Support Engineer">
-          </div>
-          <div class="pf-field">
-            <label for="department" class="pf-label">Department</label>
-            <input type="text" class="form-control" id="department" placeholder="e.g. Customer Support">
-          </div>
-          <div class="pf-field pf-field--full">
-            <label for="bio" class="pf-label">Bio</label>
-            <textarea class="form-control" id="bio" rows="4" placeholder="Tell your team a little about yourself..."></textarea>
-          </div>
-        </div>
-        <div class="pf-form-actions">
-          <button type="submit" class="btn btn-primary" id="saveWorkBtn">
-            <span class="spinner-border spinner-border-sm d-none me-1" id="workSpinner" role="status"></span>
-            Save Changes
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
+        <i class="ti ti-briefcase pf2-card-glyph"></i>
+      </header>
+      <ul class="pf2-rows">
+        <li class="pf2-row" data-field="job_title" data-target="profile" data-label="Job title" data-placeholder="e.g. Support Engineer">
+          <div class="pf2-row-label">Job title</div>
+          <div class="pf2-row-value" data-empty="Add job title">--</div>
+          <i class="ti ti-pencil pf2-row-pencil"></i>
+        </li>
+        <li class="pf2-row" data-field="department" data-target="profile" data-label="Department" data-placeholder="e.g. Customer Support">
+          <div class="pf2-row-label">Department</div>
+          <div class="pf2-row-value" data-empty="Add department">--</div>
+          <i class="ti ti-pencil pf2-row-pencil"></i>
+        </li>
+        <li class="pf2-row pf2-row--block" data-field="bio" data-target="profile" data-label="Bio" data-placeholder="Tell your team a little about yourself…" data-type="textarea" data-maxlength="500">
+          <div class="pf2-row-label">Bio</div>
+          <div class="pf2-row-value pf2-row-value--block" data-empty="Add a short bio">--</div>
+          <i class="ti ti-pencil pf2-row-pencil"></i>
+        </li>
+      </ul>
+    </section>
 
-  <!-- ═══ Settings Cross-Link ═══ -->
-  <div class="pf-panel" id="panel-settings-link" style="display:block;">
-    <div class="d-flex align-items-center gap-3 p-3" style="border:1px dashed var(--crm-border-light);border-radius:var(--crm-radius);">
-      <i class="ti ti-settings" style="font-size:1.25rem;opacity:0.5;"></i>
-      <div class="flex-grow-1">
-        <span class="fw-medium small">Looking for notifications, theme, availability, or password settings?</span>
-        <span class="text-muted small d-block">These have been consolidated into the Settings page.</span>
+    {# Account & Security — full width #}
+    <section class="pf2-card pf2-card--full">
+      <header class="pf2-card-head">
+        <div>
+          <h2 class="pf2-card-title">Account &amp; Security</h2>
+          <p class="pf2-card-sub">Password, notifications, theme and availability live in Settings</p>
+        </div>
+        <i class="ti ti-shield-lock pf2-card-glyph"></i>
+      </header>
+      <div class="pf2-account-grid">
+        <a href="/settings/#passwordPane" class="pf2-account-card">
+          <div class="pf2-account-icon"><i class="ti ti-key"></i></div>
+          <div class="pf2-account-text">
+            <span class="pf2-account-label">Password</span>
+            <span class="pf2-account-desc">Change your password</span>
+          </div>
+          <i class="ti ti-chevron-right pf2-account-chev"></i>
+        </a>
+        <a href="/settings/#notificationsPane" class="pf2-account-card">
+          <div class="pf2-account-icon"><i class="ti ti-bell"></i></div>
+          <div class="pf2-account-text">
+            <span class="pf2-account-label">Notifications</span>
+            <span class="pf2-account-desc">Email and in-app preferences</span>
+          </div>
+          <i class="ti ti-chevron-right pf2-account-chev"></i>
+        </a>
+        <a href="/settings/#themePane" class="pf2-account-card">
+          <div class="pf2-account-icon"><i class="ti ti-palette"></i></div>
+          <div class="pf2-account-text">
+            <span class="pf2-account-label">Theme</span>
+            <span class="pf2-account-desc">Light, dark or follow system</span>
+          </div>
+          <i class="ti ti-chevron-right pf2-account-chev"></i>
+        </a>
+        <a href="/agents/" class="pf2-account-card">
+          <div class="pf2-account-icon"><i class="ti ti-activity-heartbeat"></i></div>
+          <div class="pf2-account-text">
+            <span class="pf2-account-label">Availability</span>
+            <span class="pf2-account-desc">Set your status and capacity</span>
+          </div>
+          <i class="ti ti-chevron-right pf2-account-chev"></i>
+        </a>
       </div>
-      <a href="/settings/" class="btn btn-sm btn-outline-primary">Go to Settings</a>
-    </div>
+    </section>
+
   </div>
 </div>
 {% endblock %}
@@ -145,9 +167,19 @@
 
   var PROFILE_API = '/api/v1/accounts/profiles/me/';
   var USERS_API = '/api/v1/accounts/users/';
+  var TICKETS_API = '/api/v1/tickets/tickets/';
   var profileData = null;
+  var currentValues = { user: {}, profile: {} };
 
-  var AVATAR_COLORS = ['var(--crm-primary)','var(--crm-primary-active)','var(--crm-primary-active)','var(--crm-text-muted)','var(--status-neutral-dot)','var(--crm-primary)','var(--crm-primary-active)','var(--crm-accent)','var(--crm-accent)','var(--status-neutral-dot)'];
+  var AVATAR_COLORS = [
+    'var(--crm-primary)',
+    'var(--crm-primary-active)',
+    'var(--crm-accent)',
+    'var(--status-info-dot)',
+    'var(--status-success-dot)',
+    'var(--status-warning-dot)',
+    'var(--status-neutral-dot)'
+  ];
   function avatarColor(name) {
     if (!name) return AVATAR_COLORS[0];
     for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
@@ -155,43 +187,30 @@
   }
   function getInitials(n) {
     if (!n) return '?';
-    return n.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
+    return n.split(' ').filter(Boolean).map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
   }
-  function formatDate(d) { return Kanzan.formatDate(d); }
+  function formatDate(d) { return d ? Kanzan.formatDate(d) : '--'; }
 
   function getRoleBadgeClass(roleName) {
     var rn = (roleName || '').toLowerCase();
-    if (rn === 'admin' || rn === 'administrator') return 'pf-role-badge--admin';
-    if (rn === 'manager') return 'pf-role-badge--manager';
-    if (rn === 'agent') return 'pf-role-badge--agent';
-    return 'pf-role-badge--viewer';
+    if (rn === 'admin' || rn === 'administrator') return 'pf2-role-badge--admin';
+    if (rn === 'manager') return 'pf2-role-badge--manager';
+    if (rn.indexOf('agent') !== -1 || rn.indexOf('team') !== -1 || rn === 'it' || rn === 'hr') return 'pf2-role-badge--agent';
+    return 'pf2-role-badge--viewer';
   }
 
-  function showAlert(id, msg, type) {
-    var el = document.getElementById(id);
-    el.textContent = '';
-    var alert = document.createElement('div');
-    alert.className = 'alert alert-' + (type || 'info') + ' alert-dismissible fade show py-2 small';
-    alert.setAttribute('role', 'alert');
-    alert.textContent = msg;
-    var closeBtn = document.createElement('button');
-    closeBtn.type = 'button';
-    closeBtn.className = 'btn-close btn-close-sm';
-    closeBtn.setAttribute('data-bs-dismiss', 'alert');
-    alert.appendChild(closeBtn);
-    el.appendChild(alert);
+  function extractError(err, fallback) {
+    if (!err) return fallback;
+    if (err.detail) return err.detail;
+    for (var key in err) {
+      if (Object.prototype.hasOwnProperty.call(err, key)) {
+        var v = err[key];
+        if (Array.isArray(v) && v.length) return key + ': ' + v[0];
+        if (typeof v === 'string') return key + ': ' + v;
+      }
+    }
+    return fallback;
   }
-
-  // ═══ Tab switching ═══
-  document.querySelectorAll('.pf-tab').forEach(function(tab) {
-    tab.addEventListener('click', function() {
-      document.querySelectorAll('.pf-tab').forEach(function(t) { t.classList.remove('active'); });
-      document.querySelectorAll('.pf-panel').forEach(function(p) { p.classList.remove('active'); });
-      this.classList.add('active');
-      var panel = document.getElementById('panel-' + this.getAttribute('data-tab'));
-      if (panel) panel.classList.add('active');
-    });
-  });
 
   // ═══ Load Profile ═══
   function loadProfile() {
@@ -204,8 +223,6 @@
 
       if (user.avatar) {
         avatarEl.textContent = '';
-        // Quote the URL and escape any embedded double-quotes — guards against
-        // CSS-context confusion from filenames containing quotes/parentheses.
         var safeUrl = String(user.avatar).replace(/"/g, '\\"');
         avatarEl.style.background = 'url("' + safeUrl + '") center/cover no-repeat';
       } else {
@@ -215,43 +232,181 @@
 
       document.getElementById('profileFullName').textContent = fullName;
       document.getElementById('profileEmail').textContent = user.email || '--';
-      document.getElementById('profileDeptDisplay').textContent = data.department || '--';
-      document.getElementById('profileTitleDisplay').textContent = data.job_title || '--';
       document.getElementById('profileJoined').textContent = formatDate(user.date_joined);
+      document.getElementById('emailValue').textContent = user.email || '--';
 
       var roleBadge = document.getElementById('profileRoleBadge');
-      var roleName = '{{ user_role.name|default:"Member" }}';
+      var roleName = '{{ user_role.name|default:"Member"|escapejs }}';
       roleBadge.textContent = roleName;
-      roleBadge.className = 'pf-role-badge ' + getRoleBadgeClass(roleName);
+      roleBadge.className = 'pf2-role-badge ' + getRoleBadgeClass(roleName);
 
-      // Forms
-      document.getElementById('firstName').value = user.first_name || '';
-      document.getElementById('lastName').value = user.last_name || '';
-      document.getElementById('emailField').value = user.email || '';
-      document.getElementById('phoneField').value = user.phone || '';
-      document.getElementById('jobTitle').value = data.job_title || '';
-      document.getElementById('department').value = data.department || '';
-      document.getElementById('bio').value = data.bio || '';
+      currentValues.user = {
+        first_name: user.first_name || '',
+        last_name: user.last_name || '',
+        phone: user.phone || ''
+      };
+      currentValues.profile = {
+        job_title: data.job_title || '',
+        department: data.department || '',
+        bio: data.bio || ''
+      };
+
+      // Paint all rows from currentValues
+      document.querySelectorAll('.pf2-row[data-target]').forEach(function(row) {
+        paintRow(row);
+      });
     }).catch(function(err) {
       console.error('Failed to load profile:', err);
-      Toast.error((err && err.detail) || 'Failed to load profile data.');
+      Toast.error(extractError(err, 'Failed to load profile data.'));
     });
   }
 
-  function extractError(err, fallback) {
-    if (!err) return fallback;
-    if (err.detail) return err.detail;
-    // Surface field-level validation errors from DRF.
-    for (var key in err) {
-      if (Object.prototype.hasOwnProperty.call(err, key)) {
-        var v = err[key];
-        if (Array.isArray(v) && v.length) return key + ': ' + v[0];
-        if (typeof v === 'string') return key + ': ' + v;
-      }
+  function paintRow(row) {
+    var target = row.getAttribute('data-target');
+    var field = row.getAttribute('data-field');
+    var valueEl = row.querySelector('.pf2-row-value');
+    var val = (currentValues[target] || {})[field] || '';
+    if (val) {
+      valueEl.textContent = val;
+      valueEl.classList.remove('is-empty');
+    } else {
+      valueEl.textContent = valueEl.getAttribute('data-empty') || 'Add value';
+      valueEl.classList.add('is-empty');
     }
-    return fallback;
   }
 
+  // ═══ Inline edit ═══
+  function startEdit(row) {
+    if (row.classList.contains('pf2-row--editing') || row.classList.contains('pf2-row--locked')) return;
+    var target = row.getAttribute('data-target');
+    var field = row.getAttribute('data-field');
+    var type = row.getAttribute('data-type') || 'text';
+    var placeholder = row.getAttribute('data-placeholder') || '';
+    var maxlength = row.getAttribute('data-maxlength') || (type === 'textarea' ? '500' : '150');
+    var current = (currentValues[target] || {})[field] || '';
+
+    row.classList.add('pf2-row--editing');
+    var valueEl = row.querySelector('.pf2-row-value');
+    valueEl.style.display = 'none';
+
+    var input;
+    if (type === 'textarea') {
+      input = document.createElement('textarea');
+      input.rows = 4;
+    } else {
+      input = document.createElement('input');
+      input.type = type;
+    }
+    input.className = 'pf2-row-input form-control';
+    input.value = current;
+    input.placeholder = placeholder;
+    input.maxLength = parseInt(maxlength, 10) || 150;
+
+    var actions = document.createElement('div');
+    actions.className = 'pf2-row-actions';
+
+    var saveBtn = document.createElement('button');
+    saveBtn.type = 'button';
+    saveBtn.className = 'btn btn-primary btn-sm pf2-row-save';
+    saveBtn.innerHTML = '';
+    saveBtn.appendChild(document.createTextNode('Save'));
+
+    var cancelBtn = document.createElement('button');
+    cancelBtn.type = 'button';
+    cancelBtn.className = 'btn btn-outline-secondary btn-sm pf2-row-cancel';
+    cancelBtn.appendChild(document.createTextNode('Cancel'));
+
+    actions.appendChild(saveBtn);
+    actions.appendChild(cancelBtn);
+
+    var pencil = row.querySelector('.pf2-row-pencil');
+    if (pencil) pencil.style.display = 'none';
+
+    row.appendChild(input);
+    row.appendChild(actions);
+
+    setTimeout(function() { input.focus(); if (input.select) input.select(); }, 0);
+
+    function cleanup() {
+      row.classList.remove('pf2-row--editing');
+      if (input.parentNode === row) row.removeChild(input);
+      if (actions.parentNode === row) row.removeChild(actions);
+      valueEl.style.display = '';
+      if (pencil) pencil.style.display = '';
+    }
+
+    function commit() {
+      var newVal = input.value.trim();
+      if (newVal === current) { cleanup(); return; }
+      saveBtn.disabled = true;
+      cancelBtn.disabled = true;
+      row.classList.add('pf2-row--saving');
+
+      var url = target === 'user'
+        ? (USERS_API + profileData.user.id + '/')
+        : PROFILE_API;
+      var body = {}; body[field] = newVal;
+
+      Api.patch(url, body).then(function() {
+        currentValues[target][field] = newVal;
+        cleanup();
+        paintRow(row);
+        flashSaved(row);
+        Toast.success(row.getAttribute('data-label') + ' updated');
+      }).catch(function(err) {
+        Toast.error(extractError(err, 'Failed to save'));
+        saveBtn.disabled = false;
+        cancelBtn.disabled = false;
+        input.focus();
+      }).finally(function() {
+        row.classList.remove('pf2-row--saving');
+      });
+    }
+
+    saveBtn.addEventListener('click', commit);
+    cancelBtn.addEventListener('click', cleanup);
+    input.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') { e.preventDefault(); cleanup(); }
+      else if (e.key === 'Enter' && type !== 'textarea') { e.preventDefault(); commit(); }
+      else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(); }
+    });
+  }
+
+  function flashSaved(row) {
+    row.classList.add('pf2-row--flash');
+    setTimeout(function() { row.classList.remove('pf2-row--flash'); }, 900);
+  }
+
+  // Delegate clicks on rows
+  document.addEventListener('click', function(e) {
+    var row = e.target.closest('.pf2-row');
+    if (!row) return;
+    if (row.classList.contains('pf2-row--editing')) return;
+    if (row.classList.contains('pf2-row--locked')) return;
+    if (!row.hasAttribute('data-target')) return;
+    startEdit(row);
+  });
+
+  // ═══ Load Stats (parallel, count-only) ═══
+  function loadStats() {
+    if (!profileData || !profileData.user) return;
+    var uid = profileData.user.id;
+    var openEl = document.getElementById('statOpen');
+    var resolvedEl = document.getElementById('statResolved');
+    var totalEl = document.getElementById('statTotal');
+
+    function fmt(c) { return c == null ? '--' : (c > 999 ? '999+' : String(c)); }
+
+    Promise.all([
+      Api.get(TICKETS_API + '?view=agent_inbox&page_size=1').catch(function() { return null; }),
+      Api.get(TICKETS_API + '?assignee=' + encodeURIComponent(uid) + '&is_closed=true&page_size=1').catch(function() { return null; }),
+      Api.get(TICKETS_API + '?assignee=' + encodeURIComponent(uid) + '&page_size=1').catch(function() { return null; })
+    ]).then(function(results) {
+      openEl.textContent = fmt(results[0] && results[0].count);
+      resolvedEl.textContent = fmt(results[1] && results[1].count);
+      totalEl.textContent = fmt(results[2] && results[2].count);
+    });
+  }
 
   // ═══ Avatar Upload ═══
   document.getElementById('avatarInput').addEventListener('change', function() {
@@ -282,50 +437,8 @@
     }).finally(function() { input.value = ''; });
   });
 
-  // ═══ Save Personal Info ═══
-  document.getElementById('personalForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    if (!profileData || !profileData.user) {
-      Toast.error('Profile is still loading. Try again in a moment.');
-      return;
-    }
-    var btn = document.getElementById('savePersonalBtn');
-    var spinner = document.getElementById('personalSpinner');
-    btn.disabled = true; spinner.classList.remove('d-none');
-
-    Api.patch(USERS_API + profileData.user.id + '/', {
-      first_name: document.getElementById('firstName').value.trim(),
-      last_name: document.getElementById('lastName').value.trim(),
-      phone: document.getElementById('phoneField').value.trim()
-    }).then(function() {
-      Toast.success('Personal information saved');
-      return loadProfile();
-    }).catch(function(err) {
-      Toast.error(extractError(err, 'Failed to update personal information'));
-    }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
-  });
-
-  // ═══ Save Work Info ═══
-  document.getElementById('workForm').addEventListener('submit', function(e) {
-    e.preventDefault();
-    var btn = document.getElementById('saveWorkBtn');
-    var spinner = document.getElementById('workSpinner');
-    btn.disabled = true; spinner.classList.remove('d-none');
-
-    Api.patch(PROFILE_API, {
-      job_title: document.getElementById('jobTitle').value.trim(),
-      department: document.getElementById('department').value.trim(),
-      bio: document.getElementById('bio').value.trim()
-    }).then(function() {
-      Toast.success('Work information saved');
-      return loadProfile();
-    }).catch(function(err) {
-      Toast.error(extractError(err, 'Failed to update work information'));
-    }).finally(function() { btn.disabled = false; spinner.classList.add('d-none'); });
-  });
-
   // ═══ Init ═══
-  loadProfile();
+  loadProfile().then(loadStats);
 })();
 </script>
 {% endblock %}

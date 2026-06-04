@@ -64,6 +64,7 @@ class BadgeCountView(APIView):
         emails = self._email_count(tenant)
         reminders = self._reminder_count(tenant, user, is_agent)
         knowledge = self._knowledge_count(tenant, user)
+        inbox_hub = self._inbox_hub_count(tenant, user, is_agent)
 
         return Response(
             {
@@ -73,6 +74,7 @@ class BadgeCountView(APIView):
                 "emails": _cap(emails),
                 "reminders": _cap(reminders),
                 "knowledge": _cap(knowledge),
+                "inbox_hub": _cap(inbox_hub),
             }
         )
 
@@ -189,6 +191,38 @@ class BadgeCountView(APIView):
 
         if is_agent:
             qs = qs.filter(Q(assigned_to=user) | Q(created_by=user))
+
+        return qs.count()
+
+    @staticmethod
+    def _inbox_hub_count(tenant, user, is_agent):
+        """Active Hub emails awaiting triage.
+
+        Surfaces the unread/actionable count for the sidebar badge. Counts
+        rows in NEW (unassigned + waiting to be picked up) plus, for the
+        viewing agent, anything currently assigned to them that is not yet
+        in a terminal state. Manager+ sees the tenant-wide NEW backlog.
+        """
+        try:
+            from apps.inbox_hub.models import HubEmail
+        except ImportError:
+            return 0
+
+        active_states = [
+            HubEmail.State.NEW,
+            HubEmail.State.ASSIGNED,
+            HubEmail.State.IN_PROGRESS,
+            HubEmail.State.PENDING_AGENT,
+            HubEmail.State.ESCALATED,
+        ]
+
+        qs = HubEmail.unscoped.filter(tenant=tenant, state__in=active_states)
+
+        if is_agent:
+            # Agent-tier (level > 20): own assignments + the global NEW
+            # backlog the agent can pick from. Mirrors the row-scoping in
+            # IsHubEmailAccessible (agents can see NEW for triage).
+            qs = qs.filter(Q(assignee=user) | Q(state=HubEmail.State.NEW))
 
         return qs.count()
 

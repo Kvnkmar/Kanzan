@@ -472,7 +472,12 @@ class UserGroupViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"], url_path="add-members")
     def add_members(self, request, pk=None):
-        """Add one or more users to the group. Body: {user_ids: [uuid, ...]}."""
+        """Add one or more users to the group. Body: {user_ids: [uuid, ...]}.
+
+        Enforces the "one user per group" rule: any submitted user already
+        in a *different* group in this tenant is rejected with 400 so the
+        API can't bypass the constraint the picker enforces visually.
+        """
         group = self.get_object()
         user_ids = request.data.get("user_ids") or []
         if not isinstance(user_ids, list) or not user_ids:
@@ -485,6 +490,28 @@ class UserGroupViewSet(viewsets.ModelViewSet):
             memberships__tenant=request.tenant,
             memberships__is_active=True,
         ).distinct()
+
+        # Reject users already in another group in this tenant.
+        conflicts = UserGroup.objects.filter(
+            tenant=request.tenant,
+            members__in=eligible,
+        ).exclude(id=group.id).values_list(
+            "name",
+            "members__first_name",
+            "members__last_name",
+            "members__email",
+        ).filter(members__in=eligible).distinct()
+        if conflicts:
+            parts = []
+            for group_name, fn, ln, em in conflicts:
+                display = (f"{fn or ''} {ln or ''}".strip()) or em
+                parts.append(f"{display} is already in '{group_name}'")
+            return Response(
+                {"detail": "A user can only belong to one group at a time. "
+                           + "; ".join(parts)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         group.members.add(*eligible)
         return Response(
             UserGroupSerializer(group, context={"request": request}).data,

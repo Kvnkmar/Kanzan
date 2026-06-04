@@ -30,6 +30,7 @@ urlpatterns = [
     path("api/v1/nav/", include("apps.nav.urls")),
     path("api/v1/newsfeed/", include("apps.newsfeed.urls")),
     path("api/v1/voip/", include("apps.voip.urls")),
+    path("api/v1/inbox-hub/", include("apps.inbox_hub.urls")),
 
     # API Schema / Docs
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

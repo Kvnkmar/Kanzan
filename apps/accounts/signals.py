@@ -112,6 +112,12 @@ def broadcast_profile_save(sender, instance, created, **kwargs):
 
 def _serialise_user(u) -> dict:
     full_name = (u.get_full_name() or "").strip() or u.email
+    avatar_url = ""
+    if getattr(u, "avatar", None):
+        try:
+            avatar_url = u.avatar.url
+        except (ValueError, AttributeError):
+            avatar_url = ""
     return {
         "id":          str(u.pk),
         "email":       u.email,
@@ -119,6 +125,7 @@ def _serialise_user(u) -> dict:
         "last_name":   u.last_name,
         "full_name":   full_name,
         "initial":     (full_name[:1] or "?").upper(),
+        "avatar":      avatar_url,
     }
 
 

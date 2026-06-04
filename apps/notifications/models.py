@@ -31,6 +31,12 @@ class NotificationType(models.TextChoices):
     REMINDER_OVERDUE = "reminder_overdue", "Reminder Overdue"
     KB_REVIEW_REQUESTED = "kb_review_requested", "KB Review Requested"
     KB_ARTICLE_REVIEWED = "kb_article_reviewed", "KB Article Reviewed"
+    # Inbox Hub notifications (see apps.inbox_hub)
+    HUB_EMAIL_ASSIGNED = "hub_email_assigned", "Hub Email Assigned"
+    HUB_EMAIL_REASSIGNED = "hub_email_reassigned", "Hub Email Reassigned"
+    HUB_EMAIL_ESCALATED_TO_ME = "hub_email_escalated_to_me", "Hub Email Escalated to Me"
+    HUB_EMAIL_SLA_BREACH_WARNING = "hub_email_sla_breach_warning", "Hub Email SLA Breach Warning"
+    HUB_EMAIL_SLA_BREACHED = "hub_email_sla_breached", "Hub Email SLA Breached"
 
 
 class Notification(TenantScopedModel):

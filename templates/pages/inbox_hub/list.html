@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Inbox Hub - Kanzen Suite{% endblock %}
+
+{% block content %}
+{% include "includes/page_back_button.html" %}
+
+<div class="ih-shell" id="inboxHubShell" data-current-user-id="{{ user.id }}">
+  <!-- =================================================================
+       LEFT  — workload nav (filters)
+       MIDDLE — list of HubEmails (filterable)
+       RIGHT — detail pane with body + actions
+       ================================================================= -->
+
+  <!-- LEFT: Workload nav -->
+  <aside class="ih-nav" id="ihNav" aria-label="Inbox Hub navigation">
+    <div class="ih-nav-section">
+      <span class="ih-nav-label">Workload</span>
+      <button type="button" class="ih-nav-link active" data-filter="all">
+        <i class="ti ti-inbox"></i>
+        <span>All</span>
+        <span class="ih-nav-count" id="ihCountAll">0</span>
+      </button>
+      <button type="button" class="ih-nav-link" data-filter="mine">
+        <i class="ti ti-user"></i>
+        <span>Mine</span>
+        <span class="ih-nav-count" id="ihCountMine">0</span>
+      </button>
+      <button type="button" class="ih-nav-link" data-filter="triage">
+        <i class="ti ti-sparkles"></i>
+        <span>Triage (New)</span>
+        <span class="ih-nav-count" id="ihCountTriage">0</span>
+      </button>
+    </div>
+
+    <div class="ih-nav-section">
+      <span class="ih-nav-label">State</span>
+      <button type="button" class="ih-nav-link" data-state="new">
+        <span class="ih-state-dot ih-state-dot--new"></span>
+        <span>New</span>
+      </button>
+      <button type="button" class="ih-nav-link" data-state="assigned">
+        <span class="ih-state-dot ih-state-dot--assigned"></span>
+        <span>Assigned</span>
+      </button>
+      <button type="button" class="ih-nav-link" data-state="in_progress">
+        <span class="ih-state-dot ih-state-dot--in_progress"></span>
+        <span>In progress</span>
+      </button>
+      <button type="button" class="ih-nav-link" data-state="resolved">
+        <span class="ih-state-dot ih-state-dot--resolved"></span>
+        <span>Resolved</span>
+      </button>
+    </div>
+
+    <div class="ih-nav-section">
+      <span class="ih-nav-label">Terminal</span>
+      <button type="button" class="ih-nav-link" data-state="converted_to_ticket">
+        <i class="ti ti-ticket"></i>
+        <span>Converted</span>
+      </button>
+      <button type="button" class="ih-nav-link" data-state="dismissed">
+        <i class="ti ti-archive"></i>
+        <span>Dismissed</span>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MIDDLE: List -->
+  <section class="ih-list" aria-label="Inbox Hub messages">
+    <header class="ih-list-header">
+      <div class="ih-list-header-title">
+        <h1 class="ih-title">Inbox Hub</h1>
+        <p class="ih-subtitle" id="ihActiveFilterLabel">All conversations</p>
+      </div>
+      <div class="ih-list-header-tools">
+        <div class="ih-search-wrap">
+          <i class="ti ti-search"></i>
+          <input type="search"
+                 class="ih-search-input"
+                 id="ihSearchInput"
+                 placeholder="Search subject or sender…"
+                 autocomplete="off">
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="ihRefreshBtn" title="Refresh (auto-updates via LiveBus)">
+          <i class="ti ti-refresh"></i>
+        </button>
+      </div>
+    </header>
+
+    <div class="ih-list-body" id="ihListBody" tabindex="0" role="listbox" aria-label="Hub email list">
+      <!-- Skeleton loader, replaced after first fetch -->
+      <div class="ih-skeleton" id="ihSkeleton">
+        {% for _ in "12345" %}
+        <div class="ih-skeleton-row">
+          <div class="ih-skeleton-line ih-skeleton-line--title"></div>
+          <div class="ih-skeleton-line ih-skeleton-line--meta"></div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <footer class="ih-list-footer" id="ihListFooter" hidden>
+      <span id="ihPaginationLabel" class="ih-pagination-label"></span>
+      <div class="ih-pagination-controls">
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="ihPrevPage" disabled>
+          <i class="ti ti-chevron-left"></i> Prev
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" id="ihNextPage" disabled>
+          Next <i class="ti ti-chevron-right"></i>
+        </button>
+      </div>
+    </footer>
+  </section>
+
+  <!-- RIGHT: Detail pane -->
+  <section class="ih-detail" aria-label="Hub email detail">
+    <!-- Empty state -->
+    <div class="ih-detail-empty" id="ihDetailEmpty">
+      <div class="ih-detail-empty-inner">
+        <i class="ti ti-mail-opened ih-empty-icon"></i>
+        <h2 class="ih-empty-title">Select an email to triage</h2>
+        <p class="ih-empty-help">
+          Click any row in the list to see the body, contact, and the actions
+          you can take. <strong>Convert</strong> creates a Ticket;
+          <strong>Dismiss</strong> closes the email without one.
+        </p>
+        <div class="ih-empty-tips">
+          <div class="ih-empty-tip">
+            <kbd>J</kbd>/<kbd>K</kbd> <span>navigate rows</span>
+          </div>
+          <div class="ih-empty-tip">
+            <kbd>C</kbd> <span>convert selected</span>
+          </div>
+          <div class="ih-empty-tip">
+            <kbd>X</kbd> <span>dismiss selected</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loaded state (filled by JS) -->
+    <article class="ih-detail-view" id="ihDetailView" hidden>
+      <header class="ih-detail-header">
+        <div class="ih-detail-title-row">
+          <span class="ih-state-pill" id="ihDetailStatePill"></span>
+          <span class="ih-priority-pill" id="ihDetailPriorityPill"></span>
+          <h2 class="ih-detail-subject" id="ihDetailSubject"></h2>
+        </div>
+        <div class="ih-detail-meta">
+          <span class="ih-meta-row">
+            <i class="ti ti-user-circle"></i>
+            <span id="ihDetailSenderName"></span>
+            <span class="ih-meta-divider">·</span>
+            <a href="#" id="ihDetailSenderEmail" class="ih-meta-link"></a>
+          </span>
+          <span class="ih-meta-row ih-meta-row--secondary">
+            <i class="ti ti-clock"></i>
+            <span id="ihDetailReceivedAt"></span>
+          </span>
+        </div>
+      </header>
+
+      <div class="ih-detail-actions" id="ihDetailActions">
+        <button type="button" class="btn btn-primary btn-sm" id="ihActionConvert">
+          <i class="ti ti-ticket me-1"></i> Convert to ticket
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-sm" id="ihActionDismiss">
+          <i class="ti ti-archive me-1"></i> Dismiss
+        </button>
+        <span class="ih-detail-actions-spacer"></span>
+        <a href="#" class="btn btn-outline-secondary btn-sm" id="ihActionViewTicket" hidden>
+          <i class="ti ti-external-link me-1"></i> Open ticket
+        </a>
+      </div>
+
+      <section class="ih-body" aria-label="Email body">
+        <div class="ih-body-content" id="ihDetailBody"></div>
+      </section>
+    </article>
+  </section>
+</div>
+
+<!-- Convert-to-Ticket modal -->
+<div class="modal fade" id="ihConvertModal" tabindex="-1" aria-hidden="true" aria-labelledby="ihConvertModalLabel">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ihConvertModalLabel">
+          <i class="ti ti-ticket me-1"></i> Convert to Ticket
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="ihConvertForm">
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label">Subject</label>
+            <input type="text" class="form-control" id="ihConvertSubject" disabled>
+            <div class="form-text">Carried over verbatim from the email.</div>
+          </div>
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label for="ihConvertQueue" class="form-label">Queue</label>
+              <select class="form-select" id="ihConvertQueue">
+                <option value="">Default</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="ihConvertPriority" class="form-label">Priority</label>
+              <select class="form-select" id="ihConvertPriority">
+                <option value="">Inherit</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="ihConvertStatus" class="form-label">Status</label>
+              <select class="form-select" id="ihConvertStatus">
+                <option value="">Default (Open)</option>
+              </select>
+            </div>
+            <div class="col-md-6">
+              <label for="ihConvertAssignee" class="form-label">Assignee</label>
+              <select class="form-select" id="ihConvertAssignee">
+                <option value="">Unassigned (or auto)</option>
+              </select>
+            </div>
+          </div>
+          <div class="ih-convert-hint">
+            <i class="ti ti-info-circle"></i>
+            The email body becomes the ticket description and any attachments are copied over.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="ihConvertSubmit">
+            <i class="ti ti-arrow-right me-1"></i> Create ticket
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Dismiss modal -->
+<div class="modal fade" id="ihDismissModal" tabindex="-1" aria-hidden="true" aria-labelledby="ihDismissModalLabel">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ihDismissModalLabel">
+          <i class="ti ti-archive me-1"></i> Dismiss email
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <form id="ihDismissForm">
+        <div class="modal-body">
+          <p class="ih-dismiss-blurb">
+            Dismissed emails drop out of triage but remain in the audit log. Use this
+            for spam, vendor newsletters, or mail that doesn't need any follow-up.
+          </p>
+          <label for="ihDismissReason" class="form-label">Reason (optional, 255 chars)</label>
+          <textarea class="form-control" id="ihDismissReason" rows="3" maxlength="255" placeholder="e.g. vendor newsletter"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-danger" id="ihDismissSubmit">
+            <i class="ti ti-archive me-1"></i> Dismiss
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/inbox-hub.js' %}?v=1"></script>
+{% endblock %}

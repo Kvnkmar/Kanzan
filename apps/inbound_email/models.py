@@ -40,6 +40,7 @@ class InboundEmail(TimestampedModel):
         PROCESSING = "processing", "Processing"
         TICKET_CREATED = "ticket_created", "Ticket Created"
         REPLY_ADDED = "reply_added", "Reply Added"
+        PARKED_IN_HUB = "parked_in_hub", "Parked in Hub"
         SENT = "sent", "Sent"
         REJECTED = "rejected", "Rejected"
         BOUNCED = "bounced", "Bounced"

@@ -170,6 +170,15 @@ class TenantSettings(TimestampedModel):
             "unassigned and admins/managers triage manually."
         ),
     )
+    inbox_hub_enabled = models.BooleanField(
+        default=False,
+        help_text=(
+            "When True, inbound emails are parked in the Inbox Hub for "
+            "agent triage instead of auto-creating a Ticket. Agents convert "
+            "to a Ticket explicitly via the Hub UI. When False (default), "
+            "the legacy auto-create-ticket flow runs unchanged."
+        ),
+    )
 
     # --- Branding ---
     primary_color = models.CharField(

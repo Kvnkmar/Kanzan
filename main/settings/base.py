@@ -85,6 +85,7 @@ INSTALLED_APPS = [
     "apps.crm",
     "apps.newsfeed",
     "apps.voip",
+    "apps.inbox_hub",
 ]
 
 MIDDLEWARE = [

@@ -88,6 +88,19 @@ PERMISSION_DEFINITIONS = [
     # Inbound Email
     ("inbound_email", "view", "View inbound emails"),
     ("inbound_email", "manage", "Manage inbound emails"),
+    # Inbox Hub (Email-to-Queue workspace)
+    ("hub_email", "view", "View hub emails"),
+    ("hub_email", "assign", "Assign hub emails"),
+    ("hub_email", "reassign", "Reassign hub emails"),
+    ("hub_email", "convert", "Convert hub email to ticket"),
+    ("hub_email", "dismiss", "Dismiss hub emails"),
+    ("hub_email", "reply", "Reply to hub emails"),
+    ("hub_email", "escalate", "Escalate hub emails"),
+    ("hub_email", "note", "Add notes to hub emails"),
+    ("department", "view", "View departments"),
+    ("department", "manage", "Manage departments"),
+    ("routing_rule", "manage", "Manage routing rules"),
+    ("hub_sla", "manage", "Manage hub SLA policies"),
 ]
 
 # ---------------------------------------------------------------------------
@@ -155,6 +168,19 @@ MANAGER_CODENAMES = [
     # Inbound Email — full control
     "inbound_email.view",
     "inbound_email.manage",
+    # Inbox Hub — full operational + admin control
+    "hub_email.view",
+    "hub_email.assign",
+    "hub_email.reassign",
+    "hub_email.convert",
+    "hub_email.dismiss",
+    "hub_email.reply",
+    "hub_email.escalate",
+    "hub_email.note",
+    "department.view",
+    "department.manage",
+    "routing_rule.manage",
+    "hub_sla.manage",
 ]
 
 AGENT_CODENAMES = [
@@ -180,6 +206,13 @@ AGENT_CODENAMES = [
     "calendar_event.update",
     # Inbound Email — view only
     "inbound_email.view",
+    # Inbox Hub — agent-tier (no assign/reassign/dismiss; can convert/reply/escalate/note)
+    "hub_email.view",
+    "hub_email.convert",
+    "hub_email.reply",
+    "hub_email.escalate",
+    "hub_email.note",
+    "department.view",
 ]
 
 # Team Lead = elevated Agent. Sits between Manager (20) and Agent (30) at
@@ -199,6 +232,10 @@ TEAM_LEAD_CODENAMES = AGENT_CODENAMES + [
     "kb_category.update",
     "calendar_event.delete",
     "inbound_email.manage",
+    # Inbox Hub — dept-scoped triage authority
+    "hub_email.assign",
+    "hub_email.reassign",
+    "hub_email.dismiss",
 ]
 
 # IT / HR are departmental flavours of Agent — same hierarchy level (30),

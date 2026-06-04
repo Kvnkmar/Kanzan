@@ -94,6 +94,9 @@ ACTION_MAP = {
     # VoIP custom actions
     "active_calls": "view",
     "call_stats": "view",
+    # Inbox Hub custom actions
+    "convert_to_ticket": "convert",
+    "dismiss": "dismiss",
 }
 
 

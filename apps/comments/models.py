@@ -173,6 +173,15 @@ class ActivityLog(TenantScopedModel):
         API_KEY_CREATED = "api_key_created", "API Key Created"
         API_KEY_REGENERATED = "api_key_regenerated", "API Key Regenerated"
         API_KEY_REVOKED = "api_key_revoked", "API Key Revoked"
+        # Inbox Hub lifecycle (see apps.inbox_hub.services)
+        EMAIL_RECEIVED = "email_received", "Email Received (Hub)"
+        EMAIL_CATEGORISED = "email_categorised", "Email Categorised"
+        EMAIL_QUEUED = "email_queued", "Email Queued"
+        EMAIL_AGENT_ASSIGNED = "email_agent_assigned", "Email Agent Assigned"
+        EMAIL_REASSIGNED = "email_reassigned", "Email Reassigned"
+        EMAIL_ESCALATED = "email_escalated", "Email Escalated"
+        EMAIL_CONVERTED_TO_TICKET = "email_converted_to_ticket", "Email Converted to Ticket"
+        EMAIL_DISMISSED = "email_dismissed", "Email Dismissed"
 
     content_type = models.ForeignKey(
         ContentType,

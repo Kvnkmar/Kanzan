@@ -134,9 +134,15 @@ def resolve_tenant_from_address(recipient_email):
     1. Plus-addressing: support+{slug}@domain.com
     2. Slug as local part: {slug}@inbound.domain.com
     3. Custom inbound address in TenantSettings
+    4. ``settings.IMAP_DEFAULT_TENANT_SLUG`` — last-resort fallback so
+       shared mailboxes (e.g. one Gmail account polled for many tenants
+       during dev, or a single default tenant in a single-tenant prod
+       deployment) still route somewhere instead of rejecting outright.
 
     Returns the Tenant or None.
     """
+    from django.conf import settings
+
     local_part, _, domain = recipient_email.partition("@")
 
     # Strategy 1: plus-addressing (support+acme@kanzen.io)
@@ -159,6 +165,13 @@ def resolve_tenant_from_address(recipient_email):
     ).select_related("tenant").first()
     if ts and ts.tenant.is_active:
         return ts.tenant
+
+    # Strategy 4: default-tenant fallback (env-configured)
+    default_slug = getattr(settings, "IMAP_DEFAULT_TENANT_SLUG", "") or ""
+    if default_slug:
+        tenant = Tenant.objects.filter(slug=default_slug, is_active=True).first()
+        if tenant:
+            return tenant
 
     return None
 
@@ -341,7 +354,15 @@ def process_inbound_email(inbound_email_id):
             if existing_ticket:
                 _add_reply_to_ticket(inbound, existing_ticket, contact, system_user)
             else:
-                _create_ticket_from_email(inbound, tenant, contact, system_user)
+                # SEAM: Inbox Hub fork. When the tenant has flipped
+                # TenantSettings.inbox_hub_enabled, park the email for
+                # agent triage instead of auto-creating a ticket.
+                settings = getattr(tenant, "settings", None)
+                if settings is not None and settings.inbox_hub_enabled:
+                    from apps.inbox_hub.services import park_email_in_hub
+                    park_email_in_hub(inbound, tenant, contact, system_user)
+                else:
+                    _create_ticket_from_email(inbound, tenant, contact, system_user)
 
     except Exception as exc:
         logger.exception("Failed to process inbound email %s", inbound.pk)
