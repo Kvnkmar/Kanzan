@@ -246,11 +246,16 @@ class TestTicketNumberRaceCondition(TransactionTestCase):
         )
         self.status_open.save()
 
-        self.free_plan = Plan.objects.create(
-            tier=Plan.Tier.FREE, name="Free",
-            stripe_product_id="prod_free_race",
-            max_users=10, max_contacts=500,
-            max_tickets_per_month=100, max_storage_mb=1024,
+        # Reuse the autouse ``free_plan`` fixture's plan if present —
+        # ``Plan.tier`` is unique, so an unconditional create collides.
+        self.free_plan, _ = Plan.objects.get_or_create(
+            tier=Plan.Tier.FREE,
+            defaults=dict(
+                name="Free",
+                stripe_product_id="prod_free_race",
+                max_users=10, max_contacts=500,
+                max_tickets_per_month=100, max_storage_mb=1024,
+            ),
         )
         Subscription.objects.create(
             tenant=self.tenant, plan=self.free_plan,
@@ -269,19 +274,22 @@ class TestTicketNumberRaceCondition(TransactionTestCase):
     def test_concurrent_creation_unique_numbers(self):
         """10 concurrent ticket creations should yield 10 unique sequential numbers.
 
-        NOTE: SQLite does not support SELECT FOR UPDATE, so concurrent threads
-        will hit "database table is locked" errors.  This test validates the
-        concurrency design and will only fully pass on PostgreSQL.  On SQLite
-        we fall back to verifying that the tickets which DID succeed have
-        unique, sequential numbers.
+        This exercises the ``TicketCounter`` ``select_for_update()`` design that
+        serialises concurrent number allocation.  SELECT FOR UPDATE is a no-op on
+        SQLite, so concurrent writers there merely deadlock on "database table is
+        locked" — a timing-flaky outcome that proves nothing about the design.
+        We therefore SKIP on SQLite and assert strictly only on PostgreSQL, where
+        the guarantee is real.  (Sequential numbering in dev/SQLite is covered
+        deterministically by ``test_ticket_number_is_sequential``.)
         """
-        import sqlite3
-
         from django.conf import settings
 
-        is_sqlite = "sqlite" in settings.DATABASES["default"]["ENGINE"]
+        if "sqlite" in settings.DATABASES["default"]["ENGINE"]:
+            self.skipTest(
+                "SELECT FOR UPDATE is a no-op on SQLite; the ticket-number "
+                "concurrency guarantee is only testable on PostgreSQL."
+            )
 
-        results = []
         errors = []
 
         def create_ticket(idx):
@@ -289,7 +297,7 @@ class TestTicketNumberRaceCondition(TransactionTestCase):
                 client = APIClient()
                 client.force_authenticate(user=self.user)
                 client.defaults["SERVER_NAME"] = "race-t.localhost"
-                resp = client.post(
+                client.post(
                     "/api/v1/tickets/tickets/",
                     data={
                         "subject": f"Race ticket {idx}",
@@ -298,8 +306,7 @@ class TestTicketNumberRaceCondition(TransactionTestCase):
                     },
                     format="json",
                 )
-                results.append((idx, resp.status_code, resp.data.get("id")))
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001 — recorded for assertion below
                 errors.append((idx, str(exc)))
 
         threads = [threading.Thread(target=create_ticket, args=(i,)) for i in range(10)]
@@ -308,30 +315,22 @@ class TestTicketNumberRaceCondition(TransactionTestCase):
         for t in threads:
             t.join(timeout=30)
 
-        if is_sqlite and errors:
-            # Expected on SQLite: "database table is locked" errors from
-            # concurrent select_for_update() which is a no-op on SQLite.
-            # Verify the tickets that DID succeed have unique numbers.
-            pass
-        else:
-            self.assertEqual(len(errors), 0, f"Thread errors: {errors}")
+        self.assertEqual(len(errors), 0, f"Thread errors: {errors}")
 
         numbers = list(
             Ticket.unscoped.filter(tenant=self.tenant)
             .order_by("number")
             .values_list("number", flat=True)
         )
-        # All numbers must be unique
+        # All numbers must be unique and sequential (no gaps, no duplicates).
         self.assertEqual(
             len(numbers), len(set(numbers)),
             f"Duplicate numbers found: {numbers}",
         )
-        # Numbers must be sequential (no gaps)
-        if numbers:
-            self.assertEqual(
-                numbers, list(range(1, len(numbers) + 1)),
-                f"Expected sequential 1..{len(numbers)}, got {numbers}",
-            )
+        self.assertEqual(
+            numbers, list(range(1, len(numbers) + 1)),
+            f"Expected sequential 1..{len(numbers)}, got {numbers}",
+        )
 
 
 # =========================================================================

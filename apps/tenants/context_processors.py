@@ -45,6 +45,16 @@ def tenant_context(request):
             is_admin_or_manager = user_role.hierarchy_level <= 20
             is_agent_or_above = user_role.hierarchy_level <= 30
 
+    # Inbox Hub is group-gated: Manager+ always, everyone else only if they
+    # belong to ≥1 UserGroup. Drives whether the sidebar entry renders.
+    can_access_inbox_hub = False
+    if tenant and membership:
+        from apps.inbox_hub.access import can_access_inbox_hub as _can_access_hub
+
+        can_access_inbox_hub = _can_access_hub(
+            membership, user=request.user, tenant=tenant,
+        )
+
     # Check if VoIP is enabled for this tenant
     voip_enabled = False
     if tenant and membership:
@@ -74,6 +84,7 @@ def tenant_context(request):
         "is_admin": is_admin,
         "is_admin_or_manager": is_admin_or_manager,
         "is_agent_or_above": is_agent_or_above,
+        "can_access_inbox_hub": can_access_inbox_hub,
         "voip_enabled": voip_enabled,
         "tenant_palette": tenant_palette,
         "BASE_URL": django_settings.BASE_URL,

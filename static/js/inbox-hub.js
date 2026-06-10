@@ -1,12 +1,23 @@
 /**
- * Inbox Hub front-end controller.
+ * Inbox Hub front-end controller — triage cockpit.
  *
- * Phase 1 MVP. All dynamic HTML is built by escaping variable content
- * via the textContent-based `esc()` helper, then passed through
- * DOMPurify.sanitize as a defense-in-depth pass before assignment to
- * innerHTML. Email body HTML from the inbound payload is sanitised
- * with an explicit allowlist (no inline event handlers, no <script>,
- * no <iframe>, etc.) since it comes from external senders.
+ * The Hub lists emails for the active triage LENS (all-new / unassigned /
+ * assigned-to-me / oldest-waiting / sla-at-risk — workload, not severity).
+ * Selecting an email shows a read-only mail view PLUS a customer-context
+ * card (who is writing + our ticket history with them) so the three triage
+ * actions — convert / assign / dismiss — become a one-glance decision. Each
+ * action routes the email onward and the pane resets; "working the email"
+ * happens downstream in the ticket system.
+ *
+ * Customer context is fetched from the Hub-local
+ * `GET /hub-emails/{id}/context/` action (NOT /contacts/.../context/, which
+ * row-scopes agents out of contacts they don't own a ticket for).
+ *
+ * Security: all dynamic HTML is escaped via the textContent-based `esc()`
+ * helper, then run through DOMPurify as a defense-in-depth pass before
+ * innerHTML assignment; customer-supplied context (name, company, ticket
+ * subjects) is rendered via createElement/textContent only. Inbound email
+ * body HTML is sanitised with an explicit allowlist.
  */
 (function () {
   'use strict';
@@ -19,17 +30,20 @@
 
   var state = {
     items: [],
-    counts: { all: 0, mine: 0, triage: 0 },
+    counts: { all: 0, unassigned: 0, mine: 0, sla: 0 },
     page: 1,
     next: null,
     prev: null,
-    activeFilter: 'all',
-    activeState: null,
+    activeLens: 'all',           // all | unassigned | mine | oldest | sla
     search: '',
     selectedId: null,
     selectedDetail: null,
     queues: [],
     statuses: [],
+    users: [],
+    usersLoaded: false,
+    contextCache: {},            // contactId -> context payload (per session)
+    contextReqId: 0,             // token to drop stale context paints (fast J/K)
     currentUserId: document.getElementById('inboxHubShell').dataset.currentUserId || null,
   };
 
@@ -46,21 +60,30 @@
     searchInput: document.getElementById('ihSearchInput'),
     refreshBtn: document.getElementById('ihRefreshBtn'),
     filterLabel: document.getElementById('ihActiveFilterLabel'),
+
     detailEmpty: document.getElementById('ihDetailEmpty'),
     detailView: document.getElementById('ihDetailView'),
-    detailStatePill: document.getElementById('ihDetailStatePill'),
-    detailPriorityPill: document.getElementById('ihDetailPriorityPill'),
+    detailActions: document.getElementById('ihDetailActions'),
+    detailAvatar: document.getElementById('ihDetailAvatar'),
     detailSubject: document.getElementById('ihDetailSubject'),
     detailSenderName: document.getElementById('ihDetailSenderName'),
     detailSenderEmail: document.getElementById('ihDetailSenderEmail'),
     detailReceivedAt: document.getElementById('ihDetailReceivedAt'),
+    detailSlaBadge: document.getElementById('ihDetailSlaBadge'),
     detailBody: document.getElementById('ihDetailBody'),
+    contextCard: document.getElementById('ihContextCard'),
+    openTicketNudge: document.getElementById('ihOpenTicketNudge'),
+
     actionConvert: document.getElementById('ihActionConvert'),
+    actionAssign: document.getElementById('ihActionAssign'),
     actionDismiss: document.getElementById('ihActionDismiss'),
-    actionViewTicket: document.getElementById('ihActionViewTicket'),
+
     countAll: document.getElementById('ihCountAll'),
+    countUnassigned: document.getElementById('ihCountUnassigned'),
     countMine: document.getElementById('ihCountMine'),
-    countTriage: document.getElementById('ihCountTriage'),
+    countSla: document.getElementById('ihCountSla'),
+    lensSla: document.getElementById('ihLensSla'),
+
     convertModalEl: document.getElementById('ihConvertModal'),
     convertForm: document.getElementById('ihConvertForm'),
     convertSubject: document.getElementById('ihConvertSubject'),
@@ -69,6 +92,7 @@
     convertStatus: document.getElementById('ihConvertStatus'),
     convertAssignee: document.getElementById('ihConvertAssignee'),
     convertSubmit: document.getElementById('ihConvertSubmit'),
+
     dismissModalEl: document.getElementById('ihDismissModal'),
     dismissForm: document.getElementById('ihDismissForm'),
     dismissReason: document.getElementById('ihDismissReason'),
@@ -79,15 +103,12 @@
   var dismissModal = els.dismissModalEl ? new bootstrap.Modal(els.dismissModalEl) : null;
 
   // ---------- Constants ----------
-  var STATE_LABELS = {
-    new: 'New', assigned: 'Assigned', in_progress: 'In Progress',
-    pending_agent: 'Pending Agent', awaiting_customer: 'Awaiting Customer',
-    escalated: 'Escalated', resolved: 'Resolved',
-    converted_to_ticket: 'Converted', dismissed: 'Dismissed',
-  };
-  var PRIORITY_LABELS = { low: 'Low', normal: 'Normal', high: 'High', urgent: 'Urgent' };
-  var FILTER_LABELS = {
-    all: 'All conversations', mine: 'Assigned to me', triage: 'Triage queue (New)',
+  var LENS_LABELS = {
+    all: 'Untriaged email',
+    unassigned: 'Unassigned email',
+    mine: 'Assigned to me',
+    oldest: 'Oldest waiting first',
+    sla: 'SLA at risk',
   };
   var BODY_SANITIZE_CONFIG = {
     ALLOWED_TAGS: ['p', 'br', 'b', 'i', 'em', 'strong', 'u', 'a', 'ul', 'ol', 'li',
@@ -106,8 +127,6 @@
   }
 
   function safeAssign(el, html) {
-    // Defense-in-depth: even though variable content is escaped via esc(),
-    // pipe the final string through DOMPurify before assignment.
     if (!el) return;
     el.innerHTML = window.DOMPurify
       ? DOMPurify.sanitize(html, { ADD_ATTR: ['data-row-id', 'role', 'aria-selected', 'aria-label'] })
@@ -131,6 +150,20 @@
     return fmtDateTime(iso);
   }
 
+  function initialsFor(name, email) {
+    var src = (name || '').trim() || (email || '').trim();
+    if (!src) return '?';
+    var parts = src.split(/[\s@.]+/).filter(Boolean);
+    if (!parts.length) return src.charAt(0).toUpperCase();
+    if (parts.length === 1) return parts[0].charAt(0).toUpperCase();
+    return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+  }
+
+  function userDisplayName(u) {
+    var name = ((u.first_name || '') + ' ' + (u.last_name || '')).trim();
+    return name || u.email || u.id;
+  }
+
   function withVisibility() { return document.visibilityState !== 'hidden'; }
 
   function toast(level, msg) {
@@ -138,12 +171,80 @@
     else console.log('[Toast]', level, msg);
   }
 
+  // Compact forward/elapsed duration: 45s, 8m, 1h 4m, 2d 3h. (Kanzan.timeAgo
+  // is past-oriented and adds " ago"; we need bare magnitudes for both the
+  // "waited" label and the SLA "due in" badge.)
+  function humanizeDuration(ms) {
+    var s = Math.max(0, Math.round(ms / 1000));
+    if (s < 60) return s + 's';
+    var m = Math.round(s / 60);
+    if (m < 60) return m + 'm';
+    var h = Math.floor(m / 60);
+    var remM = m % 60;
+    if (h < 24) return remM ? (h + 'h ' + remM + 'm') : (h + 'h');
+    var d = Math.floor(h / 24);
+    var remH = h % 24;
+    return remH ? (d + 'd ' + remH + 'h') : (d + 'd');
+  }
+
+  function waitedLabel(iso) {
+    if (!iso) return '';
+    var ms = Date.now() - new Date(iso).getTime();
+    if (isNaN(ms)) return '';
+    return 'waited ' + humanizeDuration(ms);
+  }
+
+  // Small DOM builders for the (customer-supplied) context card — text is
+  // always assigned via textContent, never innerHTML.
+  function ce(tag, cls) {
+    var el = document.createElement(tag);
+    if (cls) el.className = cls;
+    return el;
+  }
+
+  function statCell(label, value) {
+    var cell = ce('div', 'ih-context-stat');
+    var v = ce('span', 'ih-context-stat-val');
+    v.textContent = String(value);
+    var l = ce('span', 'ih-context-stat-label');
+    l.textContent = label;
+    cell.appendChild(v);
+    cell.appendChild(l);
+    return cell;
+  }
+
+  function formatMrr(mrr) {
+    var n = parseFloat(mrr);
+    if (isNaN(n)) return String(mrr);
+    if (n >= 1000) {
+      var k = n / 1000;
+      return '$' + (k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)) + 'k';
+    }
+    return '$' + n.toFixed(0);
+  }
+
   // ---------- Rendering: list ----------
-  function renderEmpty(message) {
+  var EMPTY_LENS_MSG = {
+    unassigned: 'No unassigned email — every new message has an owner.',
+    mine: 'Nothing assigned to you right now.',
+    sla: 'No email is at risk of breaching SLA.',
+  };
+
+  function renderEmpty(opts) {
+    opts = opts || {};
+    if (opts.zero) {
+      safeAssign(els.listBody,
+        '<div class="ih-list-empty ih-list-empty--zero">' +
+        '  <i class="ti ti-circle-check"></i>' +
+        '  <p class="ih-list-empty-title">All caught up</p>' +
+        '  <p class="ih-list-empty-sub">Inbox zero — no email waiting to be triaged.</p>' +
+        '</div>');
+      return;
+    }
     safeAssign(els.listBody,
       '<div class="ih-list-empty">' +
       '  <i class="ti ti-inbox-off"></i>' +
-      '  <p>' + esc(message) + '</p>' +
+      '  <p>' + esc(opts.message || 'Nothing here.') + '</p>' +
       '</div>');
   }
 
@@ -161,28 +262,32 @@
     }
 
     if (!state.items || state.items.length === 0) {
-      renderEmpty('No emails match this view yet.');
+      if (state.search) {
+        renderEmpty({ message: 'No email matches your search.' });
+      } else if (state.activeLens === 'all' || state.activeLens === 'oldest') {
+        renderEmpty({ zero: true });
+      } else {
+        renderEmpty({ message: EMPTY_LENS_MSG[state.activeLens] || 'Nothing here.' });
+      }
       return;
     }
 
     var html = state.items.map(function (row) {
       var subject = esc(row.subject || '(no subject)');
       var sender = esc(row.sender_name || row.sender_email || 'Unknown sender');
-      var when = esc(timeAgo(row.received_at || row.created_at));
+      var waited = esc(waitedLabel(row.received_at || row.created_at));
+      var snippet = esc(row.snippet || '');
       var isSelected = (state.selectedId === row.id);
-      var classes = 'ih-row' +
-        (isSelected ? ' is-selected' : '') +
-        ' ih-row--state-' + esc(row.state) +
-        ' ih-row--priority-' + esc(row.priority);
-      var priorityChip = (row.priority && row.priority !== 'normal')
-        ? '<span class="ih-row-priority ih-row-priority--' + esc(row.priority) + '">' +
-          esc(PRIORITY_LABELS[row.priority] || row.priority) + '</span>'
+      var known = !!row.contact_id;
+      var classes = 'ih-row' + (isSelected ? ' is-selected' : '');
+      var avatarClass = 'ih-row-avatar ' +
+        (known ? 'ih-row-avatar--known' : 'ih-row-avatar--new');
+      var avatar = esc(initialsFor(row.sender_name, row.sender_email));
+      var clip = row.has_attachments
+        ? '<i class="ti ti-paperclip ih-row-clip" aria-hidden="true"></i>'
         : '';
-      var stateChip =
-        '<span class="ih-row-state ih-row-state--' + esc(row.state) + '">' +
-        esc(STATE_LABELS[row.state] || row.state) + '</span>';
-      var ticketChip = row.converted_ticket_number
-        ? '<span class="ih-row-ticket">#' + esc(row.converted_ticket_number) + '</span>'
+      var snippetRow = snippet
+        ? '<span class="ih-row-snippet">' + snippet + '</span>'
         : '';
 
       return (
@@ -190,14 +295,17 @@
         '        data-row-id="' + esc(row.id) + '" ' +
         '        role="option" ' +
         '        aria-selected="' + (isSelected ? 'true' : 'false') + '">' +
-        '  <div class="ih-row-top">' +
-        '    <span class="ih-row-subject">' + subject + '</span>' + priorityChip +
-        '  </div>' +
-        '  <div class="ih-row-meta">' +
-        '    <span class="ih-row-sender">' + sender + '</span>' +
-        '    <span class="ih-row-when">' + when + '</span>' +
-        '  </div>' +
-        '  <div class="ih-row-chips">' + stateChip + ticketChip + '</div>' +
+        '  <span class="' + avatarClass + '" aria-hidden="true">' + avatar + '</span>' +
+        '  <span class="ih-row-main">' +
+        '    <span class="ih-row-top">' +
+        '      <span class="ih-row-subject">' + subject + '</span>' + clip +
+        '    </span>' +
+        snippetRow +
+        '    <span class="ih-row-meta">' +
+        '      <span class="ih-row-sender">' + sender + '</span>' +
+        '      <span class="ih-row-when">' + waited + '</span>' +
+        '    </span>' +
+        '  </span>' +
         '</button>'
       );
     }).join('');
@@ -206,9 +314,24 @@
   }
 
   function renderCounts() {
-    els.countAll.textContent = state.counts.all || 0;
-    els.countMine.textContent = state.counts.mine || 0;
-    els.countTriage.textContent = state.counts.triage || 0;
+    if (els.countAll) els.countAll.textContent = state.counts.all || 0;
+    if (els.countUnassigned) els.countUnassigned.textContent = state.counts.unassigned || 0;
+    if (els.countMine) els.countMine.textContent = state.counts.mine || 0;
+    if (els.countSla) els.countSla.textContent = state.counts.sla || 0;
+
+    // Self-hiding "SLA at risk" lens — only meaningful when SLA policies
+    // exist (default tenants seed none, so every deadline is null). Never
+    // show an always-zero lens, and bail out of it if it's the active one.
+    if (els.lensSla) {
+      var hide = !state.counts.sla;
+      els.lensSla.hidden = hide;
+      if (hide && state.activeLens === 'sla') {
+        state.activeLens = 'all';
+        highlightActiveNav();
+        renderFilterLabel();
+        loadList();
+      }
+    }
   }
 
   function renderPagination() {
@@ -223,19 +346,13 @@
   }
 
   function renderFilterLabel() {
-    if (state.activeState) {
-      els.filterLabel.textContent = 'State: ' + (STATE_LABELS[state.activeState] || state.activeState);
-    } else {
-      els.filterLabel.textContent = FILTER_LABELS[state.activeFilter] || 'All conversations';
-    }
+    els.filterLabel.textContent = LENS_LABELS[state.activeLens] || 'Untriaged email';
   }
 
   function highlightActiveNav() {
     var links = els.nav.querySelectorAll('.ih-nav-link');
     links.forEach(function (a) { a.classList.remove('active'); });
-    var match = state.activeState
-      ? els.nav.querySelector('.ih-nav-link[data-state="' + state.activeState + '"]')
-      : els.nav.querySelector('.ih-nav-link[data-filter="' + state.activeFilter + '"]');
+    var match = els.nav.querySelector('.ih-nav-link[data-lens="' + state.activeLens + '"]');
     if (match) match.classList.add('active');
   }
 
@@ -254,27 +371,27 @@
     if (!row) { showDetailEmpty(); return; }
     state.selectedDetail = row;
 
+    var senderName = row.sender_name || '';
+    var senderEmail = row.sender_email || '';
+
+    els.detailAvatar.textContent = initialsFor(senderName, senderEmail);
     els.detailSubject.textContent = row.subject || '(no subject)';
-    els.detailSenderName.textContent = row.sender_name || '';
-    els.detailSenderEmail.textContent = row.sender_email || '';
-    els.detailSenderEmail.href = row.sender_email ? ('mailto:' + row.sender_email) : '#';
-    els.detailReceivedAt.textContent = fmtDateTime(row.received_at || row.created_at);
-
-    els.detailStatePill.className = 'ih-state-pill ih-state-pill--' + (row.state || 'unknown');
-    els.detailStatePill.textContent = STATE_LABELS[row.state] || row.state;
-
-    els.detailPriorityPill.className = 'ih-priority-pill ih-priority-pill--' + (row.priority || 'normal');
-    els.detailPriorityPill.textContent = PRIORITY_LABELS[row.priority] || row.priority;
+    els.detailSenderName.textContent = senderName || senderEmail || 'Unknown sender';
+    els.detailSenderEmail.textContent = senderEmail;
+    els.detailSenderEmail.href = senderEmail ? ('mailto:' + senderEmail) : '#';
+    var received = row.received_at || row.created_at;
+    els.detailReceivedAt.textContent = received
+      ? (fmtDateTime(received) + ' · ' + waitedLabel(received))
+      : '';
+    renderSlaBadge(row);
 
     // Body: prefer HTML, fall back to text. Always sanitise.
     var inbound = row.inbound || {};
     var bodyHtml = inbound.body_html || '';
     var bodyText = inbound.body_text || '';
     if (bodyHtml.trim()) {
-      // Email body is from external sender — strict allowlist sanitize.
       els.detailBody.innerHTML = sanitizeEmailBody(bodyHtml);
     } else if (bodyText.trim()) {
-      // Preserve newlines, escape everything.
       var preNode = document.createElement('pre');
       preNode.className = 'ih-body-plain';
       preNode.textContent = bodyText;
@@ -288,26 +405,223 @@
       els.detailBody.replaceChildren(emptyNode);
     }
 
-    var isTerminal = (row.state === 'converted_to_ticket' || row.state === 'dismissed');
-    els.actionConvert.disabled = isTerminal;
-    els.actionDismiss.disabled = isTerminal;
-
-    if (row.converted_ticket_number) {
-      els.actionViewTicket.removeAttribute('hidden');
-      els.actionViewTicket.href = '/tickets/' + row.converted_ticket_number + '/';
-      // Rebuild via DOM nodes to avoid innerHTML on user data.
-      els.actionViewTicket.replaceChildren();
-      var iconEl = document.createElement('i');
-      iconEl.className = 'ti ti-external-link me-1';
-      els.actionViewTicket.appendChild(iconEl);
-      els.actionViewTicket.appendChild(
-        document.createTextNode('Open ticket #' + row.converted_ticket_number)
-      );
-    } else {
-      els.actionViewTicket.setAttribute('hidden', '');
-    }
+    // Reset scroll to the top of the new message.
+    var scroll = els.detailView.querySelector('.ih-detail-scroll');
+    if (scroll) scroll.scrollTop = 0;
 
     showDetailView();
+  }
+
+  // SLA badge in the detail header. Honest urgency: shown only when a
+  // response deadline actually exists (default tenants have none), with a
+  // tone that escalates as the deadline nears.
+  function renderSlaBadge(row) {
+    var badge = els.detailSlaBadge;
+    if (!badge) return;
+    badge.className = 'ih-sla-badge';
+    var due = row.sla_response_due_at;
+    if (!due) { badge.hidden = true; badge.textContent = ''; return; }
+
+    if (row.response_breached) {
+      badge.classList.add('ih-sla-badge--danger');
+      badge.textContent = 'response overdue';
+      badge.hidden = false;
+      return;
+    }
+    var ms = new Date(due).getTime() - Date.now();
+    if (isNaN(ms)) { badge.hidden = true; return; }
+    if (ms <= 0) {
+      badge.classList.add('ih-sla-badge--danger');
+      badge.textContent = 'response overdue';
+      badge.hidden = false;
+      return;
+    }
+    var mins = ms / 60000;
+    var tone = mins <= 15 ? 'danger' : (mins <= 60 ? 'warning' : 'info');
+    badge.classList.add('ih-sla-badge--' + tone);
+    badge.textContent = 'response due in ' + humanizeDuration(ms);
+    badge.hidden = false;
+  }
+
+  // ---------- Rendering: customer context ----------
+  function hideContextCard() {
+    if (els.contextCard) {
+      els.contextCard.hidden = true;
+      els.contextCard.replaceChildren();
+    }
+  }
+
+  // Fetch + render the customer-context card for the selected row. Fired in
+  // parallel with the detail load (uses contact_id already on the list row).
+  function loadContextFor(row) {
+    hideContextCard();
+    renderOpenTicketNudge(null);
+    if (!row) return;
+    if (!row.contact_id) { renderFirstContact(row); return; }
+
+    var cid = row.contact_id;
+    var token = ++state.contextReqId;
+    if (state.contextCache[cid]) {
+      applyContext(state.contextCache[cid], token, row);
+      return;
+    }
+    Api.get('/api/v1/inbox-hub/hub-emails/' + encodeURIComponent(row.id) + '/context/')
+      .then(function (data) {
+        state.contextCache[cid] = data;
+        applyContext(data, token, row);
+      })
+      .catch(function () {
+        if (token === state.contextReqId) renderFirstContact(row);
+      });
+  }
+
+  function applyContext(data, token, row) {
+    // A newer selection won the race — drop this stale paint.
+    if (token !== state.contextReqId) return;
+    if (!data || !data.contact) { renderFirstContact(row); return; }
+    renderContext(data);
+    renderOpenTicketNudge(data.stats, data.recent_tickets);
+  }
+
+  function renderContext(data) {
+    var card = els.contextCard;
+    if (!card) return;
+    var c = data.contact || {};
+    var stats = data.stats || {};
+    var recent = data.recent_tickets || [];
+    var known = (stats.total_tickets || 0) > 0;
+
+    card.replaceChildren();
+
+    // Head: avatar + name/email + known/new badge
+    var head = ce('div', 'ih-context-head');
+    var av = ce('div', 'ih-context-avatar');
+    av.textContent = initialsFor(c.name, c.email);
+    head.appendChild(av);
+
+    var idWrap = ce('div', 'ih-context-id');
+    var nameEl = ce('span', 'ih-context-name');
+    nameEl.textContent = c.name || c.email || 'Unknown';
+    var emailEl = ce('span', 'ih-context-email');
+    emailEl.textContent = c.email || '';
+    idWrap.appendChild(nameEl);
+    idWrap.appendChild(emailEl);
+    head.appendChild(idWrap);
+
+    var badge = ce('span', 'ih-context-badge ' +
+      (known ? 'ih-context-badge--known' : 'ih-context-badge--new'));
+    badge.textContent = known ? 'Known customer' : 'New customer';
+    head.appendChild(badge);
+    card.appendChild(head);
+
+    // Meta line: company · MRR · health
+    var metaBits = [];
+    if (c.company) metaBits.push(c.company);
+    if (c.account) {
+      if (c.account.mrr) metaBits.push('MRR ' + formatMrr(c.account.mrr));
+      if (typeof c.account.health_score === 'number') {
+        metaBits.push('Health ' + c.account.health_score);
+      }
+    }
+    if (metaBits.length) {
+      var meta = ce('div', 'ih-context-meta');
+      meta.textContent = metaBits.join(' · ');
+      card.appendChild(meta);
+    }
+
+    // Bounce warning
+    if (c.email_bouncing) {
+      var warn = ce('div', 'ih-warn');
+      warn.appendChild(ce('i', 'ti ti-alert-triangle'));
+      warn.appendChild(document.createTextNode(' This email is bouncing'));
+      card.appendChild(warn);
+    }
+
+    // Stats strip
+    var statsWrap = ce('div', 'ih-context-stats');
+    statsWrap.appendChild(statCell('Total', stats.total_tickets != null ? stats.total_tickets : '—'));
+    statsWrap.appendChild(statCell('Open', stats.open_tickets != null ? stats.open_tickets : '—'));
+    statsWrap.appendChild(statCell('CSAT', stats.avg_csat != null ? stats.avg_csat : '—'));
+    statsWrap.appendChild(statCell('Last', stats.last_ticket_at ? timeAgo(stats.last_ticket_at) : '—'));
+    card.appendChild(statsWrap);
+
+    // Recent tickets (clickable)
+    if (recent.length) {
+      var tlist = ce('div', 'ih-context-tickets');
+      recent.forEach(function (t) {
+        var a = document.createElement('a');
+        a.className = 'ih-tkt-row';
+        a.href = '/tickets/' + encodeURIComponent(t.number) + '/';
+        var num = ce('span', 'ih-tkt-num');
+        num.textContent = '#' + t.number;
+        var subj = ce('span', 'ih-tkt-subject');
+        subj.textContent = t.subject || '(no subject)';
+        var st = ce('span', 'ih-tkt-status');
+        st.textContent = t.status || '—';
+        // status_color is a DB hex — assign via a CSS var (data, not a
+        // source literal) so the theme-check stays clean.
+        if (t.status_color) st.style.setProperty('--badge-color', t.status_color);
+        a.appendChild(num);
+        a.appendChild(subj);
+        a.appendChild(st);
+        tlist.appendChild(a);
+      });
+      card.appendChild(tlist);
+    }
+
+    card.hidden = false;
+  }
+
+  // Minimal card for an unknown sender (no Contact row, or context 404/empty).
+  function renderFirstContact(row) {
+    var card = els.contextCard;
+    if (!card) return;
+    var name = (row && row.sender_name) || '';
+    var email = (row && row.sender_email) || '';
+
+    card.replaceChildren();
+    var head = ce('div', 'ih-context-head');
+    var av = ce('div', 'ih-context-avatar');
+    av.textContent = initialsFor(name, email);
+    head.appendChild(av);
+
+    var idWrap = ce('div', 'ih-context-id');
+    var nameEl = ce('span', 'ih-context-name');
+    nameEl.textContent = name || email || 'Unknown sender';
+    var emailEl = ce('span', 'ih-context-email');
+    emailEl.textContent = email || '';
+    idWrap.appendChild(nameEl);
+    idWrap.appendChild(emailEl);
+    head.appendChild(idWrap);
+
+    var badge = ce('span', 'ih-context-badge ih-context-badge--new');
+    badge.textContent = 'First contact';
+    head.appendChild(badge);
+    card.appendChild(head);
+
+    card.hidden = false;
+  }
+
+  // "⚠ N open tickets" nudge in the action bar — assign/merge instead of
+  // spawning a duplicate. Links to the most recent ticket for this contact.
+  function renderOpenTicketNudge(stats, recent) {
+    var nudge = els.openTicketNudge;
+    if (!nudge) return;
+    var open = stats && stats.open_tickets;
+    if (!open) {
+      nudge.hidden = true;
+      nudge.removeAttribute('href');
+      nudge.replaceChildren();
+      return;
+    }
+    nudge.replaceChildren();
+    nudge.appendChild(ce('i', 'ti ti-alert-triangle'));
+    nudge.appendChild(document.createTextNode(
+      ' ' + open + ' open ticket' + (open > 1 ? 's' : '')));
+    var first = (recent || [])[0];
+    if (first) nudge.href = '/tickets/' + encodeURIComponent(first.number) + '/';
+    else nudge.removeAttribute('href');
+    nudge.hidden = false;
   }
 
   // ---------- Data fetching ----------
@@ -315,13 +629,27 @@
     var params = new URLSearchParams();
     params.set('page_size', PAGE_SIZE);
     params.set('page', state.page);
-
-    if (state.activeState) {
-      params.set('state', state.activeState);
-    } else if (state.activeFilter === 'mine') {
-      params.set('assignee', 'me');
-    } else if (state.activeFilter === 'triage') {
-      params.set('state', 'new');
+    switch (state.activeLens) {
+      case 'unassigned':
+        params.set('state', 'new');
+        params.set('assignee', 'unassigned');
+        break;
+      case 'mine':
+        // Assigned mail has left `new`, so don't constrain state here.
+        params.set('assignee', 'me');
+        break;
+      case 'oldest':
+        params.set('state', 'new');
+        params.set('ordering', 'created_at');   // oldest waiting first
+        break;
+      case 'sla':
+        params.set('sla_risk', 'true');
+        params.set('ordering', 'sla_response_due_at');   // soonest deadline first
+        break;
+      case 'all':
+      default:
+        params.set('state', 'new');
+        break;
     }
     if (state.search) params.set('search', state.search);
     return '/api/v1/inbox-hub/hub-emails/?' + params.toString();
@@ -337,6 +665,14 @@
         state.prev = data.previous || null;
         renderList();
         renderPagination();
+        // If the selected email is no longer in the (untriaged) list, the
+        // detail pane is stale — reset it.
+        if (state.selectedId &&
+            !state.items.some(function (r) { return r.id === state.selectedId; })) {
+          state.selectedId = null;
+          state.selectedDetail = null;
+          showDetailEmpty();
+        }
       })
       .catch(function (err) {
         safeAssign(els.listBody,
@@ -352,14 +688,17 @@
   }
 
   function loadCounts() {
+    var base = '/api/v1/inbox-hub/hub-emails/?page_size=1';
     return Promise.all([
-      Api.get('/api/v1/inbox-hub/hub-emails/?page_size=1').catch(function () { return null; }),
-      Api.get('/api/v1/inbox-hub/hub-emails/?page_size=1&assignee=me').catch(function () { return null; }),
-      Api.get('/api/v1/inbox-hub/hub-emails/?page_size=1&state=new').catch(function () { return null; }),
+      Api.get(base + '&state=new').catch(function () { return null; }),
+      Api.get(base + '&state=new&assignee=unassigned').catch(function () { return null; }),
+      Api.get(base + '&assignee=me').catch(function () { return null; }),
+      Api.get(base + '&sla_risk=true').catch(function () { return null; }),
     ]).then(function (results) {
       state.counts.all = results[0] ? (results[0].count || 0) : 0;
-      state.counts.mine = results[1] ? (results[1].count || 0) : 0;
-      state.counts.triage = results[2] ? (results[2].count || 0) : 0;
+      state.counts.unassigned = results[1] ? (results[1].count || 0) : 0;
+      state.counts.mine = results[2] ? (results[2].count || 0) : 0;
+      state.counts.sla = results[3] ? (results[3].count || 0) : 0;
       renderCounts();
     });
   }
@@ -373,11 +712,23 @@
       });
   }
 
+  function loadUsers() {
+    if (state.usersLoaded) return Promise.resolve(state.users);
+    return Api.get('/api/v1/accounts/users/')
+      .then(function (data) {
+        state.users = (data && data.results) || [];
+        state.usersLoaded = true;
+        return state.users;
+      })
+      .catch(function () { return []; });
+  }
+
   function loadConvertChoices() {
     if (state.queues.length && state.statuses.length) return Promise.resolve();
     return Promise.all([
       Api.get('/api/v1/tickets/queues/').catch(function () { return { results: [] }; }),
       Api.get('/api/v1/tickets/ticket-statuses/').catch(function () { return { results: [] }; }),
+      loadUsers(),
     ]).then(function (results) {
       state.queues = (results[0] && results[0].results) || [];
       state.statuses = (results[1] && results[1].results) || [];
@@ -387,7 +738,6 @@
 
   function populateConvertDropdowns() {
     if (!els.convertQueue) return;
-    // Build options via DOM so attribute values are auto-escaped.
     els.convertQueue.replaceChildren();
     var defaultQ = document.createElement('option');
     defaultQ.value = ''; defaultQ.textContent = 'Default';
@@ -407,15 +757,34 @@
       opt.value = s.id; opt.textContent = s.name;
       els.convertStatus.appendChild(opt);
     });
+
+    if (els.convertAssignee) {
+      els.convertAssignee.replaceChildren();
+      var defaultA = document.createElement('option');
+      defaultA.value = ''; defaultA.textContent = 'Unassigned (or auto)';
+      els.convertAssignee.appendChild(defaultA);
+      (state.users || []).forEach(function (u) {
+        var opt = document.createElement('option');
+        opt.value = u.id; opt.textContent = userDisplayName(u);
+        els.convertAssignee.appendChild(opt);
+      });
+    }
+  }
+
+  // After any triage action the email leaves the `new` backlog: reset the
+  // pane and refresh the list/counts so the routed email drops out.
+  function afterTriage() {
+    state.selectedId = null;
+    state.selectedDetail = null;
+    hideContextCard();
+    renderOpenTicketNudge(null);
+    showDetailEmpty();
+    return Promise.all([loadList({ silent: true }), loadCounts()]);
   }
 
   // ---------- Actions: Convert ----------
   function openConvertModal() {
     if (!state.selectedDetail || !convertModal) return;
-    if (state.selectedDetail.state === 'converted_to_ticket') {
-      toast('info', 'Already converted.');
-      return;
-    }
     els.convertSubject.value = state.selectedDetail.subject || '';
     els.convertPriority.value = state.selectedDetail.priority || '';
     loadConvertChoices().then(function () { convertModal.show(); });
@@ -429,55 +798,182 @@
     if (els.convertQueue.value) payload.queue_id = els.convertQueue.value;
     if (els.convertStatus.value) payload.status_id = els.convertStatus.value;
     if (els.convertPriority.value) payload.priority = els.convertPriority.value;
+    if (els.convertAssignee && els.convertAssignee.value) payload.assignee_id = els.convertAssignee.value;
 
-    els.convertSubmit.disabled = true;
-    els.convertSubmit.replaceChildren();
-    var spin = document.createElement('span');
-    spin.className = 'spinner-border spinner-border-sm me-1';
-    spin.setAttribute('role', 'status');
-    els.convertSubmit.appendChild(spin);
-    els.convertSubmit.appendChild(document.createTextNode('Creating…'));
-
+    setBtnLoading(els.convertSubmit, 'Creating…');
     Api.post('/api/v1/inbox-hub/hub-emails/' + encodeURIComponent(id) + '/convert-to-ticket/', payload)
       .then(function (data) {
         convertModal.hide();
         var ticketNumber = (data && data.ticket && data.ticket.number) || null;
-        if (ticketNumber) showConvertSuccessToast(ticketNumber);
+        if (ticketNumber) toast('success', 'Created ticket #' + ticketNumber + '. Open it from the Tickets list when ready.');
         else toast('success', 'Email converted to ticket.');
-        Promise.all([loadList({ silent: true }), loadDetail(id), loadCounts()]);
+        afterTriage();
       })
       .catch(function (err) {
-        var msg = (err && (err.detail || err.error)) || 'Failed to convert email.';
-        toast('error', msg);
+        toast('error', (err && (err.detail || err.error)) || 'Failed to convert email.');
         console.warn('[InboxHub] convert failed:', err);
       })
       .finally(function () {
-        els.convertSubmit.disabled = false;
-        els.convertSubmit.replaceChildren();
-        var iconEl2 = document.createElement('i');
-        iconEl2.className = 'ti ti-arrow-right me-1';
-        els.convertSubmit.appendChild(iconEl2);
-        els.convertSubmit.appendChild(document.createTextNode(' Create ticket'));
+        resetBtn(els.convertSubmit, 'ti-arrow-right', ' Create ticket');
       });
   }
 
-  function showConvertSuccessToast(ticketNumber) {
-    // Phase 1 MVP: 8s window before auto-navigate. Phase 2 will replace
-    // this with an Undo button + countdown UI.
-    var url = '/tickets/' + ticketNumber + '/';
-    toast('success', 'Created ticket #' + ticketNumber + '. Opening in 8s…');
+  // ---------- Actions: Assign (dropdown menu of agents) ----------
+  function openAssignMenu() {
+    if (!state.selectedDetail || !els.actionAssign) return;
+    loadUsers().then(function (users) {
+      var me = (users || []).filter(function (u) {
+        return String(u.id) === String(state.currentUserId);
+      });
+      var others = (users || []).filter(function (u) {
+        return String(u.id) !== String(state.currentUserId);
+      });
+
+      var items = [];
+      me.forEach(function (u) {
+        items.push({
+          icon: 'ti-user-check', label: 'Assign to me', sub: userDisplayName(u),
+          onClick: function () { assignTo(u.id); },
+        });
+      });
+      if (me.length && others.length) items.push({ divider: true });
+      others.forEach(function (u) {
+        items.push({
+          icon: 'ti-user', label: userDisplayName(u),
+          onClick: function () { assignTo(u.id); },
+        });
+      });
+      if (!items.length) items.push({ disabled: true, label: 'No agents available' });
+
+      openMenu(els.actionAssign, items);
+    });
+  }
+
+  function assignTo(userId) {
+    if (!state.selectedDetail || !userId) return;
+    var id = state.selectedDetail.id;
+    Api.post('/api/v1/inbox-hub/hub-emails/' + encodeURIComponent(id) + '/assign/', { assignee_id: userId })
+      .then(function () { toast('success', 'Email assigned.'); afterTriage(); })
+      .catch(function (err) {
+        toast('error', (err && (err.detail || err.error ||
+          (err.assignee_id && err.assignee_id[0]))) || 'Failed to assign.');
+        console.warn('[InboxHub] assign failed:', err);
+      });
+  }
+
+  // ---------- Floating menu ----------
+  // A self-positioned menu appended to <body> so it escapes the detail
+  // pane's overflow:hidden (a Bootstrap dropdown would be clipped here).
+  var activeMenu = null;
+
+  function closeMenu() {
+    if (!activeMenu) return;
+    activeMenu.remove();
+    activeMenu = null;
+    if (els.actionAssign) els.actionAssign.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('click', onMenuDocClick, true);
+    document.removeEventListener('keydown', onMenuKey, true);
+    window.removeEventListener('resize', closeMenu);
+    window.removeEventListener('scroll', onMenuScroll, true);
+  }
+
+  function onMenuDocClick(e) {
+    if (activeMenu && !activeMenu.contains(e.target)) closeMenu();
+  }
+
+  // Close when the page/detail pane behind the menu scrolls (the menu is
+  // position:fixed and would detach from its anchor), but NOT when the user
+  // scrolls inside the menu itself.
+  function onMenuScroll(e) {
+    if (activeMenu && (e.target === activeMenu || activeMenu.contains(e.target))) return;
+    closeMenu();
+  }
+
+  function onMenuKey(e) {
+    if (e.key === 'Escape') { e.stopPropagation(); closeMenu(); }
+  }
+
+  function openMenu(anchor, items) {
+    closeMenu();
+    var menu = document.createElement('div');
+    menu.className = 'ih-menu';
+    menu.setAttribute('role', 'menu');
+
+    items.forEach(function (it) {
+      if (it.divider) {
+        var d = document.createElement('div');
+        d.className = 'ih-menu-divider';
+        menu.appendChild(d);
+        return;
+      }
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'ih-menu-item';
+      btn.setAttribute('role', 'menuitem');
+      if (it.disabled) btn.disabled = true;
+      if (it.icon) {
+        var ic = document.createElement('i');
+        ic.className = 'ti ' + it.icon;
+        btn.appendChild(ic);
+      }
+      var lab = document.createElement('span');
+      lab.className = 'ih-menu-label';
+      lab.textContent = it.label;
+      btn.appendChild(lab);
+      if (it.sub) {
+        var sub = document.createElement('span');
+        sub.className = 'ih-menu-sub';
+        sub.textContent = it.sub;
+        btn.appendChild(sub);
+      }
+      if (!it.disabled && it.onClick) {
+        btn.addEventListener('click', function () { closeMenu(); it.onClick(); });
+      }
+      menu.appendChild(btn);
+    });
+
+    document.body.appendChild(menu);
+    positionMenu(menu, anchor);
+    activeMenu = menu;
+    anchor.setAttribute('aria-expanded', 'true');
+
+    // Defer listener wiring so the click that opened the menu doesn't
+    // immediately close it.
     setTimeout(function () {
-      if (document.visibilityState !== 'hidden') window.location.href = url;
-    }, 8000);
+      document.addEventListener('click', onMenuDocClick, true);
+      document.addEventListener('keydown', onMenuKey, true);
+      window.addEventListener('resize', closeMenu);
+      window.addEventListener('scroll', onMenuScroll, true);
+    }, 0);
+  }
+
+  function positionMenu(menu, anchor) {
+    var r = anchor.getBoundingClientRect();
+    var margin = 6;
+    menu.style.position = 'fixed';
+    menu.style.minWidth = Math.max(r.width, 200) + 'px';
+    menu.style.visibility = 'hidden';
+    // Measure after it is in the DOM.
+    var mw = menu.offsetWidth;
+    var mh = menu.offsetHeight;
+    var top = r.bottom + margin;
+    var left = r.left;
+    if (top + mh > window.innerHeight - 8) {
+      var above = r.top - margin - mh;
+      if (above >= 8) top = above;            // flip up when there's room
+      else top = Math.max(8, window.innerHeight - 8 - mh);
+    }
+    if (left + mw > window.innerWidth - 8) {
+      left = Math.max(8, window.innerWidth - 8 - mw);
+    }
+    menu.style.top = top + 'px';
+    menu.style.left = left + 'px';
+    menu.style.visibility = '';
   }
 
   // ---------- Actions: Dismiss ----------
   function openDismissModal() {
     if (!state.selectedDetail || !dismissModal) return;
-    if (state.selectedDetail.state === 'dismissed') {
-      toast('info', 'Already dismissed.');
-      return;
-    }
     els.dismissReason.value = '';
     dismissModal.show();
   }
@@ -488,33 +984,42 @@
     var id = state.selectedDetail.id;
     var reason = (els.dismissReason.value || '').trim();
 
-    els.dismissSubmit.disabled = true;
-    els.dismissSubmit.replaceChildren();
-    var spin = document.createElement('span');
-    spin.className = 'spinner-border spinner-border-sm me-1';
-    spin.setAttribute('role', 'status');
-    els.dismissSubmit.appendChild(spin);
-    els.dismissSubmit.appendChild(document.createTextNode('Dismissing…'));
-
+    setBtnLoading(els.dismissSubmit, 'Dismissing…');
     Api.post('/api/v1/inbox-hub/hub-emails/' + encodeURIComponent(id) + '/dismiss/', { reason: reason })
       .then(function () {
         dismissModal.hide();
         toast('success', 'Email dismissed.');
-        Promise.all([loadList({ silent: true }), loadDetail(id), loadCounts()]);
+        afterTriage();
       })
       .catch(function (err) {
-        var msg = (err && (err.detail || err.error)) || 'Failed to dismiss.';
-        toast('error', msg);
+        toast('error', (err && (err.detail || err.error)) || 'Failed to dismiss.');
         console.warn('[InboxHub] dismiss failed:', err);
       })
       .finally(function () {
-        els.dismissSubmit.disabled = false;
-        els.dismissSubmit.replaceChildren();
-        var iconEl3 = document.createElement('i');
-        iconEl3.className = 'ti ti-archive me-1';
-        els.dismissSubmit.appendChild(iconEl3);
-        els.dismissSubmit.appendChild(document.createTextNode(' Dismiss'));
+        resetBtn(els.dismissSubmit, 'ti-archive', ' Dismiss');
       });
+  }
+
+  // ---------- Button spinner helpers ----------
+  function setBtnLoading(btn, label) {
+    if (!btn) return;
+    btn.disabled = true;
+    btn.replaceChildren();
+    var spin = document.createElement('span');
+    spin.className = 'spinner-border spinner-border-sm me-1';
+    spin.setAttribute('role', 'status');
+    btn.appendChild(spin);
+    btn.appendChild(document.createTextNode(label));
+  }
+
+  function resetBtn(btn, iconClass, label) {
+    if (!btn) return;
+    btn.disabled = false;
+    btn.replaceChildren();
+    var icon = document.createElement('i');
+    icon.className = 'ti ' + iconClass + ' me-1';
+    btn.appendChild(icon);
+    btn.appendChild(document.createTextNode(label));
   }
 
   // ---------- Event wiring ----------
@@ -522,13 +1027,7 @@
     els.nav.addEventListener('click', function (e) {
       var btn = e.target.closest('.ih-nav-link');
       if (!btn) return;
-      if (btn.dataset.filter) {
-        state.activeFilter = btn.dataset.filter;
-        state.activeState = null;
-      } else if (btn.dataset.state) {
-        state.activeState = btn.dataset.state;
-        state.activeFilter = 'all';
-      }
+      state.activeLens = btn.dataset.lens || 'all';
       state.page = 1;
       highlightActiveNav();
       renderFilterLabel();
@@ -568,6 +1067,11 @@
     });
 
     els.actionConvert.addEventListener('click', openConvertModal);
+    els.actionAssign.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (activeMenu) { closeMenu(); return; }   // toggle
+      openAssignMenu();
+    });
     els.actionDismiss.addEventListener('click', openDismissModal);
 
     if (els.convertForm) els.convertForm.addEventListener('submit', submitConvert);
@@ -582,10 +1086,13 @@
       if (e.key === 'j') { e.preventDefault(); selectNextRow(1); }
       else if (e.key === 'k') { e.preventDefault(); selectNextRow(-1); }
       else if (e.key === 'c' && state.selectedDetail) { e.preventDefault(); openConvertModal(); }
+      else if (e.key === 'a' && state.selectedDetail) { e.preventDefault(); openAssignMenu(); }
       else if (e.key === 'x' && state.selectedDetail) { e.preventDefault(); openDismissModal(); }
       else if (e.key === 'Escape') {
         state.selectedId = null;
         renderList();
+        hideContextCard();
+        renderOpenTicketNudge(null);
         showDetailEmpty();
       }
     });
@@ -593,11 +1100,14 @@
 
   function selectRow(rowId) {
     if (!rowId) return;
+    closeMenu();
     state.selectedId = rowId;
     renderList();
     var el = els.listBody.querySelector('.ih-row[data-row-id="' + rowId + '"]');
     if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' });
+    var row = state.items.find(function (r) { return r.id === rowId; });
     loadDetail(rowId);
+    loadContextFor(row);   // fires in parallel using contact_id on the row
   }
 
   function selectNextRow(delta) {
@@ -618,7 +1128,6 @@
       if (!withVisibility()) return;
       loadList({ silent: true });
       loadCounts();
-      if (state.selectedId) loadDetail(state.selectedId);
     }, 400);
 
     LiveBus.onMany(
@@ -637,7 +1146,6 @@
     LiveBus.on('live.reconnected', function () {
       loadList({ silent: true });
       loadCounts();
-      if (state.selectedId) loadDetail(state.selectedId);
     });
 
     document.addEventListener('visibilitychange', function () {
@@ -650,6 +1158,9 @@
 
   // ---------- Boot ----------
   function init() {
+    // Full-height app surface: let the Hub own the viewport (no page scroll).
+    // Scoped to this page via a body class; a full page load clears it.
+    document.body.classList.add('ih-page');
     wireEvents();
     wireLiveBus();
     highlightActiveNav();

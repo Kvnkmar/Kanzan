@@ -179,6 +179,28 @@ class TenantSettings(TimestampedModel):
             "the legacy auto-create-ticket flow runs unchanged."
         ),
     )
+    inbox_hub_auto_assign = models.BooleanField(
+        default=True,
+        help_text=(
+            "When True (default), the Inbox Hub auto-assigns each parked email "
+            "to an online agent in its routed department using load + fairness. "
+            "When no agent is online the email is held in the department queue "
+            "and auto-assigned the moment an eligible agent comes online. Set "
+            "False to leave all parked email for manual claim/assignment."
+        ),
+    )
+    inbox_hub_default_department = models.ForeignKey(
+        "inbox_hub.Department",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        help_text=(
+            "Fallback department for parked emails that match no routing rule. "
+            "When unset, unmatched email stays department-less and is visible "
+            "to any agent with a department membership (triage safety valve)."
+        ),
+    )
 
     # --- Branding ---
     primary_color = models.CharField(

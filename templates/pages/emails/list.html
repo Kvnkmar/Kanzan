@@ -12,7 +12,7 @@
     </div>
     <div>
       <h1 class="ae-page-title">Emails</h1>
-      <p class="ae-page-subtitle">Manage inbound and outbound ticket emails</p>
+      <p class="ae-page-subtitle">Emails assigned to you &amp; messages from your team &mdash; read, create a ticket, or reply</p>
     </div>
   </div>
   <button class="ae-refresh-btn" id="refreshAllBtn" title="Refresh all data">
@@ -67,6 +67,10 @@
       <button class="tl-stat-tab tl-stat-tab--active" data-filter="all">
         All <span class="tl-tab-count" id="emailCountAll">0</span>
       </button>
+      <button class="tl-stat-tab" data-filter="assigned">
+        <span class="tl-tab-dot" style="background:var(--crm-primary)"></span>
+        Assigned to me <span class="tl-tab-count" id="emailCountAssigned">0</span>
+      </button>
       <button class="tl-stat-tab" data-filter="reply_added">
         <span class="tl-tab-dot" style="background:var(--crm-accent)"></span>
         Replies <span class="tl-tab-count" id="emailCountReplies">0</span>
@@ -104,8 +108,8 @@
     </div>
     <div id="inboundEmailsEmpty" class="tl-empty d-none">
       <div class="tl-empty-icon"><i class="ti ti-inbox-off"></i></div>
-      <p class="tl-empty-title">No emails found</p>
-      <p class="tl-empty-text">Inbound emails will appear here when received</p>
+      <p class="tl-empty-title">No emails yet</p>
+      <p class="tl-empty-text">Emails addressed to you &mdash; plus customer emails assigned to you from the Inbox Hub &mdash; appear here. Open one to read it, create a ticket, or reply.</p>
     </div>
   </div>
 
@@ -259,9 +263,14 @@
           <i class="ti ti-unlink" aria-hidden="true"></i>
           <span>This email is not linked to any ticket</span>
         </div>
-        <button type="button" class="ep-btn ep-btn--link-action" id="previewLinkBtn" aria-label="Link this email to an existing ticket">
-          <i class="ti ti-link" aria-hidden="true"></i> Link to Ticket
-        </button>
+        <div class="d-flex gap-2">
+          <button type="button" class="ep-btn ep-btn--primary d-none" id="previewCreateTicketBtn" aria-label="Create a ticket from this email">
+            <i class="ti ti-ticket" aria-hidden="true"></i> Create ticket
+          </button>
+          <button type="button" class="ep-btn ep-btn--link-action" id="previewLinkBtn" aria-label="Link this email to an existing ticket">
+            <i class="ti ti-link" aria-hidden="true"></i> Link to Ticket
+          </button>
+        </div>
       </div>
 
       <!-- Info Grid -->
@@ -401,9 +410,24 @@
     var loadingEl = document.getElementById('inboundEmailsLoading');
     loadingEl.classList.remove('d-none');
 
-    Api.get('/api/v1/inbound-email/').then(function(data) {
+    // Two sources: internal mail addressed to me (notifications/escalations)
+    // AND the original customer emails handed to me from the Inbox Hub
+    // (?assigned=me). They never overlap (assigned mail is customer mail,
+    // which the internal view excludes), but we dedupe by id defensively.
+    Promise.all([
+      Api.get('/api/v1/inbound-email/?internal=true&mine=true').catch(function() { return { results: [] }; }),
+      Api.get('/api/v1/inbound-email/?assigned=me').catch(function() { return { results: [] }; })
+    ]).then(function(res) {
       loadingEl.classList.add('d-none');
-      allEmails = data.results || data;
+      var internal = res[0].results || res[0] || [];
+      var assigned = res[1].results || res[1] || [];
+      var byId = {};
+      internal.forEach(function(e) { byId[e.id] = e; });
+      assigned.forEach(function(e) {
+        byId[e.id] = Object.assign(byId[e.id] || {}, e, { _assigned: true });
+      });
+      allEmails = Object.keys(byId).map(function(k) { return byId[k]; });
+      allEmails.sort(function(a, b) { return new Date(b.created_at) - new Date(a.created_at); });
       document.getElementById('tabCountInbox').textContent = allEmails.length || '0';
       updateEmailCounts();
       renderEmails();
@@ -415,14 +439,16 @@
   }
 
   function updateEmailCounts() {
-    var counts = { all: allEmails.length, reply_added: 0, ticket_created: 0, pending: 0, failed: 0 };
+    var counts = { all: allEmails.length, assigned: 0, reply_added: 0, ticket_created: 0, pending: 0, failed: 0 };
     allEmails.forEach(function(e) {
+      if (e._assigned) counts.assigned++;
       if (e.status === 'reply_added') counts.reply_added++;
       else if (e.status === 'ticket_created') counts.ticket_created++;
       else if (e.status === 'pending' || e.status === 'processing') counts.pending++;
       else if (e.status === 'failed' || e.status === 'rejected') counts.failed++;
     });
     document.getElementById('emailCountAll').textContent = counts.all;
+    document.getElementById('emailCountAssigned').textContent = counts.assigned;
     document.getElementById('emailCountReplies').textContent = counts.reply_added;
     document.getElementById('emailCountCreated').textContent = counts.ticket_created;
     document.getElementById('emailCountPending').textContent = counts.pending;
@@ -438,7 +464,9 @@
       if (currentFilter === 'unlinked' && e.ticket) return false;
       if (currentFilter === 'linked' && !e.ticket) return false;
       if (currentFilter === 'failed' && (e.status !== 'failed' && e.status !== 'rejected')) return false;
-      if (currentTabFilter && currentTabFilter !== 'all') {
+      if (currentTabFilter === 'assigned') {
+        if (!e._assigned) return false;
+      } else if (currentTabFilter && currentTabFilter !== 'all') {
         if (currentTabFilter === 'failed' && e.status !== 'failed' && e.status !== 'rejected') return false;
         else if (currentTabFilter === 'pending' && e.status !== 'pending' && e.status !== 'processing') return false;
         else if (currentTabFilter !== 'failed' && currentTabFilter !== 'pending' && e.status !== currentTabFilter) return false;
@@ -603,11 +631,13 @@
     var unlinkedBanner = document.getElementById('previewUnlinkedBanner');
     var ticketRow = document.getElementById('previewTicketRow');
     var replyBtn = document.getElementById('previewReplyBtn');
+    var createBtn = document.getElementById('previewCreateTicketBtn');
 
     if (e.ticket_number) {
       ticketBanner.classList.remove('d-none');
       unlinkedBanner.classList.add('d-none');
       replyBtn.classList.remove('d-none');
+      createBtn.classList.add('d-none');
 
       var ticketLabel = '#' + e.ticket_number + (e.ticket_subject ? ' \u2014 ' + e.ticket_subject : '');
       document.getElementById('previewTicketText').textContent = ticketLabel;
@@ -620,6 +650,10 @@
       ticketBanner.classList.add('d-none');
       unlinkedBanner.classList.remove('d-none');
       replyBtn.classList.add('d-none');
+      // Offer "Create ticket" for customer / assigned mail (not for internal
+      // notifications, which shouldn't become tickets).
+      var canCreate = !!(e._assigned || e.assignee || e.sender_type === 'customer');
+      createBtn.classList.toggle('d-none', !canCreate);
       ticketRow.style.display = 'none';
     }
 
@@ -639,6 +673,30 @@
       if (previewModal) previewModal.hide();
       openLinkModal(currentPreviewEmail.id);
     }
+  });
+
+  document.getElementById('previewCreateTicketBtn').addEventListener('click', function() {
+    if (!currentPreviewEmail) return;
+    var id = currentPreviewEmail.id;
+    var btn = this;
+    btn.disabled = true;
+    Api.post('/api/v1/inbound-email/' + id + '/create-ticket/', {}).then(function(data) {
+      btn.disabled = false;
+      Toast.success('Created ticket #' + data.ticket_number);
+      // Reflect the new linkage in place so the Reply button appears
+      // immediately without reopening the email.
+      if (currentPreviewEmail && currentPreviewEmail.id === id) {
+        currentPreviewEmail.ticket = data.ticket_id;
+        currentPreviewEmail.ticket_number = data.ticket_number;
+        currentPreviewEmail.ticket_subject = data.ticket_subject;
+        currentPreviewEmail.status = 'ticket_created';
+        openPreview(currentPreviewEmail);
+      }
+      loadInboundEmails();
+    }).catch(function(err) {
+      btn.disabled = false;
+      Toast.error((err && err.detail) || 'Failed to create ticket');
+    });
   });
 
   document.getElementById('previewReplyBtn').addEventListener('click', function() {

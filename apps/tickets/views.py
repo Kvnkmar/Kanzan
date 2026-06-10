@@ -574,10 +574,12 @@ class TicketViewSet(ModelViewSet):
                     setattr(self.request, cache_attr, membership)
 
                 if membership and membership.role.hierarchy_level > 20:
-                    # Agent / Viewer: only tickets they created or are assigned to
-                    from django.db.models import Q
+                    # Agent / Viewer: tickets assigned to them, or created by
+                    # them and not yet handed off to another agent. Once a
+                    # ticket is assigned to someone else it leaves their view.
+                    from apps.tickets.access import agent_visible_tickets_q
 
-                    qs = qs.filter(Q(created_by=user) | Q(assignee=user))
+                    qs = qs.filter(agent_visible_tickets_q(user))
 
         return qs
 

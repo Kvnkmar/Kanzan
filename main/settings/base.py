@@ -323,7 +323,26 @@ CELERY_BEAT_SCHEDULE = {
         "task": "apps.inbound_email.tasks.fetch_inbound_emails_task",
         "schedule": 60.0,  # Poll IMAP every minute
     },
+    "reap-stale-presence": {
+        "task": "apps.agents.tasks.reap_stale_presence",
+        "schedule": 60.0,  # Age out dead /ws/live/ sessions every minute
+    },
+    "check-hub-sla-breaches": {
+        "task": "apps.inbox_hub.tasks.check_hub_sla_breaches",
+        "schedule": 120.0,  # Inbox Hub SLA breach + escalation sweep
+    },
 }
+
+# Agent presence (Inbox Hub auto-assignment)
+# How fresh a /ws/live/ heartbeat must be for an agent to count as truly
+# online and therefore assignable. The reaper task flips ONLINE agents whose
+# last_seen has aged past this TTL to AWAY.
+AGENT_PRESENCE_TTL_SECONDS = env.int("AGENT_PRESENCE_TTL_SECONDS", default=90)
+# When an agent opens a live socket while OFFLINE, auto-promote them to ONLINE.
+# A manual AWAY/BUSY choice is never overridden by this.
+AGENT_PRESENCE_AUTO_ONLINE = env.bool("AGENT_PRESENCE_AUTO_ONLINE", default=True)
+# Minutes before an Inbox Hub response deadline at which a one-shot warning fires.
+HUB_SLA_WARNING_MINUTES = env.int("HUB_SLA_WARNING_MINUTES", default=15)
 
 # Stripe
 STRIPE_SECRET_KEY = env("STRIPE_SECRET_KEY", default="")

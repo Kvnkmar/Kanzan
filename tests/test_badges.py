@@ -74,12 +74,16 @@ class BadgeCountBaseTests(KanzenBaseTestCase):
         # Resolved and closed should NOT be counted — so less than total
         self.assertLess(tickets_count, 4)
 
-    # 14.3 emails count = pending + linked InboundEmails only
+    # 14.3 emails count = pending + linked emails in the user's personal inbox
     def test_14_03_emails_count_pending_and_linked(self):
-        self._create_inbound_email(self.tenant_a, inbox_status="pending")
-        self._create_inbound_email(self.tenant_a, inbox_status="linked")
-        self._create_inbound_email(self.tenant_a, inbox_status="actioned")
-        self._create_inbound_email(self.tenant_a, inbox_status="ignored")
+        # Assigned to the requesting user (admin_a) → counts toward the badge,
+        # but only the pending/linked (unactioned) ones.
+        self._create_inbound_email(self.tenant_a, inbox_status="pending", assignee=self.admin_a)
+        self._create_inbound_email(self.tenant_a, inbox_status="linked", assignee=self.admin_a)
+        self._create_inbound_email(self.tenant_a, inbox_status="actioned", assignee=self.admin_a)
+        self._create_inbound_email(self.tenant_a, inbox_status="ignored", assignee=self.admin_a)
+        # Pending but assigned to someone else → NOT in admin_a's personal inbox.
+        self._create_inbound_email(self.tenant_a, inbox_status="pending", assignee=self.agent_a)
 
         resp = self._get_badges()
         self.assertEqual(resp.status_code, 200)
@@ -214,7 +218,9 @@ class BadgeCountBaseTests(KanzenBaseTestCase):
 
     # 14.8 Actioning an email → emails badge count decreases
     def test_14_08_actioning_email_decreases_count(self):
-        email = self._create_inbound_email(self.tenant_a, inbox_status="pending")
+        email = self._create_inbound_email(
+            self.tenant_a, inbox_status="pending", assignee=self.admin_a,
+        )
 
         resp = self._get_badges()
         initial_count = resp.data["emails"]

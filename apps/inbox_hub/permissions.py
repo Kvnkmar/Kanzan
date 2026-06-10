@@ -1,27 +1,95 @@
-"""Object-level row-scoping for HubEmail viewsets.
+"""Access + object-level row-scoping for HubEmail viewsets.
 
-Mirrors ``apps.accounts.permissions.IsTicketAccessible``: codename grants
-from ``HasTenantPermission`` answer "can this user do this *action*?" —
-this class answers "is this user allowed to see *this row*?".
+Codename grants from ``HasTenantPermission`` answer "can this user do this
+*action*?"; this module answers "may this user use the Hub at all, and may
+they see *this row*?".
 
-Row-scoping per the Inbox Hub RBAC grid (plan section 6):
+Access model (see :mod:`apps.inbox_hub.access` for the single source of truth):
 
-- Manager+ (effective hierarchy_level <= 20): unrestricted within tenant.
-- Team Lead (25): rows whose ``department`` has lead=user OR members∋user.
-- Agent / IT / HR (30): own department AND (assignee=user OR state=NEW
-  for triage of unassigned mail).
-- Viewer (40): own department, read-only (``HasTenantPermission``'s
-  action map denies non-view actions independently).
+- **Access gate** — who may open the Hub at all: Admins (level <= 10) always;
+  everyone else (Manager and below) only if they belong to ≥1 ``UserGroup``. A
+  non-Admin in **no** group is denied entirely (403). This is how admins
+  control Hub visibility from the Groups page.
+- **Row scope** — what an admitted user sees: Manager+ (level <= 20) see every
+  row in the tenant; agent-tier (level > 20) see the untriaged (``state=NEW``)
+  backlog plus anything assigned to them.
 
-Used only on the HubEmail viewset; Department / RoutingRule / SLA
-viewsets rely on the codename check alone (those are admin-managed and
-not row-scoped).
+Used only on the HubEmail viewset; Department / RoutingRule / SLA viewsets
+rely on the codename check alone (those are admin-managed and not row-scoped).
 """
 
 from rest_framework.permissions import BasePermission
 
 from apps.accounts.permissions import _get_membership
+from apps.inbox_hub.access import user_in_any_group
 from apps.inbox_hub.models import HubEmail
+
+
+class HubEmailPermission(BasePermission):
+    """Action-level codename gate for the HubEmail viewset.
+
+    Kept local (rather than reusing the global ``HasTenantPermission`` +
+    ``ACTION_MAP``) because action names like ``assign``/``escalate`` collide
+    with the Ticket viewset's mappings. Mirrors ``HasTenantPermission``: when
+    the role carries explicit permissions we check the codename; otherwise we
+    fall back to the role hierarchy.
+
+    ``claim`` and ``transition`` have no dedicated codename — they are core
+    "work the email" actions, gated at agent-or-above (<= 30). Row visibility
+    is enforced separately by :class:`IsHubEmailAccessible`.
+    """
+
+    ACTION_CODENAMES = {
+        "list": "hub_email.view",
+        "retrieve": "hub_email.view",
+        "context": "hub_email.view",
+        "convert_to_ticket": "hub_email.convert",
+        "dismiss": "hub_email.dismiss",
+        "assign": "hub_email.assign",
+        "reassign": "hub_email.reassign",
+        "escalate": "hub_email.escalate",
+        "note": "hub_email.note",
+    }
+    # Actions allowed for any agent-or-above (no dedicated codename exists).
+    AGENT_LEVEL_ACTIONS = {"claim", "transition"}
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            return False
+        membership = _get_membership(request, tenant)
+        if membership is None:
+            return False
+
+        action = view.action
+        level = membership.effective_role.hierarchy_level
+
+        # Group access gate: everyone below Admin must belong to ≥1 UserGroup
+        # to touch the Hub at all (list/retrieve/actions). Admins are exempt.
+        if level > 10 and not user_in_any_group(user, tenant):
+            return False
+
+        if action in self.AGENT_LEVEL_ACTIONS:
+            return level <= 30
+
+        codename = self.ACTION_CODENAMES.get(action)
+        if codename is None:
+            return False
+
+        effective_perms = membership.get_effective_permissions_qs()
+        if effective_perms.exists():
+            return membership.has_effective_permission(codename)
+
+        # Hierarchy fallback for tenants with no explicit permissions assigned.
+        verb = codename.split(".", 1)[1]
+        if verb == "view":
+            return level <= 40
+        if verb in ("convert", "reply", "escalate", "note"):
+            return level <= 30
+        return level <= 20  # assign, reassign, dismiss
 
 
 class IsHubEmailAccessible(BasePermission):
@@ -39,40 +107,22 @@ class IsHubEmailAccessible(BasePermission):
 
         level = membership.effective_role.hierarchy_level
 
-        # Manager+ see everything in their tenant.
+        # Admins are unrestricted within their tenant.
+        if level <= 10:
+            return True
+
+        # Everyone below Admin must belong to a group to see any row at all
+        # (access gate — ``HubEmailPermission`` already 403s the request, this
+        # is defence-in-depth for direct object checks).
+        if not user_in_any_group(user, tenant):
+            return False
+
+        # Manager+ (in a group) see every row; agent-tier see the untriaged
+        # backlog plus anything assigned to them.
         if level <= 20:
             return True
 
-        # Beyond this point we need the user's departments. A user with
-        # no department assignment cannot see any HubEmail (Phase 1A
-        # tenants without seeded Departments must add agents to one
-        # explicitly).
-        user_dept_ids = set(
-            user.department_memberships.filter(tenant=tenant).values_list(
-                "department_id", flat=True,
-            )
-        )
-        led_dept_ids = set(
-            user.led_departments.filter(tenant=tenant).values_list("id", flat=True)
-        )
-        visible_dept_ids = user_dept_ids | led_dept_ids
-
-        # Team Lead: full visibility within their own departments.
-        if level == 25:
-            return obj.department_id in visible_dept_ids
-
-        # Agent / IT / HR / Viewer: own department + (assigned-to-me OR
-        # state=NEW for triage). HubEmails with no department (Phase 1A
-        # default, before RoutingEngine lands) are visible to any
-        # agent-tier user with a department membership — otherwise the
-        # Hub appears empty in dev. Manager+ already returned True above.
-        if obj.department_id is None:
-            return bool(visible_dept_ids)
-
-        if obj.department_id not in visible_dept_ids:
-            return False
-
         return (
-            obj.assignee_id == user.pk
-            or obj.state == HubEmail.State.NEW
+            obj.state == HubEmail.State.NEW
+            or obj.assignee_id == user.pk
         )

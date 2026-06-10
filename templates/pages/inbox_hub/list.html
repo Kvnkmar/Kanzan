@@ -7,71 +7,59 @@
 
 <div class="ih-shell" id="inboxHubShell" data-current-user-id="{{ user.id }}">
   <!-- =================================================================
-       LEFT  — workload nav (filters)
-       MIDDLE — list of HubEmails (filterable)
-       RIGHT — detail pane with body + actions
+       Triage cockpit — Inbox Hub.
+       LEFT   — triage lenses (workload, not severity)
+       MIDDLE — list of emails for the active lens
+       RIGHT  — email + customer context + triage actions (convert /
+                assign / dismiss). Acting on an email routes it onward
+                and it leaves the Hub.
        ================================================================= -->
 
-  <!-- LEFT: Workload nav -->
-  <aside class="ih-nav" id="ihNav" aria-label="Inbox Hub navigation">
+  <!-- LEFT: triage lenses -->
+  <aside class="ih-nav" id="ihNav" aria-label="Inbox Hub lenses">
     <div class="ih-nav-section">
-      <span class="ih-nav-label">Workload</span>
-      <button type="button" class="ih-nav-link active" data-filter="all">
+      <span class="ih-nav-label">Triage</span>
+      <button type="button" class="ih-nav-link active" data-lens="all">
         <i class="ti ti-inbox"></i>
-        <span>All</span>
+        <span>All new</span>
         <span class="ih-nav-count" id="ihCountAll">0</span>
       </button>
-      <button type="button" class="ih-nav-link" data-filter="mine">
-        <i class="ti ti-user"></i>
-        <span>Mine</span>
+      <button type="button" class="ih-nav-link" data-lens="unassigned">
+        <i class="ti ti-user-question"></i>
+        <span>Unassigned</span>
+        <span class="ih-nav-count" id="ihCountUnassigned">0</span>
+      </button>
+      <button type="button" class="ih-nav-link" data-lens="mine">
+        <i class="ti ti-user-check"></i>
+        <span>Assigned to me</span>
         <span class="ih-nav-count" id="ihCountMine">0</span>
       </button>
-      <button type="button" class="ih-nav-link" data-filter="triage">
-        <i class="ti ti-sparkles"></i>
-        <span>Triage (New)</span>
-        <span class="ih-nav-count" id="ihCountTriage">0</span>
+      <button type="button" class="ih-nav-link" data-lens="oldest">
+        <i class="ti ti-clock-hour-4"></i>
+        <span>Oldest waiting</span>
+      </button>
+      <button type="button" class="ih-nav-link" data-lens="sla" id="ihLensSla" hidden>
+        <span class="ih-prio-dot ih-prio-dot--urgent"></span>
+        <span>SLA at risk</span>
+        <span class="ih-nav-count" id="ihCountSla">0</span>
       </button>
     </div>
 
-    <div class="ih-nav-section">
-      <span class="ih-nav-label">State</span>
-      <button type="button" class="ih-nav-link" data-state="new">
-        <span class="ih-state-dot ih-state-dot--new"></span>
-        <span>New</span>
-      </button>
-      <button type="button" class="ih-nav-link" data-state="assigned">
-        <span class="ih-state-dot ih-state-dot--assigned"></span>
-        <span>Assigned</span>
-      </button>
-      <button type="button" class="ih-nav-link" data-state="in_progress">
-        <span class="ih-state-dot ih-state-dot--in_progress"></span>
-        <span>In progress</span>
-      </button>
-      <button type="button" class="ih-nav-link" data-state="resolved">
-        <span class="ih-state-dot ih-state-dot--resolved"></span>
-        <span>Resolved</span>
-      </button>
-    </div>
-
-    <div class="ih-nav-section">
-      <span class="ih-nav-label">Terminal</span>
-      <button type="button" class="ih-nav-link" data-state="converted_to_ticket">
-        <i class="ti ti-ticket"></i>
-        <span>Converted</span>
-      </button>
-      <button type="button" class="ih-nav-link" data-state="dismissed">
-        <i class="ti ti-archive"></i>
-        <span>Dismissed</span>
-      </button>
+    <div class="ih-nav-foot">
+      <i class="ti ti-route"></i>
+      <p>
+        This is a triage desk. Once an email is converted, assigned or
+        dismissed it is routed onward and <strong>leaves the Hub</strong>.
+      </p>
     </div>
   </aside>
 
   <!-- MIDDLE: List -->
-  <section class="ih-list" aria-label="Inbox Hub messages">
+  <section class="ih-list" aria-label="Untriaged email">
     <header class="ih-list-header">
       <div class="ih-list-header-title">
         <h1 class="ih-title">Inbox Hub</h1>
-        <p class="ih-subtitle" id="ihActiveFilterLabel">All conversations</p>
+        <p class="ih-subtitle" id="ihActiveFilterLabel">Untriaged email</p>
       </div>
       <div class="ih-list-header-tools">
         <div class="ih-search-wrap">
@@ -88,7 +76,7 @@
       </div>
     </header>
 
-    <div class="ih-list-body" id="ihListBody" tabindex="0" role="listbox" aria-label="Hub email list">
+    <div class="ih-list-body" id="ihListBody" tabindex="0" role="listbox" aria-label="Untriaged email list">
       <!-- Skeleton loader, replaced after first fetch -->
       <div class="ih-skeleton" id="ihSkeleton">
         {% for _ in "12345" %}
@@ -113,70 +101,71 @@
     </footer>
   </section>
 
-  <!-- RIGHT: Detail pane -->
-  <section class="ih-detail" aria-label="Hub email detail">
+  <!-- RIGHT: Email + triage actions -->
+  <section class="ih-detail" aria-label="Email detail">
     <!-- Empty state -->
     <div class="ih-detail-empty" id="ihDetailEmpty">
       <div class="ih-detail-empty-inner">
         <i class="ti ti-mail-opened ih-empty-icon"></i>
         <h2 class="ih-empty-title">Select an email to triage</h2>
         <p class="ih-empty-help">
-          Click any row in the list to see the body, contact, and the actions
-          you can take. <strong>Convert</strong> creates a Ticket;
-          <strong>Dismiss</strong> closes the email without one.
+          Pick a row to read the message and route it on. <strong>Convert</strong>
+          opens a ticket, <strong>Assign</strong> hands it to an agent, and
+          <strong>Dismiss</strong> closes it out.
         </p>
         <div class="ih-empty-tips">
-          <div class="ih-empty-tip">
-            <kbd>J</kbd>/<kbd>K</kbd> <span>navigate rows</span>
-          </div>
-          <div class="ih-empty-tip">
-            <kbd>C</kbd> <span>convert selected</span>
-          </div>
-          <div class="ih-empty-tip">
-            <kbd>X</kbd> <span>dismiss selected</span>
-          </div>
+          <div class="ih-empty-tip"><kbd>J</kbd>/<kbd>K</kbd> <span>navigate</span></div>
+          <div class="ih-empty-tip"><kbd>C</kbd> <span>convert</span></div>
+          <div class="ih-empty-tip"><kbd>A</kbd> <span>assign</span></div>
+          <div class="ih-empty-tip"><kbd>X</kbd> <span>dismiss</span></div>
         </div>
       </div>
     </div>
 
     <!-- Loaded state (filled by JS) -->
     <article class="ih-detail-view" id="ihDetailView" hidden>
-      <header class="ih-detail-header">
-        <div class="ih-detail-title-row">
-          <span class="ih-state-pill" id="ihDetailStatePill"></span>
-          <span class="ih-priority-pill" id="ihDetailPriorityPill"></span>
-          <h2 class="ih-detail-subject" id="ihDetailSubject"></h2>
-        </div>
-        <div class="ih-detail-meta">
-          <span class="ih-meta-row">
-            <i class="ti ti-user-circle"></i>
-            <span id="ihDetailSenderName"></span>
-            <span class="ih-meta-divider">·</span>
-            <a href="#" id="ihDetailSenderEmail" class="ih-meta-link"></a>
-          </span>
-          <span class="ih-meta-row ih-meta-row--secondary">
-            <i class="ti ti-clock"></i>
-            <span id="ihDetailReceivedAt"></span>
-          </span>
-        </div>
-      </header>
-
-      <div class="ih-detail-actions" id="ihDetailActions">
+      <!-- Sticky triage action bar -->
+      <div class="ih-actionbar" id="ihDetailActions">
         <button type="button" class="btn btn-primary btn-sm" id="ihActionConvert">
           <i class="ti ti-ticket me-1"></i> Convert to ticket
         </button>
+        <button type="button" class="btn btn-outline-primary btn-sm" id="ihActionAssign"
+                aria-haspopup="menu" aria-expanded="false">
+          <i class="ti ti-user-plus me-1"></i> Assign <i class="ti ti-chevron-down ih-btn-caret"></i>
+        </button>
+        <a class="ih-open-ticket-nudge" id="ihOpenTicketNudge" href="#" hidden></a>
+        <span class="ih-actionbar-spacer"></span>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="ihActionDismiss">
           <i class="ti ti-archive me-1"></i> Dismiss
         </button>
-        <span class="ih-detail-actions-spacer"></span>
-        <a href="#" class="btn btn-outline-secondary btn-sm" id="ihActionViewTicket" hidden>
-          <i class="ti ti-external-link me-1"></i> Open ticket
-        </a>
       </div>
 
-      <section class="ih-body" aria-label="Email body">
-        <div class="ih-body-content" id="ihDetailBody"></div>
-      </section>
+      <div class="ih-detail-scroll">
+        <!-- Email "from" header — reads like a mail client -->
+        <header class="ih-email-head">
+          <div class="ih-avatar" id="ihDetailAvatar" aria-hidden="true">?</div>
+          <div class="ih-email-head-main">
+            <h2 class="ih-email-subject" id="ihDetailSubject"></h2>
+            <div class="ih-email-from">
+              <span class="ih-email-from-name" id="ihDetailSenderName"></span>
+              <a href="#" class="ih-email-from-addr" id="ihDetailSenderEmail"></a>
+            </div>
+            <div class="ih-email-when">
+              <i class="ti ti-clock"></i>
+              <span id="ihDetailReceivedAt"></span>
+              <span class="ih-sla-badge" id="ihDetailSlaBadge" hidden></span>
+            </div>
+          </div>
+        </header>
+
+        <!-- Customer context — who is writing + our history with them.
+             Filled by JS (renderContext / renderFirstContact). -->
+        <section class="ih-context-card" id="ihContextCard" aria-label="Customer context" hidden></section>
+
+        <section class="ih-email-body" aria-label="Email body">
+          <div class="ih-body-content" id="ihDetailBody"></div>
+        </section>
+      </div>
     </article>
   </section>
 </div>
@@ -210,7 +199,7 @@
               <select class="form-select" id="ihConvertPriority">
                 <option value="">Inherit</option>
                 <option value="low">Low</option>
-                <option value="medium">Medium</option>
+                <option value="normal">Normal</option>
                 <option value="high">High</option>
                 <option value="urgent">Urgent</option>
               </select>
@@ -277,5 +266,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/inbox-hub.js' %}?v=1"></script>
+<script src="{% static 'js/inbox-hub.js' %}?v=8"></script>
 {% endblock %}

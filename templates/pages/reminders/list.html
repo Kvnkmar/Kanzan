@@ -19,7 +19,7 @@
 .flatpickr-months { background: transparent !important; padding: 14px 12px 8px; flex-shrink: 0; }
 .flatpickr-months .flatpickr-month { height: 32px; }
 .flatpickr-months .flatpickr-prev-month,
-.flatpickr-months .flatpickr-next-month { fill: var(--crm-text-secondary) !important; color: var(--crm-text-secondary) !important; padding: 6px 8px; border-radius: 8px; transition: all 0.15s; }
+.flatpickr-months .flatpickr-next-month { fill: var(--crm-text-secondary) !important; color: var(--crm-text-secondary) !important; padding: 6px 8px; border-radius: var(--crm-radius-sm); transition: all 0.15s; }
 .flatpickr-months .flatpickr-prev-month:hover,
 .flatpickr-months .flatpickr-next-month:hover { background: var(--crm-bg-elevated-2) !important; fill: var(--crm-text) !important; }
 .flatpickr-current-month { color: var(--crm-text) !important; font-weight: 700 !important; font-size: 0.9375rem; }
@@ -33,20 +33,20 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .flatpickr-days { width: 100% !important; }
 .dayContainer { width: 100% !important; min-width: 100% !important; max-width: 100% !important; justify-content: center; }
 .flatpickr-day {
-  color: var(--crm-text-secondary) !important; font-weight: 500; font-size: 0.8125rem;
+  color: var(--crm-text-secondary) !important; font-weight: var(--crm-weight-medium); font-size: 0.8125rem;
   border-radius: 10px !important; max-width: 38px; height: 38px; line-height: 1;
   margin: 1px; border: 2px solid transparent; transition: all 0.12s ease;
   display: inline-flex !important; align-items: center; justify-content: center;
   box-sizing: border-box;
 }
 .flatpickr-day:hover { background: var(--crm-bg-elevated-2) !important; border-color: transparent !important; color: var(--crm-text) !important; }
-.flatpickr-day.today { border-color: rgba(var(--crm-primary-rgb), 0.55) !important; background: rgba(var(--crm-primary-rgb), 0.08) !important; color: var(--crm-primary, var(--crm-primary)) !important; font-weight: 700; }
-.flatpickr-day.today:hover { background: rgba(var(--crm-primary-rgb), 0.14) !important; border-color: var(--crm-primary, var(--crm-primary)) !important; }
+.flatpickr-day.today { border-color: rgba(var(--crm-primary-rgb), 0.55) !important; background: rgba(var(--crm-primary-rgb), 0.08) !important; color: var(--crm-primary) !important; font-weight: var(--crm-weight-bold); }
+.flatpickr-day.today:hover { background: rgba(var(--crm-primary-rgb), 0.14) !important; border-color: var(--crm-primary) !important; }
 .flatpickr-day.selected,
 .flatpickr-day.selected:hover,
 .flatpickr-day.selected:focus,
 .flatpickr-day.today.selected,
-.flatpickr-day.today.selected:hover { background: var(--crm-primary, var(--crm-primary)) !important; border-color: var(--crm-primary, var(--crm-primary)) !important; color: var(--crm-text-on-primary) !important; font-weight: 600; box-shadow: 0 2px 8px rgba(var(--crm-primary-rgb), 0.35); }
+.flatpickr-day.today.selected:hover { background: var(--crm-primary) !important; border-color: var(--crm-primary) !important; color: var(--crm-text-on-primary) !important; font-weight: var(--crm-weight-semibold); box-shadow: 0 2px 8px rgba(var(--crm-primary-rgb), 0.35); }
 .flatpickr-day.prevMonthDay,
 .flatpickr-day.nextMonthDay { color: var(--crm-text-secondary) !important; }
 .flatpickr-day.prevMonthDay:hover,
@@ -58,13 +58,13 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   height: 52px; max-height: 52px !important; padding: 8px 16px; margin: 0;
   border-top: 1px solid var(--crm-border) !important; background: transparent !important; overflow: visible;
 }
-.flatpickr-time input { color: var(--crm-text) !important; font-weight: 600; font-size: 1rem; font-family: 'Inter', sans-serif; background: transparent !important; border: none; }
+.flatpickr-time input { color: var(--crm-text) !important; font-weight: var(--crm-weight-semibold); font-size: 1rem; font-family: 'Inter', sans-serif; background: transparent !important; border: none; }
 .flatpickr-time input:hover,
-.flatpickr-time input:focus { background: var(--crm-bg-elevated-2) !important; border-radius: 8px; }
-.flatpickr-time .numInputWrapper { border-radius: 8px; height: 36px; }
+.flatpickr-time input:focus { background: var(--crm-bg-elevated-2) !important; border-radius: var(--crm-radius-sm); }
+.flatpickr-time .numInputWrapper { border-radius: var(--crm-radius-sm); height: 36px; }
 .flatpickr-time .numInputWrapper:hover { background: var(--crm-bg-elevated-2); }
-.flatpickr-time .flatpickr-time-separator { color: var(--crm-text-muted) !important; font-weight: 600; font-size: 1rem; line-height: 36px; padding: 0 6px; }
-.flatpickr-time .flatpickr-am-pm { color: var(--crm-primary, var(--crm-primary)) !important; font-weight: 700; font-size: 0.8125rem; letter-spacing: 0.04em; border-radius: 6px; background: transparent !important; height: 36px; line-height: 36px; padding: 0 8px; min-width: 36px; text-align: center; cursor: pointer; }
+.flatpickr-time .flatpickr-time-separator { color: var(--crm-text-muted) !important; font-weight: var(--crm-weight-semibold); font-size: 1rem; line-height: 36px; padding: 0 6px; }
+.flatpickr-time .flatpickr-am-pm { color: var(--crm-primary) !important; font-weight: var(--crm-weight-bold); font-size: 0.8125rem; letter-spacing: 0.04em; border-radius: var(--crm-radius-md); background: transparent !important; height: 36px; line-height: 36px; padding: 0 8px; min-width: 36px; text-align: center; cursor: pointer; }
 .flatpickr-time .flatpickr-am-pm:hover,
 .flatpickr-time .flatpickr-am-pm:focus { background: rgba(var(--crm-primary-rgb), 0.08) !important; }
 .numInputWrapper span { border: none !important; background: transparent; opacity: 0; transition: opacity 0.15s; }
@@ -77,8 +77,8 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   padding: 10px 14px 14px; background: transparent; border-top: none;
 }
 .flatpickr-done-btn {
-  padding: 8px 22px; font-size: 0.875rem; font-weight: 600; font-family: 'Inter', sans-serif;
-  color: var(--crm-text-on-primary); background: var(--crm-primary, var(--crm-primary)); border: none; border-radius: 8px;
+  padding: 8px 22px; font-size: 0.875rem; font-weight: var(--crm-weight-semibold); font-family: 'Inter', sans-serif;
+  color: var(--crm-text-on-primary); background: var(--crm-primary); border: none; border-radius: var(--crm-radius-sm);
   cursor: pointer; transition: background 0.15s, filter 0.15s;
   box-shadow: 0 1px 2px rgba(var(--crm-primary-rgb), 0.25);
 }
@@ -120,150 +120,159 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 
 /* ── Reminders v2 — split-pane workspace ─────────────────────────── */
 
-/* Page hero — compact summary strip replaces the old 5 stat cards */
+/* Page hero — clean title row above a full-width stat-card grid */
 .rm-hero {
-  display: flex; flex-direction: column; gap: 0.75rem;
+  display: flex; flex-direction: column; gap: 1rem;
   margin-bottom: 1rem;
 }
 .rm-hero-top {
-  display: flex; align-items: flex-start; justify-content: space-between;
+  display: flex; align-items: center; justify-content: space-between;
   flex-wrap: wrap; gap: 0.75rem;
 }
 .rm-hero-title { display: flex; align-items: center; gap: 0.875rem; min-width: 0; }
 .rm-hero-title .ae-page-icon { flex-shrink: 0; }
-.rm-hero-title h1 { margin: 0; line-height: 1.15; }
-.rm-hero-title p { margin: 0.125rem 0 0; font-size: 0.8125rem; color: var(--crm-text-muted); }
+.rm-hero-title .page-title {
+  margin: 0; line-height: 1.2;
+  font-size: 1.375rem; font-weight: var(--crm-weight-bold);
+  letter-spacing: -0.02em; color: var(--crm-text);
+}
+.rm-hero-title p { margin: 0.1875rem 0 0; font-size: 0.8125rem; color: var(--crm-text-muted); }
 .rm-hero-actions { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
 .rm-hero-actions .btn-primary { display: inline-flex; align-items: center; gap: 0.375rem; }
 
-/* Summary strip — tight inline counts under the title */
+/* Summary stat cards — evenly spaced, full-width row (each doubles as a quick filter) */
 .rm-summary {
-  display: inline-flex; align-items: center; flex-wrap: wrap;
-  gap: 0.25rem; padding: 0.375rem;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0.75rem;
+  width: 100%;
+  max-width: 100%;
+}
+@media (max-width: 991px) { .rm-summary { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 575px) { .rm-summary { grid-template-columns: repeat(2, 1fr); } }
+.rm-summary-item {
+  display: flex; align-items: center; gap: 0.75rem;
+  padding: 0.8125rem 0.9375rem;
   background: var(--bs-body-bg, var(--crm-surface));
   border: 1px solid var(--bs-border-color, var(--crm-border));
-  border-radius: 12px;
-  width: fit-content;
-  max-width: 100%;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.02);
-}
-.rm-summary-item {
-  display: inline-flex; align-items: center; gap: 0.5rem;
-  padding: 0.375rem 0.75rem;
-  font-size: 0.75rem; color: var(--crm-text-secondary);
-  border-radius: 8px;
+  border-radius: var(--crm-radius-lg);
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, transform 0.12s;
-  white-space: nowrap;
+  box-shadow: var(--crm-shadow-xs);
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease, box-shadow 0.16s ease;
   position: relative;
+  min-width: 0;
 }
 .rm-summary-item:hover {
-  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
-  color: var(--crm-text);
+  border-color: rgba(var(--crm-primary-rgb), 0.28);
+  transform: translateY(-1px);
+  box-shadow: var(--crm-shadow-sm);
 }
-.rm-summary-item:active { transform: translateY(1px); }
+.rm-summary-item:active { transform: translateY(0); }
 .rm-summary-item.is-active {
-  background: rgba(var(--crm-primary-rgb), 0.10);
-  color: var(--crm-primary-active);
-  font-weight: 600;
+  border-color: rgba(var(--crm-primary-rgb), 0.40);
+  background: rgba(var(--crm-primary-rgb), 0.05);
   box-shadow: inset 0 0 0 1px rgba(var(--crm-primary-rgb), 0.18);
 }
-.rm-summary-item.is-active::after {
-  content: 'ON';
-  font-size: 0.5625rem; font-weight: 800;
-  letter-spacing: 0.06em;
-  padding: 0 0.25rem;
-  border-radius: 3px;
-  background: var(--crm-primary);
-  color: var(--crm-text-on-primary);
-  line-height: 1.4;
+.rm-summary-item:focus-visible {
+  outline: none;
+  border-color: var(--crm-primary);
+  box-shadow: 0 0 0 3px rgba(var(--crm-primary-rgb), 0.16);
 }
-.rm-summary-dot {
-  width: 8px; height: 8px; border-radius: 50%;
-  background: var(--crm-text-muted);
-  flex-shrink: 0;
-  box-shadow: 0 0 0 2px rgba(0,0,0,0); /* placeholder for halo on active */
-  transition: box-shadow 0.15s;
+/* Icon medallion carries each stat's accent colour */
+.rm-stat-icon {
+  width: 34px; height: 34px; flex-shrink: 0;
+  border-radius: var(--crm-radius);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 1.0625rem;
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  color: var(--crm-text-muted);
+  transition: background 0.16s ease, color 0.16s ease;
 }
-.rm-summary-item--overdue .rm-summary-dot   { background: var(--crm-primary); }
-.rm-summary-item--mine .rm-summary-dot      { background: rgba(245,158,11,1); }
-.rm-summary-item--pending .rm-summary-dot   { background: rgba(59,130,246,1); }
-.rm-summary-item--today .rm-summary-dot     { background: var(--crm-accent, var(--crm-primary)); }
-.rm-summary-item--done .rm-summary-dot      { background: rgba(34,197,94,1); }
-.rm-summary-item.is-active .rm-summary-dot {
-  box-shadow: 0 0 0 3px rgba(var(--crm-primary-rgb), 0.18);
-}
+.rm-summary-item--overdue .rm-stat-icon { background: rgba(var(--crm-primary-rgb), 0.11); color: var(--crm-primary-active); }
+.rm-summary-item--mine    .rm-stat-icon { background: rgba(245,158,11,0.13); color: var(--status-warning-text); }
+.rm-summary-item--pending .rm-stat-icon { background: rgba(59,130,246,0.13); color: var(--status-info-text); }
+.rm-summary-item--today   .rm-stat-icon { background: rgba(var(--crm-accent-rgb), 0.13); color: var(--crm-accent, var(--crm-primary-active)); }
+.rm-summary-item--done    .rm-stat-icon { background: rgba(34,197,94,0.13); color: var(--status-success-text); }
+.rm-stat-meta { display: flex; flex-direction: column; gap: 0.0625rem; min-width: 0; }
 .rm-summary-num {
-  font-weight: 700; color: var(--crm-text);
+  font-weight: var(--crm-weight-bold); color: var(--crm-text);
   font-variant-numeric: tabular-nums;
-  font-size: 0.875rem;
+  font-size: 1.25rem; line-height: 1.1;
+  letter-spacing: -0.01em;
 }
-.rm-summary-item.is-active .rm-summary-num { color: var(--crm-primary-active); }
-[data-bs-theme="dark"] .rm-summary { border-color: rgba(255,255,255,0.08); box-shadow: 0 1px 2px rgba(0,0,0,0.18); }
-[data-bs-theme="dark"] .rm-summary-item:hover { background: rgba(255,255,255,0.06); }
+.rm-stat-label {
+  font-size: 0.6875rem; color: var(--crm-text-muted);
+  font-weight: var(--crm-weight-semibold); letter-spacing: 0.02em;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.rm-summary-item.is-active .rm-summary-num,
+.rm-summary-item.is-active .rm-stat-label { color: var(--crm-primary-active); }
+[data-bs-theme="dark"] .rm-summary-item:hover {
+  border-color: rgba(var(--crm-accent-rgb), 0.30);
+  box-shadow: var(--crm-shadow-sm);
+}
 [data-bs-theme="dark"] .rm-summary-item.is-active {
-  background: rgba(var(--crm-accent-rgb), 0.22);
-  color: var(--crm-primary-300);
-  box-shadow: inset 0 0 0 1px rgba(var(--crm-accent-rgb), 0.36);
+  border-color: rgba(var(--crm-accent-rgb), 0.45);
+  background: rgba(var(--crm-accent-rgb), 0.14);
+  box-shadow: inset 0 0 0 1px rgba(var(--crm-accent-rgb), 0.30);
 }
-[data-bs-theme="dark"] .rm-summary-item.is-active .rm-summary-num { color: var(--crm-primary-300); }
-[data-bs-theme="dark"] .rm-summary-item.is-active .rm-summary-dot {
-  box-shadow: 0 0 0 3px rgba(var(--crm-accent-rgb), 0.22);
-}
+[data-bs-theme="dark"] .rm-summary-item.is-active .rm-summary-num,
+[data-bs-theme="dark"] .rm-summary-item.is-active .rm-stat-label { color: var(--crm-primary-300); }
+[data-bs-theme="dark"] .rm-stat-icon { background: rgba(255,255,255,0.05); }
+[data-bs-theme="dark"] .rm-summary-item--mine    .rm-stat-icon { background: rgba(245,158,11,0.18); }
+[data-bs-theme="dark"] .rm-summary-item--pending .rm-stat-icon { background: rgba(96,165,250,0.20); color: var(--status-info-text); }
+[data-bs-theme="dark"] .rm-summary-item--done    .rm-stat-icon { background: rgba(34,197,94,0.18); }
 
 /* Workload progress banner — productivity-oriented strip above the workspace */
 .rm-workload {
-  display: flex; align-items: center; gap: 1rem;
+  display: flex; align-items: center; gap: 0.875rem;
   margin-bottom: 1rem;
   padding: 0.75rem 1.125rem;
-  background: linear-gradient(135deg,
-    rgba(var(--crm-primary-rgb), 0.05),
-    rgba(var(--crm-primary-rgb), 0.02) 60%,
-    transparent);
+  background:
+    linear-gradient(90deg, rgba(var(--crm-primary-rgb), 0.04), transparent 55%),
+    var(--bs-body-bg, var(--crm-surface));
   border: 1px solid var(--bs-border-color, var(--crm-border));
-  border-radius: 12px;
+  border-radius: var(--crm-radius-lg);
+  box-shadow: var(--crm-shadow-xs);
   position: relative; overflow: hidden;
 }
-.rm-workload::before {
-  content: '';
-  position: absolute; right: -40px; top: -40px;
-  width: 160px; height: 160px;
-  background: radial-gradient(circle, rgba(var(--crm-primary-rgb), 0.10), transparent 70%);
-  pointer-events: none;
+/* Idle day → no work to chart, so hide the empty progress track entirely */
+.rm-workload.is-idle .rm-workload-progress { display: none; }
+.rm-workload.is-idle {
+  background: var(--bs-body-bg, var(--crm-surface));
 }
 [data-bs-theme="dark"] .rm-workload {
-  background: linear-gradient(135deg,
-    rgba(var(--crm-accent-rgb), 0.10),
-    rgba(var(--crm-accent-rgb), 0.04) 60%,
-    transparent);
+  background:
+    linear-gradient(90deg, rgba(var(--crm-accent-rgb), 0.08), transparent 55%),
+    var(--crm-surface);
 }
-[data-bs-theme="dark"] .rm-workload::before {
-  background: radial-gradient(circle, rgba(var(--crm-accent-rgb), 0.18), transparent 70%);
+[data-bs-theme="dark"] .rm-workload.is-idle {
+  background: var(--crm-surface);
 }
 .rm-workload-icon {
-  width: 40px; height: 40px; flex-shrink: 0;
-  border-radius: 12px;
+  width: 36px; height: 36px; flex-shrink: 0;
+  border-radius: var(--crm-radius);
   background: rgba(var(--crm-primary-rgb), 0.10);
   color: var(--crm-primary-active);
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 1.125rem;
+  font-size: 1.0625rem;
   position: relative;
 }
 [data-bs-theme="dark"] .rm-workload-icon {
-  background: rgba(var(--crm-accent-rgb), 0.22);
+  background: rgba(var(--crm-accent-rgb), 0.20);
   color: var(--crm-primary-300);
 }
 .rm-workload-text { flex: 1; min-width: 0; position: relative; }
 .rm-workload-title {
-  font-size: 0.875rem; font-weight: 700; color: var(--crm-text);
-  line-height: 1.3;
+  font-size: 0.875rem; font-weight: var(--crm-weight-bold); color: var(--crm-text);
+  line-height: 1.3; letter-spacing: -0.005em;
   display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
 }
 .rm-workload-tone {
-  font-size: 0.625rem; font-weight: 700;
+  font-size: 0.625rem; font-weight: var(--crm-weight-bold);
   letter-spacing: 0.06em; text-transform: uppercase;
   padding: 0.0625rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
 }
 .rm-workload-tone--good {
   background: rgba(34,197,94,0.14); color: var(--status-success-text);
@@ -284,7 +293,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 }
 .rm-workload-progress {
   display: flex; align-items: center; gap: 0.625rem;
-  min-width: 220px;
+  min-width: 200px;
   position: relative;
 }
 @media (max-width: 575px) {
@@ -293,9 +302,9 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 }
 .rm-workload-bar {
   flex: 1;
-  height: 7px;
+  height: 6px;
   background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   overflow: hidden;
   box-shadow: inset 0 1px 1px rgba(0,0,0,0.05);
 }
@@ -304,33 +313,17 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   background: linear-gradient(90deg,
     var(--crm-primary),
     rgba(var(--crm-primary-rgb), 0.85));
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   transition: width 0.5s cubic-bezier(0.25, 1, 0.5, 1);
   position: relative;
-}
-.rm-workload-fill::after {
-  content: '';
-  position: absolute; inset: 0;
-  background: linear-gradient(90deg,
-    transparent, rgba(255,255,255,0.35), transparent);
-  background-size: 200% 100%;
-  animation: rm-workload-shimmer 2.5s ease-in-out infinite;
-  border-radius: 999px;
 }
 .rm-workload-fill--complete {
   background: linear-gradient(90deg,
     rgba(34,197,94,0.95),
     rgba(34,197,94,0.75));
 }
-@keyframes rm-workload-shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .rm-workload-fill::after { animation: none; opacity: 0; }
-}
 .rm-workload-pct {
-  font-weight: 700;
+  font-weight: var(--crm-weight-bold);
   font-size: 0.875rem;
   font-variant-numeric: tabular-nums;
   color: var(--crm-text);
@@ -341,7 +334,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-workspace {
   display: grid;
   grid-template-columns: minmax(340px, 400px) 1fr;
-  gap: 1rem;
+  gap: 1.25rem;
   align-items: stretch;
 }
 @media (max-width: 991px) {
@@ -355,26 +348,68 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   .rm-detail-back { display: inline-flex !important; }
 }
 
+/* ── Full-viewport surface (desktop ≥992px) — the page fits without scrolling.
+   Mirrors the Inbox Hub's body.ih-page approach: pin the shared content wrapper
+   to a viewport-based height (vh is definite, so it resolves regardless of the
+   flex ancestor chain), make it a flex column, keep the hero + workload as
+   fixed rows, and let the workspace flex to fill the rest with each pane
+   scrolling INTERNALLY. The body.rm-page class is set by the page JS. Mobile
+   keeps the natural stacked, scrollable layout. */
+@media (min-width: 992px) {
+  body.rm-page .crm-content-wrapper {
+    height: calc(100vh - var(--crm-content-header-height));
+    flex: 0 0 auto;            /* the vh height is authoritative, not flex-grow */
+    padding-top: 1.25rem;
+    padding-bottom: 1.25rem;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  /* The page content lives inside .crm-page-content (a wrapper that sits between
+     .crm-content-wrapper and the page's content block). Make THAT a flex column
+     too, so the hero / workload / workspace distribute; otherwise it keeps its
+     natural height and the workspace can't flex to fill the viewport. */
+  body.rm-page .crm-page-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  body.rm-page .rm-hero     { flex: 0 0 auto; margin-bottom: 0.875rem; }
+  body.rm-page .rm-workload { flex: 0 0 auto; margin-bottom: 0.875rem; }
+  body.rm-page .rm-workspace { flex: 1 1 auto; min-height: 0; }
+  body.rm-page .rm-list,
+  body.rm-page .rm-detail {
+    position: static;
+    top: auto;
+    height: 100%;
+    min-height: 0;
+    max-height: none;
+  }
+}
+
 /* ── LEFT: list pane ─────────────────────────────────────────────── */
 .rm-list {
   background: var(--bs-body-bg, var(--crm-surface));
   border: 1px solid var(--bs-border-color, var(--crm-border));
-  border-radius: 14px;
+  border-radius: var(--crm-radius-lg);
+  box-shadow: var(--crm-shadow-xs);
   display: flex; flex-direction: column;
-  min-height: 540px;
+  min-height: 560px;
   max-height: calc(100vh - 2rem);
   position: sticky;
   top: 1rem;
-  align-self: flex-start;
+  align-self: stretch;
   overflow: hidden;
 }
 @media (max-width: 991px) {
   .rm-list { position: static; max-height: none; min-height: 0; }
 }
 .rm-list-toolbar {
-  padding: 0.75rem 0.875rem;
+  padding: 0.875rem 1rem;
   border-bottom: 1px solid var(--bs-border-color, var(--crm-border));
-  display: flex; flex-direction: column; gap: 0.5rem;
+  display: flex; flex-direction: column; gap: 0.625rem;
   background: var(--bs-body-bg, var(--crm-surface));
 }
 .rm-list-toolbar-top {
@@ -389,10 +424,10 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 }
 .rm-search input {
   width: 100%;
-  padding: 0.4rem 0.6rem 0.4rem 2rem;
+  padding: 0.5rem 0.6rem 0.5rem 2rem;
   font-size: 0.8125rem;
   border: 1px solid var(--bs-border-color, var(--crm-border));
-  border-radius: 8px;
+  border-radius: var(--crm-radius-sm);
   background: var(--bs-body-bg, var(--crm-surface));
   color: var(--crm-text);
   transition: border-color 0.12s, box-shadow 0.12s;
@@ -405,7 +440,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-segmented {
   display: inline-flex;
   border: 1px solid var(--bs-border-color, var(--crm-border));
-  border-radius: 8px;
+  border-radius: var(--crm-radius-sm);
   padding: 2px;
   background: var(--bs-body-bg, var(--crm-surface));
   gap: 2px;
@@ -415,7 +450,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   border-radius: 6px !important;
   padding: 0.25rem 0.625rem;
   font-size: 0.7188rem;
-  font-weight: 600;
+  font-weight: var(--crm-weight-semibold);
   color: var(--crm-text-secondary);
   background: transparent;
   display: inline-flex; align-items: center; gap: 4px;
@@ -430,22 +465,136 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 [data-bs-theme="dark"] .rm-segmented .btn:hover { background: rgba(255,255,255,0.06); color: var(--crm-text); }
 [data-bs-theme="dark"] .rm-segmented .btn.active { background: rgba(var(--crm-accent-rgb), 0.22); color: var(--crm-primary-300); }
 .rm-list-filters {
-  display: flex; gap: 0.4rem; flex-wrap: wrap;
+  display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: stretch;
 }
-.rm-list-filters .form-select-sm {
-  font-size: 0.75rem;
-  padding-top: 0.275rem; padding-bottom: 0.275rem;
-  flex: 1; min-width: 110px;
+/* ── "Filters" trigger + popover (collapses status + priority selects) ── */
+.rm-filter-btn {
+  display: inline-flex; align-items: center; gap: 0.375rem;
+  flex: 0 0 auto;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-radius: var(--crm-radius-sm);
+  background: var(--bs-body-bg, var(--crm-surface));
+  color: var(--crm-text-secondary);
+  font-size: 0.7188rem; font-weight: var(--crm-weight-semibold); line-height: 1;
+  white-space: nowrap; cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
+.rm-filter-btn > i { font-size: 0.95rem; }
+.rm-filter-btn .rm-filter-caret { font-size: 0.8125rem; opacity: 0.7; margin-left: -0.0625rem; transition: transform 0.15s; }
+.rm-filter-btn:hover {
+  background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
+  color: var(--crm-text);
+  border-color: rgba(var(--crm-primary-rgb), 0.30);
+}
+.rm-filter-btn.is-open,
+.rm-filter-btn.has-filters {
+  background: rgba(var(--crm-primary-rgb), 0.10);
+  color: var(--crm-primary-active);
+  border-color: rgba(var(--crm-primary-rgb), 0.36);
+}
+.rm-filter-btn.is-open .rm-filter-caret { transform: rotate(180deg); }
+.rm-filter-btn:focus-visible {
+  outline: none; border-color: var(--crm-primary);
+  box-shadow: 0 0 0 3px rgba(var(--crm-primary-rgb), 0.12);
+}
+.rm-filter-count {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: var(--crm-radius-pill);
+  background: var(--crm-primary);
+  color: var(--crm-text-on-primary);
+  font-size: 0.625rem; font-weight: var(--crm-weight-bold);
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.rm-filter-count[hidden] { display: none; }
+.rm-filter-btn.has-filters .rm-filter-count { background: var(--crm-primary); }
+[data-bs-theme="dark"] .rm-filter-btn { border-color: rgba(255,255,255,0.10); background: transparent; }
+[data-bs-theme="dark"] .rm-filter-btn:hover { background: rgba(255,255,255,0.06); }
+[data-bs-theme="dark"] .rm-filter-btn.is-open,
+[data-bs-theme="dark"] .rm-filter-btn.has-filters {
+  background: rgba(var(--crm-accent-rgb), 0.22);
+  color: var(--crm-primary-300);
+  border-color: rgba(var(--crm-accent-rgb), 0.40);
+}
+
+/* Body-portaled popover (escapes the list pane's overflow:hidden) */
+.rm-filter-pop {
+  position: fixed;
+  z-index: var(--crm-z-dropdown, 1000);
+  width: 250px; max-width: calc(100vw - 1.5rem);
+  background: var(--crm-surface);
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-radius: var(--crm-radius);
+  box-shadow: var(--crm-shadow-lg);
+  padding: 0.875rem;
+  display: flex; flex-direction: column; gap: 1rem;
+  animation: rmFilterPopIn 0.14s ease-out;
+}
+@keyframes rmFilterPopIn { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@media (prefers-reduced-motion: reduce) { .rm-filter-pop { animation: none; } }
+[data-bs-theme="dark"] .rm-filter-pop { border-color: rgba(255,255,255,0.10); }
+.rm-filter-pop-group { display: flex; flex-direction: column; gap: 0.5rem; }
+.rm-filter-pop-label {
+  font-size: 0.625rem; font-weight: var(--crm-weight-bold); letter-spacing: 0.06em;
+  text-transform: uppercase; color: var(--crm-text-muted);
+}
+.rm-filter-pop-chips { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+.rm-fchip {
+  display: inline-flex; align-items: center; gap: 0.3125rem;
+  padding: 0.25rem 0.625rem;
+  border: 1px solid var(--bs-border-color, var(--crm-border));
+  border-radius: var(--crm-radius-pill);
+  background: var(--bs-body-bg, var(--crm-surface));
+  color: var(--crm-text-secondary);
+  font-size: 0.7188rem; font-weight: var(--crm-weight-semibold);
+  cursor: pointer; white-space: nowrap;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+}
+.rm-fchip:hover { background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2)); color: var(--crm-text); }
+.rm-fchip.is-active {
+  background: rgba(var(--crm-primary-rgb), 0.12);
+  color: var(--crm-primary-active);
+  border-color: rgba(var(--crm-primary-rgb), 0.36);
+}
+.rm-fchip-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--crm-text-muted); flex-shrink: 0; }
+.rm-fchip[data-value="overdue"]  .rm-fchip-dot,
+.rm-fchip[data-value="urgent"]   .rm-fchip-dot { background: var(--crm-primary); }
+.rm-fchip[data-value="pending"]  .rm-fchip-dot,
+.rm-fchip[data-value="high"]     .rm-fchip-dot { background: rgba(245,158,11,1); }
+.rm-fchip[data-value="completed"] .rm-fchip-dot { background: rgba(34,197,94,1); }
+.rm-fchip[data-value="medium"]   .rm-fchip-dot { background: rgba(59,130,246,1); }
+.rm-fchip[data-value="cancelled"] .rm-fchip-dot,
+.rm-fchip[data-value="low"]      .rm-fchip-dot { background: rgba(107,114,128,0.7); }
+[data-bs-theme="dark"] .rm-fchip { border-color: rgba(255,255,255,0.10); background: transparent; }
+[data-bs-theme="dark"] .rm-fchip:hover { background: rgba(255,255,255,0.06); }
+[data-bs-theme="dark"] .rm-fchip.is-active {
+  background: rgba(var(--crm-accent-rgb), 0.22);
+  color: var(--crm-primary-300);
+  border-color: rgba(var(--crm-accent-rgb), 0.40);
+}
+.rm-filter-pop-foot {
+  display: flex; justify-content: flex-end;
+  border-top: 1px solid var(--bs-border-color, var(--crm-border));
+  padding-top: 0.75rem;
+}
+.rm-filter-pop-clear {
+  background: none; border: none; padding: 0.25rem 0.5rem;
+  color: var(--crm-text-muted); font-size: 0.7188rem; font-weight: var(--crm-weight-semibold);
+  cursor: pointer; border-radius: var(--crm-radius-md);
+  display: inline-flex; align-items: center; gap: 0.25rem;
+}
+.rm-filter-pop-clear:hover { background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2)); color: var(--crm-text); }
+[data-bs-theme="dark"] .rm-filter-pop-clear:hover { background: rgba(255,255,255,0.06); }
 
 /* Scrollable list body */
 .rm-list-body {
   flex: 1; min-height: 0;
   overflow-y: auto;
-  padding: 0.5rem 0.25rem;
+  padding: 0.625rem 0.375rem;
 }
 .rm-list-body::-webkit-scrollbar { width: 8px; }
-.rm-list-body::-webkit-scrollbar-thumb { background: var(--crm-scrollbar-thumb, rgba(0,0,0,0.15)); border-radius: 999px; }
+.rm-list-body::-webkit-scrollbar-thumb { background: var(--crm-scrollbar-thumb, rgba(0,0,0,0.15)); border-radius: var(--crm-radius-pill); }
 .rm-list-body::-webkit-scrollbar-thumb:hover { background: var(--crm-scrollbar-thumb-hover, rgba(0,0,0,0.25)); }
 
 /* Active-filter banner — shown above the list when a quick filter or column filter is set */
@@ -456,10 +605,10 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   padding: 0.4rem 0.6rem;
   background: rgba(var(--crm-primary-rgb), 0.06);
   border: 1px dashed rgba(var(--crm-primary-rgb), 0.28);
-  border-radius: 9px;
+  border-radius: var(--crm-radius-sm);
   font-size: 0.6875rem;
   color: var(--crm-primary-active);
-  font-weight: 600;
+  font-weight: var(--crm-weight-semibold);
 }
 .rm-filter-banner.is-visible { display: flex; }
 .rm-filter-banner i { font-size: 0.875rem; }
@@ -469,16 +618,16 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   padding: 0.0625rem 0.4rem;
   background: var(--crm-surface);
   border: 1px solid rgba(var(--crm-primary-rgb), 0.22);
-  border-radius: 999px;
-  font-weight: 700;
+  border-radius: var(--crm-radius-pill);
+  font-weight: var(--crm-weight-bold);
   color: var(--crm-primary-active);
   text-transform: capitalize;
 }
 .rm-filter-banner .rm-filter-banner-clear {
   margin-left: auto;
   background: none; border: none; padding: 0.0625rem 0.375rem;
-  color: var(--crm-primary-active); font-weight: 700; font-size: 0.6875rem;
-  cursor: pointer; border-radius: 6px;
+  color: var(--crm-primary-active); font-weight: var(--crm-weight-bold); font-size: 0.6875rem;
+  cursor: pointer; border-radius: var(--crm-radius-md);
   display: inline-flex; align-items: center; gap: 3px;
 }
 .rm-filter-banner .rm-filter-banner-clear:hover {
@@ -499,62 +648,6 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   background: rgba(var(--crm-accent-rgb), 0.18);
 }
 
-/* Quick-add inline row — slim creator at the top of the list */
-.rm-quick-add {
-  display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.5rem 0.75rem;
-  border-bottom: 1px solid var(--bs-border-color, var(--crm-border));
-  background: linear-gradient(180deg, rgba(var(--crm-primary-rgb), 0.03), transparent);
-  transition: background 0.18s;
-  position: relative;
-}
-.rm-quick-add:focus-within {
-  background: linear-gradient(180deg, rgba(var(--crm-primary-rgb), 0.07), transparent);
-}
-[data-bs-theme="dark"] .rm-quick-add {
-  background: linear-gradient(180deg, rgba(var(--crm-accent-rgb), 0.06), transparent);
-}
-[data-bs-theme="dark"] .rm-quick-add:focus-within {
-  background: linear-gradient(180deg, rgba(var(--crm-accent-rgb), 0.12), transparent);
-}
-.rm-quick-add-plus {
-  width: 28px; height: 28px; flex-shrink: 0;
-  border-radius: 8px;
-  background: rgba(var(--crm-primary-rgb), 0.10);
-  color: var(--crm-primary-active);
-  display: inline-flex; align-items: center; justify-content: center;
-  font-size: 0.9375rem;
-  transition: background 0.15s, transform 0.15s;
-}
-.rm-quick-add:focus-within .rm-quick-add-plus {
-  background: var(--crm-primary);
-  color: var(--crm-text-on-primary);
-  transform: rotate(90deg);
-}
-[data-bs-theme="dark"] .rm-quick-add-plus {
-  background: rgba(var(--crm-accent-rgb), 0.20);
-  color: var(--crm-primary-300);
-}
-.rm-quick-add input {
-  flex: 1; min-width: 0;
-  border: none;
-  background: transparent;
-  font-size: 0.8125rem;
-  color: var(--crm-text);
-  outline: none;
-  padding: 0.2rem 0;
-}
-.rm-quick-add input::placeholder { color: var(--crm-text-muted); }
-.rm-quick-add-hint {
-  display: none;
-  font-size: 0.625rem;
-  color: var(--crm-text-muted);
-  white-space: nowrap;
-  padding: 0 0.25rem;
-}
-.rm-quick-add:focus-within .rm-quick-add-hint { display: inline-flex; align-items: center; gap: 4px; }
-.rm-quick-add-hint .rm-kbd-key { font-size: 0.5625rem; min-width: 16px; height: 16px; }
-
 /* List item hover quick-actions — appear on the right on hover */
 .rm-item-hover-actions {
   position: absolute;
@@ -573,7 +666,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   inset: -8px -6px -8px -28px;
   background: linear-gradient(90deg, transparent, var(--bs-tertiary-bg, var(--crm-bg-elevated-2)) 55%);
   z-index: -1;
-  border-radius: 8px;
+  border-radius: var(--crm-radius-sm);
 }
 .rm-item.is-selected .rm-item-hover-actions::before {
   background: linear-gradient(90deg, transparent, rgba(var(--crm-primary-rgb), 0.10) 55%);
@@ -590,14 +683,14 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   width: 26px; height: 26px;
   border: 1px solid var(--bs-border-color, var(--crm-border));
   background: var(--bs-body-bg, var(--crm-surface));
-  border-radius: 7px;
+  border-radius: var(--crm-radius-sm);
   color: var(--crm-text-secondary);
   font-size: 0.875rem;
   display: inline-flex; align-items: center; justify-content: center;
   cursor: pointer;
   padding: 0;
   transition: background 0.12s, color 0.12s, border-color 0.12s, transform 0.12s;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+  box-shadow: var(--crm-shadow-xs);
 }
 .rm-item-quick-btn:hover {
   transform: scale(1.08);
@@ -626,10 +719,10 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   grid-template-columns: 1fr auto 1fr auto 1fr;
   align-items: center;
   gap: 0;
-  margin: 0 0 1rem;
-  padding: 0.75rem 0.5rem 0.625rem;
+  margin: 0.25rem 0 1.75rem;
+  padding: 1.125rem 0.875rem 1rem;
   background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
-  border-radius: 10px;
+  border-radius: var(--crm-radius);
 }
 .rm-tl-step {
   display: flex; flex-direction: column; align-items: center; gap: 0.25rem;
@@ -690,7 +783,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   .rm-tl-step.is-overdue .rm-tl-dot { animation: none; }
 }
 .rm-tl-label {
-  font-size: 0.625rem; font-weight: 700;
+  font-size: 0.625rem; font-weight: var(--crm-weight-bold);
   color: var(--crm-text); text-transform: uppercase; letter-spacing: 0.06em;
   white-space: nowrap;
 }
@@ -704,14 +797,26 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 [data-bs-theme="dark"] .rm-tl-dot { background: var(--crm-surface); }
 [data-bs-theme="dark"] .rm-tl-step.is-done .rm-tl-dot,
 [data-bs-theme="dark"] .rm-tl-line.is-done { background: var(--crm-primary); border-color: var(--crm-primary); }
+[data-bs-theme="dark"] .rm-tl-step.is-current .rm-tl-dot {
+  background: rgba(245,158,11,0.22); border-color: rgba(245,158,11,0.85);
+  color: var(--status-warning-text);
+}
+[data-bs-theme="dark"] .rm-tl-step.is-overdue .rm-tl-dot {
+  background: rgba(var(--crm-accent-rgb), 0.20); border-color: rgba(var(--crm-accent-rgb), 0.55);
+  color: var(--crm-primary-300);
+}
+[data-bs-theme="dark"] .rm-tl-step.is-cancelled .rm-tl-dot {
+  background: rgba(148,163,184,0.20); border-color: rgba(148,163,184,0.45);
+  color: var(--crm-text-secondary);
+}
 
 /* Live countdown chip — placed inline with the Scheduled value */
 .rm-countdown {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   font-size: 0.625rem;
-  font-weight: 700;
+  font-weight: var(--crm-weight-bold);
   letter-spacing: 0.02em;
   text-transform: uppercase;
   border: 1px solid transparent;
@@ -721,10 +826,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   content: '';
   width: 5px; height: 5px; border-radius: 50%;
   background: currentColor;
-  animation: rm-cd-blink 1.6s ease-in-out infinite;
 }
-@keyframes rm-cd-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
-@media (prefers-reduced-motion: reduce) { .rm-countdown::before { animation: none; } }
 .rm-countdown--upcoming {
   background: rgba(59,130,246,0.12);
   color: var(--status-info-text);
@@ -745,10 +847,10 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 [data-bs-theme="dark"] .rm-countdown--overdue { background: rgba(var(--crm-accent-rgb), 0.20); color: var(--crm-primary-300); border-color: rgba(var(--crm-accent-rgb), 0.40); }
 
 /* Skeleton loader rows */
-.rm-skel { margin: 0.25rem; padding: 0.625rem; border-radius: 9px; display: flex; gap: 0.5rem; align-items: center; }
+.rm-skel { margin: 0.25rem; padding: 0.625rem; border-radius: var(--crm-radius-sm); display: flex; gap: 0.5rem; align-items: center; }
 .rm-skel-avatar { width: 26px; height: 26px; border-radius: 50%; flex-shrink: 0; }
 .rm-skel-body { flex: 1; display: flex; flex-direction: column; gap: 0.375rem; }
-.rm-skel-line { height: 10px; border-radius: 5px; background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2)); }
+.rm-skel-line { height: 10px; border-radius: var(--crm-radius-xs); background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2)); }
 .rm-skel-line--sm { width: 40%; height: 8px; }
 .rm-skel-shimmer {
   background: linear-gradient(
@@ -766,12 +868,12 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 }
 
 /* Group sections */
-.rm-group { margin-bottom: 0.5rem; }
+.rm-group { margin-bottom: 0.875rem; }
 .rm-group:last-child { margin-bottom: 0; }
 .rm-group-header {
   display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.5rem 0.625rem 0.375rem;
-  font-size: 0.6875rem; font-weight: 700;
+  padding: 0.5rem 0.625rem 0.5rem;
+  font-size: 0.6875rem; font-weight: var(--crm-weight-bold);
   color: var(--crm-text-muted);
   text-transform: uppercase; letter-spacing: 0.06em;
 }
@@ -787,31 +889,28 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
   color: var(--crm-text-secondary);
   padding: 0.0625rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   font-size: 0.6875rem;
-  font-weight: 600;
+  font-weight: var(--crm-weight-semibold);
 }
 
 /* List item rows */
 .rm-item {
   position: relative;
-  display: flex; align-items: flex-start; gap: 0.5rem;
-  padding: 0.625rem 0.625rem 0.625rem 0.75rem;
-  border-radius: 9px;
+  display: flex; align-items: flex-start; gap: 0.625rem;
+  padding: 0.75rem 0.75rem 0.75rem 0.875rem;
+  border-radius: var(--crm-radius);
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background 0.15s, border-color 0.15s, transform 0.12s, box-shadow 0.15s;
-  margin: 0 0.25rem 0.125rem;
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+  margin: 0 0.25rem 0.25rem;
 }
 .rm-item:hover {
   background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
-  transform: translateX(2px);
 }
 .rm-item.is-selected {
-  background: rgba(var(--crm-primary-rgb), 0.08);
-  border-color: rgba(var(--crm-primary-rgb), 0.22);
-  box-shadow: 0 1px 6px rgba(var(--crm-primary-rgb), 0.10);
-  transform: translateX(2px);
+  background: rgba(var(--crm-primary-rgb), 0.07);
+  border-color: rgba(var(--crm-primary-rgb), 0.20);
 }
 .rm-item.is-just-selected { animation: rm-item-pulse 0.6s ease-out; }
 @keyframes rm-item-pulse {
@@ -839,11 +938,11 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-item[data-priority="medium"] .rm-item-priority-bar { background: rgba(59,130,246,1); }
 .rm-item[data-priority="low"]    .rm-item-priority-bar { background: rgba(107,114,128,0.6); }
 
-.rm-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1875rem; }
+.rm-item-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.25rem; }
 .rm-item-subject {
-  font-size: 0.8125rem; font-weight: 600;
+  font-size: 0.8125rem; font-weight: var(--crm-weight-semibold);
   color: var(--crm-text);
-  line-height: 1.3;
+  line-height: 1.35;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .rm-item.is-done .rm-item-subject,
@@ -863,23 +962,23 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 }
 .rm-item-meta i { font-size: 0.8125rem; opacity: 0.85; }
 .rm-item-meta .rm-meta-sep { color: var(--crm-text-muted); opacity: 0.6; }
-.rm-item-meta .rm-meta-overdue { color: var(--crm-primary-active); font-weight: 600; }
+.rm-item-meta .rm-meta-overdue { color: var(--crm-primary-active); font-weight: var(--crm-weight-semibold); }
 [data-bs-theme="dark"] .rm-item-meta .rm-meta-overdue { color: var(--crm-primary-300); }
 .rm-item-meta .rm-meta-chip {
   display: inline-flex; align-items: center; gap: 3px;
   padding: 0 0.4rem;
   height: 18px;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
   color: var(--crm-text-secondary);
-  font-weight: 600;
+  font-weight: var(--crm-weight-semibold);
 }
 .rm-item-avatar {
   width: 26px; height: 26px; border-radius: 50%;
   background: rgba(var(--crm-primary-rgb), 0.12);
   color: var(--crm-primary-active);
   display: inline-flex; align-items: center; justify-content: center;
-  font-size: 0.6875rem; font-weight: 700;
+  font-size: 0.6875rem; font-weight: var(--crm-weight-bold);
   flex-shrink: 0;
 }
 .rm-item-avatar--unassigned {
@@ -896,13 +995,13 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   text-align: center; color: var(--crm-text-muted);
 }
 .rm-list-state-icon {
-  width: 44px; height: 44px; border-radius: 12px;
+  width: 44px; height: 44px; border-radius: var(--crm-radius);
   background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 1.375rem;
   color: var(--crm-text-muted);
 }
-.rm-list-state-title { font-weight: 600; color: var(--crm-text); font-size: 0.9375rem; }
+.rm-list-state-title { font-weight: var(--crm-weight-semibold); color: var(--crm-text); font-size: 0.9375rem; }
 .rm-list-state-text { font-size: 0.8125rem; }
 
 /* Bulk action bar — slides above the list footer when any items are checked */
@@ -915,8 +1014,8 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 }
 .rm-bulk-bar.is-visible { display: flex; }
 .rm-bulk-bar .rm-bulk-count {
-  font-size: 0.7188rem; font-weight: 600;
-  padding: 0.125rem 0.55rem; border-radius: 999px;
+  font-size: 0.7188rem; font-weight: var(--crm-weight-semibold);
+  padding: 0.125rem 0.55rem; border-radius: var(--crm-radius-pill);
   background: rgba(var(--crm-primary-rgb), 0.12); color: var(--crm-primary-active);
   margin-right: auto;
 }
@@ -936,7 +1035,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   display: inline-flex; align-items: center; justify-content: center;
   width: 26px; height: 26px;
   border: 1px solid var(--bs-border-color, var(--crm-border));
-  border-radius: 7px;
+  border-radius: var(--crm-radius-sm);
   background: transparent;
   color: var(--crm-text-secondary);
   cursor: pointer;
@@ -951,7 +1050,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-pagination .rm-page-label {
   font-variant-numeric: tabular-nums;
   color: var(--crm-text);
-  font-weight: 600;
+  font-weight: var(--crm-weight-semibold);
   padding: 0 0.25rem;
 }
 [data-bs-theme="dark"] .rm-pagination .rm-page-btn { border-color: rgba(255,255,255,0.10); }
@@ -961,12 +1060,13 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-detail {
   background: var(--bs-body-bg, var(--crm-surface));
   border: 1px solid var(--bs-border-color, var(--crm-border));
-  border-radius: 14px;
+  box-shadow: var(--crm-shadow-xs);
   display: flex; flex-direction: column;
-  min-height: 540px;
+  border-radius: var(--crm-radius-lg);
+  min-height: 560px;
   position: sticky;
   top: 1rem;
-  align-self: flex-start;
+  align-self: stretch;
   max-height: calc(100vh - 2rem);
   overflow: hidden;
 }
@@ -1027,7 +1127,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     0 8px 24px rgba(var(--crm-accent-rgb), 0.18);
 }
 .rm-detail-empty-title {
-  font-weight: 700; font-size: 1.0625rem;
+  font-weight: var(--crm-weight-bold); font-size: 1.0625rem;
   color: var(--crm-text);
   letter-spacing: -0.01em;
 }
@@ -1048,23 +1148,23 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   position: relative;
 }
 .rm-focus::-webkit-scrollbar { width: 8px; }
-.rm-focus::-webkit-scrollbar-thumb { background: var(--crm-scrollbar-thumb, rgba(0,0,0,0.15)); border-radius: 999px; }
+.rm-focus::-webkit-scrollbar-thumb { background: var(--crm-scrollbar-thumb, rgba(0,0,0,0.15)); border-radius: var(--crm-radius-pill); }
 .rm-focus-header {
   display: flex; align-items: center; gap: 0.875rem;
   padding-bottom: 0.625rem;
   border-bottom: 1px solid var(--bs-border-color-translucent, var(--crm-border));
 }
 .rm-focus-header-icon {
-  width: 44px; height: 44px; border-radius: 12px;
+  width: 44px; height: 44px; border-radius: var(--crm-radius-lg);
   background: linear-gradient(135deg, var(--crm-primary), var(--crm-primary-400, var(--crm-primary)));
   color: var(--crm-text-on-primary);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 1.25rem;
-  box-shadow: 0 6px 18px rgba(var(--crm-primary-rgb), 0.28);
+  box-shadow: 0 4px 14px rgba(var(--crm-primary-rgb), 0.22);
 }
 .rm-focus-header-text { flex: 1; min-width: 0; }
 .rm-focus-greeting {
-  font-size: 1rem; font-weight: 700; color: var(--crm-text);
+  font-size: 1rem; font-weight: var(--crm-weight-bold); color: var(--crm-text);
   letter-spacing: -0.01em;
 }
 .rm-focus-date {
@@ -1079,7 +1179,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--crm-text-muted);
-  font-weight: 700;
+  font-weight: var(--crm-weight-bold);
   margin-bottom: 0.4rem;
   display: flex; align-items: center; gap: 0.5rem;
 }
@@ -1095,11 +1195,11 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-focus-hero {
   position: relative;
   padding: 1rem 1.125rem 0.875rem;
-  border-radius: 14px;
+  border-radius: var(--crm-radius-lg);
   background:
-    radial-gradient(circle at top right, rgba(var(--crm-primary-rgb), 0.10), transparent 60%),
+    radial-gradient(circle at top right, rgba(var(--crm-primary-rgb), 0.07), transparent 60%),
     var(--bs-body-bg, var(--crm-surface));
-  border: 1px solid rgba(var(--crm-primary-rgb), 0.20);
+  border: 1px solid rgba(var(--crm-primary-rgb), 0.16);
   overflow: hidden;
 }
 .rm-focus-hero.is-overdue {
@@ -1132,7 +1232,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-focus-hero-priority {
   width: 4px;
   align-self: stretch;
-  border-radius: 4px;
+  border-radius: var(--crm-radius-xs);
   background: rgba(var(--crm-primary-rgb), 0.55);
   flex-shrink: 0;
 }
@@ -1142,7 +1242,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-focus-hero[data-priority="low"]    .rm-focus-hero-priority { background: rgba(107,114,128,0.6); }
 .rm-focus-hero-body { flex: 1; min-width: 0; }
 .rm-focus-hero-subject {
-  font-size: 0.9375rem; font-weight: 700;
+  font-size: 0.9375rem; font-weight: var(--crm-weight-bold);
   color: var(--crm-text);
   line-height: 1.3;
   word-break: break-word;
@@ -1162,7 +1262,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-focus-hero-actions .btn {
   display: inline-flex; align-items: center; gap: 0.3rem;
   padding: 0.3rem 0.7rem;
-  font-size: 0.75rem; font-weight: 600;
+  font-size: 0.75rem; font-weight: var(--crm-weight-semibold);
 }
 
 /* "All clear" empty hero variant */
@@ -1170,13 +1270,13 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   display: flex; align-items: center; gap: 0.75rem;
 }
 .rm-focus-hero-empty-icon {
-  width: 36px; height: 36px; border-radius: 10px;
+  width: 36px; height: 36px; border-radius: var(--crm-radius);
   background: rgba(34,197,94,0.14);
   color: var(--status-success-text);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 1rem; flex-shrink: 0;
 }
-.rm-focus-hero-empty-title { font-size: 0.875rem; font-weight: 700; color: var(--crm-text); }
+.rm-focus-hero-empty-title { font-size: 0.875rem; font-weight: var(--crm-weight-bold); color: var(--crm-text); }
 .rm-focus-hero-empty-text { font-size: 0.75rem; color: var(--crm-text-muted); margin-top: 1px; }
 
 /* Mini list of upcoming reminders */
@@ -1186,7 +1286,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-focus-list-row {
   display: flex; align-items: center; gap: 0.625rem;
   padding: 0.5rem 0.625rem;
-  border-radius: 9px;
+  border-radius: var(--crm-radius-sm);
   cursor: pointer;
   border: 1px solid transparent;
   transition: background 0.12s, border-color 0.12s, transform 0.12s;
@@ -1197,14 +1297,14 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   transform: translateX(2px);
 }
 .rm-focus-list-time {
-  font-size: 0.75rem; font-weight: 700;
+  font-size: 0.75rem; font-weight: var(--crm-weight-bold);
   color: var(--crm-text);
   font-variant-numeric: tabular-nums;
   min-width: 64px;
 }
 .rm-focus-list-subject {
   flex: 1; min-width: 0;
-  font-size: 0.8125rem; font-weight: 500;
+  font-size: 0.8125rem; font-weight: var(--crm-weight-medium);
   color: var(--crm-text);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -1226,7 +1326,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   height: 38px;
   padding: 0.4rem 0.75rem;
   border: 1px solid var(--bs-border-color, var(--crm-border));
-  border-radius: 9px;
+  border-radius: var(--crm-radius-sm);
   background: var(--bs-body-bg, var(--crm-surface));
   color: var(--crm-text);
   font-size: 0.8125rem;
@@ -1252,9 +1352,9 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   background: var(--bs-body-bg, var(--crm-surface));
   border: 1px solid var(--bs-border-color, var(--crm-border));
   border-bottom-width: 2px;
-  border-radius: 5px;
+  border-radius: var(--crm-radius-xs);
   font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.625rem; font-weight: 700;
+  font-size: 0.625rem; font-weight: var(--crm-weight-bold);
   color: var(--crm-text-secondary);
   line-height: 1;
 }
@@ -1266,44 +1366,26 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 
 /* Detail header strip */
 .rm-detail-header {
-  padding: 1rem 1.125rem 0.75rem;
+  padding: 1.125rem 1.25rem 0.875rem;
   border-bottom: 1px solid var(--bs-border-color, var(--crm-border));
   display: flex; flex-direction: column; gap: 0.5rem;
   position: relative;
   background:
     linear-gradient(180deg, rgba(var(--crm-primary-rgb), 0.04), transparent 70%);
 }
-.rm-detail-header::after {
-  content: '';
-  position: absolute; left: 1.125rem; right: 1.125rem; bottom: -1px;
-  height: 1px;
-  background: linear-gradient(90deg,
-    transparent,
-    rgba(var(--crm-primary-rgb), 0.32) 30%,
-    rgba(var(--crm-primary-rgb), 0.32) 70%,
-    transparent);
-  opacity: 0.55;
-}
 [data-bs-theme="dark"] .rm-detail-header {
   background: linear-gradient(180deg, rgba(var(--crm-accent-rgb), 0.08), transparent 70%);
-}
-[data-bs-theme="dark"] .rm-detail-header::after {
-  background: linear-gradient(90deg,
-    transparent,
-    rgba(var(--crm-accent-rgb), 0.40) 30%,
-    rgba(var(--crm-accent-rgb), 0.40) 70%,
-    transparent);
 }
 .rm-detail-header-top {
   display: flex; align-items: flex-start; gap: 0.75rem;
 }
 .rm-detail-icon {
-  width: 40px; height: 40px; border-radius: 11px;
+  width: 40px; height: 40px; border-radius: var(--crm-radius);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 1.125rem; flex-shrink: 0;
   background: linear-gradient(135deg, var(--crm-primary), var(--crm-primary-400, var(--crm-primary)));
   color: var(--crm-text-on-primary);
-  box-shadow: 0 4px 14px rgba(var(--crm-primary-rgb), 0.25);
+  box-shadow: 0 4px 14px rgba(var(--crm-primary-rgb), 0.22);
 }
 .rm-detail-icon--success {
   background: rgba(34,197,94,0.16); color: var(--status-success-text); box-shadow: none;
@@ -1313,14 +1395,14 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 }
 .rm-detail-titlewrap { flex: 1; min-width: 0; }
 .rm-detail-title {
-  font-size: 1.0625rem; font-weight: 700;
+  font-size: 1.0625rem; font-weight: var(--crm-weight-bold);
   color: var(--crm-text);
   margin: 0; line-height: 1.3;
   word-break: break-word;
 }
 .rm-detail-pills { display: flex; gap: 0.375rem; flex-wrap: wrap; margin-top: 0.375rem; }
 .rm-detail-close {
-  background: none; border: none; padding: 0.25rem 0.375rem; border-radius: 6px;
+  background: none; border: none; padding: 0.25rem 0.375rem; border-radius: var(--crm-radius-md);
   color: var(--crm-text-muted); cursor: pointer; transition: background 0.12s, color 0.12s;
   font-size: 1rem; line-height: 1; flex-shrink: 0;
 }
@@ -1330,9 +1412,9 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-pill {
   display: inline-flex; align-items: center; gap: 4px;
   padding: 2px 9px;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   font-size: 0.6875rem;
-  font-weight: 600;
+  font-weight: var(--crm-weight-semibold);
   letter-spacing: 0.02em;
   text-transform: capitalize;
   line-height: 1.4;
@@ -1366,16 +1448,25 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-detail-body {
   flex: 1; min-height: 0;
   overflow-y: auto;
-  padding: 1rem 1.125rem;
+  padding: 1.5rem 1.5rem 1.75rem;
 }
+/* Read view balances its content vertically so a short reminder doesn't sit
+   cramped at the top of a tall pane; tall content falls back to top-aligned +
+   scrollable (safe keyword + non-shrinking children). */
+#detailView .rm-detail-body {
+  display: flex;
+  flex-direction: column;
+  justify-content: safe center;
+}
+#detailView .rm-detail-body > * { flex-shrink: 0; }
 .rm-detail-body::-webkit-scrollbar { width: 8px; }
-.rm-detail-body::-webkit-scrollbar-thumb { background: var(--crm-scrollbar-thumb, rgba(0,0,0,0.15)); border-radius: 999px; }
+.rm-detail-body::-webkit-scrollbar-thumb { background: var(--crm-scrollbar-thumb, rgba(0,0,0,0.15)); border-radius: var(--crm-radius-pill); }
 .rm-detail-body::-webkit-scrollbar-thumb:hover { background: var(--crm-scrollbar-thumb-hover, rgba(0,0,0,0.25)); }
 
 .rm-info-grid {
   display: grid;
   grid-template-columns: minmax(120px, max-content) 1fr;
-  column-gap: 0.875rem; row-gap: 0.625rem;
+  column-gap: 1.25rem; row-gap: 1.125rem;
   font-size: 0.8125rem;
 }
 .rm-info-label {
@@ -1383,30 +1474,30 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--crm-text-muted);
-  font-weight: 600;
+  font-weight: var(--crm-weight-semibold);
   align-self: center;
 }
 .rm-info-value {
   color: var(--crm-text);
-  font-weight: 500;
+  font-weight: var(--crm-weight-medium);
   display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
 }
 .rm-info-value a { color: var(--crm-primary-active); text-decoration: none; }
 .rm-info-value a:hover { text-decoration: underline; }
-.rm-info-value .rm-meta-overdue { color: var(--crm-primary-active); font-weight: 600; }
+.rm-info-value .rm-meta-overdue { color: var(--crm-primary-active); font-weight: var(--crm-weight-semibold); }
 
 .rm-section-label {
   font-size: 0.6875rem;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--crm-text-muted);
-  font-weight: 600;
-  margin: 1.25rem 0 0.5rem;
+  font-weight: var(--crm-weight-semibold);
+  margin: 1.5rem 0 0.625rem;
 }
 .rm-notes-box {
-  padding: 0.75rem 0.875rem;
+  padding: 0.875rem 1rem;
   background: var(--bs-tertiary-bg, var(--crm-bg-elevated-2));
-  border-radius: 10px;
+  border-radius: var(--crm-radius);
   font-size: 0.8125rem;
   color: var(--crm-text);
   white-space: pre-wrap;
@@ -1415,15 +1506,15 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 
 /* Detail action bar at the bottom of the pane */
 .rm-detail-actions {
-  padding: 0.75rem 1.125rem;
+  padding: 0.875rem 1.25rem;
   border-top: 1px solid var(--bs-border-color, var(--crm-border));
-  display: flex; gap: 0.4rem; flex-wrap: wrap;
+  display: flex; gap: 0.5rem; flex-wrap: wrap;
   background: var(--bs-body-bg, var(--crm-surface));
 }
 .rm-detail-actions .btn {
   display: inline-flex; align-items: center; gap: 0.375rem;
   padding: 0.375rem 0.75rem;
-  font-size: 0.8125rem; font-weight: 600;
+  font-size: 0.8125rem; font-weight: var(--crm-weight-semibold);
 }
 .rm-detail-actions .btn-link {
   color: var(--crm-text-muted);
@@ -1437,8 +1528,8 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--crm-text-muted);
-  font-weight: 600;
-  margin-bottom: 0.25rem;
+  font-weight: var(--crm-weight-semibold);
+  margin-bottom: 0.375rem;
 }
 /* Lock all form inputs to the same height/padding/font as the rendered
  * KanzenSelect trigger (40px, 0.5rem 0.75rem, 0.8125rem) so single-row
@@ -1450,7 +1541,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   padding: 0.5rem 0.75rem;
   font-size: 0.8125rem;
   line-height: 1.4;
-  border-radius: 8px;
+  border-radius: var(--crm-radius-sm);
 }
 .rm-form textarea.form-control {
   height: auto;
@@ -1475,13 +1566,13 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-form .rm-form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 0.875rem;
-  margin-bottom: 0.875rem;
+  gap: 1rem;
+  margin-bottom: 1.125rem;
 }
 @media (max-width: 575px) {
-  .rm-form .rm-form-row { grid-template-columns: 1fr; }
+  .rm-form .rm-form-row { grid-template-columns: 1fr; gap: 1.125rem; }
 }
-.rm-form .rm-form-group { margin-bottom: 0.875rem; }
+.rm-form .rm-form-group { margin-bottom: 1.125rem; }
 /* Priority field: a colored dot sits inside the LEFT padding of the rendered
  * select trigger. KanzenSelect (custom-select.js) replaces the native
  * <select> with a .td-cselect-trigger button, so we have to push the dot's
@@ -1512,7 +1603,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 
 /* Reschedule mini-modal icon */
 .rm-modal-icon {
-  width: 38px; height: 38px; border-radius: 11px;
+  width: 38px; height: 38px; border-radius: var(--crm-radius);
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 1.125rem; flex-shrink: 0;
   background: rgba(245,158,11,0.16);
@@ -1551,30 +1642,40 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     </div>
   </div>
   <div class="rm-summary" id="summaryStrip" role="tablist" aria-label="Quick filters">
-    <div class="rm-summary-item rm-summary-item--overdue" data-filter="overdue" role="tab" tabindex="0">
-      <span class="rm-summary-dot"></span>
-      <span class="rm-summary-num" id="statOverdue">0</span>
-      <span>Overdue</span>
+    <div class="rm-summary-item rm-summary-item--overdue" data-filter="overdue" role="tab" tabindex="0" title="Show overdue reminders">
+      <span class="rm-stat-icon" aria-hidden="true"><i class="ti ti-alarm"></i></span>
+      <div class="rm-stat-meta">
+        <span class="rm-summary-num" id="statOverdue">0</span>
+        <span class="rm-stat-label">Overdue</span>
+      </div>
     </div>
-    <div class="rm-summary-item rm-summary-item--mine" data-filter="mine-overdue" role="tab" tabindex="0">
-      <span class="rm-summary-dot"></span>
-      <span class="rm-summary-num" id="statMyOverdue">0</span>
-      <span>Mine</span>
+    <div class="rm-summary-item rm-summary-item--mine" data-filter="mine-overdue" role="tab" tabindex="0" title="My overdue reminders">
+      <span class="rm-stat-icon" aria-hidden="true"><i class="ti ti-user-exclamation"></i></span>
+      <div class="rm-stat-meta">
+        <span class="rm-summary-num" id="statMyOverdue">0</span>
+        <span class="rm-stat-label">Mine</span>
+      </div>
     </div>
-    <div class="rm-summary-item rm-summary-item--pending" data-filter="pending" role="tab" tabindex="0">
-      <span class="rm-summary-dot"></span>
-      <span class="rm-summary-num" id="statPending">0</span>
-      <span>Pending</span>
+    <div class="rm-summary-item rm-summary-item--pending" data-filter="pending" role="tab" tabindex="0" title="Pending reminders">
+      <span class="rm-stat-icon" aria-hidden="true"><i class="ti ti-hourglass"></i></span>
+      <div class="rm-stat-meta">
+        <span class="rm-summary-num" id="statPending">0</span>
+        <span class="rm-stat-label">Pending</span>
+      </div>
     </div>
-    <div class="rm-summary-item rm-summary-item--today" data-filter="today" role="tab" tabindex="0">
-      <span class="rm-summary-dot"></span>
-      <span class="rm-summary-num" id="statDueToday">0</span>
-      <span>Due today</span>
+    <div class="rm-summary-item rm-summary-item--today" data-filter="today" role="tab" tabindex="0" title="Due today">
+      <span class="rm-stat-icon" aria-hidden="true"><i class="ti ti-calendar-due"></i></span>
+      <div class="rm-stat-meta">
+        <span class="rm-summary-num" id="statDueToday">0</span>
+        <span class="rm-stat-label">Due today</span>
+      </div>
     </div>
-    <div class="rm-summary-item rm-summary-item--done" data-filter="completed-today" role="tab" tabindex="0">
-      <span class="rm-summary-dot"></span>
-      <span class="rm-summary-num" id="statCompletedToday">0</span>
-      <span>Done today</span>
+    <div class="rm-summary-item rm-summary-item--done" data-filter="completed-today" role="tab" tabindex="0" title="Completed today">
+      <span class="rm-stat-icon" aria-hidden="true"><i class="ti ti-circle-check"></i></span>
+      <div class="rm-stat-meta">
+        <span class="rm-summary-num" id="statCompletedToday">0</span>
+        <span class="rm-stat-label">Done today</span>
+      </div>
     </div>
   </div>
 </div>
@@ -1615,32 +1716,30 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
         </div>
       </div>
       <div class="rm-list-filters">
-        <select class="form-select form-select-sm" id="statusFilter">
+        <button type="button" class="rm-filter-btn" id="filtersBtn" aria-haspopup="dialog" aria-expanded="false" aria-controls="rmFilterPop" title="Filter by status & priority">
+          <i class="ti ti-adjustments-horizontal" aria-hidden="true"></i>
+          <span>Filters</span>
+          <span class="rm-filter-count" id="filterCount" hidden>0</span>
+          <i class="ti ti-chevron-down rm-filter-caret" aria-hidden="true"></i>
+        </button>
+        <!-- Hidden source-of-truth selects: the Filters popover drives these so
+             the existing filter JS (change handlers, clearAllFilters) is untouched.
+             data-native keeps KanzenSelect (base.html) from enhancing them. -->
+        <select id="statusFilter" data-native hidden aria-hidden="true" tabindex="-1">
           <option value="" selected>All statuses</option>
           <option value="overdue">Overdue</option>
           <option value="pending">Pending</option>
           <option value="completed">Completed</option>
           <option value="cancelled">Cancelled</option>
         </select>
-        <select class="form-select form-select-sm" id="priorityFilter">
+        <select id="priorityFilter" data-native hidden aria-hidden="true" tabindex="-1">
           <option value="">All priorities</option>
           <option value="urgent">Urgent</option>
           <option value="high">High</option>
           <option value="medium">Medium</option>
           <option value="low">Low</option>
         </select>
-        <label class="d-flex align-items-center gap-1 ps-1" style="font-size:0.7188rem;color:var(--crm-text-muted);">
-          <input type="checkbox" id="selectAll" class="form-check-input" style="margin:0;"> Select
-        </label>
       </div>
-    </div>
-
-    <div class="rm-quick-add" id="quickAddRow">
-      <span class="rm-quick-add-plus" aria-hidden="true"><i class="ti ti-plus"></i></span>
-      <input type="text" id="quickAddInput" placeholder="Quick add — type a subject and press Enter" autocomplete="off">
-      <span class="rm-quick-add-hint" id="quickAddHint">
-        <span class="rm-kbd-key">↵</span> save · <span class="rm-kbd-key">esc</span> clear
-      </span>
     </div>
 
     <div class="rm-filter-banner" id="filterBanner" aria-live="polite">
@@ -1713,7 +1812,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
       </div>
 
       <div class="rm-focus-quickadd">
-        <input type="text" id="focusQuickAdd" placeholder="Add a reminder for today — type and press Enter" autocomplete="off">
+        <input type="text" id="focusQuickAdd" placeholder="Add a reminder — try “Follow up Friday 9am”" autocomplete="off">
       </div>
 
       <div class="rm-kbd-hint" style="justify-content:center;">
@@ -1877,6 +1976,11 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 (function() {
   'use strict';
 
+  // Make the page a full-viewport surface (see the body.rm-page CSS): the
+  // workspace fills the screen and each pane scrolls internally, so the page
+  // itself never scrolls. Set early to avoid a layout flash.
+  document.body.classList.add('rm-page');
+
   var API_BASE = '/api/v1/crm/reminders/';
 
   // ── Tiny DOM helper: build elements without innerHTML ────────────
@@ -2033,12 +2137,20 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     return params.toString();
   }
 
+  // Quick filters that resolve to a status in getFilterParams() — they OVERRIDE
+  // any popover Status, so we clear that Status to avoid a stale badge/chip.
+  var STATUS_QUICK_FILTERS = ['overdue', 'mine-overdue', 'pending', 'completed-today'];
   function setQuickFilter(name) {
     state.quickFilter = (state.quickFilter === name) ? null : name;
     state.page = 1;
+    if (state.quickFilter && STATUS_QUICK_FILTERS.indexOf(state.quickFilter) !== -1 && state.status) {
+      state.status = '';
+      document.getElementById('statusFilter').value = '';
+    }
     document.querySelectorAll('.rm-summary-item').forEach(function(elm) {
       elm.classList.toggle('is-active', elm.dataset.filter === state.quickFilter);
     });
+    if (typeof syncFilterUI === 'function') syncFilterUI();
     loadReminders();
   }
 
@@ -2237,6 +2349,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     document.getElementById('searchInput').value = '';
     document.getElementById('filterAllBtn').classList.add('active');
     document.getElementById('filterMineBtn').classList.remove('active');
+    syncFilterUI();
     renderFilterBanner();
     loadReminders();
   }
@@ -2382,6 +2495,8 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     fill.style.width = pct + '%';
     fill.classList.toggle('rm-workload-fill--complete', pct === 100 && totalToday > 0);
     document.getElementById('workloadPct').textContent = totalToday === 0 ? '—' : pct + '%';
+    // Nothing tracked today → drop the empty 0% track so the banner reads calm.
+    document.getElementById('workloadBanner').classList.toggle('is-idle', totalToday === 0);
   }
 
   // ── Today's focus card ────────────────────────────────────────────
@@ -3038,19 +3153,143 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     }
     return d;
   }
+  // Natural-language parsing for the quick-add boxes. Pulls a time phrase
+  // ("tomorrow 2pm", "in 3h", "friday 9am") AND a priority word ("urgent",
+  // "high", "!") out of the typed text and returns { date, priority, subject }
+  // with both phrases stripped from the subject. date is null when no time is
+  // recognised (caller falls back to defaultQuickAddDate); priority is null
+  // when none is given (caller falls back to its default).
+  function parseQuickAddTime(raw) {
+    var lower = raw.toLowerCase();   // same length as raw → indices line up
+    var now = new Date();
+    var cuts = [];                   // [start, end) ranges to strip from subject
+    function cut(m) { cuts.push([m.index, m.index + m[0].length]); }
+
+    var date = null;
+
+    // 1. Relative offset: "in 3h", "in 30 mins", "in 2 days", "in 1 week"
+    var rel = /\bin\s+(\d+)\s*(minutes?|mins?|m|hours?|hrs?|h|days?|d|weeks?|wks?|w)\b/.exec(lower);
+    if (rel) {
+      var n = parseInt(rel[1], 10), unit = rel[2], ms = 0;
+      if (/^m/.test(unit)) ms = n * 60000;
+      else if (/^h/.test(unit)) ms = n * 3600000;
+      else if (/^d/.test(unit)) ms = n * 86400000;
+      else if (/^w/.test(unit)) ms = n * 604800000;
+      date = new Date(now.getTime() + ms);
+      cut(rel);
+    } else {
+      // 2. Day anchor: today / tonight / tomorrow / weekday
+      var dayShift = null;             // days from today
+      var partOfDay = null;            // fallback hour when no explicit clock
+      var weekdays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      var mTomorrow = /\b(tomorrow|tmrw|tmw)\b/.exec(lower);
+      var mTonight = /\btonight\b/.exec(lower);
+      var mToday = /\btoday\b/.exec(lower);
+      var mWeekday = /\b(next\s+)?(sunday|sun|monday|mon|tuesday|tues|tue|wednesday|wed|thursday|thurs|thur|thu|friday|fri|saturday|sat)\b/.exec(lower);
+      if (mTomorrow) { dayShift = 1; cut(mTomorrow); }
+      else if (mTonight) { dayShift = 0; partOfDay = 19; cut(mTonight); }
+      else if (mToday) { dayShift = 0; cut(mToday); }
+      else if (mWeekday) {
+        var token = mWeekday[2], targetDow = -1;
+        for (var i = 0; i < weekdays.length; i++) {
+          if (weekdays[i] === token || weekdays[i].slice(0, 3) === token.slice(0, 3)) { targetDow = i; break; }
+        }
+        if (targetDow >= 0) {
+          var diff = (targetDow - now.getDay() + 7) % 7;
+          if (diff === 0) diff = 7;    // bare "monday" on a Monday → next Monday
+          dayShift = diff;
+          cut(mWeekday);
+        }
+      }
+
+      // 3. Explicit clock — am/pm, 24h "HH:MM", or a part-of-day word. A bare
+      //    number ("at 4") is intentionally NOT treated as a time: there's no way
+      //    to know if it means 4 AM or 4 PM, so we leave it in the subject rather
+      //    than guess. Use "4pm", "4:00", or "16:00" to set an exact hour.
+      var clock = null;
+      var mAmPm = /\b(?:at\s+)?(\d{1,2})(?::(\d{2}))?\s*(am|pm|a\.m\.|p\.m\.)\b/.exec(lower);
+      var m24 = /\b(?:at\s+)?([01]?\d|2[0-3]):([0-5]\d)\b/.exec(lower);
+      var mPart = /\b(this\s+)?(morning|afternoon|evening|noon|midday|midnight)\b/.exec(lower);
+      if (mAmPm) {
+        var h = parseInt(mAmPm[1], 10) % 12;
+        if (/^p/.test(mAmPm[3])) h += 12;
+        clock = { h: h, m: mAmPm[2] ? parseInt(mAmPm[2], 10) : 0 };
+        cut(mAmPm);
+      } else if (m24) {
+        clock = { h: parseInt(m24[1], 10), m: parseInt(m24[2], 10) };
+        cut(m24);
+      } else if (mPart && /^(noon|midday)/.test(mPart[2])) {
+        clock = { h: 12, m: 0 }; cut(mPart);
+      } else if (mPart && mPart[2] === 'midnight') {
+        clock = { h: 0, m: 0 }; cut(mPart);
+      } else if (mPart) {
+        partOfDay = mPart[2] === 'morning' ? 9 : (mPart[2] === 'afternoon' ? 14 : 18);
+        cut(mPart);
+      }
+
+      if (dayShift !== null || clock !== null || partOfDay !== null) {
+        var d = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        d.setDate(d.getDate() + (dayShift === null ? 0 : dayShift));
+        if (clock) d.setHours(clock.h, clock.m, 0, 0);
+        else if (partOfDay !== null) d.setHours(partOfDay, 0, 0, 0);
+        else d.setHours(9, 0, 0, 0);          // a day with no clock → 9:00 AM
+        // Clock-only with the time already past today → roll forward to tomorrow
+        if (dayShift === null && d.getTime() <= now.getTime()) d.setDate(d.getDate() + 1);
+        date = d;
+      }
+    }
+
+    // 4. Priority words: "urgent"/"asap" → urgent, "high [priority]" → high,
+    //    "low [priority]"/"minor" → low. Bang markers: "!" → high, "!!"+ → urgent.
+    //    Word boundaries keep "highway"/"below"/"flow" from matching.
+    var priority = null, pm;
+    if (pm = /\b(urgent|asap|critical|emergency)\b/.exec(lower)) { priority = 'urgent'; cut(pm); }
+    else if (pm = /\bhigh(?:[\s-]*(?:priority|prio|pri))?\b/.exec(lower)) { priority = 'high'; cut(pm); }
+    else if (pm = /\b(?:low|minor)(?:[\s-]*(?:priority|prio|pri))?\b/.exec(lower)) { priority = 'low'; cut(pm); }
+    else if (pm = /!+/.exec(lower)) { priority = pm[0].length === 1 ? 'high' : 'urgent'; cut(pm); }
+
+    return {
+      date: date,
+      priority: priority,
+      subject: cuts.length ? cleanSubject(raw, cuts) : raw.trim(),
+    };
+  }
+
+  // Strip the matched time-phrase ranges out of the raw text and tidy the
+  // leftover connector words so the subject still reads cleanly.
+  function cleanSubject(raw, cuts) {
+    var out = raw;
+    cuts.sort(function(a, b) { return b[0] - a[0]; });   // splice right-to-left
+    for (var i = 0; i < cuts.length; i++) {
+      out = out.slice(0, cuts[i][0]) + ' ' + out.slice(cuts[i][1]);
+    }
+    out = out.replace(/\s+/g, ' ').trim();
+    out = out.replace(/[\s,]*\b(at|on|by|@)\s*$/i, '').trim();   // dangling trailing connector
+    out = out.replace(/^(at|on|by|@)\b[\s,]*/i, '').trim();      // dangling leading connector
+    out = out.replace(/^[\s,:;–\-]+/, '').trim();                // leading punctuation ("urgent:" → "")
+    out = out.replace(/[\s,:;–\-]+$/, '').trim();                // trailing punctuation
+    return out || raw.trim();
+  }
+
   function quickCreate(inputEl, opts) {
     opts = opts || {};
-    var subject = inputEl.value.trim();
+    var raw = inputEl.value.trim();
+    if (!raw) return;
+    var parsed = parseQuickAddTime(raw);
+    var subject = parsed.subject;
     if (!subject) return;
+    var when = opts.date || parsed.date || defaultQuickAddDate();
+    var priority = opts.priority || parsed.priority || 'medium';
     inputEl.disabled = true;
     Api.post(API_BASE, {
       subject: subject,
-      scheduled_at: (opts.date || defaultQuickAddDate()).toISOString(),
-      priority: opts.priority || 'medium',
+      scheduled_at: when.toISOString(),
+      priority: priority,
       contacts: [],
       tickets: [],
     }).then(function(saved) {
-      Toast.success('Reminder created.');
+      var prLabel = { urgent: 'Urgent', high: 'High', medium: 'Medium', low: 'Low' }[priority] || priority;
+      Toast.success('Reminder set · ' + formatRelative(when.toISOString()) + ' · ' + prLabel);
       inputEl.value = '';
       inputEl.disabled = false;
       inputEl.focus();
@@ -3066,14 +3305,6 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
       Toast.error(msg);
     });
   }
-
-  var quickAddInput = document.getElementById('quickAddInput');
-  quickAddInput.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') { this.value = ''; this.blur(); return; }
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
-    quickCreate(this, {});
-  });
 
   // Focus-card quick-add — defaults to today's smart-default time and stays
   // on the focus card (doesn't auto-open the detail).
@@ -3112,6 +3343,157 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     loadReminders();
   });
 
+  // ── Filters popover ───────────────────────────────────────────────
+  // Collapses the status + priority selects into a single body-portaled
+  // popover. The hidden <select id="statusFilter"/"priorityFilter"> stay the
+  // source of truth, so the change handlers above + clearAllFilters keep
+  // working unchanged; chip clicks just set the select value + dispatch change.
+  var FILTER_GROUPS = [
+    { key: 'status', label: 'Status', selectId: 'statusFilter',
+      options: [['', 'All'], ['overdue', 'Overdue'], ['pending', 'Pending'], ['completed', 'Completed'], ['cancelled', 'Cancelled']] },
+    { key: 'priority', label: 'Priority', selectId: 'priorityFilter',
+      options: [['', 'All'], ['urgent', 'Urgent'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']] },
+  ];
+  var filtersBtn = document.getElementById('filtersBtn');
+  var filterPop = null;
+
+  function activeFilterCount() {
+    var n = 0;
+    if (document.getElementById('statusFilter').value) n++;
+    if (document.getElementById('priorityFilter').value) n++;
+    return n;
+  }
+  function updateFilterBadge() {
+    var n = activeFilterCount();
+    var badge = document.getElementById('filterCount');
+    badge.textContent = String(n);
+    badge.hidden = (n === 0);
+    filtersBtn.classList.toggle('has-filters', n > 0);
+  }
+  function syncFilterChips() {
+    if (!filterPop) return;
+    FILTER_GROUPS.forEach(function(g) {
+      var val = document.getElementById(g.selectId).value;
+      filterPop.querySelectorAll('.rm-fchip[data-group="' + g.key + '"]').forEach(function(chip) {
+        chip.classList.toggle('is-active', chip.dataset.value === val);
+      });
+    });
+  }
+  // Called by clearAllFilters (function declarations are hoisted) to keep the
+  // badge + chip states in sync after a programmatic reset.
+  function syncFilterUI() { updateFilterBadge(); syncFilterChips(); }
+
+  function buildFilterPop() {
+    var pop = el('div', { id: 'rmFilterPop', className: 'rm-filter-pop', role: 'dialog', 'aria-label': 'Filter reminders' });
+    FILTER_GROUPS.forEach(function(g) {
+      var group = el('div', { className: 'rm-filter-pop-group' });
+      group.appendChild(el('div', { className: 'rm-filter-pop-label', text: g.label }));
+      var chips = el('div', { className: 'rm-filter-pop-chips' });
+      g.options.forEach(function(opt) {
+        var val = opt[0], lbl = opt[1];
+        var children = [];
+        if (val) children.push(el('span', { className: 'rm-fchip-dot' }));
+        children.push(document.createTextNode(lbl));
+        var chip = el('button', {
+          type: 'button',
+          className: 'rm-fchip',
+          dataset: { group: g.key, value: val },
+        }, children);
+        chip.addEventListener('click', function() {
+          var sel = document.getElementById(g.selectId);
+          if (sel.value === val) return;
+          sel.value = val;
+          sel.dispatchEvent(new Event('change', { bubbles: true }));
+          syncFilterUI();
+        });
+        chips.appendChild(chip);
+      });
+      group.appendChild(chips);
+      pop.appendChild(group);
+    });
+    var foot = el('div', { className: 'rm-filter-pop-foot' });
+    var clear = el('button', { type: 'button', className: 'rm-filter-pop-clear' }, [
+      icon('filter-off'), document.createTextNode(' Clear'),
+    ]);
+    clear.addEventListener('click', function() {
+      if (!state.status && !state.priority) return;
+      // Reset both at once and reload a single time (avoids two change-driven fetches).
+      state.status = '';
+      state.priority = '';
+      document.getElementById('statusFilter').value = '';
+      document.getElementById('priorityFilter').value = '';
+      state.page = 1;
+      syncFilterUI();
+      loadReminders();
+    });
+    foot.appendChild(clear);
+    pop.appendChild(foot);
+    return pop;
+  }
+
+  function positionFilterPop() {
+    if (!filterPop) return;
+    var r = filtersBtn.getBoundingClientRect();
+    var popW = filterPop.offsetWidth || 250;
+    var left = r.left;
+    if (left + popW > window.innerWidth - 8) left = window.innerWidth - 8 - popW;
+    if (left < 8) left = 8;
+    filterPop.style.top = (r.bottom + 6) + 'px';
+    filterPop.style.left = left + 'px';
+  }
+  function openFilterPop() {
+    if (filterPop) return;
+    filterPop = buildFilterPop();
+    document.body.appendChild(filterPop);
+    syncFilterChips();
+    positionFilterPop();
+    filtersBtn.classList.add('is-open');
+    filtersBtn.setAttribute('aria-expanded', 'true');
+    // Move focus into the dialog so chips are keyboard-reachable; Esc returns
+    // focus to the trigger (the popover is body-portaled, not in tab order).
+    var firstChip = filterPop.querySelector('.rm-fchip');
+    if (firstChip) firstChip.focus({ preventScroll: true });
+    setTimeout(function() {
+      if (!filterPop) return; // closed again before this fired — don't leak listeners
+      document.addEventListener('click', onFilterOutside, true);
+      document.addEventListener('keydown', onFilterEsc, true);
+      window.addEventListener('resize', positionFilterPop);
+      window.addEventListener('scroll', onFilterScroll, true);
+    }, 0);
+  }
+  function closeFilterPop() {
+    if (!filterPop) return;
+    filterPop.remove();
+    filterPop = null;
+    filtersBtn.classList.remove('is-open');
+    filtersBtn.setAttribute('aria-expanded', 'false');
+    document.removeEventListener('click', onFilterOutside, true);
+    document.removeEventListener('keydown', onFilterEsc, true);
+    window.removeEventListener('resize', positionFilterPop);
+    window.removeEventListener('scroll', onFilterScroll, true);
+  }
+  function onFilterOutside(e) {
+    if (filterPop && !filterPop.contains(e.target) && !filtersBtn.contains(e.target)) closeFilterPop();
+  }
+  function onFilterEsc(e) {
+    if (e.key === 'Escape' && filterPop) {
+      // Capture-phase: consume the Esc here so the global keydown handler
+      // doesn't ALSO collapse an open detail pane / unsaved form.
+      e.stopPropagation();
+      closeFilterPop();
+      filtersBtn.focus({ preventScroll: true });
+    }
+  }
+  function onFilterScroll(e) {
+    if (filterPop && filterPop.contains(e.target)) return;
+    positionFilterPop();
+  }
+  filtersBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    if (filterPop) closeFilterPop(); else openFilterPop();
+  });
+  updateFilterBadge();
+
   var searchTimer = null;
   document.getElementById('searchInput').addEventListener('input', function() {
     var val = this.value.trim();
@@ -3135,16 +3517,6 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   });
   document.getElementById('nextPage').addEventListener('click', function() {
     if (state.page < state.totalPages) { state.page++; loadReminders(); }
-  });
-
-  document.getElementById('selectAll').addEventListener('change', function() {
-    var checked = this.checked;
-    state.checked.clear();
-    document.querySelectorAll('.rm-item-check:not(:disabled)').forEach(function(cb) {
-      cb.checked = checked;
-      if (checked) state.checked.add(cb.dataset.id);
-    });
-    updateBulkBar();
   });
 
   document.getElementById('bulkCompleteBtn').addEventListener('click', function() {

@@ -123,17 +123,8 @@
     <span class="tl-tab-label">All</span>
     <span class="tl-tab-count" id="statTotal">--</span>
   </button>
-  <button class="tl-stat-tab" data-filter="open" role="tab" aria-selected="false">
-    <span class="tl-tab-dot" style="background:var(--crm-accent);"></span>
-    <span class="tl-tab-label">Open</span>
-    <span class="tl-tab-count" id="statOpen">--</span>
-  </button>
-  <button class="tl-stat-tab" data-filter="in_progress" role="tab" aria-selected="false">
-    <span class="tl-tab-dot" style="background:var(--status-info-dot);"></span>
-    <span class="tl-tab-label">In Progress</span>
-    <span class="tl-tab-count" id="statProgress">--</span>
-  </button>
-  <button class="tl-stat-tab" data-filter="urgent" role="tab" aria-selected="false">
+  <!-- Per-status tabs injected here from /tickets/ticket-statuses/ (see buildStatusTabs) -->
+  <button class="tl-stat-tab" data-filter="urgent" role="tab" aria-selected="false" id="urgentStatTab">
     <span class="tl-tab-dot" style="background:var(--crm-accent);"></span>
     <span class="tl-tab-label">Urgent</span>
     <span class="tl-tab-count" id="statUrgent">--</span>
@@ -339,10 +330,9 @@
 
   /* ── Cached DOM References ── */
   var dom = {
-    statOpen: document.getElementById('statOpen'),
-    statProgress: document.getElementById('statProgress'),
     statUrgent: document.getElementById('statUrgent'),
     statTotal: document.getElementById('statTotal'),
+    ticketStats: document.getElementById('ticketStats'),
     filterStatus: document.getElementById('filterStatus'),
     filterPriority: document.getElementById('filterPriority'),
     filterQueue: document.getElementById('filterQueue'),
@@ -369,7 +359,6 @@
     bulkActionsModal: document.getElementById('bulkActionsModal'),
     bulkToolbar: document.getElementById('bulkToolbar'),
     bulkToolbarCount: document.getElementById('bulkToolbarCount'),
-    statTabs: document.querySelectorAll('.tl-stat-tab'),
     tableHeader: document.querySelector('.tl-table-header'),
     layoutIcon: document.getElementById('layoutIcon'),
     currentLayoutName: document.getElementById('currentLayoutName'),
@@ -401,15 +390,75 @@
     return str ? str.charAt(0).toUpperCase() + str.slice(1) : '--';
   }
 
-  /* ── Load Stats ── */
-  Api.get('/api/v1/analytics/dashboard/').then(function(data) {
-    var s = data.ticket_stats || {};
+  /* ── Status Tabs (built dynamically from the tenant's statuses) ── */
+  var statsData = null;
+
+  /* Build one tab per status, inserted between "All" and "Urgent". */
+  function buildStatusTabs(statuses) {
+    if (!dom.ticketStats) return;
+    var anchor = document.getElementById('urgentStatTab');
+    dom.ticketStats.querySelectorAll('.tl-stat-tab[data-status-tab]').forEach(function(t) { t.remove(); });
+    statuses.slice().sort(function(a, b) {
+      return (a.order != null ? a.order : 0) - (b.order != null ? b.order : 0);
+    }).forEach(function(st) {
+      var btn = document.createElement('button');
+      btn.className = 'tl-stat-tab';
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-selected', 'false');
+      btn.dataset.filter = st.slug;
+      btn.dataset.statusTab = '1';
+      btn.dataset.statusName = st.name;
+
+      var dot = document.createElement('span');
+      dot.className = 'tl-tab-dot';
+      if (st.color) dot.style.background = st.color;
+      btn.appendChild(dot);
+
+      var label = document.createElement('span');
+      label.className = 'tl-tab-label';
+      label.textContent = st.name;
+      btn.appendChild(label);
+
+      var count = document.createElement('span');
+      count.className = 'tl-tab-count';
+      count.textContent = '--';
+      btn.appendChild(count);
+
+      dom.ticketStats.insertBefore(btn, anchor);
+    });
+  }
+
+  /* Fill every tab's badge from the latest dashboard stats (by_status keyed by name). */
+  function renderStatBadges() {
+    if (!statsData) return;
+    var s = statsData.ticket_stats || {};
     var byStatus = s.by_status || {};
     var byPriority = s.by_priority || {};
-    dom.statOpen.textContent = s.open_count || 0;
-    dom.statProgress.textContent = byStatus['In Progress'] || 0;
-    dom.statUrgent.textContent = byPriority['urgent'] || 0;
     dom.statTotal.textContent = (s.open_count || 0) + (s.closed_count || 0);
+    if (dom.statUrgent) dom.statUrgent.textContent = byPriority['urgent'] || 0;
+    dom.ticketStats.querySelectorAll('.tl-stat-tab[data-status-tab]').forEach(function(tab) {
+      var countEl = tab.querySelector('.tl-tab-count');
+      if (countEl) countEl.textContent = byStatus[tab.dataset.statusName] || 0;
+    });
+  }
+
+  /* Highlight the tab matching the active status/priority filter. */
+  function syncActiveTab() {
+    if (!dom.ticketStats) return;
+    var match = '';
+    if (dom.filterStatus.value) match = dom.filterStatus.value;
+    else if (dom.filterPriority.value === 'urgent') match = 'urgent';
+    dom.ticketStats.querySelectorAll('.tl-stat-tab').forEach(function(t) {
+      var on = (t.dataset.filter || '') === match;
+      t.classList.toggle('tl-stat-tab--active', on);
+      t.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+  }
+
+  /* ── Load Stats ── */
+  Api.get('/api/v1/analytics/dashboard/').then(function(data) {
+    statsData = data;
+    renderStatBadges();
   }).catch(function() {});
 
   /* ── Load Statuses ── */
@@ -423,6 +472,9 @@
       o2.value = s.id; o2.textContent = s.name;
       dom.bulkStatusSelect.appendChild(o2);
     });
+    buildStatusTabs(statusesData);
+    renderStatBadges();
+    syncActiveTab();
     // Apply deferred status filter from dashboard link
     if (window._pendingStatusFilter) {
       var target = window._pendingStatusFilter;
@@ -915,6 +967,7 @@
 
   /* ── Load Tickets ── */
   window.loadTickets = function() {
+    syncActiveTab();
     dom.ticketsList.textContent = '';
     var loadingDiv = document.createElement('div');
     loadingDiv.className = 'tl-loading';
@@ -1266,30 +1319,28 @@
   var saveViewBtnEl = document.getElementById('saveViewBtn');
   if (saveViewBtnEl) saveViewBtnEl.addEventListener('click', function(e) { e.preventDefault(); SavedViews.saveCurrentView(); });
 
-  /* ── Stat Tab Clicks ── */
-  dom.statTabs.forEach(function(tab) {
-    tab.addEventListener('click', function() {
-      dom.statTabs.forEach(function(t) { t.classList.remove('tl-stat-tab--active'); t.setAttribute('aria-selected', 'false'); });
-      tab.classList.add('tl-stat-tab--active');
-      tab.setAttribute('aria-selected', 'true');
-      var filter = tab.dataset.filter;
-      dom.filterQueue.value = '';
-      dom.filterAssignee.value = '';
-      dom.filterCategory.value = '';
-      if (filter === 'urgent') {
-        dom.filterStatus.value = '';
-        dom.filterPriority.value = 'urgent';
-      } else if (filter) {
-        dom.filterStatus.value = filter;
-        dom.filterPriority.value = '';
-      } else {
-        dom.filterStatus.value = '';
-        dom.filterPriority.value = '';
-      }
-      currentPage = 1;
-      loadTickets();
-      updateClearBtn();
-    });
+  /* ── Stat Tab Clicks (delegated — status tabs are injected dynamically) ── */
+  dom.ticketStats.addEventListener('click', function(e) {
+    var tab = e.target.closest('.tl-stat-tab');
+    if (!tab || !dom.ticketStats.contains(tab)) return;
+    var filter = tab.dataset.filter || '';
+    dom.filterQueue.value = '';
+    dom.filterAssignee.value = '';
+    dom.filterCategory.value = '';
+    if (filter === 'urgent') {
+      dom.filterStatus.value = '';
+      dom.filterPriority.value = 'urgent';
+    } else if (filter) {
+      dom.filterStatus.value = filter;
+      dom.filterPriority.value = '';
+    } else {
+      dom.filterStatus.value = '';
+      dom.filterPriority.value = '';
+    }
+    syncActiveTab();
+    currentPage = 1;
+    loadTickets();
+    updateClearBtn();
   });
 
   /* ── Layout Toggle ── */

@@ -14,12 +14,20 @@ Coverage:
    codenames so HasTenantPermission grants per the seeded RBAC grid.
 """
 
+import uuid
+from datetime import timedelta
+from decimal import Decimal
+
 import pytest
+from django.utils import timezone
 
 from conftest import (
+    CompanyFactory,
+    ContactFactory,
     InboundEmailFactory,
     MembershipFactory,
     TenantFactory,
+    TicketFactory,
     TicketStatusFactory,
     UserFactory,
     make_api_client,
@@ -297,9 +305,20 @@ class TestHubEmailApiPermissions:
         assert resp.status_code == 200
         assert resp.data["count"] >= 1
 
-    def test_manager_can_list(self, manager_client, parked_hub_email):
+    def test_manager_in_group_can_list(self, manager_client, manager_user, tenant, parked_hub_email):
+        """Managers are no longer exempt — they need a group like everyone
+        below Admin. A grouped manager can list."""
+        from apps.accounts.models import UserGroup
+
+        group = UserGroup.unscoped.create(tenant=tenant, name="Support")
+        group.members.add(manager_user)
         resp = manager_client.get("/api/v1/inbox-hub/hub-emails/")
         assert resp.status_code == 200
+
+    def test_manager_without_group_denied(self, manager_client, parked_hub_email):
+        """A manager in no group is locked out (only Admins are exempt)."""
+        resp = manager_client.get("/api/v1/inbox-hub/hub-emails/")
+        assert resp.status_code == 403
 
     def test_admin_can_convert(self, admin_client, parked_hub_email):
         resp = admin_client.post(
@@ -363,3 +382,175 @@ class TestHubEmailApiPermissions:
         ids = [row["id"] for row in resp.data["results"]]
         assert str(other_hub.id) not in ids
         assert str(parked_hub_email.id) in ids
+
+
+# ---------------------------------------------------------------------------
+# Triage cockpit: enriched serializer + Hub-local customer-context action
+# ---------------------------------------------------------------------------
+
+
+def _build_hub_email(
+    tenant,
+    *,
+    contact=None,
+    body_text="Body",
+    body_html="",
+    attachment_metadata=None,
+    sla_response_due_at=None,
+    response_breached=False,
+    state=None,
+):
+    """Create a parked HubEmail directly via the ORM (explicit tenant), so the
+    cockpit serializer/context tests can control body, attachments and SLA
+    fields without driving the whole inbound pipeline."""
+    from apps.inbound_email.models import InboundEmail
+    from apps.inbox_hub.models import HubEmail
+
+    inbound = InboundEmail.objects.create(
+        tenant=tenant,
+        sender_email="customer@example.com",
+        recipient_email=f"support+{tenant.slug}@kanzan.io",
+        subject="Hello there",
+        body_text=body_text,
+        body_html=body_html,
+        attachment_metadata=attachment_metadata or [],
+        message_id=f"{uuid.uuid4()}@test.com",
+        raw_headers="",
+    )
+    return HubEmail.unscoped.create(
+        tenant=tenant,
+        inbound=inbound,
+        contact=contact,
+        state=state or HubEmail.State.NEW,
+        priority=HubEmail.Priority.NORMAL,
+        sla_response_due_at=sla_response_due_at,
+        response_breached=response_breached,
+    )
+
+
+@pytest.mark.django_db
+class TestCockpitSerializer:
+    def test_list_row_exposes_cockpit_fields(self, admin_client, tenant):
+        contact = ContactFactory(tenant=tenant, email="customer@example.com")
+        hub = _build_hub_email(
+            tenant,
+            contact=contact,
+            body_text="Hello world from the customer",
+            attachment_metadata=[
+                {"filename": "a.pdf", "content_type": "application/pdf", "size": 10},
+                {"filename": "b.png", "content_type": "image/png", "size": 20},
+            ],
+            sla_response_due_at=timezone.now() + timedelta(hours=1),
+        )
+
+        resp = admin_client.get("/api/v1/inbox-hub/hub-emails/?state=new")
+        assert resp.status_code == 200
+        row = next(r for r in resp.data["results"] if r["id"] == str(hub.id))
+
+        assert row["contact_id"] == str(contact.id)
+        assert "Hello world from the customer" in row["snippet"]
+        assert row["has_attachments"] is True
+        assert row["attachment_count"] == 2
+        assert "sla_response_due_at" in row  # promoted onto the list serializer
+
+    def test_snippet_strips_html_and_truncates(self, admin_client, tenant):
+        long_html = "<p>Hello <b>world</b> " + ("spam " * 200) + "</p>"
+        hub = _build_hub_email(tenant, body_text="", body_html=long_html)
+
+        resp = admin_client.get("/api/v1/inbox-hub/hub-emails/?state=new")
+        row = next(r for r in resp.data["results"] if r["id"] == str(hub.id))
+
+        assert "<" not in row["snippet"]            # tags stripped
+        assert row["snippet"].startswith("Hello world")
+        assert len(row["snippet"]) <= 141           # Truncator adds an ellipsis char
+
+    def test_unknown_sender_has_null_contact_id(self, admin_client, tenant):
+        hub = _build_hub_email(tenant, contact=None)
+        resp = admin_client.get("/api/v1/inbox-hub/hub-emails/?state=new")
+        row = next(r for r in resp.data["results"] if r["id"] == str(hub.id))
+        assert row["contact_id"] is None
+
+
+@pytest.mark.django_db
+class TestHubEmailContextAction:
+    def test_context_happy_path(self, admin_client, tenant, default_status, closed_status):
+        from apps.contacts.models import Account
+
+        company = CompanyFactory(tenant=tenant, name="Acme Co")
+        account = Account.unscoped.create(
+            tenant=tenant, name="Acme Account",
+            mrr=Decimal("4200.00"), health_score=88,
+        )
+        contact = ContactFactory(
+            tenant=tenant, email="customer@example.com",
+            company=company, account=account, email_bouncing=True,
+        )
+        # Two tickets for this contact: one open, one closed.
+        TicketFactory(tenant=tenant, contact=contact, status=default_status, csat_rating=4)
+        TicketFactory(tenant=tenant, contact=contact, status=closed_status)
+
+        hub = _build_hub_email(tenant, contact=contact)
+
+        resp = admin_client.get(f"/api/v1/inbox-hub/hub-emails/{hub.id}/context/")
+        assert resp.status_code == 200
+        data = resp.data
+        assert data["contact"]["company"] == "Acme Co"
+        assert data["contact"]["account"]["health_score"] == 88
+        assert data["contact"]["account"]["mrr"] == "4200.00"
+        assert data["contact"]["email_bouncing"] is True
+        assert data["stats"]["total_tickets"] == 2
+        assert data["stats"]["open_tickets"] == 1
+        assert len(data["recent_tickets"]) == 2
+
+    def test_context_null_contact_returns_empty(self, admin_client, tenant):
+        hub = _build_hub_email(tenant, contact=None)
+        resp = admin_client.get(f"/api/v1/inbox-hub/hub-emails/{hub.id}/context/")
+        assert resp.status_code == 200
+        assert resp.data["contact"] is None
+
+    def test_agent_can_reach_hub_context_but_not_contacts_context(
+        self, agent_client, agent_user, tenant
+    ):
+        """The load-bearing design decision: an Agent (level 30) who owns no
+        ticket for the contact CAN read the Hub-local context action (its
+        row-scoping is the Hub's own), while the contacts endpoint 404s them
+        (it scopes contacts to tickets the agent created/owns)."""
+        from apps.accounts.models import UserGroup
+
+        # Agent needs group membership to use the Hub at all (access gate); the
+        # NEW HubEmail is then visible via IsHubEmailAccessible's row-scope.
+        group = UserGroup.unscoped.create(tenant=tenant, name="Support")
+        group.members.add(agent_user)
+
+        contact = ContactFactory(tenant=tenant, email="stranger@example.com")
+        hub = _build_hub_email(tenant, contact=contact)
+
+        hub_resp = agent_client.get(f"/api/v1/inbox-hub/hub-emails/{hub.id}/context/")
+        assert hub_resp.status_code == 200          # reachable via Hub row-scope
+
+        contacts_resp = agent_client.get(
+            f"/api/v1/contacts/contacts/{contact.id}/context/"
+        )
+        assert contacts_resp.status_code == 404      # scoped out — why we needed the Hub action
+
+
+@pytest.mark.django_db
+class TestSlaRiskLens:
+    def test_sla_risk_filters_and_orders(self, admin_client, tenant):
+        now = timezone.now()
+        e_a = _build_hub_email(tenant, sla_response_due_at=now + timedelta(minutes=60))
+        e_b = _build_hub_email(tenant, sla_response_due_at=now + timedelta(minutes=10))
+        # Excluded: breached deadline, and no deadline at all.
+        _build_hub_email(
+            tenant, sla_response_due_at=now + timedelta(minutes=5),
+            response_breached=True,
+        )
+        _build_hub_email(tenant, sla_response_due_at=None)
+
+        resp = admin_client.get(
+            "/api/v1/inbox-hub/hub-emails/?sla_risk=true&ordering=sla_response_due_at"
+        )
+        assert resp.status_code == 200
+        ids = [r["id"] for r in resp.data["results"]]
+        # Only the two live deadlines, soonest first.
+        assert ids == [str(e_b.id), str(e_a.id)]

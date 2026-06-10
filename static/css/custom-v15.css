@@ -4602,9 +4602,14 @@ h4.fw-semibold, h4.fw-bold {
 }
 
 .kanban-column {
-  min-width: 300px;
-  max-width: 330px;
-  flex-shrink: 0;
+  /* Flex-share the row so columns shrink to fit the viewport instead of
+     overflowing (which cut off the last column behind a horizontal scrollbar).
+     min-width keeps cards readable; when enough columns are added to exceed it,
+     horizontal scroll returns naturally. Per-column vertical scroll lives on
+     .kanban-column-body and is unaffected. */
+  flex: 1 1 0;
+  min-width: 240px;
+  max-width: 360px;
   display: flex;
   flex-direction: column;
   max-height: 100%;
@@ -24086,16 +24091,21 @@ textarea {
 }
 
 /* ===========================================================================
-   INBOX HUB (Phase 1 MVP)
-   3-column command surface: LEFT nav · MIDDLE list · RIGHT detail.
-   Uses only existing tokens (no new hex literals — theme-check enforced).
+   INBOX HUB — triage desk
+   3 columns: LEFT triage filters · MIDDLE untriaged list · RIGHT email view.
+   The detail pane is read-only mail + the four triage actions; acting on an
+   email routes it onward and it leaves the Hub. Email-client styling.
+   Existing tokens only (theme-check enforced — no hex literals in bodies).
    =========================================================================== */
 
 .ih-shell {
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) minmax(0, 1.5fr);
+  grid-template-columns: 240px minmax(0, 1fr) minmax(0, 1.5fr);
   gap: 0;
-  height: calc(100vh - var(--crm-topbar-height, 64px) - 24px);
+  /* Fallback height (accounts for content header + the wrapper's default
+     ~3.5rem vertical padding) for when the .ih-page body class is absent.
+     The body.ih-page rule below zeroes that padding for an exact fit. */
+  height: calc(100vh - var(--crm-content-header-height) - 3.5rem);
   min-height: 520px;
   background: var(--crm-card-bg);
   border: 1px solid var(--crm-border);
@@ -24104,8 +24114,26 @@ textarea {
   box-shadow: var(--crm-shadow-sm);
 }
 
-/* ---------- LEFT: nav rail ---------- */
+/* Full-height app surface — the Hub fills the viewport so the page itself
+   never scrolls. Zero the shared .crm-content-wrapper padding and pin the
+   shell to a viewport-based height (vh is definite, so it resolves without
+   relying on the flex/min-height ancestor chain). Desktop only; the mobile
+   breakpoint below keeps the stacked, scrollable layout. */
+@media (min-width: 992px) {
+  body.ih-page .crm-content-wrapper {
+    padding: 0;
+    overflow: hidden;
+  }
+  body.ih-page .ih-shell {
+    height: calc(100vh - var(--crm-content-header-height));
+    min-height: 0;
+  }
+}
+
+/* ---------- LEFT: triage filter rail ---------- */
 .ih-nav {
+  display: flex;
+  flex-direction: column;
   border-right: 1px solid var(--crm-border-subtle);
   padding: 16px 12px;
   overflow-y: auto;
@@ -24119,7 +24147,7 @@ textarea {
   letter-spacing: 0.08em;
   color: var(--crm-text-muted);
   font-weight: var(--crm-weight-semibold);
-  margin-bottom: 6px;
+  margin-bottom: 8px;
   padding: 0 8px;
 }
 .ih-nav-link {
@@ -24132,7 +24160,7 @@ textarea {
   color: var(--crm-text-secondary);
   font-size: 0.86rem;
   font-weight: var(--crm-weight-medium);
-  padding: 7px 10px;
+  padding: 8px 10px;
   border-radius: var(--crm-radius-sm);
   cursor: pointer;
   text-align: left;
@@ -24160,20 +24188,36 @@ textarea {
 }
 .ih-nav-link.active .ih-nav-count {
   color: var(--crm-primary);
-  background: var(--crm-primary-subtle, var(--status-info-bg));
+  background: var(--crm-card-bg);
 }
 
-.ih-state-dot {
+/* Priority dot used in the filter rail */
+.ih-prio-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   background: var(--status-neutral-dot);
 }
-.ih-state-dot--new           { background: var(--status-info-dot); }
-.ih-state-dot--assigned      { background: var(--crm-accent); }
-.ih-state-dot--in_progress   { background: var(--status-warning-dot); }
-.ih-state-dot--resolved      { background: var(--status-success-dot); }
+.ih-prio-dot--urgent { background: var(--status-danger-dot); }
+.ih-prio-dot--high   { background: var(--status-warning-dot); }
+
+/* Footer note explaining the triage-only model */
+.ih-nav-foot {
+  margin-top: auto;
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-radius: var(--crm-radius-sm);
+  background: var(--crm-bg-elevated-1);
+  color: var(--crm-text-muted);
+}
+.ih-nav-foot i { font-size: 1rem; margin-top: 1px; color: var(--crm-text-secondary); }
+.ih-nav-foot p {
+  margin: 0;
+  font-size: 0.74rem;
+  line-height: 1.45;
+}
 
 /* ---------- MIDDLE: list ---------- */
 .ih-list {
@@ -24221,7 +24265,7 @@ textarea {
   pointer-events: none;
 }
 .ih-search-input {
-  width: 240px;
+  width: 230px;
   padding: 7px 10px 7px 30px;
   border-radius: var(--crm-radius-sm);
   border: 1px solid var(--crm-input-border, var(--crm-border));
@@ -24247,10 +24291,10 @@ textarea {
 /* List row */
 .ih-row {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 10px;
   width: 100%;
-  padding: 10px 18px;
+  padding: 11px 18px;
   background: transparent;
   border: none;
   border-bottom: 1px solid var(--crm-border-light);
@@ -24261,8 +24305,40 @@ textarea {
 .ih-row:hover { background: var(--crm-bg-elevated-1); }
 .ih-row.is-selected {
   background: var(--crm-primary-subtle, var(--status-info-bg));
-  border-left: 3px solid var(--crm-primary);
-  padding-left: 15px;
+  box-shadow: inset 3px 0 0 var(--crm-primary);
+}
+/* Row avatar — initials, ringed by known (has Contact) vs new sender */
+.ih-row-avatar {
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  margin-top: 1px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: var(--crm-weight-bold);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: var(--crm-bg-elevated-2, var(--crm-bg-elevated-1));
+  color: var(--crm-text-secondary);
+  box-shadow: inset 0 0 0 2px var(--status-info-dot);
+}
+.ih-row-avatar--known {
+  box-shadow: inset 0 0 0 2px var(--status-success-dot);
+  color: var(--status-success-text);
+}
+.ih-row-avatar--new {
+  box-shadow: inset 0 0 0 2px var(--status-info-dot);
+  color: var(--status-info-text);
+}
+.ih-row-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 .ih-row-top {
   display: flex;
@@ -24296,61 +24372,26 @@ textarea {
   min-width: 0;
 }
 .ih-row-when { flex-shrink: 0; }
-.ih-row-chips {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 2px;
-}
 
-/* Priority chip on the row */
-.ih-row-priority {
-  display: inline-block;
-  font-size: 0.66rem;
-  font-weight: var(--crm-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 1px 6px;
-  border-radius: var(--crm-radius-xs, 4px);
-  background: var(--status-neutral-bg);
-  color: var(--status-neutral-text);
+/* Body snippet preview (one line) + attachment indicator */
+.ih-row-snippet {
+  font-size: 0.78rem;
+  color: var(--crm-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
-.ih-row-priority--high    { background: var(--status-warning-bg);  color: var(--status-warning-text); }
-.ih-row-priority--urgent  { background: var(--status-danger-bg);   color: var(--status-danger-text); }
-.ih-row-priority--low     { background: var(--status-info-bg);     color: var(--status-info-text); }
-
-/* State chip on the row */
-.ih-row-state {
-  display: inline-block;
-  font-size: 0.7rem;
-  font-weight: var(--crm-weight-medium);
-  padding: 1px 7px;
-  border-radius: var(--crm-radius-pill, 9999px);
-  background: var(--status-neutral-bg);
-  color: var(--status-neutral-text);
-  border: 1px solid var(--status-neutral-border);
-}
-.ih-row-state--new                  { background: var(--status-info-bg);     color: var(--status-info-text);     border-color: var(--status-info-border); }
-.ih-row-state--assigned             { background: var(--status-info-bg);     color: var(--status-info-text);     border-color: var(--status-info-border); }
-.ih-row-state--in_progress          { background: var(--status-warning-bg);  color: var(--status-warning-text);  border-color: var(--status-warning-border); }
-.ih-row-state--escalated            { background: var(--status-danger-bg);   color: var(--status-danger-text);   border-color: var(--status-danger-border); }
-.ih-row-state--resolved             { background: var(--status-success-bg);  color: var(--status-success-text);  border-color: var(--status-success-border); }
-.ih-row-state--converted_to_ticket  { background: var(--status-success-bg);  color: var(--status-success-text);  border-color: var(--status-success-border); }
-.ih-row-state--dismissed            { background: var(--status-neutral-bg);  color: var(--status-neutral-text);  border-color: var(--status-neutral-border); }
-
-.ih-row-ticket {
-  font-size: 0.7rem;
-  font-weight: var(--crm-weight-semibold);
-  color: var(--crm-text-secondary);
-  padding: 1px 6px;
-  border-radius: var(--crm-radius-xs, 4px);
-  background: var(--crm-bg-elevated-1);
+.ih-row-clip {
+  flex: 0 0 auto;
+  font-size: 0.85rem;
+  color: var(--crm-text-muted);
 }
 
 /* List skeleton / empty / error */
 .ih-skeleton { padding: 0; }
 .ih-skeleton-row {
-  padding: 10px 18px;
+  padding: 11px 18px;
   border-bottom: 1px solid var(--crm-border-light);
 }
 .ih-skeleton-line {
@@ -24401,7 +24442,7 @@ textarea {
 }
 .ih-pagination-controls { display: flex; gap: 6px; }
 
-/* ---------- RIGHT: detail pane ---------- */
+/* ---------- RIGHT: email + triage actions ---------- */
 .ih-detail {
   display: flex;
   flex-direction: column;
@@ -24418,14 +24459,14 @@ textarea {
   padding: 40px;
 }
 .ih-detail-empty-inner {
-  max-width: 380px;
+  max-width: 420px;
   text-align: center;
   color: var(--crm-text-secondary);
 }
 .ih-empty-icon {
   font-size: 3rem;
   color: var(--crm-text-muted);
-  opacity: 0.6;
+  opacity: 0.55;
   margin-bottom: 12px;
   display: block;
 }
@@ -24442,15 +24483,16 @@ textarea {
 }
 .ih-empty-tips {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin-top: 16px;
+  justify-content: center;
+  gap: 8px 14px;
+  margin-top: 18px;
 }
 .ih-empty-tip {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   font-size: 0.78rem;
   color: var(--crm-text-muted);
 }
@@ -24469,96 +24511,186 @@ textarea {
   min-height: 0;
   height: 100%;
 }
-.ih-detail-header {
-  padding: 18px 22px 12px;
-  border-bottom: 1px solid var(--crm-border-light);
-}
-.ih-detail-title-row {
+
+/* Triage action bar — pinned at the top of the pane */
+.ih-actionbar {
+  flex: 0 0 auto;
   display: flex;
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 6px;
+  padding: 12px 22px;
+  background: var(--crm-card-bg);
+  border-bottom: 1px solid var(--crm-border-light);
 }
-.ih-detail-subject {
-  font-size: 1.15rem;
-  font-weight: var(--crm-weight-semibold);
-  color: var(--crm-text-primary);
-  margin: 0;
-  flex: 1 1 100%;
-  order: 2;
-}
-.ih-state-pill {
-  display: inline-block;
-  font-size: 0.72rem;
-  font-weight: var(--crm-weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 2px 9px;
-  border-radius: var(--crm-radius-pill, 9999px);
-  background: var(--status-neutral-bg);
-  color: var(--status-neutral-text);
-  border: 1px solid var(--status-neutral-border);
-}
-.ih-state-pill--new                  { background: var(--status-info-bg);     color: var(--status-info-text);     border-color: var(--status-info-border); }
-.ih-state-pill--assigned             { background: var(--status-info-bg);     color: var(--status-info-text);     border-color: var(--status-info-border); }
-.ih-state-pill--in_progress          { background: var(--status-warning-bg);  color: var(--status-warning-text);  border-color: var(--status-warning-border); }
-.ih-state-pill--escalated            { background: var(--status-danger-bg);   color: var(--status-danger-text);   border-color: var(--status-danger-border); }
-.ih-state-pill--resolved             { background: var(--status-success-bg);  color: var(--status-success-text);  border-color: var(--status-success-border); }
-.ih-state-pill--converted_to_ticket  { background: var(--status-success-bg);  color: var(--status-success-text);  border-color: var(--status-success-border); }
-.ih-state-pill--dismissed            { background: var(--status-neutral-bg);  color: var(--status-neutral-text);  border-color: var(--status-neutral-border); }
+.ih-actionbar-spacer { flex: 1 1 auto; }
+.ih-btn-caret { font-size: 0.85em; opacity: 0.7; margin-left: 1px; }
 
+/* Floating menu (Assign agent list) — appended to <body> so it escapes the
+   detail pane's overflow:hidden; positioned in JS via getBoundingClientRect. */
+.ih-menu {
+  position: fixed;
+  z-index: var(--crm-z-dropdown, 1000);
+  min-width: 200px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 6px;
+  background: var(--crm-card-bg);
+  border: 1px solid var(--crm-border);
+  border-radius: var(--crm-radius-md);
+  box-shadow: var(--crm-shadow-lg, var(--crm-shadow-md, var(--crm-shadow-sm)));
+  animation: ihMenuIn 120ms ease;
+}
+@keyframes ihMenuIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .ih-menu { animation: none; } }
+.ih-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  background: transparent;
+  border-radius: var(--crm-radius-sm);
+  color: var(--crm-text-primary);
+  font-size: 0.86rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 100ms ease;
+}
+.ih-menu-item:hover:not(:disabled) { background: var(--crm-bg-elevated-1); }
+.ih-menu-item:disabled { color: var(--crm-text-muted); cursor: default; }
+.ih-menu-item > i { font-size: 1rem; color: var(--crm-text-muted); flex: 0 0 auto; }
+.ih-menu-label {
+  flex: 1 1 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ih-menu-sub {
+  flex: 0 0 auto;
+  font-size: 0.74rem;
+  color: var(--crm-text-muted);
+}
+.ih-menu-divider {
+  height: 1px;
+  background: var(--crm-border-subtle);
+  margin: 4px 6px;
+}
+
+/* Scroll region holds the mail header + body */
+.ih-detail-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* "From" header — reads like a mail client */
+.ih-email-head {
+  display: flex;
+  gap: 14px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid var(--crm-border-light);
+}
+.ih-avatar {
+  flex: 0 0 auto;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--crm-primary-subtle, var(--status-info-bg));
+  color: var(--crm-primary);
+  font-weight: var(--crm-weight-bold);
+  font-size: 0.95rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.ih-email-head-main {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ih-email-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
 .ih-priority-pill {
   display: inline-block;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: var(--crm-weight-semibold);
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 2px 7px;
-  border-radius: var(--crm-radius-xs, 4px);
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: var(--crm-radius-pill, 9999px);
   background: var(--status-neutral-bg);
   color: var(--status-neutral-text);
 }
 .ih-priority-pill--high    { background: var(--status-warning-bg);  color: var(--status-warning-text); }
 .ih-priority-pill--urgent  { background: var(--status-danger-bg);   color: var(--status-danger-text); }
 .ih-priority-pill--low     { background: var(--status-info-bg);     color: var(--status-info-text); }
-
-.ih-detail-meta {
+.ih-email-subject {
+  font-size: 1.2rem;
+  font-weight: var(--crm-weight-semibold);
+  color: var(--crm-text-primary);
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+  word-break: break-word;
+}
+.ih-email-from {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
-  font-size: 0.84rem;
-  color: var(--crm-text-secondary);
+  align-items: baseline;
+  gap: 4px 8px;
+  font-size: 0.86rem;
 }
-.ih-meta-row {
+.ih-email-from-name {
+  font-weight: var(--crm-weight-semibold);
+  color: var(--crm-text-primary);
+}
+.ih-email-from-addr {
+  color: var(--crm-primary);
+  text-decoration: none;
+}
+.ih-email-from-addr:hover { text-decoration: underline; }
+.ih-email-when {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px 8px;
+  margin-top: 4px;
+  font-size: 0.78rem;
+  color: var(--crm-text-muted);
+}
+
+/* SLA badge — only rendered when a response deadline exists; tone escalates
+   as the deadline nears (info → warning → danger). */
+.ih-sla-badge {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: var(--crm-weight-semibold);
+  padding: 1px 8px;
+  border-radius: var(--crm-radius-pill, 9999px);
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral-text);
 }
-.ih-meta-row--secondary { color: var(--crm-text-muted); font-size: 0.78rem; }
-.ih-meta-divider { color: var(--crm-text-muted); }
-.ih-meta-link { color: var(--crm-primary); text-decoration: none; }
-.ih-meta-link:hover { text-decoration: underline; }
+.ih-sla-badge--info    { background: var(--status-info-bg);    color: var(--status-info-text); }
+.ih-sla-badge--warning { background: var(--status-warning-bg); color: var(--status-warning-text); }
+.ih-sla-badge--danger  { background: var(--status-danger-bg);  color: var(--status-danger-text); }
 
-.ih-detail-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 22px;
-  border-bottom: 1px solid var(--crm-border-light);
-  flex-wrap: wrap;
-}
-.ih-detail-actions-spacer { flex: 1 1 auto; }
-
-.ih-body {
-  flex: 1 1 auto;
-  overflow-y: auto;
-  padding: 18px 22px 24px;
-  min-height: 0;
+/* Body */
+.ih-email-body {
+  padding: 20px 24px 28px;
 }
 .ih-body-content {
   font-size: 0.92rem;
-  line-height: 1.55;
+  line-height: 1.6;
   color: var(--crm-text-primary);
   word-break: break-word;
 }
@@ -24584,7 +24716,7 @@ textarea {
 }
 .ih-body-empty { color: var(--crm-text-muted); font-style: italic; }
 
-/* ---------- Convert / Dismiss modals ---------- */
+/* ---------- Convert / Assign / Dismiss modals ---------- */
 .ih-convert-hint {
   display: flex;
   align-items: flex-start;
@@ -24604,9 +24736,187 @@ textarea {
   margin-bottom: 12px;
 }
 
+/* ---------- Triage cockpit: customer-context card ---------- */
+/* Sits between the email header and body — "who is writing + our history"
+   so convert/assign/dismiss is an informed, one-glance decision. */
+.ih-context-card {
+  margin: 14px 24px 4px;
+  padding: 14px 16px;
+  border: 1px solid var(--crm-border-light);
+  border-radius: var(--crm-radius-md);
+  background: var(--crm-bg-elevated-1);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ih-context-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.ih-context-avatar {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--crm-primary-subtle, var(--status-info-bg));
+  color: var(--crm-primary);
+  font-weight: var(--crm-weight-bold);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+}
+.ih-context-id {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ih-context-name {
+  font-weight: var(--crm-weight-semibold);
+  color: var(--crm-text-primary);
+  font-size: 0.9rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ih-context-email {
+  font-size: 0.78rem;
+  color: var(--crm-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ih-context-badge {
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  font-weight: var(--crm-weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 8px;
+  border-radius: var(--crm-radius-pill, 9999px);
+  background: var(--status-neutral-bg);
+  color: var(--status-neutral-text);
+}
+.ih-context-badge--known { background: var(--status-success-bg); color: var(--status-success-text); }
+.ih-context-badge--new   { background: var(--status-info-bg);    color: var(--status-info-text); }
+.ih-context-meta {
+  font-size: 0.8rem;
+  color: var(--crm-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ih-warn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-radius: var(--crm-radius-sm);
+  background: var(--status-danger-bg);
+  color: var(--status-danger-text);
+  font-size: 0.8rem;
+  font-weight: var(--crm-weight-medium);
+}
+.ih-context-stats {
+  display: flex;
+  gap: 18px;
+}
+.ih-context-stat {
+  display: flex;
+  flex-direction: column;
+}
+.ih-context-stat-val {
+  font-weight: var(--crm-weight-bold);
+  color: var(--crm-text-primary);
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+.ih-context-stat-label {
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--crm-text-muted);
+}
+.ih-context-tickets {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--crm-border-light);
+  padding-top: 8px;
+}
+.ih-tkt-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 6px;
+  border-radius: var(--crm-radius-sm);
+  text-decoration: none;
+  color: inherit;
+}
+.ih-tkt-row:hover { background: var(--crm-bg-elevated-2, var(--crm-bg-elevated-1)); }
+.ih-tkt-num {
+  flex: 0 0 auto;
+  font-weight: var(--crm-weight-semibold);
+  font-size: 0.78rem;
+  color: var(--crm-text-secondary);
+}
+.ih-tkt-subject {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 0.82rem;
+  color: var(--crm-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.ih-tkt-status {
+  flex: 0 0 auto;
+  font-size: 0.7rem;
+  font-weight: var(--crm-weight-semibold);
+  padding: 1px 8px;
+  border-radius: var(--crm-radius-pill, 9999px);
+  /* --badge-color is set inline from the ticket status_color (a DB hex) —
+     data, not a source literal, so the theme-check stays clean. */
+  background: color-mix(in srgb, var(--badge-color, var(--status-neutral-dot)) 14%, transparent);
+  color: var(--badge-color, var(--status-neutral-text));
+}
+
+/* Open-ticket nudge — pill in the action bar (assign/merge, don't duplicate) */
+.ih-open-ticket-nudge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--crm-radius-pill, 9999px);
+  background: var(--status-warning-bg);
+  color: var(--status-warning-text);
+  font-size: 0.76rem;
+  font-weight: var(--crm-weight-semibold);
+  text-decoration: none;
+}
+.ih-open-ticket-nudge:hover {
+  text-decoration: underline;
+  color: var(--status-warning-text);
+}
+
+/* Inbox-zero celebration */
+.ih-list-empty--zero i { color: var(--status-success-text); opacity: 1; }
+.ih-list-empty-title {
+  font-weight: var(--crm-weight-semibold);
+  color: var(--crm-text-primary);
+  margin: 0;
+}
+.ih-list-empty-sub {
+  font-size: 0.82rem;
+  color: var(--crm-text-muted);
+  margin: 0;
+}
+
 /* ---------- Responsive ---------- */
 @media (max-width: 1199.98px) {
-  .ih-shell { grid-template-columns: 200px minmax(0, 1fr) minmax(0, 1.4fr); }
+  .ih-shell { grid-template-columns: 210px minmax(0, 1fr) minmax(0, 1.4fr); }
   .ih-search-input { width: 180px; }
 }
 @media (max-width: 991.98px) {
@@ -24619,4 +24929,6 @@ textarea {
   .ih-list, .ih-detail { border-right: none; }
   .ih-list { border-bottom: 1px solid var(--crm-border-subtle); }
   .ih-search-input { width: 100%; }
+  .ih-context-card { margin-left: 16px; margin-right: 16px; }
+  .ih-context-stats { flex-wrap: wrap; gap: 12px 18px; }
 }

@@ -1653,24 +1653,61 @@
 
   // ── Export ──
 
+  // Mirror buildParams() so exports honour the SAME live filters as the list
+  // (action chips live in `selectedActions`; "mine" lives in `mineOnly`).
+  // NOTE: no page_size here — the endpoint caps page size at 50 server-side,
+  // so fetchAllLogs() walks every page instead.
   function buildExportParams() {
     var params = new URLSearchParams();
-    params.set('page_size', 1000);
-    if (dom.filterAction.value) params.set('action', dom.filterAction.value);
+    if (selectedActions.size === 1) {
+      params.set('action', Array.from(selectedActions)[0]);
+    } else if (selectedActions.size > 1) {
+      params.set('action__in', Array.from(selectedActions).join(','));
+    }
     if (dom.filterEntity.value) params.set('content_type', dom.filterEntity.value);
     var q = dom.filterSearch.value.trim();
     if (q) params.set('search', q);
     if (dom.filterDateFrom.value) params.set('created_at__gte', dom.filterDateFrom.value + 'T00:00:00');
     if (dom.filterDateTo.value) params.set('created_at__lte', dom.filterDateTo.value + 'T23:59:59');
-    if (activePreset === 'mine' && currentUserId) params.set('actor', currentUserId);
+    if (mineOnly && currentUserId) params.set('actor', currentUserId);
     return params.toString();
+  }
+
+  // Walk the paginated `next` links to collect every matching row. The
+  // activity-log endpoint ignores ?page_size, so a single request would
+  // silently truncate the export to 50 rows.
+  function fetchAllLogs() {
+    var collected = [];
+    var MAX_PAGES = 200; // safety cap (~10k rows) against runaway loops
+    function walk(url, pagesLeft) {
+      return Api.get(url).then(function(data) {
+        collected = collected.concat(data.results || []);
+        if (data.next && pagesLeft > 0) {
+          // DRF returns an absolute URL; strip the origin to stay same-origin.
+          return walk(data.next.replace(/^https?:\/\/[^/]+/, ''), pagesLeft - 1);
+        }
+        return collected;
+      });
+    }
+    return walk('/api/v1/comments/activity-logs/?' + buildExportParams(), MAX_PAGES);
+  }
+
+  function triggerDownload(blob, filename) {
+    var url = URL.createObjectURL(blob);
+    var link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   }
 
   dom.btnExportCsv.addEventListener('click', function(ev) {
     ev.preventDefault();
-    Api.get('/api/v1/comments/activity-logs/?' + buildExportParams()).then(function(data) {
+    fetchAllLogs().then(function(entries) {
       var rows = [['Date', 'User', 'Email', 'Action', 'Entity', 'Description', 'IP Address', 'Object ID']];
-      (data.results || []).forEach(function(e) {
+      entries.forEach(function(e) {
         rows.push([
           formatFullDate(e.created_at),
           e.actor_name || 'System',
@@ -1685,26 +1722,16 @@
       var csv = rows.map(function(r) {
         return r.map(function(c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(',');
       }).join('\n');
-      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      var link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'audit-log-' + todayISO() + '.csv';
-      link.click();
-      URL.revokeObjectURL(link.href);
-      Toast.success('Audit log exported as CSV');
+      triggerDownload(new Blob([csv], { type: 'text/csv;charset=utf-8;' }), 'audit-log-' + todayISO() + '.csv');
+      Toast.success('Audit log exported as CSV (' + entries.length + ' rows)');
     }).catch(function() { Toast.error('Failed to export audit log'); });
   });
 
   dom.btnExportJson.addEventListener('click', function(ev) {
     ev.preventDefault();
-    Api.get('/api/v1/comments/activity-logs/?' + buildExportParams()).then(function(data) {
-      var blob = new Blob([JSON.stringify(data.results || [], null, 2)], { type: 'application/json' });
-      var link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = 'audit-log-' + todayISO() + '.json';
-      link.click();
-      URL.revokeObjectURL(link.href);
-      Toast.success('Audit log exported as JSON');
+    fetchAllLogs().then(function(entries) {
+      triggerDownload(new Blob([JSON.stringify(entries, null, 2)], { type: 'application/json' }), 'audit-log-' + todayISO() + '.json');
+      Toast.success('Audit log exported as JSON (' + entries.length + ' rows)');
     }).catch(function() { Toast.error('Failed to export audit log'); });
   });
 

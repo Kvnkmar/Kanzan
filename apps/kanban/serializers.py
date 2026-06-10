@@ -186,14 +186,13 @@ class BoardDetailSerializer(serializers.ModelSerializer):
             setattr(request, cache_attr, membership)
 
         if membership and membership.role.hierarchy_level > 20:
-            from django.db.models import Q
-
+            from apps.tickets.access import agent_visible_tickets_q
             from apps.tickets.models import Ticket
 
             return set(
                 str(tid)
                 for tid in Ticket.unscoped.filter(tenant=tenant)
-                .filter(Q(created_by=user) | Q(assignee=user))
+                .filter(agent_visible_tickets_q(user))
                 .values_list("id", flat=True)
             )
         return None

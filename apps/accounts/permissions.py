@@ -40,6 +40,7 @@ ACTION_MAP = {
     # Email actions on tickets
     "emails": "view",
     "send_email": "update",
+    "send_creation_email": "update",
     "link_email": "update",
     "unlinked_emails": "view",
     "mark_all_read": "view",
@@ -94,7 +95,10 @@ ACTION_MAP = {
     # VoIP custom actions
     "active_calls": "view",
     "call_stats": "view",
-    # Inbox Hub custom actions
+    # Inbox Hub custom actions. NB: ``assign``/``escalate`` are deliberately
+    # NOT remapped here — those action names collide with TicketViewSet (which
+    # maps them to ``update``). The Inbox Hub viewset uses its own
+    # ``HubEmailPermission`` class so its action→codename map stays local.
     "convert_to_ticket": "convert",
     "dismiss": "dismiss",
 }
@@ -205,8 +209,12 @@ class IsTicketAccessible(BasePermission):
         if membership.effective_role.hierarchy_level <= 20:
             return True
 
-        # Agent / Viewer: only own or assigned tickets
-        return obj.created_by_id == user.pk or obj.assignee_id == user.pk
+        # Agent / Viewer: tickets assigned to them, or created by them and not
+        # yet handed off to another agent (see apps.tickets.access for the rule
+        # shared with the list queryset, badge count and kanban scoping).
+        from apps.tickets.access import agent_can_see_ticket
+
+        return agent_can_see_ticket(user, obj)
 
 
 class IsTenantMember(BasePermission):

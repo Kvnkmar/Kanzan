@@ -117,6 +117,9 @@ class TenantSettingsViewSet(viewsets.GenericViewSet):
         "auto_transition_on_assign",
         "auto_send_ticket_created_email",
         "auto_assign_inbound_email_tickets",
+        "inbox_hub_enabled",
+        "inbox_hub_auto_assign",
+        "inbox_hub_default_department",
     })
 
     def partial_update(self, request, *args, **kwargs):

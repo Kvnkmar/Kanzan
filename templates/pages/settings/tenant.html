@@ -1091,6 +1091,26 @@
                 <input class="form-check-input" type="checkbox" role="switch" id="autoAssignEmailToggle">
               </div>
             </div>
+            <hr class="my-2">
+            <div class="d-flex align-items-center justify-content-between py-2">
+              <div>
+                <span class="st-toggle-label">Route inbound email through the Inbox Hub</span>
+                <span class="st-toggle-desc d-block text-muted small">When enabled, new inbound emails are parked in the <strong>Inbox Hub</strong> for triage (routed to a department, then auto-assigned to an online agent) instead of immediately creating a ticket. When disabled, the legacy auto-create-ticket flow runs unchanged. Run <code>manage.py seed_inbox_hub_defaults</code> first so a default department exists.</span>
+              </div>
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="inboxHubEnabledToggle">
+              </div>
+            </div>
+            <hr class="my-2">
+            <div class="d-flex align-items-center justify-content-between py-2">
+              <div>
+                <span class="st-toggle-label">Auto-assign parked emails to online agents</span>
+                <span class="st-toggle-desc d-block text-muted small">When enabled (default), each parked email is auto-assigned to an online agent in its routed department using load + fairness. If no agent is online it is held in the queue and assigned the moment one comes online. Disable to leave all parked email for manual claim/assignment.</span>
+              </div>
+              <div class="form-check form-switch mb-0">
+                <input class="form-check-input" type="checkbox" role="switch" id="inboxHubAutoAssignToggle" checked>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2685,7 +2705,9 @@ function switchSettingsTab(targetId) {
     var atToggle = document.getElementById('autoTransitionToggle');
     var sendCreatedToggle = document.getElementById('autoSendCreatedEmailToggle');
     var autoAssignToggle = document.getElementById('autoAssignEmailToggle');
-    if (!atToggle && !sendCreatedToggle && !autoAssignToggle) return;
+    var hubEnabledToggle = document.getElementById('inboxHubEnabledToggle');
+    var hubAutoAssignToggle = document.getElementById('inboxHubAutoAssignToggle');
+    if (!atToggle && !sendCreatedToggle && !autoAssignToggle && !hubEnabledToggle) return;
 
     // Populate from current settings.
     try {
@@ -2693,6 +2715,8 @@ function switchSettingsTab(targetId) {
       if (atToggle) atToggle.checked = s.auto_transition_on_assign !== false;
       if (sendCreatedToggle) sendCreatedToggle.checked = s.auto_send_ticket_created_email !== false;
       if (autoAssignToggle) autoAssignToggle.checked = s.auto_assign_inbound_email_tickets === true;
+      if (hubEnabledToggle) hubEnabledToggle.checked = s.inbox_hub_enabled === true;
+      if (hubAutoAssignToggle) hubAutoAssignToggle.checked = s.inbox_hub_auto_assign !== false;
     } catch (e) {
       // Non-fatal: leave toggles in their HTML-default state. Don't
       // show a toast because other scripts on this page may also be
@@ -2723,6 +2747,12 @@ function switchSettingsTab(targetId) {
     bind(autoAssignToggle, 'auto_assign_inbound_email_tickets',
          'Email tickets will auto-assign to Agents by load',
          'Email tickets will arrive unassigned');
+    bind(hubEnabledToggle, 'inbox_hub_enabled',
+         'Inbound email now routes through the Inbox Hub',
+         'Inbound email now auto-creates tickets (legacy flow)');
+    bind(hubAutoAssignToggle, 'inbox_hub_auto_assign',
+         'Parked emails will auto-assign to online agents',
+         'Parked emails will wait for manual assignment');
   }
   document.addEventListener('DOMContentLoaded', init);
 })();

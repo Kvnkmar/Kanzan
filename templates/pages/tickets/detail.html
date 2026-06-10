@@ -162,6 +162,12 @@ span.flatpickr-weekday {
   background: var(--crm-bg-elevated-2);
   max-height: 46px;
   padding: 4px 0;
+  /* Keep the hour/minute/AM-PM controls grouped and centered instead of
+     letting the number wrappers flex-grow across the full calendar width
+     (which strands the AM/PM marker far from the digits). */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 .flatpickr-time input {
   color: var(--crm-text-secondary);
@@ -174,16 +180,25 @@ span.flatpickr-weekday {
   background: var(--crm-bg-elevated-2);
 }
 .flatpickr-time .numInputWrapper {
+  flex: 0 0 auto;
+  width: 3.25rem;
   border-radius: 8px;
 }
 .flatpickr-time .numInputWrapper:hover {
   background: var(--crm-bg-elevated-2);
 }
 .flatpickr-time .flatpickr-time-separator {
+  flex: 0 0 auto;
+  width: auto;
+  padding: 0 0.25rem;
   color: var(--crm-text-secondary);
   font-weight: 500;
 }
 .flatpickr-time .flatpickr-am-pm {
+  flex: 0 0 auto;
+  width: auto;
+  margin-left: 0.5rem;
+  padding: 0 0.625rem;
   color: var(--crm-primary);
   font-weight: 700;
   font-size: 0.75rem;
@@ -308,9 +323,6 @@ span.flatpickr-weekday {
           </button>
           {% endif %}
           {% endcomment %}
-          <button type="button" id="deleteTicketBtn" class="td-btn-icon td-btn-danger" title="Delete ticket" aria-label="Delete ticket">
-            <i class="ti ti-trash" aria-hidden="true"></i>
-          </button>
         </div>
       </div>
       <div class="td-meta">
@@ -435,15 +447,6 @@ span.flatpickr-weekday {
                   <button type="button" id="cannedResponseBtn" class="td-composer-icon-btn" title="Insert canned response" aria-label="Insert canned response">
                     <i class="ti ti-message-chatbot" aria-hidden="true"></i>
                   </button>
-                  <div class="position-relative d-inline-block">
-                    <button type="button" id="macroBtn" class="td-composer-icon-btn" title="Apply macro" aria-label="Apply macro">
-                      <i class="ti ti-bolt" aria-hidden="true"></i>
-                    </button>
-                    <div id="macroDropdown" class="dropdown-menu p-2 shadow" style="min-width:280px;max-height:320px;overflow-y:auto;display:none;position:absolute;bottom:100%;left:0;z-index:1050;">
-                      <input type="text" id="macroSearch" class="form-control form-control-sm mb-2" placeholder="Search macros..." autocomplete="off">
-                      <div id="macroList"><span class="text-muted small px-2">Loading...</span></div>
-                    </div>
-                  </div>
                 </div>
                 <button type="submit" class="td-post-btn">
                   <i class="ti ti-send me-1" aria-hidden="true"></i>Post
@@ -765,26 +768,6 @@ span.flatpickr-weekday {
   </div>
 </div>
 
-<!-- Delete Confirmation Modal -->
-<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalTitle" aria-hidden="true">
-  <div class="modal-dialog modal-sm modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h6 class="modal-title fw-semibold" id="deleteModalTitle">Delete Ticket</h6>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <p class="mb-0 text-secondary small">Are you sure you want to delete this ticket? This action cannot be undone.</p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" id="confirmDeleteBtn" class="btn btn-sm btn-danger">
-          <i class="ti ti-trash me-1" aria-hidden="true"></i>Delete
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
 
 {% if is_admin_or_manager %}
 <!-- Split Ticket Modal -->
@@ -1353,6 +1336,9 @@ window.dispatchEvent(new Event('tiptap-ready'));
             Api.get('/api/v1/tickets/tickets/' + ticketId + '/').then(function(ticket) {
               currentContact = ticket.contact_detail || null;
               renderContactCard(currentContact);
+              /* Backend auto-fills the ticket company from the linked contact —
+                 reflect it in the Details panel immediately. */
+              setSelectValue(dom.companySelect, ticket.company, ticket.company_name || ticket.company);
               loadActivity();
             });
           }).catch(function() { Toast.error('Failed to link contact'); });
@@ -1405,6 +1391,9 @@ window.dispatchEvent(new Event('tiptap-ready'));
         Api.get('/api/v1/tickets/tickets/' + ticketId + '/').then(function(ticket) {
           currentContact = ticket.contact_detail || null;
           renderContactCard(currentContact);
+          /* Backend auto-fills the ticket company from the linked contact —
+             reflect it in the Details panel immediately. */
+          setSelectValue(dom.companySelect, ticket.company, ticket.company_name || ticket.company);
           loadActivity();
         });
       });
@@ -2071,24 +2060,6 @@ window.dispatchEvent(new Event('tiptap-ready'));
     loadActivity();
   }
 
-  /* ── Delete Ticket ── */
-  var deleteModal = null;
-  document.getElementById('deleteTicketBtn').addEventListener('click', function() {
-    if (!deleteModal) deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
-    deleteModal.show();
-  });
-  document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
-    if (!ticketId) return;
-    this.disabled = true;
-    Api.delete('/api/v1/tickets/tickets/' + ticketId + '/').then(function() {
-      Toast.success('Ticket deleted');
-      window.location.href = '/tickets/';
-    }).catch(function() {
-      document.getElementById('confirmDeleteBtn').disabled = false;
-      Toast.error('Failed to delete ticket');
-    });
-  });
-
   /* ── Edit Description ── */
   document.getElementById('editTicketBtn').addEventListener('click', function() {
     if (dom.descEdit.classList.contains('d-none')) {
@@ -2422,6 +2393,18 @@ window.dispatchEvent(new Event('tiptap-ready'));
   var emailThreads = [];
   var emailViewModal = null;
   var currentViewThread = null;
+
+  /* Re-home the email modals to <body>. They live inside the conversation card
+     (.td-card--conversation), and animated cards leave a persistent transform
+     (containing block + stacking context) that traps a nested position:fixed
+     modal *underneath* the body-level .modal-backdrop — the modal then shows
+     but is veiled and unclickable until a page refresh. Promoting the modals to
+     direct children of <body> (Bootstrap's recommended placement) makes them
+     immune to any ancestor's stacking context. */
+  ['emailViewModal', 'linkEmailModal'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el && el.parentElement !== document.body) document.body.appendChild(el);
+  });
 
   function loadEmails() {
     if (!ticketId) return;
@@ -3665,7 +3648,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
       (data.results || data || []).forEach(function(u) {
         var opt = document.createElement('option');
         opt.value = u.user_id;
-        opt.textContent = u.full_name || u.email;
+        opt.textContent = u.user_name || u.full_name || u.user_email || u.email || 'Unknown';
         sel.appendChild(opt);
       });
     }).catch(function() {});

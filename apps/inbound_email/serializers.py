@@ -79,7 +79,16 @@ class LinkedEmailForTicketSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 
-class InboundEmailListSerializer(serializers.ModelSerializer):
+class _AssigneeNameMixin:
+    """Adds a resolved ``assignee_name`` for inbound-email serializers."""
+
+    def get_assignee_name(self, obj):
+        if obj.assignee_id and obj.assignee:
+            return obj.assignee.get_full_name() or obj.assignee.email
+        return None
+
+
+class InboundEmailListSerializer(_AssigneeNameMixin, serializers.ModelSerializer):
     """Compact list view for the inbound email log."""
 
     ticket_number = serializers.IntegerField(
@@ -88,6 +97,7 @@ class InboundEmailListSerializer(serializers.ModelSerializer):
     ticket_subject = serializers.CharField(
         source="ticket.subject", read_only=True, default=None,
     )
+    assignee_name = serializers.SerializerMethodField()
 
     class Meta:
         model = InboundEmail
@@ -103,12 +113,14 @@ class InboundEmailListSerializer(serializers.ModelSerializer):
             "ticket",
             "ticket_number",
             "ticket_subject",
+            "assignee",
+            "assignee_name",
             "error_message",
             "created_at",
         ]
 
 
-class InboundEmailDetailSerializer(serializers.ModelSerializer):
+class InboundEmailDetailSerializer(_AssigneeNameMixin, serializers.ModelSerializer):
     """Full detail view including body and headers."""
 
     ticket_number = serializers.IntegerField(
@@ -117,6 +129,7 @@ class InboundEmailDetailSerializer(serializers.ModelSerializer):
     ticket_subject = serializers.CharField(
         source="ticket.subject", read_only=True, default=None,
     )
+    assignee_name = serializers.SerializerMethodField()
 
     class Meta:
         model = InboundEmail
@@ -139,6 +152,8 @@ class InboundEmailDetailSerializer(serializers.ModelSerializer):
             "ticket",
             "ticket_number",
             "ticket_subject",
+            "assignee",
+            "assignee_name",
             "tenant",
             "created_at",
             "updated_at",

@@ -50,7 +50,9 @@ def _apply_user_filter(qs, tenant, user):
         .first()
     )
     if membership and membership.role.hierarchy_level > 20:
-        qs = qs.filter(Q(created_by=user) | Q(assignee=user))
+        from apps.tickets.access import agent_visible_tickets_q
+
+        qs = qs.filter(agent_visible_tickets_q(user))
     return qs
 
 
@@ -65,7 +67,7 @@ def get_ticket_stats(tenant, date_from=None, date_to=None, user=None):
         - by_priority: dict mapping priority -> count
         - by_status: dict mapping status name -> count
     """
-    base_qs = Ticket.unscoped.filter(tenant=tenant)
+    base_qs = Ticket.unscoped.filter(tenant=tenant, is_deleted=False)
     base_qs = _apply_user_filter(base_qs, tenant, user)
 
     if date_from:
@@ -131,6 +133,7 @@ def get_agent_performance(tenant, date_from=None, date_to=None):
     """
     base_qs = Ticket.unscoped.filter(
         tenant=tenant,
+        is_deleted=False,
         assignee__isnull=False,
     )
 
@@ -199,7 +202,7 @@ def get_sla_compliance(tenant, date_from=None, date_to=None):
     """
     sla_policies = SLAPolicy.unscoped.filter(tenant=tenant, is_active=True)
 
-    base_qs = Ticket.unscoped.filter(tenant=tenant)
+    base_qs = Ticket.unscoped.filter(tenant=tenant, is_deleted=False)
     if date_from:
         base_qs = base_qs.filter(created_at__gte=date_from)
     if date_to:
@@ -289,7 +292,7 @@ def get_dashboard_summary(tenant, date_from=None, date_to=None, user=None):
 
     closed_status_ids = _get_closed_status_ids(tenant)
 
-    base_qs = Ticket.unscoped.filter(tenant=tenant)
+    base_qs = Ticket.unscoped.filter(tenant=tenant, is_deleted=False)
     base_qs = _apply_user_filter(base_qs, tenant, user)
 
     active_qs = base_qs.exclude(status_id__in=closed_status_ids)
@@ -357,7 +360,7 @@ def get_hourly_trends(tenant, user=None, date_from=None, date_to=None):
         eff_from = today_start
         eff_to = now
 
-    base_qs = Ticket.unscoped.filter(tenant=tenant)
+    base_qs = Ticket.unscoped.filter(tenant=tenant, is_deleted=False)
     base_qs = _apply_user_filter(base_qs, tenant, user)
 
     # Determine if single-day or multi-day
@@ -503,7 +506,7 @@ def get_unresolved_by_queue(tenant, user=None):
     """
     closed_status_ids = _get_closed_status_ids(tenant)
 
-    base_qs = Ticket.unscoped.filter(tenant=tenant).exclude(
+    base_qs = Ticket.unscoped.filter(tenant=tenant, is_deleted=False).exclude(
         status_id__in=closed_status_ids
     )
     base_qs = _apply_user_filter(base_qs, tenant, user)
@@ -539,6 +542,7 @@ def get_due_today(tenant, user):
 
     qs = Ticket.unscoped.filter(
         tenant=tenant,
+        is_deleted=False,
         assignee=user,
         due_date__gte=start_of_day,
         due_date__lte=end_of_day,
@@ -578,6 +582,7 @@ def get_overdue_tickets(tenant, user):
     qs = (
         Ticket.unscoped.filter(
             tenant=tenant,
+            is_deleted=False,
             due_date__lt=now,
             due_date__isnull=False,
         )

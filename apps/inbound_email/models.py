@@ -188,6 +188,18 @@ class InboundEmail(TimestampedModel):
         blank=True,
         related_name="linked_emails",
     )
+    assignee = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_index=True,
+        related_name="assigned_inbound_emails",
+        help_text=(
+            "Agent this email was handed to (e.g. assigned from the Inbox "
+            "Hub). Surfaces the original message in that agent's email inbox."
+        ),
+    )
     is_read = models.BooleanField(default=False, db_index=True)
     actioned_at = models.DateTimeField(null=True, blank=True)
     actioned_by = models.ForeignKey(
@@ -220,6 +232,10 @@ class InboundEmail(TimestampedModel):
             models.Index(
                 fields=["tenant", "inbox_status"],
                 name="email_tenant_inbox_status_idx",
+            ),
+            models.Index(
+                fields=["tenant", "assignee", "inbox_status"],
+                name="email_tenant_assignee_idx",
             ),
         ]
 

@@ -157,7 +157,9 @@ def _post_auth_redirect(user, next_url: str | None = None) -> HttpResponseRedire
         2. Exactly one active tenant membership → that tenant's dashboard
            via handoff.
         3. Multiple memberships → /workspaces/ picker on the bare domain.
-        4. No memberships → /setup-company/ on the bare domain.
+        4. No memberships:
+           - Superuser → Django admin (they don't onboard a company).
+           - Otherwise → /setup-company/ on the bare domain.
 
     A ?next= URL that targets a tenant the user doesn't belong to is
     ignored — honouring it would just bounce them right back out of
@@ -188,6 +190,10 @@ def _post_auth_redirect(user, next_url: str | None = None) -> HttpResponseRedire
         return redirect(_tenant_handoff_url(user, memberships[0].tenant.slug))
     if len(memberships) > 1:
         return redirect(_root_url("/workspaces/"))
+    # No active memberships. A superuser has no company to set up — send them
+    # to the Django admin. Genuine new signups go to company onboarding.
+    if getattr(user, "is_superuser", False):
+        return redirect(_root_url("/admin/"))
     return redirect(_root_url("/setup-company/"))
 
 
@@ -792,7 +798,51 @@ def inbound_email_page(request):
     return render(request, "pages/inbound_email/list.html")
 
 
-@_membership_required
+def _inbox_hub_access_required(view_func):
+    """Inbox Hub page gate.
+
+    Requires an active membership AND — for agent-tier members
+    (hierarchy_level > 20) — membership in at least one ``UserGroup``.
+    Managers/Admins always pass. Mirrors the API gate in
+    :mod:`apps.inbox_hub.access` so the page and the data stay in lockstep.
+    """
+
+    @functools.wraps(view_func)
+    @login_required(login_url="/login/")
+    def _wrapped(request, *args, **kwargs):
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            return _post_auth_redirect(request.user)
+
+        from apps.accounts.models import TenantMembership
+        from apps.inbox_hub.access import can_access_inbox_hub
+
+        membership = (
+            TenantMembership.objects.select_related("role", "temporary_role")
+            .filter(user=request.user, tenant=tenant, is_active=True)
+            .first()
+        )
+        if membership is None:
+            return _post_auth_redirect(request.user)
+        # Cache for the context processor / DRF so we don't re-query.
+        setattr(request, "_cached_tenant_membership", membership)
+
+        if not can_access_inbox_hub(membership, user=request.user, tenant=tenant):
+            return render(
+                request,
+                "pages/403.html",
+                {
+                    "message": "The Inbox Hub is limited to members of a group. "
+                    "Ask an administrator to add you to a group.",
+                },
+                status=403,
+            )
+        return view_func(request, *args, **kwargs)
+
+    return _wrapped
+
+
+@_inbox_hub_access_required
 def inbox_hub_page(request):
     return render(request, "pages/inbox_hub/list.html")
 

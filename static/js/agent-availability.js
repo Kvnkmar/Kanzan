@@ -224,4 +224,21 @@
       item.classList.toggle('active', isMatch);
     });
   }
+
+  // Reflect server-driven presence changes (auto-online on connect, or the
+  // reaper flipping a dead session to away) in the navbar pill — but never
+  // clobber an explicitly-chosen custom status.
+  (function subscribePresence() {
+    if (!window.LiveBus) return;
+    var su = document.querySelector('.sidebar-user[data-current-user-id]');
+    var myId = su ? su.getAttribute('data-current-user-id') : null;
+    if (!myId) return;
+    window.LiveBus.on('agent.presence', function (payload) {
+      if (!payload || String(payload.user_id) !== String(myId)) return;
+      if (currentCustomId) return;  // keep the user's custom status
+      if (payload.status && BUILTIN_LABELS[payload.status]) {
+        applyState({ key: payload.status, customId: null });
+      }
+    });
+  })();
 })();

@@ -117,3 +117,112 @@ class TestProcessInboundEmail:
 
         inbound.refresh_from_db()
         assert inbound.status == "rejected"
+
+
+@pytest.mark.django_db
+class TestEmailsInternalPersonalScope:
+    """
+    The personal Emails page requests ``?internal=true&mine=true``.
+
+    It shows real mail addressed to the requesting user — agent-to-agent
+    messages — but NOT auto-generated system notification emails
+    (assignment/escalation alerts), which duplicate the in-app bell and
+    aren't actionable. Customer mail also never appears via this scope; the
+    original assigned message arrives via ``?assigned=me`` instead. Other
+    consumers that omit the params (audit log, agent inbox) keep seeing
+    everything.
+    """
+
+    def _make(self, tenant, **kw):
+        from apps.inbound_email.models import InboundEmail
+        defaults = dict(tenant=tenant, status=InboundEmail.Status.SENT)
+        defaults.update(kw)
+        return InboundEmailFactory(**defaults)
+
+    def test_internal_and_mine_scopes_to_user(self, admin_user, admin_client, tenant):
+        from apps.inbound_email.models import InboundEmail
+
+        # Customer email (arrives via ?assigned=me, not here) — excluded.
+        self._make(
+            tenant,
+            sender_type=InboundEmail.SenderType.CUSTOMER,
+            direction=InboundEmail.Direction.INBOUND,
+            status=InboundEmail.Status.PARKED_IN_HUB,
+            recipient_email="support@kanzan.io",
+            subject="Customer question",
+        )
+        # Auto-generated system notification addressed to me — excluded now
+        # (bell-covered noise, not actionable in the inbox).
+        self._make(
+            tenant,
+            sender_type=InboundEmail.SenderType.SYSTEM,
+            direction=InboundEmail.Direction.OUTBOUND,
+            recipient_email=admin_user.email,
+            subject="Email assigned to you",
+        )
+        # Real agent-to-agent message addressed to me — included.
+        agent_msg = self._make(
+            tenant,
+            sender_type=InboundEmail.SenderType.AGENT,
+            direction=InboundEmail.Direction.OUTBOUND,
+            recipient_email=admin_user.email,
+            subject="A teammate pinged you",
+        )
+        # Agent message addressed to a different user — excluded.
+        self._make(
+            tenant,
+            sender_type=InboundEmail.SenderType.AGENT,
+            direction=InboundEmail.Direction.OUTBOUND,
+            recipient_email="someone-else@test.com",
+            subject="Not for me",
+        )
+
+        resp = admin_client.get("/api/v1/inbound-email/?internal=true&mine=true")
+        assert resp.status_code == 200
+        results = resp.json().get("results", resp.json())
+        ids = {row["id"] for row in results}
+        assert ids == {str(agent_msg.id)}
+
+    def test_internal_excludes_customer_mail(self, admin_user, admin_client, tenant):
+        from apps.inbound_email.models import InboundEmail
+
+        self._make(
+            tenant,
+            sender_type=InboundEmail.SenderType.CUSTOMER,
+            direction=InboundEmail.Direction.INBOUND,
+            recipient_email=admin_user.email,  # even if addressed to me
+            subject="Customer reply",
+        )
+        agent_send = self._make(
+            tenant,
+            sender_type=InboundEmail.SenderType.AGENT,
+            direction=InboundEmail.Direction.OUTBOUND,
+            recipient_email=admin_user.email,
+            subject="Internal note",
+        )
+
+        resp = admin_client.get("/api/v1/inbound-email/?internal=true&mine=true")
+        results = resp.json().get("results", resp.json())
+        ids = {row["id"] for row in results}
+        assert str(agent_send.id) in ids
+        assert all(row["sender_type"] != "customer" for row in results)
+
+    def test_default_listing_still_includes_customer_mail(
+        self, admin_user, admin_client, tenant
+    ):
+        from apps.inbound_email.models import InboundEmail
+
+        self._make(
+            tenant,
+            sender_type=InboundEmail.SenderType.CUSTOMER,
+            direction=InboundEmail.Direction.INBOUND,
+            status=InboundEmail.Status.PARKED_IN_HUB,
+            recipient_email="support@kanzan.io",
+            subject="Customer question",
+        )
+
+        resp = admin_client.get("/api/v1/inbound-email/")
+        assert resp.status_code == 200
+        results = resp.json().get("results", resp.json())
+        subjects = {row["subject"] for row in results}
+        assert "Customer question" in subjects

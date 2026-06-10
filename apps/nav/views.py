@@ -56,15 +56,17 @@ class BadgeCountView(APIView):
         user = request.user
 
         membership = _get_membership(request, tenant)
-        is_agent = membership and membership.role.hierarchy_level > 20
+        # Use effective_role so a temporary role grant shifts badge scoping
+        # consistently with the rest of the codebase (and IsHubEmailAccessible).
+        is_agent = membership and membership.effective_role.hierarchy_level > 20
 
         tickets = self._ticket_count(tenant, user, is_agent)
         calendar = self._calendar_count(tenant, user)
         messages = self._message_count(tenant, user)
-        emails = self._email_count(tenant)
+        emails = self._email_count(tenant, user)
         reminders = self._reminder_count(tenant, user, is_agent)
         knowledge = self._knowledge_count(tenant, user)
-        inbox_hub = self._inbox_hub_count(tenant, user, is_agent)
+        inbox_hub = self._inbox_hub_count(tenant, user, membership)
 
         return Response(
             {
@@ -97,10 +99,13 @@ class BadgeCountView(APIView):
         qs = Ticket.unscoped.filter(
             tenant=tenant,
             status_id__in=active_statuses,
+            is_deleted=False,
         )
 
         if is_agent:
-            qs = qs.filter(Q(assignee=user) | Q(created_by=user))
+            from apps.tickets.access import agent_visible_tickets_q
+
+            qs = qs.filter(agent_visible_tickets_q(user))
 
         return qs.count()
 
@@ -162,15 +167,41 @@ class BadgeCountView(APIView):
         )
 
     @staticmethod
-    def _email_count(tenant):
-        """Unread inbound emails for this tenant."""
+    def _email_count(tenant, user):
+        """Unactioned emails in *this user's* personal inbox.
+
+        Mirrors the scope the Emails page (``/emails/``) actually shows so the
+        badge and the page stay in sync. That page is a personal surface — it
+        dual-loads ``?assigned=me`` (mail handed to the agent from the Inbox
+        Hub) and ``?internal=true&mine=true`` (internal mail addressed to the
+        agent). Customer mail lives in the Inbox Hub (its own badge), and the
+        tenant's *outbound* system records (sent ticket replies / notification
+        copies persisted for threading) are noise here, so both are excluded.
+
+        Counts only ``pending``/``linked`` rows — i.e. mail still awaiting
+        action — so the badge clears as the agent works through the inbox,
+        rather than counting every row that was ever received.
+        """
         from apps.inbound_email.models import InboundEmail
 
+        SenderType = InboundEmail.SenderType
+        Direction = InboundEmail.Direction
+        InboxStatus = InboundEmail.InboxStatus
+
+        # Assigned to me (handoff), OR an internal message addressed to me
+        # (excluding outbound system notification copies).
+        personal = Q(assignee=user) | (
+            ~Q(sender_type=SenderType.CUSTOMER)
+            & Q(recipient_email__iexact=(user.email or ""))
+            & ~(Q(direction=Direction.OUTBOUND) & Q(sender_type=SenderType.SYSTEM))
+        )
+
         return (
-            InboundEmail.objects.filter(
-                tenant=tenant,
-                is_read=False,
-            )
+            InboundEmail.objects.filter(tenant=tenant)
+            .filter(personal)
+            .filter(inbox_status__in=[InboxStatus.PENDING, InboxStatus.LINKED])
+            .exclude(status=InboundEmail.Status.BOUNCED)
+            .distinct()
             .count()
         )
 
@@ -195,36 +226,31 @@ class BadgeCountView(APIView):
         return qs.count()
 
     @staticmethod
-    def _inbox_hub_count(tenant, user, is_agent):
-        """Active Hub emails awaiting triage.
+    def _inbox_hub_count(tenant, user, membership):
+        """Untriaged Hub emails awaiting triage.
 
-        Surfaces the unread/actionable count for the sidebar badge. Counts
-        rows in NEW (unassigned + waiting to be picked up) plus, for the
-        viewing agent, anything currently assigned to them that is not yet
-        in a terminal state. Manager+ sees the tenant-wide NEW backlog.
+        The Inbox Hub is a triage-only desk: it lists exactly the NEW
+        (untriaged) backlog. Once an email is converted, assigned,
+        escalated or dismissed it leaves the Hub, so the badge counts only
+        ``state=NEW`` — matching what the page actually shows.
+
+        Access is group-gated: only Admins, or members of ≥1 ``UserGroup``,
+        may use the Hub. Anyone else is locked out entirely, so their badge is
+        zeroed to match the hidden nav entry + 403 page.
         """
         try:
             from apps.inbox_hub.models import HubEmail
         except ImportError:
             return 0
 
-        active_states = [
-            HubEmail.State.NEW,
-            HubEmail.State.ASSIGNED,
-            HubEmail.State.IN_PROGRESS,
-            HubEmail.State.PENDING_AGENT,
-            HubEmail.State.ESCALATED,
-        ]
+        from apps.inbox_hub.access import can_access_inbox_hub
 
-        qs = HubEmail.unscoped.filter(tenant=tenant, state__in=active_states)
+        if not can_access_inbox_hub(membership, user=user, tenant=tenant):
+            return 0
 
-        if is_agent:
-            # Agent-tier (level > 20): own assignments + the global NEW
-            # backlog the agent can pick from. Mirrors the row-scoping in
-            # IsHubEmailAccessible (agents can see NEW for triage).
-            qs = qs.filter(Q(assignee=user) | Q(state=HubEmail.State.NEW))
-
-        return qs.count()
+        return HubEmail.unscoped.filter(
+            tenant=tenant, state=HubEmail.State.NEW,
+        ).count()
 
     @staticmethod
     def _knowledge_count(tenant, user):

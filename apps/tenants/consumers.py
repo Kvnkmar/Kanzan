@@ -26,6 +26,7 @@ import logging
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -63,12 +64,19 @@ class LiveEventConsumer(AsyncJsonWebsocketConsumer):
         self.group_name = f"{self.GROUP_PREFIX}_{self.tenant.pk}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
+        # A live socket is the source of truth for agent presence — stamp a
+        # heartbeat now so the agent becomes assignable and any held Inbox Hub
+        # backlog drains to them.
+        await self._presence_heartbeat(is_connect=True)
         logger.debug(
             "Live event consumer connected: user=%s tenant=%s group=%s",
             self.user.pk, self.tenant.slug, self.group_name,
         )
 
     async def disconnect(self, close_code):
+        # Presence is intentionally NOT cleared here: a tab refresh would
+        # otherwise flap the agent offline/online. The heartbeat TTL + reaper
+        # task age out a genuinely dead session within AGENT_PRESENCE_TTL_SECONDS.
         if self.group_name:
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
             logger.debug(
@@ -77,8 +85,32 @@ class LiveEventConsumer(AsyncJsonWebsocketConsumer):
             )
 
     async def receive_json(self, content, **kwargs):
-        """No client-to-server actions on this channel."""
+        """The only client-to-server message is the heartbeat ping.
+
+        live-connection.js sends ``{action: "ping"}`` every ~25s. We re-stamp
+        presence and reply with a pong so the client's pong-timeout doesn't
+        needlessly recycle the socket on quiet tenants.
+        """
+        if isinstance(content, dict) and content.get("action") == "ping":
+            await self._presence_heartbeat(is_connect=False)
+            await self.send_json({
+                "type": "live.pong",
+                "payload": {},
+                "ts": timezone.now().isoformat(),
+            })
         return
+
+    async def _presence_heartbeat(self, is_connect):
+        await self._do_presence_heartbeat(is_connect)
+
+    @database_sync_to_async
+    def _do_presence_heartbeat(self, is_connect):
+        from apps.agents.presence import handle_live_heartbeat
+
+        try:
+            handle_live_heartbeat(self.user, self.tenant, is_connect=is_connect)
+        except Exception:
+            logger.exception("Live presence heartbeat failed (user=%s)", self.user.pk)
 
     # ------------------------------------------------------------------
     # Group event handler -- called by channel_layer.group_send

@@ -18,7 +18,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-from apps.accounts.permissions import HasTenantPermission, IsTenantMember
+from apps.accounts.permissions import (
+    HasTenantPermission,
+    IsTenantMember,
+    _get_membership,
+)
 from apps.inbound_email.inbox_services import (
     action_email,
     ignore_email,
@@ -62,11 +66,44 @@ class InboundEmailViewSet(ReadOnlyModelViewSet):
             return InboundEmail.objects.none()
 
         qs = InboundEmail.objects.filter(tenant=tenant).select_related("ticket")
+        params = self.request.query_params
+
+        # Emails explicitly handed to this agent (assigned from the Inbox
+        # Hub). These are the ORIGINAL customer messages, so they bypass the
+        # internal/customer split and the bounce hiding below — the agent
+        # asked to work them. ``status``/``direction`` query params still
+        # narrow further via the filter backend.
+        if params.get("assigned") == "me":
+            return qs.filter(assignee=self.request.user).select_related(
+                "ticket", "assignee",
+            )
+
+        # Internal-only view (the personal Emails page). External/customer
+        # mail is triaged in Inbox Hub, so exclude it here to keep the two
+        # surfaces from showing the same messages. Leaves system + agent
+        # (internal) records: escalation/assignment notifications, etc.
+        # Other consumers (audit log, agent inbox) omit the param and are
+        # unaffected.
+        if params.get("internal") == "true":
+            qs = qs.exclude(sender_type=InboundEmail.SenderType.CUSTOMER)
+
+        # Personal view: only mail addressed to the requesting user — sent to
+        # them by another agent. Auto-generated system notification emails
+        # (assignment/escalation alerts) are dropped: they duplicate the
+        # in-app bell and aren't actionable here. The actual assigned message
+        # arrives via ?assigned=me instead.
+        if params.get("mine") == "true":
+            user_email = (getattr(self.request.user, "email", "") or "").strip()
+            if not user_email:
+                return qs.none()
+            qs = qs.filter(recipient_email__iexact=user_email).exclude(
+                direction=InboundEmail.Direction.OUTBOUND,
+                sender_type=InboundEmail.SenderType.SYSTEM,
+            )
 
         # Hide bounce DSNs from the default list so the inbox stays useful.
         # They still live in the table (and in BounceLog) for audit; callers
         # opt back in with ?status=bounced or ?include_bounces=true.
-        params = self.request.query_params
         if params.get("status") or params.get("include_bounces") == "true":
             return qs
         return qs.exclude(status=InboundEmail.Status.BOUNCED)
@@ -75,6 +112,87 @@ class InboundEmailViewSet(ReadOnlyModelViewSet):
         if self.action == "retrieve":
             return InboundEmailDetailSerializer
         return InboundEmailListSerializer
+
+    def get_permissions(self):
+        # create_ticket is an agent action gated on role inside the handler,
+        # not on the read-oriented inbound_email codename map.
+        if self.action == "create_ticket":
+            return [IsAuthenticated(), IsTenantMember()]
+        return super().get_permissions()
+
+    @extend_schema(
+        summary="Create a ticket from this email",
+        tags=["Inbound Email"],
+    )
+    @action(detail=True, methods=["post"], url_path="create-ticket")
+    def create_ticket(self, request, pk=None):
+        """Create a ticket from this email (e.g. one assigned to the agent).
+
+        Reuses the Inbox Hub conversion when the email was parked there so the
+        ticket is identical to a Hub convert; falls back to the legacy direct
+        create for emails that never went through the Hub. Idempotent — an
+        email that already has a ticket returns 400 with the existing number.
+        """
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            return Response({"detail": "No tenant."}, status=status.HTTP_400_BAD_REQUEST)
+
+        email = (
+            InboundEmail.objects.filter(tenant=tenant, pk=pk)
+            .select_related("ticket")
+            .first()
+        )
+        if email is None:
+            return Response(
+                {"detail": "Email not found."}, status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Agent-or-above only (viewers cannot create tickets).
+        membership = _get_membership(request, tenant)
+        if membership is None or membership.effective_role.hierarchy_level > 30:
+            return Response(
+                {"detail": "You do not have permission to create tickets."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if email.ticket_id:
+            return Response(
+                {
+                    "detail": f"This email already has ticket #{email.ticket.number}.",
+                    "ticket_id": str(email.ticket_id),
+                    "ticket_number": email.ticket.number,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            hub_email = email.hub_email
+        except Exception:
+            hub_email = None
+
+        if hub_email is not None:
+            from apps.inbox_hub.services import convert_to_ticket
+
+            ticket = convert_to_ticket(hub_email, actor=request.user)
+        else:
+            from apps.inbound_email.services import (
+                _create_ticket_from_email,
+                find_or_create_contact,
+            )
+
+            contact, _ = find_or_create_contact(
+                tenant, email.sender_email, email.sender_name,
+            )
+            ticket = _create_ticket_from_email(email, tenant, contact, request.user)
+
+        return Response(
+            {
+                "ticket_id": str(ticket.pk),
+                "ticket_number": ticket.number,
+                "ticket_subject": ticket.subject,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 @extend_schema_view(

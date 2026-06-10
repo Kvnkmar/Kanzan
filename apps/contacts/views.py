@@ -369,81 +369,24 @@ class ContactViewSet(viewsets.ModelViewSet):
         """
         Return a contact context summary for the ticket detail sidebar.
 
-        Includes the contact's profile, ticket stats (total, open, avg CSAT),
-        and the last 5 tickets for this contact within the current tenant.
+        Includes the contact's profile (with company + account value), ticket
+        stats (total, open, avg CSAT), and the last 5 tickets for this contact
+        within the current tenant.
 
         Accepts an optional ``?exclude_ticket=<uuid>`` query param to omit
         the currently viewed ticket from recent_tickets.
 
-        Cached per contact per tenant for 60 seconds.
+        Cached per contact per tenant for 60 seconds (see
+        :func:`apps.contacts.context.build_contact_context`).
         """
-        from django.core.cache import cache
-        from django.db.models import Avg, Q
-
-        from apps.tickets.models import Ticket
+        from apps.contacts.context import build_contact_context
 
         contact = self.get_object()
         tenant = getattr(request, "tenant", None)
         exclude_ticket = request.query_params.get("exclude_ticket")
-
-        cache_key = f"contact_context:{tenant.pk}:{contact.pk}"
-        cached = cache.get(cache_key)
-        if cached and not exclude_ticket:
-            return Response(cached)
-
-        # All tickets for this contact in this tenant
-        tickets_qs = Ticket.objects.filter(contact=contact)
-
-        total_tickets = tickets_qs.count()
-        open_tickets = tickets_qs.filter(status__is_closed=False).count()
-
-        # Average CSAT across tickets that have a rating
-        avg_csat_raw = tickets_qs.filter(
-            csat_rating__isnull=False,
-        ).aggregate(avg=Avg("csat_rating"))["avg"]
-        avg_csat = round(avg_csat_raw, 1) if avg_csat_raw is not None else None
-
-        last_ticket_at = None
-        latest = tickets_qs.order_by("-created_at").values_list("created_at", flat=True).first()
-        if latest:
-            last_ticket_at = latest.isoformat()
-
-        # Recent tickets (last 5, excluding current if specified)
-        recent_qs = tickets_qs.select_related("status").order_by("-created_at")
-        if exclude_ticket:
-            recent_qs = recent_qs.exclude(pk=exclude_ticket)
-        recent_tickets = [
-            {
-                "id": str(t.pk),
-                "number": t.number,
-                "subject": t.subject,
-                "status": t.status.name if t.status else None,
-                "status_color": t.status.color if t.status else None,
-                "priority": t.priority,
-                "created_at": t.created_at.isoformat(),
-            }
-            for t in recent_qs[:5]
-        ]
-
-        data = {
-            "contact": {
-                "id": str(contact.pk),
-                "name": contact.full_name,
-                "email": contact.email,
-                "email_bouncing": contact.email_bouncing,
-                "created_at": contact.created_at.isoformat(),
-            },
-            "stats": {
-                "total_tickets": total_tickets,
-                "open_tickets": open_tickets,
-                "avg_csat": avg_csat,
-                "last_ticket_at": last_ticket_at,
-            },
-            "recent_tickets": recent_tickets,
-        }
-
-        cache.set(cache_key, data, 60)
-        return Response(data)
+        return Response(
+            build_contact_context(contact, tenant, exclude_ticket=exclude_ticket)
+        )
 
     @action(detail=True, methods=["get"], url_path="timeline")
     def timeline(self, request, pk=None):

@@ -29,11 +29,13 @@
     <!-- Inbox -->
     <div class="nav-section">
       <span class="nav-section-label">Inbox</span>
+      {% if can_access_inbox_hub %}
       <a href="{% url 'frontend:inbox-hub' %}" class="sidebar-link {% if request.resolver_match.url_name == 'inbox-hub' %}active{% endif %}" data-sidebar-tooltip="Inbox Hub">
         <i class="ti ti-inbox"></i>
         <span class="sidebar-link-text">Inbox Hub</span>
         <span class="badge sidebar-badge" id="sidebarBadgeInboxHub" style="display:none;"></span>
       </a>
+      {% endif %}
       <a href="{% url 'frontend:ticket-list' %}" class="sidebar-link {% if 'ticket' in request.resolver_match.url_name %}active{% endif %}" data-sidebar-tooltip="Tickets">
         <i class="ti ti-ticket"></i>
         <span class="sidebar-link-text">Tickets</span>

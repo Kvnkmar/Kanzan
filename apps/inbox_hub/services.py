@@ -228,21 +228,296 @@ def dismiss_hub_email(hub_email, actor, reason=""):
     return hub_email
 
 
+def transition_hub_email(hub_email, new_state, actor=None, *, note=""):
+    """Validate + apply a lifecycle state change.
+
+    Raises ``ValueError`` (from the state machine) on an illegal transition.
+    Writes a STATUS_CHANGED audit row and broadcasts ``hub_email.transitioned``.
+    """
+    from apps.inbox_hub.state_machine import assert_transition
+
+    old_state = hub_email.state
+    assert_transition(old_state, new_state)
+
+    with transaction.atomic():
+        hub_email.state = new_state
+        hub_email.save(update_fields=["state", "updated_at"])
+        _write_activity_log(
+            hub_email=hub_email,
+            actor=actor,
+            action=ActivityLog.Action.STATUS_CHANGED,
+            description=f"State {old_state} → {new_state}" + (f": {note}" if note else ""),
+            changes={"from": old_state, "to": new_state},
+        )
+        broadcast_live_event(
+            tenant=hub_email.tenant,
+            event="hub_email.transitioned",
+            payload=_hub_email_payload(hub_email),
+        )
+    return hub_email
+
+
+def escalate_hub_email(hub_email, actor=None, *, reason=""):
+    """Escalate to the department lead.
+
+    Increments ``escalation_count``, sets ``escalated_to`` (department lead),
+    moves to ESCALATED when legal, writes EMAIL_ESCALATED, broadcasts
+    ``hub_email.escalated`` and notifies the lead.
+    """
+    from apps.inbox_hub.state_machine import can_transition
+
+    tenant = hub_email.tenant
+    target = hub_email.department.lead if hub_email.department_id else None
+
+    with transaction.atomic():
+        old_state = hub_email.state
+        hub_email.escalation_count = (hub_email.escalation_count or 0) + 1
+        update_fields = ["escalation_count", "updated_at"]
+        if target is not None:
+            hub_email.escalated_to = target
+            update_fields.append("escalated_to")
+        if can_transition(old_state, HubEmail.State.ESCALATED):
+            hub_email.state = HubEmail.State.ESCALATED
+            update_fields.append("state")
+        hub_email.save(update_fields=update_fields)
+
+        _write_activity_log(
+            hub_email=hub_email,
+            actor=actor,
+            action=ActivityLog.Action.EMAIL_ESCALATED,
+            description="Escalated" + (f": {reason}" if reason else ""),
+            changes={
+                "escalated_to": str(target.pk) if target else None,
+                "count": hub_email.escalation_count,
+            },
+        )
+        broadcast_live_event(
+            tenant=tenant,
+            event="hub_email.escalated",
+            payload=_hub_email_payload(hub_email),
+        )
+        if target is not None:
+            transaction.on_commit(
+                lambda: _notify_escalation(tenant, hub_email, target, reason)
+            )
+    return hub_email
+
+
+def reassign_hub_email(hub_email, new_user, actor=None, *, reason=""):
+    """Manually move an email to ``new_user`` (override; online not required)."""
+    from django.db.models import F
+    from django.utils import timezone
+
+    from apps.agents.models import AgentAvailability
+    from apps.inbox_hub.models import HubEmailAssignment
+
+    tenant = hub_email.tenant
+    now = timezone.now()
+
+    with transaction.atomic():
+        he = HubEmail.unscoped.select_for_update().get(pk=hub_email.pk)
+        old_user_id = he.assignee_id
+        he.assignee = new_user
+        if he.first_assigned_at is None:
+            he.first_assigned_at = now
+        if he.state == HubEmail.State.NEW:
+            he.state = HubEmail.State.ASSIGNED
+        he.save(update_fields=["assignee", "first_assigned_at", "state", "updated_at"])
+
+        # Hand the ORIGINAL customer email to the agent's personal email
+        # inbox so they can read it and act on it (create ticket / reply)
+        # once it has left the Hub. Triage happens in the Hub; the actual
+        # work happens in the agent's email section + the ticket system.
+        from apps.inbound_email.models import InboundEmail
+
+        inbound = he.inbound
+        if inbound is not None:
+            inbound.assignee = new_user
+            inbound.inbox_status = InboundEmail.InboxStatus.PENDING
+            inbound.is_read = False
+            inbound.save(update_fields=[
+                "assignee", "inbox_status", "is_read", "updated_at",
+            ])
+
+        is_reassign = old_user_id is not None and old_user_id != new_user.pk
+        HubEmailAssignment.unscoped.create(
+            tenant=tenant,
+            hub_email=he,
+            assigned_to=new_user,
+            assigned_by=actor,
+            reason=(
+                HubEmailAssignment.Reason.REASSIGNMENT if is_reassign
+                else HubEmailAssignment.Reason.MANUAL
+            ),
+            note=reason,
+        )
+
+        AgentAvailability.unscoped.filter(tenant=tenant, user=new_user).update(
+            current_ticket_count=F("current_ticket_count") + 1, last_activity=now,
+        )
+        if old_user_id and old_user_id != new_user.pk:
+            AgentAvailability.unscoped.filter(
+                tenant=tenant, user_id=old_user_id, current_ticket_count__gt=0,
+            ).update(current_ticket_count=F("current_ticket_count") - 1)
+
+        _write_activity_log(
+            hub_email=he,
+            actor=actor,
+            action=(
+                ActivityLog.Action.EMAIL_REASSIGNED if is_reassign
+                else ActivityLog.Action.EMAIL_AGENT_ASSIGNED
+            ),
+            description=f"{'Reassigned' if is_reassign else 'Assigned'} to "
+                        f"{new_user.get_full_name() or new_user.email}"
+                        + (f": {reason}" if reason else ""),
+            changes={"assignee": str(new_user.pk), "from": str(old_user_id) if old_user_id else None},
+        )
+        broadcast_live_event(
+            tenant=tenant,
+            event="hub_email.reassigned" if is_reassign else "hub_email.assigned",
+            payload=_hub_email_payload(he),
+        )
+        transaction.on_commit(
+            lambda: _notify_reassignment(tenant, he, new_user, is_reassign)
+        )
+    return he
+
+
+def add_hub_email_note(hub_email, author, body):
+    """Append an internal triage note to a HubEmail."""
+    from apps.inbox_hub.models import HubEmailNote
+
+    note = HubEmailNote.unscoped.create(
+        tenant=hub_email.tenant, hub_email=hub_email, author=author, body=body,
+    )
+    broadcast_live_event(
+        tenant=hub_email.tenant,
+        event="hub_email.transitioned",
+        payload=_hub_email_payload(hub_email),
+    )
+    return note
+
+
+def _notify_escalation(tenant, hub_email, target, reason):
+    from apps.notifications.models import NotificationType
+    from apps.notifications.services import send_notification
+
+    try:
+        subject = hub_email.inbound.subject or ""
+    except Exception:
+        subject = ""
+    try:
+        send_notification(
+            tenant=tenant,
+            recipient=target,
+            notification_type=NotificationType.HUB_EMAIL_ESCALATED_TO_ME,
+            title="Email escalated to you",
+            body=(reason or subject or "(no subject)"),
+            data={"hub_email_id": str(hub_email.pk), "url": "/inbox-hub/"},
+        )
+    except Exception:
+        logger.exception("Failed to send escalation notification for %s", hub_email.pk)
+
+
+def _notify_reassignment(tenant, hub_email, user, is_reassign):
+    from apps.notifications.models import NotificationType
+    from apps.notifications.services import send_notification
+
+    try:
+        subject = hub_email.inbound.subject or ""
+    except Exception:
+        subject = ""
+    n_type = (
+        NotificationType.HUB_EMAIL_REASSIGNED if is_reassign
+        else NotificationType.HUB_EMAIL_ASSIGNED
+    )
+    try:
+        send_notification(
+            tenant=tenant,
+            recipient=user,
+            notification_type=n_type,
+            title="Email reassigned to you" if is_reassign else "Email assigned to you",
+            body=subject or "(no subject)",
+            data={"hub_email_id": str(hub_email.pk), "url": "/emails/"},
+        )
+    except Exception:
+        logger.exception("Failed to send reassignment notification for %s", hub_email.pk)
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
 
 
 def _post_park_hooks(hub_email):
-    """Placeholder for Phase 1B/C/D: routing + assignment + SLA init.
+    """Route → assign → init SLA for a freshly parked email.
 
-    Lives behind transaction.on_commit so the integration shape is already
-    in place when those phases land — only the body changes.
+    Runs after commit (scheduled from :func:`park_email_in_hub`). Each step is
+    isolated so a downstream failure never breaks the inbound-email pipeline
+    that produced this HubEmail.
+
+    1. RoutingEngine — resolve department/queue/category/priority.
+    2. AssignmentEngine — auto-assign to an online department agent (when the
+       tenant has ``inbox_hub_auto_assign`` on); held if none online.
+    3. SLA init — seed response/resolution deadlines from the matching policy.
     """
-    # Phase 1B+: RoutingEngine().classify_and_route(hub_email)
-    # Phase 1B+: AssignmentEngine().assign(hub_email)
-    # Phase 1B+: _initialize_hub_sla(hub_email)
-    return
+    tenant = hub_email.tenant
+
+    # 1. Routing
+    try:
+        from apps.inbox_hub.routing import RoutingEngine
+        RoutingEngine.classify_and_route(hub_email)
+    except Exception:
+        logger.exception("Inbox Hub routing failed for HubEmail %s", hub_email.pk)
+
+    # 2. SLA init (before assignment so deadlines exist on the assigned row).
+    try:
+        _initialize_hub_sla(hub_email)
+    except Exception:
+        logger.exception("Inbox Hub SLA init failed for HubEmail %s", hub_email.pk)
+
+    # 3. Auto-assignment (respect the per-tenant toggle).
+    settings_obj = getattr(tenant, "settings", None)
+    auto_assign = settings_obj is None or settings_obj.inbox_hub_auto_assign
+    if auto_assign:
+        try:
+            from apps.inbox_hub.assignment import AssignmentEngine
+            AssignmentEngine.try_assign(hub_email)
+        except Exception:
+            logger.exception("Inbox Hub auto-assign failed for HubEmail %s", hub_email.pk)
+
+
+def _initialize_hub_sla(hub_email):
+    """Seed ``sla_response_due_at`` / ``sla_resolution_due_at`` from policy.
+
+    Resolution order mirrors the model docstring: queue+priority →
+    department+priority. No-op when no matching HubEmailSLA exists. Uses simple
+    wall-clock deadlines for MVP (business-hours-aware deadlines can layer on
+    later via apps.tickets.sla helpers).
+    """
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.inbox_hub.models import HubEmailSLA
+
+    tenant = hub_email.tenant
+    policy = None
+    if hub_email.queue_id:
+        policy = HubEmailSLA.unscoped.filter(
+            tenant=tenant, queue_id=hub_email.queue_id, priority=hub_email.priority,
+        ).first()
+    if policy is None and hub_email.department_id:
+        policy = HubEmailSLA.unscoped.filter(
+            tenant=tenant, department_id=hub_email.department_id, priority=hub_email.priority,
+        ).first()
+    if policy is None:
+        return
+
+    now = timezone.now()
+    hub_email.sla_response_due_at = now + timedelta(minutes=policy.response_minutes)
+    hub_email.sla_resolution_due_at = now + timedelta(minutes=policy.resolution_minutes)
+    hub_email.save(update_fields=["sla_response_due_at", "sla_resolution_due_at", "updated_at"])
 
 
 def _hub_email_payload(hub_email):
