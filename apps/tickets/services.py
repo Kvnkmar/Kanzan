@@ -1111,6 +1111,16 @@ def escalate_ticket(ticket, actor, reason, assignee=None, queue=None, request=No
         reason,
     )
 
+    from apps.tickets.webhook_service import fire_webhooks
+    fire_webhooks(tenant, "ticket.escalated", {
+        "ticket_id": str(ticket.pk),
+        "ticket_number": ticket.number,
+        "escalation_count": ticket.escalation_count,
+        "reason": reason,
+        "assignee": str(assignee.pk) if assignee else None,
+        "escalated_by": actor.email if actor else None,
+    })
+
     return ticket
 
 
@@ -1282,6 +1292,17 @@ def log_ticket_comment(ticket, actor, is_internal=False):
         event=event,
         message=f"Added a {label}",
     )
+
+    # Fire the ticket.comment webhook for PUBLIC comments only -- internal notes
+    # are agent-only and must never be pushed to an external integration URL.
+    if not is_internal:
+        from apps.tickets.webhook_service import fire_webhooks
+        fire_webhooks(ticket.tenant, "ticket.comment", {
+            "ticket_id": str(ticket.pk),
+            "ticket_number": ticket.number,
+            "is_internal": False,
+            "author": actor.email if actor else None,
+        })
 
 
 # ---------------------------------------------------------------------------

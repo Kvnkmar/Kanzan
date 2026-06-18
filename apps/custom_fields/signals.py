@@ -10,7 +10,7 @@ import logging
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from apps.contacts.models import Contact
+from apps.contacts.models import Company, Contact
 from apps.custom_fields.services import sync_custom_field_values
 from apps.tickets.models import Ticket
 
@@ -40,4 +40,22 @@ def sync_contact_custom_fields(sender, instance, **kwargs):
         except Exception:
             logger.exception(
                 "Failed to sync custom fields for Contact %s.", instance.id
+            )
+
+
+@receiver(post_save, sender=Company)
+def sync_company_custom_fields(sender, instance, **kwargs):
+    """Sync CustomFieldValue rows when a Company is saved.
+
+    Previously absent -- Company custom fields (module="company") were defined
+    and editable but never produced CustomFieldValue rows, so they were
+    invisible to reporting/search.
+    """
+    custom_data = getattr(instance, "custom_data", None)
+    if custom_data and isinstance(custom_data, dict) and len(custom_data) > 0:
+        try:
+            sync_custom_field_values(instance, module="company")
+        except Exception:
+            logger.exception(
+                "Failed to sync custom fields for Company %s.", instance.id
             )

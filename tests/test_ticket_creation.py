@@ -232,21 +232,12 @@ class TestTicketCreation(KanzenBaseTestCase):
         Assigning a ticket to a user who is not an active member of the
         tenant should return 400 (or be rejected during validation).
         """
-        # admin_b is not a member of tenant_a
+        # admin_b is not a member of tenant_a. TicketCreateSerializer.
+        # validate_assignee now rejects non-member assignees on the CREATE
+        # path (previously only the /assign/ action enforced membership).
         response = self._create_ticket_via_api(assignee=str(self.admin_b.id))
-        # The serializer or service layer should reject non-member assignees
-        # Accept either 400 (validation error) or 201 if it's only checked on assign action
-        if response.status_code == status.HTTP_201_CREATED:
-            # If creation succeeded, try the assign action instead
-            ticket_id = response.data["id"]
-            assign_url = self.api_url(f"/tickets/tickets/{ticket_id}/assign/")
-            self.auth_tenant(self.admin_a, self.tenant_a)
-            assign_response = self.client.post(
-                assign_url,
-                {"assignee": str(self.admin_b.id)},
-                format="json",
-            )
-            self.assertEqual(assign_response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("assignee", response.data)
 
     # ------------------------------------------------------------------
     # 2.11 Assignee is active tenant member -> 201, assignee set

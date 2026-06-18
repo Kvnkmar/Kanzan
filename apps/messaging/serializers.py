@@ -113,6 +113,25 @@ class MessageSerializer(serializers.ModelSerializer):
         return AttachmentSerializer(qs, many=True, context=self.context).data
 
 
+class MessageUpdateSerializer(serializers.ModelSerializer):
+    """Edit serializer: only the body is writable.
+
+    The read serializer marks every field read-only, so without this an
+    author's PATCH returned 200 but silently persisted nothing. ``is_edited``
+    is stamped by the view (perform_update).
+    """
+
+    class Meta:
+        model = Message
+        fields = ["id", "body", "is_edited", "updated_at"]
+        read_only_fields = ["id", "is_edited", "updated_at"]
+
+    def validate_body(self, value):
+        if value is None or not value.strip():
+            raise serializers.ValidationError("Message body cannot be empty.")
+        return value
+
+
 class MessageCreateSerializer(serializers.ModelSerializer):
     """
     Write serializer for creating a new message.
@@ -334,15 +353,28 @@ class ConversationCreateSerializer(serializers.Serializer):
     def validate(self, attrs):
         conv_type = attrs["type"]
 
+        from apps.accounts.models import TenantMembership
+
+        request = self.context.get("request")
+        tenant = getattr(request, "tenant", None) if request else None
+
         if conv_type == ConversationType.DIRECT:
             if not attrs.get("user_id"):
                 raise serializers.ValidationError(
                     {"user_id": "Required for direct message conversations."}
                 )
-            request = self.context.get("request")
             if request and str(attrs["user_id"]) == str(request.user.pk):
                 raise serializers.ValidationError(
                     {"user_id": "Cannot create a direct message with yourself."}
+                )
+            # SECURITY: the other party must be an active member of THIS tenant.
+            # Without this, any user could open a DM with (and enumerate) users
+            # from other tenants by guessing UUIDs.
+            if tenant and not TenantMembership.objects.filter(
+                user_id=attrs["user_id"], tenant=tenant, is_active=True
+            ).exists():
+                raise serializers.ValidationError(
+                    {"user_id": "User is not a member of this tenant."}
                 )
 
         elif conv_type == ConversationType.GROUP:
@@ -359,6 +391,24 @@ class ConversationCreateSerializer(serializers.Serializer):
                     raise serializers.ValidationError(
                         {"user_ids": "At least one other participant is required."}
                     )
+                # SECURITY: every manually-supplied participant must be an
+                # active member of this tenant (the group_id path is already
+                # tenant-scoped via UserGroup lookup).
+                if tenant:
+                    valid_ids = set(
+                        TenantMembership.objects.filter(
+                            user_id__in=attrs["user_ids"],
+                            tenant=tenant,
+                            is_active=True,
+                        ).values_list("user_id", flat=True)
+                    )
+                    invalid = {str(u) for u in attrs["user_ids"]} - {
+                        str(u) for u in valid_ids
+                    }
+                    if invalid:
+                        raise serializers.ValidationError(
+                            {"user_ids": "One or more users are not members of this tenant."}
+                        )
 
         elif conv_type == ConversationType.TICKET:
             if not attrs.get("ticket_id"):

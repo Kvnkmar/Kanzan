@@ -47,7 +47,7 @@ class TestSendTicketEmail(TenantTestCase):
         super().setUp()
         self.set_tenant(self.tenant_a)
         self.contact = Contact.objects.create(
-            email="customer@example.com", first_name="Jane",
+            email="customer@clientmail.com", first_name="Jane",
         )
         self.ticket = self.make_ticket(
             self.tenant_a, self.admin_a,
@@ -58,7 +58,7 @@ class TestSendTicketEmail(TenantTestCase):
         """send_ticket_email sends via SMTP and creates outbound record."""
         msg_id = send_ticket_email(
             tenant=self.tenant_a, ticket=self.ticket,
-            to_email="customer@example.com",
+            to_email="customer@clientmail.com",
             subject=f"[#{self.ticket.number}] Login issue",
             body_text="We fixed it.",
         )
@@ -77,8 +77,8 @@ class TestSendTicketEmail(TenantTestCase):
         # Simulate a prior inbound email linked to this ticket
         InboundEmail.objects.create(
             tenant=self.tenant_a, ticket=self.ticket,
-            message_id="prior-msg-123@example.com",
-            sender_email="customer@example.com",
+            message_id="prior-msg-123@clientmail.com",
+            sender_email="customer@clientmail.com",
             recipient_email="support+tenant-a@kanzan.test",
             direction=InboundEmail.Direction.INBOUND,
             status=InboundEmail.Status.REPLY_ADDED,
@@ -86,20 +86,20 @@ class TestSendTicketEmail(TenantTestCase):
 
         send_ticket_email(
             tenant=self.tenant_a, ticket=self.ticket,
-            to_email="customer@example.com",
+            to_email="customer@clientmail.com",
             subject="[#1] Reply",
             body_text="Thanks.",
         )
         email = mail.outbox[0]
         self.assertIn("In-Reply-To", email.extra_headers)
-        self.assertIn("prior-msg-123@example.com", email.extra_headers["In-Reply-To"])
+        self.assertIn("prior-msg-123@clientmail.com", email.extra_headers["In-Reply-To"])
         self.assertIn("References", email.extra_headers)
 
     def test_html_alternative_attached_when_provided(self):
         """HTML body is attached as alternative when provided."""
         send_ticket_email(
             tenant=self.tenant_a, ticket=self.ticket,
-            to_email="customer@example.com",
+            to_email="customer@clientmail.com",
             subject="[#1] Test",
             body_text="Plain text.",
             body_html="<p>HTML body</p>",
@@ -112,7 +112,7 @@ class TestSendTicketEmail(TenantTestCase):
         """Agent-initiated emails record sender_type=agent."""
         send_ticket_email(
             tenant=self.tenant_a, ticket=self.ticket,
-            to_email="customer@example.com",
+            to_email="customer@clientmail.com",
             subject="[#1] Agent email",
             body_text="Hello.",
             sender_type=InboundEmail.SenderType.AGENT,
@@ -131,7 +131,7 @@ class TestOutboundSmtpFailure(TenantTestCase):
         super().setUp()
         self.set_tenant(self.tenant_a)
         self.contact = Contact.objects.create(
-            email="customer@example.com", first_name="Jane",
+            email="customer@clientmail.com", first_name="Jane",
         )
         self.ticket = self.make_ticket(
             self.tenant_a, self.admin_a,
@@ -147,7 +147,7 @@ class TestOutboundSmtpFailure(TenantTestCase):
             with self.assertRaises(ConnectionError):
                 send_ticket_email(
                     tenant=self.tenant_a, ticket=self.ticket,
-                    to_email="customer@example.com",
+                    to_email="customer@clientmail.com",
                     subject="[#1] Fail test",
                     body_text="This should fail.",
                 )
@@ -179,7 +179,7 @@ class TestOutboundDuplicatePrevention(TenantTestCase):
         super().setUp()
         self.set_tenant(self.tenant_a)
         self.contact = Contact.objects.create(
-            email="customer@example.com", first_name="Jane",
+            email="customer@clientmail.com", first_name="Jane",
         )
         self.ticket = self.make_ticket(
             self.tenant_a, self.admin_a, contact=self.contact,
@@ -192,12 +192,12 @@ class TestOutboundDuplicatePrevention(TenantTestCase):
         # includes the message_id, so truly duplicate calls are blocked.
         msg_id_1 = send_ticket_email(
             tenant=self.tenant_a, ticket=self.ticket,
-            to_email="customer@example.com",
+            to_email="customer@clientmail.com",
             subject="[#1] Test", body_text="First send",
         )
         msg_id_2 = send_ticket_email(
             tenant=self.tenant_a, ticket=self.ticket,
-            to_email="customer@example.com",
+            to_email="customer@clientmail.com",
             subject="[#1] Test", body_text="Second send",
         )
         # Each call generates a unique message_id
@@ -217,7 +217,7 @@ class TestInternalNoteDoesNotEmail(TenantTestCase):
         super().setUp()
         self.set_tenant(self.tenant_a)
         self.contact = Contact.objects.create(
-            email="customer@example.com", first_name="Jane",
+            email="customer@clientmail.com", first_name="Jane",
         )
         self.ticket = self.make_ticket(
             self.tenant_a, self.admin_a,

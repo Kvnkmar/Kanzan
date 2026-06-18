@@ -10,20 +10,154 @@ Tasks:
         Scores every Account (0-100) based on CSAT, SLA, and activity signals.
         Scheduled nightly via Celery Beat.
 
+    fire_due_reminders
+        Fires a one-shot "reminder due" popup notification the moment a
+        reminder's scheduled time arrives. Scheduled every 30s via Celery Beat.
+
     check_overdue_reminders
         Periodic scan for overdue reminders. Sends REMINDER_OVERDUE
         notifications to assignees. Deduplicates per reminder per day.
-        Runs every 15 minutes via Celery Beat.
+        (Implemented; not currently registered in CELERY_BEAT_SCHEDULE.)
 """
 
 import logging
 from datetime import timedelta
 
 from celery import shared_task
-from django.db.models import Avg, Q
+from django.db.models import Avg, F, Q
 from django.utils import timezone
 
 logger = logging.getLogger(__name__)
+
+
+@shared_task(bind=True, max_retries=1, acks_late=True)
+def fire_due_reminders(self):
+    """
+    Send a one-shot "reminder due" notification at the moment a reminder
+    comes due, so the owner gets a popup and never misses it.
+
+    Distinct from ``check_overdue_reminders`` (which nags about already-late
+    reminders once per day): this fires exactly once, right as the clock
+    passes ``scheduled_at``.
+
+    Fire condition (per reminder):
+        scheduled_at <= now                  (it's due)
+        AND completed_at IS NULL             (not done)
+        AND cancelled_at IS NULL             (not cancelled)
+        AND (due_notified_at IS NULL OR due_notified_at < scheduled_at)
+
+    The ``due_notified_at < scheduled_at`` half is the re-arm guard: after we
+    fire we stamp ``due_notified_at = now`` (>= scheduled_at), so it won't
+    re-fire. But if the reminder is later moved forward (via the reschedule
+    action OR a raw PATCH of scheduled_at), the old stamp falls behind the new
+    time and the alert re-arms automatically — no flag reset needed anywhere.
+
+    Recipient: the assignee, or the creator when unassigned (created_by is
+    PROTECT, so there is always a recipient). Uses ``Model.unscoped`` because
+    Celery tasks run without a thread-local tenant.
+    """
+    from apps.crm.models import Reminder
+    from apps.notifications.models import NotificationType
+    from apps.notifications.services import send_notification
+    from apps.tenants.live import broadcast_live_event
+    from apps.tenants.models import Tenant
+
+    now = timezone.now()
+    total_notified = 0
+
+    for tenant in Tenant.objects.filter(is_active=True).iterator():
+        try:
+            due_reminders = (
+                Reminder.unscoped.filter(
+                    tenant=tenant,
+                    scheduled_at__lte=now,
+                    completed_at__isnull=True,
+                    cancelled_at__isnull=True,
+                )
+                .filter(
+                    Q(due_notified_at__isnull=True)
+                    | Q(due_notified_at__lt=F("scheduled_at"))
+                )
+                .select_related("assigned_to", "created_by")
+                .prefetch_related("contacts")
+                .iterator(chunk_size=200)
+            )
+
+            for reminder in due_reminders:
+                # Isolate each reminder so one bad row doesn't skip the rest of
+                # the tenant's due batch this tick.
+                try:
+                    recipient = reminder.assigned_to or reminder.created_by
+                    if recipient is None:
+                        continue
+
+                    # Claim FIRST: stamp the dedup/re-arm watermark before
+                    # notifying. The task runs outside an atomic block, so
+                    # send_notification pushes synchronously — if we notified
+                    # first and the watermark write then failed, the alert would
+                    # re-fire every tick. Stamping first means a transient
+                    # downstream failure costs at most one missed alert, never a
+                    # duplicate loop. .update() (not save()) avoids re-tripping
+                    # the reminder post_save signals/broadcast.
+                    Reminder.unscoped.filter(pk=reminder.pk).update(
+                        due_notified_at=now
+                    )
+
+                    linked_contacts = list(reminder.contacts.all())
+                    contact_name = ", ".join(
+                        c.full_name for c in linked_contacts if c.full_name
+                    ) or None
+
+                    body = (
+                        f"Reminder for {contact_name} is due now."
+                        if contact_name
+                        else "Your reminder is due now."
+                    )
+
+                    send_notification(
+                        tenant=tenant,
+                        recipient=recipient,
+                        notification_type=NotificationType.REMINDER_DUE,
+                        title=f"Reminder due: {reminder.subject}",
+                        body=body,
+                        data={
+                            "reminder_id": str(reminder.pk),
+                            "contact_ids": [str(c.id) for c in linked_contacts],
+                            "priority": reminder.priority,
+                            "scheduled_at": reminder.scheduled_at.isoformat(),
+                            "url": "/reminders/",
+                        },
+                    )
+                    total_notified += 1
+
+                    # Tenant-wide live nudge so the reminders workspace can pull
+                    # the row into its "overdue/now" group instantly.
+                    # recipient_id lets the page filter to the current user.
+                    broadcast_live_event(
+                        tenant,
+                        "reminder.due",
+                        {
+                            "id": str(reminder.pk),
+                            "subject": reminder.subject,
+                            "priority": reminder.priority,
+                            "scheduled_at": reminder.scheduled_at.isoformat(),
+                            "recipient_id": str(recipient.id),
+                        },
+                    )
+                except Exception:
+                    logger.exception(
+                        "fire_due_reminders: failed to alert reminder %s",
+                        reminder.pk,
+                    )
+
+        except Exception:
+            logger.exception(
+                "fire_due_reminders failed for tenant %s", tenant.slug
+            )
+
+    logger.info(
+        "fire_due_reminders complete: %d notifications sent.", total_notified
+    )
 
 
 @shared_task(bind=True, max_retries=1, acks_late=True)

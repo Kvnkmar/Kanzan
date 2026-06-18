@@ -581,6 +581,29 @@ class TicketCreateSerializer(serializers.ModelSerializer):
                 )
         return value
 
+    def validate_assignee(self, value):
+        """Ensure the assignee is an active member of the current tenant.
+
+        ``Ticket.assignee`` FKs to the global User table and ``Ticket.save()``
+        never calls ``clean()``, so without this the create path would accept
+        any User UUID -- including one from another tenant (a tenant-isolation
+        breach). The /assign/ action already enforces this on updates.
+        """
+        if value is None:
+            return value
+        request = self.context.get("request")
+        if request and hasattr(request, "tenant") and request.tenant is not None:
+            from apps.accounts.models import TenantMembership
+
+            is_member = TenantMembership.objects.filter(
+                user=value, tenant=request.tenant, is_active=True,
+            ).exists()
+            if not is_member:
+                raise serializers.ValidationError(
+                    "The selected assignee is not an active member of this tenant."
+                )
+        return value
+
     # ------------------------------------------------------------------
     # Creation
     # ------------------------------------------------------------------

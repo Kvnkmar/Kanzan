@@ -312,6 +312,9 @@
         <div class="ep-body__content" id="previewBody" role="region" aria-label="Email body"></div>
       </div>
 
+      <!-- Customer-sent attachments (images inline + download chips) -->
+      <div class="ep-attachments" id="previewAttachments" aria-label="Attachments" hidden></div>
+
       <!-- Footer -->
       <div class="ep-footer">
         <div class="ep-footer__spacer"></div>
@@ -345,12 +348,93 @@
     </div>
   </div>
 </div>
+
+<!-- CREATE TICKET FROM EMAIL MODAL -->
+<div class="modal fade" id="createTicketModal" tabindex="-1" aria-labelledby="ctmTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h6 class="modal-title" id="ctmTitle"><i class="ti ti-ticket me-1"></i>Create Ticket from Email</h6>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="ctmAlert" class="alert alert-danger d-none" role="alert"></div>
+        <input type="hidden" id="ctmEmailId">
+
+        <!-- Source contact -->
+        <div class="d-flex align-items-center gap-2 mb-3 text-muted small">
+          <i class="ti ti-user"></i>
+          <span id="ctmFrom"></span>
+        </div>
+
+        <!-- Subject -->
+        <div class="mb-3">
+          <label class="form-label small fw-semibold" for="ctmSubject">Subject <span class="text-danger">*</span></label>
+          <input type="text" id="ctmSubject" class="form-control" maxlength="255" placeholder="Ticket subject" required>
+          <div class="invalid-feedback" id="ctmSubjectError"></div>
+        </div>
+
+        <!-- Properties -->
+        <div class="row g-3 mb-3">
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="ctmPriority">Priority</label>
+            <select id="ctmPriority" class="form-select">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="ctmQueue">Subcategory</label>
+            <select id="ctmQueue" class="form-select">
+              <option value="">No subcategory</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="ctmStatus">Status</label>
+            <select id="ctmStatus" class="form-select">
+              <option value="">Default</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="ctmAssignee">Assignee</label>
+            <select id="ctmAssignee" class="form-select">
+              <option value="">Unassigned</option>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label small fw-semibold" for="ctmCategory">Category</label>
+            <select id="ctmCategory" class="form-select">
+              <option value="">No category</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Description -->
+        <div class="mb-1">
+          <label class="form-label small fw-semibold" for="ctmDescription">Description</label>
+          <textarea id="ctmDescription" class="form-control" rows="8" placeholder="Describe the issue in detail..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="ctmCreateBtn">
+          <span id="ctmCreateText"><i class="ti ti-check me-1"></i>Create Ticket</span>
+          <span id="ctmCreateSpinner" class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
 (function() {
   'use strict';
+
+  var CURRENT_USER_ID = '{{ user.id }}';
 
   /* ── Helpers ── */
 
@@ -627,6 +711,10 @@
 
     document.getElementById('previewBody').textContent = e.body_text || '';
 
+    // Clear any prior email's attachments until this one's detail arrives.
+    var previewAttachments = document.getElementById('previewAttachments');
+    if (previewAttachments) { previewAttachments.replaceChildren(); previewAttachments.hidden = true; }
+
     var ticketBanner = document.getElementById('previewTicketBanner');
     var unlinkedBanner = document.getElementById('previewUnlinkedBanner');
     var ticketRow = document.getElementById('previewTicketRow');
@@ -658,9 +746,14 @@
     }
 
     Api.get('/api/v1/inbound-email/' + e.id + '/').then(function(detail) {
+      // Ignore a stale response if the agent already opened another email.
+      if (!currentPreviewEmail || currentPreviewEmail.id !== e.id) return;
       document.getElementById('previewBody').textContent = detail.body_text || '';
-      if (currentPreviewEmail && currentPreviewEmail.id === e.id) {
-        currentPreviewEmail._fullBody = detail.body_text;
+      currentPreviewEmail._fullBody = detail.body_text;
+      if (window.Kanzan && Kanzan.renderMailAttachments) {
+        Kanzan.renderMailAttachments(
+          document.getElementById('previewAttachments'), detail.attachments
+        );
       }
     }).catch(function() {});
 
@@ -677,26 +770,22 @@
 
   document.getElementById('previewCreateTicketBtn').addEventListener('click', function() {
     if (!currentPreviewEmail) return;
-    var id = currentPreviewEmail.id;
-    var btn = this;
-    btn.disabled = true;
-    Api.post('/api/v1/inbound-email/' + id + '/create-ticket/', {}).then(function(data) {
-      btn.disabled = false;
-      Toast.success('Created ticket #' + data.ticket_number);
-      // Reflect the new linkage in place so the Reply button appears
-      // immediately without reopening the email.
-      if (currentPreviewEmail && currentPreviewEmail.id === id) {
-        currentPreviewEmail.ticket = data.ticket_id;
-        currentPreviewEmail.ticket_number = data.ticket_number;
-        currentPreviewEmail.ticket_subject = data.ticket_subject;
-        currentPreviewEmail.status = 'ticket_created';
-        openPreview(currentPreviewEmail);
-      }
-      loadInboundEmails();
-    }).catch(function(err) {
-      btn.disabled = false;
-      Toast.error((err && err.detail) || 'Failed to create ticket');
-    });
+    // Hand off to the ticket-creation form so the agent can craft a proper
+    // ticket (subject / description / priority / queue …) instead of a
+    // one-click create from the raw email. Wait for the preview modal to FULLY
+    // hide before opening the form — showing the second modal mid fade-out
+    // lets the preview's teardown strip <body>.modal-open / the backdrop out
+    // from under the open form (the classic Bootstrap dual-modal glitch).
+    var email = currentPreviewEmail;
+    var previewEl = document.getElementById('emailPreviewModal');
+    if (previewModal && previewEl.classList.contains('show')) {
+      previewEl.addEventListener('hidden.bs.modal', function() {
+        openCreateTicketModal(email);
+      }, { once: true });
+      previewModal.hide();
+    } else {
+      openCreateTicketModal(email);
+    }
   });
 
   document.getElementById('previewReplyBtn').addEventListener('click', function() {
@@ -905,6 +994,190 @@
       Toast.error('Failed to link email');
     });
   }
+
+  /* ════════════════════════════════════════
+     CREATE TICKET FROM EMAIL MODAL
+     ════════════════════════════════════════ */
+
+  var createTicketModal = null;
+  var ticketMetaPromise = null;
+
+  // Lazily load (and cache) the dropdown data the form needs. Each source is
+  // independent and failure-tolerant — a missing list just leaves its select
+  // with the placeholder option.
+  function loadTicketMeta() {
+    if (ticketMetaPromise) return ticketMetaPromise;
+    ticketMetaPromise = Promise.all([
+      Api.get('/api/v1/tickets/queues/').catch(function() { return { results: [] }; }),
+      Api.get('/api/v1/tickets/ticket-statuses/').catch(function() { return { results: [] }; }),
+      Api.get('/api/v1/accounts/users/').catch(function() { return { results: [] }; }),
+      Api.get('/api/v1/tickets/ticket-categories/').catch(function() { return { results: [] }; })
+    ]).then(function(res) {
+      fillSelect('ctmQueue', res[0].results || res[0] || [], function(q) {
+        return { value: q.id, label: q.name };
+      });
+      // A new ticket should not start closed (the backend rejects it too), so
+      // only offer open statuses.
+      var openStatuses = (res[1].results || res[1] || []).filter(function(st) {
+        return !st.is_closed;
+      });
+      fillSelect('ctmStatus', openStatuses, function(st) {
+        return { value: st.id, label: st.name };
+      });
+      fillSelect('ctmAssignee', res[2].results || res[2] || [], function(u) {
+        var name = ((u.first_name || '') + ' ' + (u.last_name || '')).trim();
+        return { value: u.id, label: name || u.email };
+      });
+      // Category is a free-text field on the ticket, so the option value IS the
+      // name — the backend stores it verbatim.
+      fillSelect('ctmCategory', res[3].results || res[3] || [], function(c) {
+        return { value: c.name, label: c.name };
+      });
+    });
+    return ticketMetaPromise;
+  }
+
+  function fillSelect(selectId, items, mapFn) {
+    var sel = document.getElementById(selectId);
+    if (!sel) return;
+    // Keep the first (placeholder) option, drop any previously appended ones.
+    while (sel.options.length > 1) sel.remove(1);
+    items.forEach(function(item) {
+      var m = mapFn(item);
+      if (!m.value) return;
+      var o = document.createElement('option');
+      o.value = m.value;
+      o.textContent = m.label;
+      sel.appendChild(o);
+    });
+  }
+
+  function clearCtmErrors() {
+    var alertEl = document.getElementById('ctmAlert');
+    alertEl.classList.add('d-none');
+    alertEl.textContent = '';
+    document.getElementById('ctmSubject').classList.remove('is-invalid');
+    document.getElementById('ctmSubjectError').textContent = '';
+  }
+
+  function openCreateTicketModal(email) {
+    if (!email) return;
+    clearCtmErrors();
+
+    document.getElementById('ctmEmailId').value = email.id;
+    document.getElementById('ctmFrom').textContent =
+      'From ' + (email.sender_name ? email.sender_name + ' <' + email.sender_email + '>' : email.sender_email);
+    document.getElementById('ctmSubject').value = email.subject || '';
+    var descEl = document.getElementById('ctmDescription');
+    var descPrefill = email._fullBody || email.body_text || '';
+    descEl.value = descPrefill;
+    // If the full body hasn't been fetched yet (fast click on a slow network),
+    // pull it and upgrade the textarea — but only while the agent hasn't begun
+    // editing (the value still equals what we prefilled).
+    if (!email._fullBody) {
+      Api.get('/api/v1/inbound-email/' + email.id + '/').then(function(detail) {
+        email._fullBody = detail.body_text || '';
+        if (descEl.value === descPrefill) descEl.value = email._fullBody || descPrefill;
+      }).catch(function() {});
+    }
+    document.getElementById('ctmPriority').value = 'medium';
+    document.getElementById('ctmStatus').value = '';
+    document.getElementById('ctmCategory').value = '';
+
+    loadTicketMeta().then(function() {
+      // Default the assignee to the current agent once the user list is in.
+      var assigneeSel = document.getElementById('ctmAssignee');
+      if (CURRENT_USER_ID && assigneeSel.querySelector('option[value="' + CURRENT_USER_ID + '"]')) {
+        assigneeSel.value = CURRENT_USER_ID;
+      }
+    });
+
+    if (!createTicketModal) createTicketModal = new bootstrap.Modal(document.getElementById('createTicketModal'));
+    createTicketModal.show();
+  }
+
+  function setCtmLoading(loading) {
+    document.getElementById('ctmCreateBtn').disabled = loading;
+    document.getElementById('ctmCreateText').classList.toggle('d-none', loading);
+    document.getElementById('ctmCreateSpinner').classList.toggle('d-none', !loading);
+  }
+
+  document.getElementById('ctmCreateBtn').addEventListener('click', function() {
+    clearCtmErrors();
+    var id = document.getElementById('ctmEmailId').value;
+    if (!id) return;
+
+    var subject = document.getElementById('ctmSubject').value.trim();
+    if (!subject) {
+      var subjEl = document.getElementById('ctmSubject');
+      subjEl.classList.add('is-invalid');
+      document.getElementById('ctmSubjectError').textContent = 'Subject is required.';
+      subjEl.focus();
+      return;
+    }
+
+    var payload = {
+      subject: subject,
+      description: document.getElementById('ctmDescription').value.trim(),
+      priority: document.getElementById('ctmPriority').value
+    };
+    var queue = document.getElementById('ctmQueue').value;
+    var status = document.getElementById('ctmStatus').value;
+    var assignee = document.getElementById('ctmAssignee').value;
+    var category = document.getElementById('ctmCategory').value;
+    if (queue) payload.queue = queue;
+    if (status) payload.status = status;
+    if (assignee) payload.assignee = assignee;
+    if (category) payload.category = category;
+
+    setCtmLoading(true);
+    Api.post('/api/v1/inbound-email/' + id + '/create-ticket/', payload).then(function(data) {
+      setCtmLoading(false);
+      if (createTicketModal) createTicketModal.hide();
+      Toast.success('Created ticket #' + data.ticket_number);
+      // Reflect the new linkage on the in-memory email so reopening the
+      // preview shows the Reply button without a round-trip.
+      if (currentPreviewEmail && currentPreviewEmail.id === id) {
+        currentPreviewEmail.ticket = data.ticket_id;
+        currentPreviewEmail.ticket_number = data.ticket_number;
+        currentPreviewEmail.ticket_subject = data.ticket_subject;
+        currentPreviewEmail.status = 'ticket_created';
+      }
+      loadInboundEmails();
+    }).catch(function(err) {
+      setCtmLoading(false);
+      // Idempotent 400 — the email already has a ticket. Treat it like the
+      // success path so the row reflects the existing link instead of stranding
+      // the agent on an error with a stale "Unlinked" row.
+      if (err && err._status === 400 && err.ticket_number) {
+        if (createTicketModal) createTicketModal.hide();
+        Toast.info('This email already has ticket #' + err.ticket_number);
+        if (currentPreviewEmail && currentPreviewEmail.id === id) {
+          currentPreviewEmail.ticket = err.ticket_id;
+          currentPreviewEmail.ticket_number = err.ticket_number;
+          currentPreviewEmail.status = 'ticket_created';
+        }
+        loadInboundEmails();
+        return;
+      }
+      var alertEl = document.getElementById('ctmAlert');
+      var msg = 'Failed to create ticket.';
+      if (err && typeof err === 'object') {
+        if (err.detail) msg = err.detail;
+        else {
+          var parts = [];
+          for (var f in err) {
+            if (err.hasOwnProperty(f) && f !== '_status') {
+              parts.push(Array.isArray(err[f]) ? err[f].join(' ') : err[f]);
+            }
+          }
+          if (parts.length) msg = parts.join(' ');
+        }
+      }
+      alertEl.textContent = msg;
+      alertEl.classList.remove('d-none');
+    });
+  });
 
   /* ════════════════════════════════════════
      INIT

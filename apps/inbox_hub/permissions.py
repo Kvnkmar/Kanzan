@@ -6,13 +6,13 @@ they see *this row*?".
 
 Access model (see :mod:`apps.inbox_hub.access` for the single source of truth):
 
-- **Access gate** — who may open the Hub at all: Admins (level <= 10) always;
-  everyone else (Manager and below) only if they belong to ≥1 ``UserGroup``. A
-  non-Admin in **no** group is denied entirely (403). This is how admins
-  control Hub visibility from the Groups page.
+- **Access gate** — who may open the Hub at all: Admin / Manager (level <= 20)
+  always; agent-tier (Team Lead / Agent / IT / HR) only if they belong to ≥1
+  active ``Department``; Viewers never. Department-scoped, replacing the old
+  binary ``UserGroup`` gate.
 - **Row scope** — what an admitted user sees: Manager+ (level <= 20) see every
-  row in the tenant; agent-tier (level > 20) see the untriaged (``state=NEW``)
-  backlog plus anything assigned to them.
+  row in the tenant; agent-tier see the untriaged (``state=NEW``) backlog for
+  their own departments (plus unrouted mail) and anything assigned to them.
 
 Used only on the HubEmail viewset; Department / RoutingRule / SLA viewsets
 rely on the codename check alone (those are admin-managed and not row-scoped).
@@ -21,8 +21,11 @@ rely on the codename check alone (those are admin-managed and not row-scoped).
 from rest_framework.permissions import BasePermission
 
 from apps.accounts.permissions import _get_membership
-from apps.inbox_hub.access import user_in_any_group
-from apps.inbox_hub.models import HubEmail
+from apps.inbox_hub.access import (
+    agent_can_see_hub_email,
+    can_access_inbox_hub,
+    user_department_ids,
+)
 
 
 class HubEmailPermission(BasePermission):
@@ -43,6 +46,7 @@ class HubEmailPermission(BasePermission):
         "list": "hub_email.view",
         "retrieve": "hub_email.view",
         "context": "hub_email.view",
+        "attachment": "hub_email.view",
         "convert_to_ticket": "hub_email.convert",
         "dismiss": "hub_email.dismiss",
         "assign": "hub_email.assign",
@@ -67,9 +71,10 @@ class HubEmailPermission(BasePermission):
         action = view.action
         level = membership.effective_role.hierarchy_level
 
-        # Group access gate: everyone below Admin must belong to ≥1 UserGroup
-        # to touch the Hub at all (list/retrieve/actions). Admins are exempt.
-        if level > 10 and not user_in_any_group(user, tenant):
+        # Access gate (single source of truth in apps.inbox_hub.access):
+        # supervisors (Manager+) always, Viewers never, agent-tier only if in
+        # a department (with safety valves). Replaces the old binary group gate.
+        if not can_access_inbox_hub(membership, user=user, tenant=tenant):
             return False
 
         if action in self.AGENT_LEVEL_ACTIONS:
@@ -105,24 +110,17 @@ class IsHubEmailAccessible(BasePermission):
         if membership is None:
             return False
 
-        level = membership.effective_role.hierarchy_level
-
-        # Admins are unrestricted within their tenant.
-        if level <= 10:
-            return True
-
-        # Everyone below Admin must belong to a group to see any row at all
-        # (access gate — ``HubEmailPermission`` already 403s the request, this
-        # is defence-in-depth for direct object checks).
-        if not user_in_any_group(user, tenant):
+        # Access gate first (defence-in-depth — has_permission already 403s a
+        # user who can't open the Hub; this guards direct object lookups too).
+        if not can_access_inbox_hub(membership, user=user, tenant=tenant):
             return False
 
-        # Manager+ (in a group) see every row; agent-tier see the untriaged
-        # backlog plus anything assigned to them.
+        level = membership.effective_role.hierarchy_level
+
+        # Supervisors (Admin + Manager) see every row; agent-tier are scoped to
+        # their departments + the shared pool + mail assigned to them.
         if level <= 20:
             return True
 
-        return (
-            obj.state == HubEmail.State.NEW
-            or obj.assignee_id == user.pk
-        )
+        dept_ids = user_department_ids(user, tenant)
+        return agent_can_see_hub_email(obj, user, dept_ids)

@@ -217,7 +217,7 @@ class ContactViewSet(viewsets.ModelViewSet):
                     )
                     setattr(self.request, cache_attr, membership)
 
-                if membership and membership.role.hierarchy_level > 20:
+                if membership and membership.effective_role.hierarchy_level > 20:
                     from django.db.models import Q
 
                     from apps.tickets.models import Ticket

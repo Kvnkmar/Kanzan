@@ -22,7 +22,6 @@ from conftest import (
     SubscriptionFactory,
     TenantFactory,
     UserFactory,
-    make_api_client,
 )
 from main.context import clear_current_tenant, set_current_tenant
 
@@ -676,3 +675,170 @@ class TestReminderContactLinkage:
         resp = admin_client.get(f"/api/v1/crm/reminders/?contact={contact.id}")
         results = resp.data.get("results", resp.data)
         assert len(results) == 1
+
+
+# ---------------------------------------------------------------------------
+# 10. fire_due_reminders — the "popup when a reminder comes due" task
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestFireDueReminders:
+    """The one-shot due-reminder alert task that drives the can't-miss popup."""
+
+    @staticmethod
+    def _due_notifs(tenant, recipient=None):
+        from apps.notifications.models import Notification
+
+        qs = Notification.unscoped.filter(tenant=tenant, type="reminder_due")
+        if recipient is not None:
+            qs = qs.filter(recipient=recipient)
+        return qs
+
+    def test_fires_due_notification(self, tenant, admin_user):
+        """A reminder past its scheduled time fires one REMINDER_DUE notif."""
+        from apps.crm.tasks import fire_due_reminders
+
+        _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(minutes=1),
+            assigned_to=admin_user,
+        )
+        fire_due_reminders()
+        assert self._due_notifs(tenant, admin_user).count() == 1
+
+    def test_future_reminder_does_not_fire(self, tenant, admin_user):
+        """A reminder still in the future is left alone."""
+        from apps.crm.tasks import fire_due_reminders
+
+        _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() + timedelta(hours=1),
+            assigned_to=admin_user,
+        )
+        fire_due_reminders()
+        assert not self._due_notifs(tenant).exists()
+
+    def test_fires_only_once(self, tenant, admin_user):
+        """Running the task repeatedly must not re-pop the same reminder."""
+        from apps.crm.tasks import fire_due_reminders
+
+        _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(minutes=5),
+            assigned_to=admin_user,
+        )
+        fire_due_reminders()
+        fire_due_reminders()
+        assert self._due_notifs(tenant).count() == 1
+
+    def test_completed_and_cancelled_excluded(self, tenant, admin_user):
+        """Completed or cancelled reminders never pop."""
+        from apps.crm.tasks import fire_due_reminders
+
+        _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(minutes=5),
+            assigned_to=admin_user,
+            completed_at=timezone.now(),
+        )
+        _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(minutes=5),
+            assigned_to=admin_user,
+            cancelled_at=timezone.now(),
+        )
+        fire_due_reminders()
+        assert not self._due_notifs(tenant).exists()
+
+    def test_falls_back_to_creator_when_unassigned(self, tenant, admin_user):
+        """An unassigned reminder alerts its creator instead of nobody."""
+        from apps.crm.tasks import fire_due_reminders
+
+        _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(minutes=2),
+            assigned_to=None,
+        )
+        fire_due_reminders()
+        # _create_reminder sets created_by=admin_user.
+        assert self._due_notifs(tenant, admin_user).count() == 1
+
+    def test_rearms_when_moved_forward(self, tenant, admin_user):
+        """A reminder whose watermark trails its (new) scheduled time re-pops.
+
+        Simulates: it already fired, then was moved to a later — but still
+        past — time, so ``due_notified_at < scheduled_at`` and it re-arms.
+        """
+        from apps.crm.models import Reminder
+        from apps.crm.tasks import fire_due_reminders
+
+        reminder = _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(minutes=1),
+            assigned_to=admin_user,
+        )
+        Reminder.unscoped.filter(pk=reminder.pk).update(
+            due_notified_at=timezone.now() - timedelta(hours=2),
+        )
+        fire_due_reminders()
+        assert self._due_notifs(tenant, admin_user).count() == 1
+        reminder.refresh_from_db()
+        # Watermark advanced to >= scheduled_at, so it will not pop again.
+        assert reminder.due_notified_at >= reminder.scheduled_at
+
+    def test_suppressed_when_already_notified(self, tenant, admin_user):
+        """A watermark at/after the scheduled time keeps the reminder quiet."""
+        from apps.crm.models import Reminder
+        from apps.crm.tasks import fire_due_reminders
+
+        reminder = _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(minutes=1),
+            assigned_to=admin_user,
+        )
+        Reminder.unscoped.filter(pk=reminder.pk).update(
+            due_notified_at=timezone.now(),
+        )
+        fire_due_reminders()
+        assert not self._due_notifs(tenant).exists()
+
+    def test_due_notification_is_internal_only(self, tenant, admin_user):
+        """REMINDER_DUE is in-app only — it must never queue an email."""
+        from apps.notifications.services import INTERNAL_ONLY_TYPES
+        from apps.notifications.models import NotificationType
+
+        assert NotificationType.REMINDER_DUE in INTERNAL_ONLY_TYPES
+
+    def test_claim_first_prevents_refire_on_delivery_failure(
+        self, tenant, admin_user, monkeypatch
+    ):
+        """If delivery fails, the watermark is still claimed so the alert can
+        never re-fire every tick (a duplicate storm)."""
+        import apps.notifications.services as notif_services
+        from apps.crm.tasks import fire_due_reminders
+
+        reminder = _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(minutes=1),
+            assigned_to=admin_user,
+        )
+
+        calls = {"n": 0}
+
+        def boom(*args, **kwargs):
+            calls["n"] += 1
+            raise RuntimeError("delivery down")
+
+        # The task imports send_notification from this module at call time.
+        monkeypatch.setattr(notif_services, "send_notification", boom)
+
+        fire_due_reminders()  # delivery raises, but the watermark is claimed
+
+        reminder.refresh_from_db()
+        assert reminder.due_notified_at is not None  # claimed despite failure
+        assert calls["n"] == 1
+
+        # A later tick must NOT retry the already-claimed reminder.
+        fire_due_reminders()
+        assert calls["n"] == 1

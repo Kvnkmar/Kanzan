@@ -387,7 +387,7 @@ class ReminderViewSet(viewsets.ModelViewSet):
                     .filter(user=user, tenant=tenant, is_active=True)
                     .first()
                 )
-                if membership and membership.role.hierarchy_level > 20:
+                if membership and membership.effective_role.hierarchy_level > 20:
                     qs = qs.filter(
                         Q(assigned_to=user) | Q(created_by=user)
                     )

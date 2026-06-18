@@ -34,7 +34,7 @@ class TicketReplyEmailTest(TenantTestCase):
         super().setUp()
         self.set_tenant(self.tenant_a)
         self.contact = Contact.objects.create(
-            email="customer@example.com",
+            email="customer@clientmail.com",
             first_name="Jane",
             last_name="Doe",
         )
@@ -54,7 +54,7 @@ class TicketReplyEmailTest(TenantTestCase):
         self.assertEqual(len(mail.outbox), 1)
 
         email = mail.outbox[0]
-        self.assertEqual(email.to, ["customer@example.com"])
+        self.assertEqual(email.to, ["customer@clientmail.com"])
         self.assertIn("[#1]", email.subject)
         self.assertIn("Login issue", email.subject)
         self.assertIn("Re:", email.subject)
@@ -150,7 +150,7 @@ class TicketCreatedEmailTest(TenantTestCase):
         super().setUp()
         self.set_tenant(self.tenant_a)
         self.contact = Contact.objects.create(
-            email="newcustomer@example.com",
+            email="newcustomer@clientmail.com",
             first_name="New",
             last_name="Customer",
         )
@@ -168,7 +168,7 @@ class TicketCreatedEmailTest(TenantTestCase):
         self.assertEqual(len(mail.outbox), 1)
 
         email = mail.outbox[0]
-        self.assertEqual(email.to, ["newcustomer@example.com"])
+        self.assertEqual(email.to, ["newcustomer@clientmail.com"])
         self.assertIn("[#", email.subject)
         self.assertIn("Password reset", email.subject)
         self.assertNotIn("Re:", email.subject)

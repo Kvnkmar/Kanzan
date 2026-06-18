@@ -75,9 +75,13 @@ class CommentInternalVisibilityTest(TenantTestCase):
 
     def test_viewer_cannot_see_internal_comments(self):
         """Viewer (hierarchy_level=40) cannot see internal notes."""
-        # Make the viewer the ticket creator so they can access it
+        # Give the viewer access under the tightened agent-visibility rule:
+        # a non-privileged user sees a ticket only if it is assigned to them,
+        # OR they created it AND it is unassigned. So make the viewer the
+        # creator AND clear the assignee.
         self.ticket.created_by = self.viewer_a
-        self.ticket.save(update_fields=["created_by"])
+        self.ticket.assignee = None
+        self.ticket.save(update_fields=["created_by", "assignee"])
 
         response = self._get_comments(self.viewer_a)
         self.assertEqual(response.status_code, 200)

@@ -115,7 +115,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
             tenant = getattr(self.request, "tenant", None)
             membership = _get_membership(self.request, tenant) if tenant else None
             is_admin_or_manager = (
-                membership is not None and membership.role.hierarchy_level <= 20
+                membership is not None and membership.effective_role.hierarchy_level <= 20
             )
             if not is_admin_or_manager:
                 qs = qs.filter(Q(status="published") | Q(author=user))
@@ -155,7 +155,7 @@ class ArticleViewSet(viewsets.ModelViewSet):
         if self.request.user.is_superuser:
             return True
         membership = _get_membership(self.request, tenant) if tenant else None
-        return membership is not None and membership.role.hierarchy_level <= 20
+        return membership is not None and membership.effective_role.hierarchy_level <= 20
 
     def perform_create(self, serializer):
         extra = {"author": self.request.user}

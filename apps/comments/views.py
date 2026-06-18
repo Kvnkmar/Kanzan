@@ -211,7 +211,7 @@ class CommentViewSet(viewsets.ModelViewSet):
                 from apps.accounts.permissions import _get_membership
 
                 membership = _get_membership(self.request, tenant)
-                if membership and membership.role.hierarchy_level > 20:
+                if membership and membership.effective_role.hierarchy_level > 20:
                     from django.db.models import Q
                     from apps.tickets.models import Ticket
 
@@ -358,7 +358,7 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
                 from apps.accounts.permissions import _get_membership
 
                 membership = _get_membership(self.request, tenant)
-                if membership and membership.role.hierarchy_level > 20:
+                if membership and membership.effective_role.hierarchy_level > 20:
                     from django.db.models import Q
                     from apps.tickets.models import Ticket
 

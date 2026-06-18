@@ -802,9 +802,10 @@ def _inbox_hub_access_required(view_func):
     """Inbox Hub page gate.
 
     Requires an active membership AND — for agent-tier members
-    (hierarchy_level > 20) — membership in at least one ``UserGroup``.
-    Managers/Admins always pass. Mirrors the API gate in
-    :mod:`apps.inbox_hub.access` so the page and the data stay in lockstep.
+    (hierarchy_level 21..30) — membership in at least one active
+    ``Department`` (with the no-departments fall-open and assigned-mail safety
+    valves). Managers/Admins always pass; Viewers never. Mirrors the API gate
+    in :mod:`apps.inbox_hub.access` so the page and the data stay in lockstep.
     """
 
     @functools.wraps(view_func)
@@ -832,8 +833,8 @@ def _inbox_hub_access_required(view_func):
                 request,
                 "pages/403.html",
                 {
-                    "message": "The Inbox Hub is limited to members of a group. "
-                    "Ask an administrator to add you to a group.",
+                    "message": "The Inbox Hub is limited to members of a triage "
+                    "department. Ask an administrator to add you to one.",
                 },
                 status=403,
             )

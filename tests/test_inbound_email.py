@@ -226,3 +226,90 @@ class TestEmailsInternalPersonalScope:
         results = resp.json().get("results", resp.json())
         subjects = {row["subject"] for row in results}
         assert "Customer question" in subjects
+
+
+@pytest.mark.django_db
+class TestInboundEmailAttachments:
+    """The Emails page surfaces customer-sent files (detail serializer +
+    index-addressed authed download action), mirroring the Inbox Hub."""
+
+    @pytest.fixture
+    def email_with_attachments(self, tenant):
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+        from apps.inbound_email.models import InboundEmail
+
+        email = InboundEmailFactory(
+            tenant=tenant,
+            sender_type=InboundEmail.SenderType.CUSTOMER,
+            direction=InboundEmail.Direction.INBOUND,
+            status=InboundEmail.Status.PARKED_IN_HUB,
+            recipient_email="support@kanzan.io",
+            subject="Photos attached",
+        )
+        img_path = default_storage.save(
+            f"inbound_emails/{email.pk}/photo.png",
+            ContentFile(b"\x89PNG\r\n\x1a\nfake"),
+        )
+        doc_path = default_storage.save(
+            f"inbound_emails/{email.pk}/notes.txt", ContentFile(b"hello"),
+        )
+        email.attachment_metadata = [
+            {"filename": "photo.png", "content_type": "image/png",
+             "size": 9, "storage_path": img_path},
+            {"filename": "notes.txt", "content_type": "text/plain",
+             "size": 5, "storage_path": doc_path},
+        ]
+        email.save(update_fields=["attachment_metadata", "updated_at"])
+        yield email
+        for p in (img_path, doc_path):
+            if default_storage.exists(p):
+                default_storage.delete(p)
+
+    def test_detail_exposes_attachments(self, admin_client, email_with_attachments):
+        resp = admin_client.get(f"/api/v1/inbound-email/{email_with_attachments.id}/")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["has_attachments"] is True
+        assert data["attachment_count"] == 2
+        atts = data["attachments"]
+        assert atts[0]["is_image"] is True
+        assert atts[0]["url"].endswith("/attachment/?i=0")
+        assert atts[1]["is_image"] is False
+
+    def test_list_row_summarises_attachments(self, admin_client, email_with_attachments):
+        resp = admin_client.get("/api/v1/inbound-email/")
+        row = next(r for r in resp.json().get("results", [])
+                   if r["id"] == str(email_with_attachments.id))
+        assert row["has_attachments"] is True
+        assert row["attachment_count"] == 2
+        assert "attachments" not in row  # detail-only
+
+    def test_download_image_inline(self, admin_client, email_with_attachments):
+        resp = admin_client.get(
+            f"/api/v1/inbound-email/{email_with_attachments.id}/attachment/?i=0"
+        )
+        assert resp.status_code == 200
+        assert resp["Content-Type"] == "image/png"
+        assert resp["X-Content-Type-Options"] == "nosniff"
+        assert "attachment" not in (resp.get("Content-Disposition") or "")
+        assert b"".join(resp.streaming_content) == b"\x89PNG\r\n\x1a\nfake"
+
+    def test_download_nonimage_forced(self, admin_client, email_with_attachments):
+        resp = admin_client.get(
+            f"/api/v1/inbound-email/{email_with_attachments.id}/attachment/?i=1"
+        )
+        assert resp.status_code == 200
+        assert "attachment" in (resp.get("Content-Disposition") or "")
+
+    def test_download_out_of_range_404(self, admin_client, email_with_attachments):
+        resp = admin_client.get(
+            f"/api/v1/inbound-email/{email_with_attachments.id}/attachment/?i=5"
+        )
+        assert resp.status_code == 404
+
+    def test_anon_cannot_download(self, anon_client, email_with_attachments):
+        resp = anon_client.get(
+            f"/api/v1/inbound-email/{email_with_attachments.id}/attachment/?i=0"
+        )
+        assert resp.status_code in (401, 403)

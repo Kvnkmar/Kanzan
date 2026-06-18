@@ -79,7 +79,18 @@ def validate_file_upload(file_obj) -> str:
     file_head = file_obj.read(2048)
     file_obj.seek(0)  # Reset file pointer for downstream consumers.
 
-    detected_mime = magic.from_buffer(file_head, mime=True)
+    try:
+        detected_mime = magic.from_buffer(file_head, mime=True)
+    except Exception:
+        # libmagic can raise on undetectable / malformed input. Surface a clean
+        # 400 instead of a 500.
+        logger.exception(
+            "MIME detection failed for upload %s",
+            getattr(file_obj, "name", "unknown"),
+        )
+        raise ValidationError(
+            "Could not determine the file type. Please try a different file."
+        )
 
     logger.debug(
         "File upload validation: name=%s, size=%d, detected_mime=%s",

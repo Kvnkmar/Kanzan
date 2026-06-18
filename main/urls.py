@@ -1,8 +1,8 @@
-from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+
+from apps.attachments.media_views import serve_protected_media
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -39,9 +39,12 @@ urlpatterns = [
     # Allauth (SSO)
     path("accounts/", include("allauth.urls")),
 
+    # Authenticated, tenant-scoped media serving (dev streams; prod uses
+    # X-Accel-Redirect via nginx). Must precede the frontend catch-all so it
+    # claims /media/ before the "" include. Replaces the old DEBUG-only
+    # static() helper, which served every tenant's files unauthenticated.
+    path("media/<path:path>", serve_protected_media, name="protected-media"),
+
     # Frontend views (template-based)
     path("", include("apps.tenants.frontend_urls")),
 ]
-
-if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

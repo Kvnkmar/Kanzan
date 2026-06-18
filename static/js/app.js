@@ -82,10 +82,115 @@ var Kanzan = (function() {
     return formatDateTime(dateStr);
   }
 
+  /**
+   * Human-readable file size (e.g. "812 B", "44 KB", "1.2 MB").
+   * @param {number} bytes
+   * @returns {string}
+   */
+  function formatFileSize(bytes) {
+    var n = Number(bytes) || 0;
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  /**
+   * Render a customer-email attachment strip into `hostEl`. Images render
+   * inline as a thumbnail gallery; other files become download chips. Shared by
+   * the Inbox Hub cockpit and the Emails page so both surfaces match.
+   *
+   * All dynamic text (filenames) goes through textContent — never innerHTML —
+   * so a crafted filename can't inject markup. The `url`s come from the API
+   * (same-origin, index-addressed) and the download endpoint authorises each
+   * fetch, so they're safe to use as src/href.
+   *
+   * @param {HTMLElement} hostEl - container to fill (toggled hidden when empty)
+   * @param {Array} list - attachment rows: {filename, size, is_image, url}
+   */
+  function renderMailAttachments(hostEl, list) {
+    if (!hostEl) return;
+    hostEl.replaceChildren();
+    var items = Array.isArray(list) ? list : [];
+    if (!items.length) { hostEl.hidden = true; return; }
+
+    var images = items.filter(function (a) { return a && a.is_image; });
+    var files = items.filter(function (a) { return a && !a.is_image; });
+
+    var heading = document.createElement('div');
+    heading.className = 'mail-att-title';
+    var clip = document.createElement('i');
+    clip.className = 'ti ti-paperclip';
+    clip.setAttribute('aria-hidden', 'true');
+    heading.appendChild(clip);
+    heading.appendChild(document.createTextNode(
+      ' ' + items.length + (items.length === 1 ? ' attachment' : ' attachments')
+    ));
+    hostEl.appendChild(heading);
+
+    if (images.length) {
+      var gallery = document.createElement('div');
+      gallery.className = 'mail-att-gallery';
+      images.forEach(function (att) {
+        var link = document.createElement('a');
+        link.className = 'mail-att-image';
+        link.href = att.url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+        link.title = att.filename || 'image';
+
+        var img = document.createElement('img');
+        img.src = att.url;
+        img.alt = att.filename || 'image attachment';
+        img.loading = 'lazy';
+        // A spoofed/broken image collapses its tile rather than showing a
+        // browser-default broken-image glyph.
+        img.addEventListener('error', function () {
+          link.classList.add('mail-att-image--broken');
+        });
+        link.appendChild(img);
+        gallery.appendChild(link);
+      });
+      hostEl.appendChild(gallery);
+    }
+
+    if (files.length) {
+      var fileList = document.createElement('div');
+      fileList.className = 'mail-att-files';
+      files.forEach(function (att) {
+        var chip = document.createElement('a');
+        chip.className = 'mail-att-chip';
+        chip.href = att.url + (att.url.indexOf('?') === -1 ? '?' : '&') + 'dl=1';
+        chip.setAttribute('download', att.filename || '');
+
+        var icon = document.createElement('i');
+        icon.className = 'ti ti-file-download';
+        icon.setAttribute('aria-hidden', 'true');
+        chip.appendChild(icon);
+
+        var name = document.createElement('span');
+        name.className = 'mail-att-chip-name';
+        name.textContent = att.filename || 'file';
+        chip.appendChild(name);
+
+        var size = document.createElement('span');
+        size.className = 'mail-att-chip-size';
+        size.textContent = formatFileSize(att.size);
+        chip.appendChild(size);
+
+        fileList.appendChild(chip);
+      });
+      hostEl.appendChild(fileList);
+    }
+
+    hostEl.hidden = false;
+  }
+
   return {
     formatDate: formatDate,
     formatDateTime: formatDateTime,
     timeAgo: timeAgoSmart,
+    formatFileSize: formatFileSize,
+    renderMailAttachments: renderMailAttachments,
     getLocale: _locale,
     getTimezone: _tz
   };
@@ -221,6 +326,8 @@ var NOTIF_TYPE_CONFIG = {
   payment_failed:                { icon: 'ti ti-credit-card',          color: 'var(--status-warning-text)', label: 'Payment' },
   subscription_change:           { icon: 'ti ti-crown',                color: 'var(--status-success-text)', label: 'Billing' },
   invitation:                    { icon: 'ti ti-mail-forward',         color: 'var(--status-info-text)',   label: 'Invite' },
+  reminder_due:                  { icon: 'ti ti-bell-ringing',         color: 'var(--crm-primary)',        label: 'Reminder' },
+  reminder_overdue:              { icon: 'ti ti-alarm',                color: 'var(--status-danger-text)', label: 'Overdue' },
   // Inbox Hub (Phase 1)
   hub_email_assigned:            { icon: 'ti ti-inbox',                color: 'var(--crm-primary)',        label: 'Hub Email' },
   hub_email_reassigned:          { icon: 'ti ti-arrow-right',          color: 'var(--crm-primary)',        label: 'Reassigned' },
@@ -262,6 +369,152 @@ function renderNotifItem(n) {
     '</div>' +
   '</a>';
 }
+
+/**
+ * Reminder-due alerts.
+ *
+ * Fired when a ``reminder_due`` notification arrives over /ws/notifications/.
+ * Surfaces a centered, can't-miss modal (#reminderDueModal in base.html) plus
+ * an audio chime and a desktop/OS notification, so the agent is alerted even
+ * with the Kanzen tab backgrounded. Works on every page because the
+ * notifications WebSocket is connected app-wide from base.html.
+ *
+ * Chime uses the Web Audio API (no asset to ship). Audio playback and — on
+ * Safari — Notification.requestPermission are gated behind a user gesture, so
+ * we arm both on the first interaction after load.
+ */
+var ReminderAlerts = (function () {
+  var audioCtx = null;
+  var queue = [];
+  var showing = false;
+  var armed = false;
+
+  function getCtx() {
+    if (audioCtx) return audioCtx;
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { audioCtx = new AC(); } catch (e) { return null; }
+    return audioCtx;
+  }
+
+  // Arm audio + desktop-notification permission on the first user gesture.
+  function armGestures() {
+    if (armed) return;
+    armed = true;
+    function arm() {
+      var ctx = getCtx();
+      if (ctx && ctx.state === 'suspended') { ctx.resume().catch(function () {}); }
+      if ('Notification' in window && Notification.permission === 'default') {
+        try { Notification.requestPermission(); } catch (e) { /* older API */ }
+      }
+      window.removeEventListener('pointerdown', arm);
+      window.removeEventListener('keydown', arm);
+    }
+    window.addEventListener('pointerdown', arm, { passive: true });
+    window.addEventListener('keydown', arm);
+  }
+
+  // Gentle two-tone chime via Web Audio (no audio file needed).
+  function playChime() {
+    var ctx = getCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') { ctx.resume().catch(function () {}); }
+    try {
+      var t0 = ctx.currentTime;
+      [880.0, 1174.66].forEach(function (freq, i) {
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        var start = t0 + i * 0.16;
+        gain.gain.setValueAtTime(0.0001, start);
+        gain.gain.exponentialRampToValueAtTime(0.16, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.34);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(start);
+        osc.stop(start + 0.38);
+      });
+    } catch (e) { /* audio not available — modal still shows */ }
+  }
+
+  function desktopNotify(data) {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      var n = new Notification(data.title || 'Reminder due', {
+        body: data.body || '',
+        icon: '/static/images/DP.png',
+        tag: 'reminder-' + ((data.data && data.data.reminder_id) || data.id),
+        requireInteraction: true,
+      });
+      n.onclick = function () {
+        window.focus();
+        window.location.href = (data.data && data.data.url) || '/reminders/';
+        n.close();
+      };
+    } catch (e) { /* best-effort */ }
+  }
+
+  function fmtTime(iso) {
+    if (!iso) return '';
+    try {
+      return new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    } catch (e) { return ''; }
+  }
+
+  function renderNext() {
+    if (showing) return;
+    var data = queue.shift();
+    if (!data) return;
+
+    var modalEl = document.getElementById('reminderDueModal');
+    if (!modalEl || typeof bootstrap === 'undefined' || !bootstrap.Modal) {
+      // No modal surface (e.g. a pre-auth page) — degrade to a sticky toast.
+      if (window.Toast) Toast.show(data.title || 'Reminder due', 'warning', 8000);
+      return;
+    }
+
+    var subjectEl = document.getElementById('reminderDueTitle');
+    var metaEl = document.getElementById('reminderDueMeta');
+    var openEl = document.getElementById('reminderDueOpen');
+
+    if (subjectEl) {
+      subjectEl.textContent = (data.title || 'Reminder').replace(/^Reminder due:\s*/i, '');
+    }
+    if (metaEl) {
+      var meta = data.body || '';
+      var t = fmtTime(data.data && data.data.scheduled_at);
+      if (t) meta = meta ? (meta + ' · ' + t) : ('Due ' + t);
+      metaEl.textContent = meta;
+    }
+    if (openEl) {
+      openEl.setAttribute('href', (data.data && data.data.url) || '/reminders/');
+    }
+
+    showing = true;
+    modalEl.addEventListener('hidden.bs.modal', function onHidden() {
+      modalEl.removeEventListener('hidden.bs.modal', onHidden);
+      showing = false;
+      // Drain any reminders that came due while this modal was open.
+      setTimeout(renderNext, 250);
+    });
+    bootstrap.Modal.getOrCreateInstance(modalEl).show();
+  }
+
+  function show(data) {
+    armGestures();
+    playChime();
+    desktopNotify(data);
+    queue.push(data);
+    renderNext();
+  }
+
+  // Arm as early as possible so the first due alert can chime + pop OS notif.
+  if (document.readyState !== 'loading') armGestures();
+  else document.addEventListener('DOMContentLoaded', armGestures);
+
+  return { show: show };
+})();
 
 /**
  * Initialize real-time notifications via WebSocket.
@@ -505,7 +758,13 @@ function initNotifications() {
     // Bell-anchored popup + ring animation. Replaces the generic Toast
     // so the notification is clearly tied to the bell icon.
     ringBell();
-    showFlyout(data);
+    // Due reminders get a can't-miss centered modal (+chime +desktop notif)
+    // instead of the transient 3s flyout.
+    if (data.type === 'reminder_due') {
+      ReminderAlerts.show(data);
+    } else {
+      showFlyout(data);
+    }
 
     var html = renderNotifItem({
       id: data.id, type: data.type || 'info', title: data.title, body: data.body,

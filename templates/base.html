@@ -144,6 +144,33 @@
       </div>
     </div>
   </aside>
+
+  <!-- Reminder-due alert modal. Driven by app.js when a `reminder_due`
+       notification arrives over /ws/notifications/. Static backdrop so it must
+       be acknowledged with a button — "so the agent won't miss out". -->
+  <div class="modal fade reminder-due" id="reminderDueModal" tabindex="-1"
+       aria-labelledby="reminderDueTitle" aria-hidden="true"
+       data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content reminder-due-modal">
+        <div class="modal-body text-center">
+          <div class="reminder-due-icon" aria-hidden="true">
+            <i class="ti ti-bell-ringing"></i>
+          </div>
+          <div class="reminder-due-eyebrow">Reminder due</div>
+          <h5 class="reminder-due-subject" id="reminderDueTitle">Reminder</h5>
+          <p class="reminder-due-meta" id="reminderDueMeta"></p>
+          <div class="reminder-due-actions">
+            <button type="button" class="btn btn-outline-secondary"
+                    id="reminderDueDismiss" data-bs-dismiss="modal">Dismiss</button>
+            <a href="/reminders/" class="btn btn-primary" id="reminderDueOpen">
+              <i class="ti ti-external-link me-1"></i>Open reminder
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
   {% endif %}
 
   <!-- Toast container (top-right) -->

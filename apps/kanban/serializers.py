@@ -185,7 +185,7 @@ class BoardDetailSerializer(serializers.ModelSerializer):
             )
             setattr(request, cache_attr, membership)
 
-        if membership and membership.role.hierarchy_level > 20:
+        if membership and membership.effective_role.hierarchy_level > 20:
             from apps.tickets.access import agent_visible_tickets_q
             from apps.tickets.models import Ticket
 

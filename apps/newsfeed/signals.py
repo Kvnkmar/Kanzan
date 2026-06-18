@@ -37,7 +37,14 @@ def _serialise_post(post: NewsPost) -> dict:
 
 @receiver(post_save, sender=NewsPost)
 def broadcast_newspost_save(sender, instance, created, **kwargs):
-    """Broadcast a newsfeed.created or newsfeed.updated event."""
+    """Broadcast a newsfeed.created or newsfeed.updated event.
+
+    Unpublished drafts are NEVER broadcast: the live channel fans to every
+    connected tenant member, so pushing a draft would leak its title/category
+    to everyone before it is published.
+    """
+    if not instance.is_published:
+        return
     event = "newsfeed.created" if created else "newsfeed.updated"
     broadcast_live_event(
         tenant=instance.tenant,

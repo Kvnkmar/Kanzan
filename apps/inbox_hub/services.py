@@ -98,18 +98,23 @@ def park_email_in_hub(inbound, tenant, contact, system_user):
 
 
 def convert_to_ticket(hub_email, actor, *, queue=None, status=None,
-                      assignee=None, priority=None):
+                      assignee=None, priority=None, subject=None,
+                      description=None, category=None, due_date=None, tags=None):
     """Agent-driven conversion: HubEmail → Ticket.
 
     Reuses ``apps.inbound_email.services._create_ticket_from_email`` so the
     resulting Ticket is field-identical to the legacy auto-create path
-    (subject, description, contact, default status, tags, custom_data,
-    SLA initialisation, attachment copy, confirmation email queueing).
+    (contact, default status, custom_data, SLA initialisation, attachment copy,
+    confirmation email queueing).
 
-    After the base ticket is created, applies the agent's optional
-    overrides via a single ``save(update_fields=...)``. The actor becomes
-    the ticket's ``created_by`` (vs. system_user in the legacy path) so
-    the audit trail reflects the human decision.
+    Optional overrides let callers build a "proper" ticket — refined subject, a
+    written description, priority/queue/status/assignee/category/tags/due_date —
+    instead of accepting the raw email-derived defaults. They are folded into
+    the initial ticket creation (not patched afterwards) so SLA windows match
+    the final priority, status-lifecycle timestamps are correct, and the audit
+    trail stays clean. The actor becomes the ticket's ``created_by`` (vs.
+    system_user in the legacy path) so the audit trail reflects the human
+    decision.
 
     Idempotent: re-running on an already-converted HubEmail returns the
     existing ``converted_ticket`` without creating a new one.
@@ -129,29 +134,25 @@ def convert_to_ticket(hub_email, actor, *, queue=None, status=None,
     contact = hub_email.contact
     tenant = hub_email.tenant
 
-    with transaction.atomic():
-        ticket = _create_ticket_from_email(inbound, tenant, contact, actor)
+    # Drop unset keys so the email-derived defaults survive inside
+    # _create_ticket_from_email; pre-resolved instances pass straight through.
+    overrides = {
+        "subject": subject,
+        "description": description,
+        "priority": priority,
+        "status": status,
+        "queue": queue,
+        "assignee": assignee,
+        "category": category,
+        "due_date": due_date,
+        "tags": tags,
+    }
+    overrides = {key: value for key, value in overrides.items() if value is not None}
 
-        # Apply optional overrides from the conversion payload. We patch
-        # AFTER the base creation so _maybe_auto_assign has already run
-        # (its assignment, if any, gets overridden when the agent supplied
-        # an assignee — the agent's intent wins).
-        update_fields = []
-        if queue is not None:
-            ticket.queue = queue
-            update_fields.append("queue")
-        if status is not None:
-            ticket.status = status
-            update_fields.append("status")
-        if assignee is not None:
-            ticket.assignee = assignee
-            update_fields.append("assignee")
-        if priority is not None:
-            ticket.priority = priority
-            update_fields.append("priority")
-        if update_fields:
-            update_fields.append("updated_at")
-            ticket.save(update_fields=update_fields)
+    with transaction.atomic():
+        ticket = _create_ticket_from_email(
+            inbound, tenant, contact, actor, overrides=overrides,
+        )
 
         # Transition HubEmail.
         hub_email.state = HubEmail.State.CONVERTED_TO_TICKET
@@ -234,14 +235,32 @@ def transition_hub_email(hub_email, new_state, actor=None, *, note=""):
     Raises ``ValueError`` (from the state machine) on an illegal transition.
     Writes a STATUS_CHANGED audit row and broadcasts ``hub_email.transitioned``.
     """
+    from django.utils import timezone
+
     from apps.inbox_hub.state_machine import assert_transition
+
+    # A "first response" = the agent first moves the email into an active
+    # working state. Stamping first_responded_at marks the response SLA as met
+    # (check_hub_sla_breaches treats first_responded_at IS NOT NULL as
+    # "responded"), so an email an agent is actually working stops
+    # false-breaching + auto-escalating on every deadline.
+    RESPONSE_STATES = {
+        HubEmail.State.IN_PROGRESS,
+        HubEmail.State.PENDING_AGENT,
+        HubEmail.State.AWAITING_CUSTOMER,
+        HubEmail.State.RESOLVED,
+    }
 
     old_state = hub_email.state
     assert_transition(old_state, new_state)
 
     with transaction.atomic():
         hub_email.state = new_state
-        hub_email.save(update_fields=["state", "updated_at"])
+        update_fields = ["state", "updated_at"]
+        if new_state in RESPONSE_STATES and hub_email.first_responded_at is None:
+            hub_email.first_responded_at = timezone.now()
+            update_fields.append("first_responded_at")
+        hub_email.save(update_fields=update_fields)
         _write_activity_log(
             hub_email=hub_email,
             actor=actor,
@@ -271,12 +290,20 @@ def escalate_hub_email(hub_email, actor=None, *, reason=""):
 
     with transaction.atomic():
         old_state = hub_email.state
+        can_escalate = can_transition(old_state, HubEmail.State.ESCALATED)
+        # Escalation is meaningless from a terminal/non-escalatable state
+        # (resolved/converted/dismissed). Don't bump the counter, set
+        # escalated_to, or nudge the lead for a no-op -- only re-escalation of
+        # an already-ESCALATED email is allowed to bump the count.
+        if not can_escalate and old_state != HubEmail.State.ESCALATED:
+            return hub_email
+
         hub_email.escalation_count = (hub_email.escalation_count or 0) + 1
         update_fields = ["escalation_count", "updated_at"]
         if target is not None:
             hub_email.escalated_to = target
             update_fields.append("escalated_to")
-        if can_transition(old_state, HubEmail.State.ESCALATED):
+        if can_escalate:
             hub_email.state = HubEmail.State.ESCALATED
             update_fields.append("state")
         hub_email.save(update_fields=update_fields)
@@ -316,7 +343,19 @@ def reassign_hub_email(hub_email, new_user, actor=None, *, reason=""):
 
     with transaction.atomic():
         he = HubEmail.unscoped.select_for_update().get(pk=hub_email.pk)
+
+        # Terminal emails are done. Reassigning one would re-hand a closed item
+        # to an agent's inbox and corrupt load counters -- reject it.
+        if he.state in (
+            HubEmail.State.CONVERTED_TO_TICKET,
+            HubEmail.State.DISMISSED,
+        ):
+            raise ValueError(
+                f"Cannot reassign an email in terminal state '{he.state}'."
+            )
+
         old_user_id = he.assignee_id
+        same_user = old_user_id == new_user.pk
         he.assignee = new_user
         if he.first_assigned_at is None:
             he.first_assigned_at = now
@@ -352,13 +391,22 @@ def reassign_hub_email(hub_email, new_user, actor=None, *, reason=""):
             note=reason,
         )
 
-        AgentAvailability.unscoped.filter(tenant=tenant, user=new_user).update(
-            current_ticket_count=F("current_ticket_count") + 1, last_activity=now,
-        )
-        if old_user_id and old_user_id != new_user.pk:
-            AgentAvailability.unscoped.filter(
-                tenant=tenant, user_id=old_user_id, current_ticket_count__gt=0,
-            ).update(current_ticket_count=F("current_ticket_count") - 1)
+        # Only adjust load counters on a GENUINE change of assignee. Claiming
+        # or re-assigning to the SAME agent must not inflate their count (the
+        # old code did +1 unconditionally with the -1 gated on a different
+        # user, so a same-user re-claim leaked +1 every time).
+        if not same_user:
+            AgentAvailability.unscoped.filter(tenant=tenant, user=new_user).update(
+                current_ticket_count=F("current_ticket_count") + 1, last_activity=now,
+            )
+            if old_user_id:
+                AgentAvailability.unscoped.filter(
+                    tenant=tenant, user_id=old_user_id, current_ticket_count__gt=0,
+                ).update(current_ticket_count=F("current_ticket_count") - 1)
+        else:
+            AgentAvailability.unscoped.filter(tenant=tenant, user=new_user).update(
+                last_activity=now,
+            )
 
         _write_activity_log(
             hub_email=he,

@@ -314,7 +314,12 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         if user_ids:
             from django.contrib.auth import get_user_model
 
-            mentioned_users = get_user_model().objects.filter(id__in=user_ids)
+            # Only tenant members may be mentioned (no cross-tenant M2M links).
+            mentioned_users = get_user_model().objects.filter(
+                id__in=user_ids,
+                memberships__tenant=tenant,
+                memberships__is_active=True,
+            ).distinct()
             message.mentions.set(mentioned_users)
 
         # Dispatch mention notifications (specific @-mentions)

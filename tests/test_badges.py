@@ -13,7 +13,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from freezegun import freeze_time
 
-from apps.comments.models import Comment, CommentRead
 from apps.inbound_email.models import InboundEmail
 from apps.tickets.models import Ticket, TicketStatus
 from main.context import set_current_tenant
@@ -56,23 +55,21 @@ class BadgeCountBaseTests(KanzenBaseTestCase):
         for key in ("tickets", "calendar", "messages", "emails"):
             self.assertIn(key, resp.data, f"Missing key: {key}")
 
-    # 14.2 tickets count = open + in-progress (not resolved/closed)
-    def test_14_02_tickets_count_open_and_in_progress(self):
-        # Create tickets in different statuses
+    # 14.2 tickets count = active (open + in-progress + waiting), not resolved/closed
+    def test_14_02_tickets_count_active_includes_waiting(self):
+        # One ticket in each of the five default statuses.
         self.create_ticket(status=self.status_open_a)
         self.create_ticket(status=self.status_in_progress_a)
+        self.create_ticket(status=self.status_waiting_a)
         self.create_ticket(status=self.status_resolved_a)
         self.create_ticket(status=self.status_closed_a)
 
         resp = self._get_badges()
         self.assertEqual(resp.status_code, 200)
-        # open + in-progress + waiting = 3 (not resolved, not closed)
-        # Note: waiting is also not closed/resolved
-        tickets_count = resp.data["tickets"]
-        # At least the open and in-progress should be counted
-        self.assertGreaterEqual(tickets_count, 2)
-        # Resolved and closed should NOT be counted — so less than total
-        self.assertLess(tickets_count, 4)
+        # The badge counts the active (non-done) statuses the user sees summed
+        # on the ticket list: open + in-progress + waiting = 3. Resolved and
+        # closed are terminal "done" states and must NOT be counted.
+        self.assertEqual(resp.data["tickets"], 3)
 
     # 14.3 emails count = pending + linked emails in the user's personal inbox
     def test_14_03_emails_count_pending_and_linked(self):
@@ -141,44 +138,25 @@ class BadgeCountBaseTests(KanzenBaseTestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.data["calendar"], 2)
 
-    # 14.5 messages count = unread comments on assigned tickets
-    def test_14_05_messages_count_unread_comments(self):
-        ticket = self.create_ticket(
-            status=self.status_open_a,
-            assignee=self.admin_a,
+    # 14.5 messages count = unread CHAT messages in the user's conversations
+    # (the "messages" badge was repurposed from unread-comments to unread-chat).
+    def test_14_05_messages_count_unread_chat(self):
+        from apps.messaging.models import (
+            Conversation,
+            ConversationParticipant,
+            ConversationType,
+            Message,
         )
-        ticket_ct = ContentType.objects.get_for_model(Ticket)
 
-        # Comment by agent (not admin_a) — should count as unread
         self.set_tenant(self.tenant_a)
-        comment = Comment.objects.create(
-            content_type=ticket_ct,
-            object_id=ticket.pk,
-            body="Need help with this",
-            author=self.agent_a,
-            is_internal=False,
-            tenant=self.tenant_a,
-        )
+        conv = Conversation.objects.create(type=ConversationType.GROUP, name="Team")
+        ConversationParticipant.objects.create(conversation=conv, user=self.admin_a)
+        ConversationParticipant.objects.create(conversation=conv, user=self.agent_a)
 
-        # Own comment — should NOT count
-        Comment.objects.create(
-            content_type=ticket_ct,
-            object_id=ticket.pk,
-            body="My own comment",
-            author=self.admin_a,
-            is_internal=False,
-            tenant=self.tenant_a,
-        )
-
-        # Internal note by agent — should NOT count (is_internal=True)
-        Comment.objects.create(
-            content_type=ticket_ct,
-            object_id=ticket.pk,
-            body="Internal note",
-            author=self.agent_a,
-            is_internal=True,
-            tenant=self.tenant_a,
-        )
+        # Message from another participant → counts as unread for admin_a.
+        Message.objects.create(conversation=conv, author=self.agent_a, body="hello")
+        # admin_a's own message → excluded.
+        Message.objects.create(conversation=conv, author=self.admin_a, body="hi back")
 
         resp = self._get_badges()
         self.assertEqual(resp.status_code, 200)
@@ -233,32 +211,31 @@ class BadgeCountBaseTests(KanzenBaseTestCase):
         resp = self._get_badges()
         self.assertEqual(resp.data["emails"], initial_count - 1)
 
-    # 14.9 Marking comments read → messages badge count decreases
-    def test_14_09_marking_comments_read_decreases_count(self):
-        ticket = self.create_ticket(
-            status=self.status_open_a,
-            assignee=self.admin_a,
+    # 14.9 Opening a conversation (marking chat read) → messages badge decreases
+    def test_14_09_marking_chat_read_decreases_count(self):
+        from django.utils import timezone
+
+        from apps.messaging.models import (
+            Conversation,
+            ConversationParticipant,
+            ConversationType,
+            Message,
         )
-        ticket_ct = ContentType.objects.get_for_model(Ticket)
 
         self.set_tenant(self.tenant_a)
-        comment = Comment.objects.create(
-            content_type=ticket_ct,
-            object_id=ticket.pk,
-            body="Unread comment",
-            author=self.agent_a,
-            is_internal=False,
-            tenant=self.tenant_a,
+        conv = Conversation.objects.create(type=ConversationType.GROUP, name="Team")
+        participant = ConversationParticipant.objects.create(
+            conversation=conv, user=self.admin_a
         )
+        ConversationParticipant.objects.create(conversation=conv, user=self.agent_a)
+        Message.objects.create(conversation=conv, author=self.agent_a, body="ping")
 
         resp = self._get_badges()
         self.assertEqual(resp.data["messages"], 1)
 
-        # Mark as read
-        CommentRead.objects.create(
-            comment=comment,
-            user=self.admin_a,
-        )
+        # Mark the conversation read for admin_a.
+        participant.last_read_at = timezone.now()
+        participant.save(update_fields=["last_read_at"])
 
         resp = self._get_badges()
         self.assertEqual(resp.data["messages"], 0)

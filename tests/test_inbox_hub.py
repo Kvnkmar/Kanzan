@@ -222,6 +222,69 @@ class TestConvertToTicketParity:
         assert ticket.priority == "urgent"
         clear_current_tenant()
 
+    def test_convert_applies_field_overrides(self):
+        """Agent overrides (subject/description/category/tags) land on the
+        ticket; the 'email' provenance tag is preserved alongside agent tags."""
+        from apps.inbox_hub.models import HubEmail
+        from apps.inbox_hub.services import convert_to_ticket
+        from apps.inbound_email.services import process_inbound_email
+
+        tenant, user = self._seed("fieldover")
+        tenant.settings.inbox_hub_enabled = True
+        tenant.settings.save(update_fields=["inbox_hub_enabled", "updated_at"])
+        inbound = InboundEmailFactory(
+            recipient_email=f"support+{tenant.slug}@kanzan.io",
+            tenant=tenant, subject="raw subject", body_text="raw body",
+        )
+        process_inbound_email(inbound.pk)
+        hub = HubEmail.unscoped.get(inbound=inbound)
+
+        ticket = convert_to_ticket(
+            hub, actor=user,
+            subject="Refined subject", description="Proper description",
+            category="Billing", priority="high", tags=["vip"],
+        )
+        assert ticket.subject == "Refined subject"
+        assert ticket.description == "Proper description"
+        assert ticket.category == "Billing"
+        assert ticket.priority == "high"
+        assert "email" in ticket.tags  # provenance preserved
+        assert "vip" in ticket.tags    # agent tag appended
+        clear_current_tenant()
+
+    def test_convert_priority_override_seeds_matching_sla(self):
+        """Regression: SLA deadlines must reflect the OVERRIDDEN priority, not
+        the model default. initialize_sla runs after the override is folded
+        into creation, so the urgent policy (not medium) is attached."""
+        from apps.inbox_hub.models import HubEmail
+        from apps.inbox_hub.services import convert_to_ticket
+        from apps.inbound_email.services import process_inbound_email
+        from apps.tickets.models import SLAPolicy
+
+        tenant, user = self._seed("slapri")
+        tenant.settings.inbox_hub_enabled = True
+        tenant.settings.save(update_fields=["inbox_hub_enabled", "updated_at"])
+        SLAPolicy.unscoped.create(
+            tenant=tenant, name="Medium", priority="medium",
+            first_response_minutes=600, resolution_minutes=1200,
+            business_hours_only=False,
+        )
+        urgent = SLAPolicy.unscoped.create(
+            tenant=tenant, name="Urgent", priority="urgent",
+            first_response_minutes=10, resolution_minutes=20,
+            business_hours_only=False,
+        )
+        inbound = InboundEmailFactory(
+            recipient_email=f"support+{tenant.slug}@kanzan.io", tenant=tenant,
+        )
+        process_inbound_email(inbound.pk)
+        hub = HubEmail.unscoped.get(inbound=inbound)
+
+        ticket = convert_to_ticket(hub, actor=user, priority="urgent")
+        assert ticket.priority == "urgent"
+        assert ticket.sla_policy_id == urgent.id
+        clear_current_tenant()
+
 
 @pytest.mark.django_db
 class TestDismissHubEmail:
@@ -305,20 +368,12 @@ class TestHubEmailApiPermissions:
         assert resp.status_code == 200
         assert resp.data["count"] >= 1
 
-    def test_manager_in_group_can_list(self, manager_client, manager_user, tenant, parked_hub_email):
-        """Managers are no longer exempt — they need a group like everyone
-        below Admin. A grouped manager can list."""
-        from apps.accounts.models import UserGroup
-
-        group = UserGroup.unscoped.create(tenant=tenant, name="Support")
-        group.members.add(manager_user)
+    def test_manager_can_list_without_department(self, manager_client, parked_hub_email):
+        """Managers are the supervisory see-all tier — they bypass the
+        department gate entirely (no department/group membership required)."""
         resp = manager_client.get("/api/v1/inbox-hub/hub-emails/")
         assert resp.status_code == 200
-
-    def test_manager_without_group_denied(self, manager_client, parked_hub_email):
-        """A manager in no group is locked out (only Admins are exempt)."""
-        resp = manager_client.get("/api/v1/inbox-hub/hub-emails/")
-        assert resp.status_code == 403
+        assert resp.data["count"] >= 1
 
     def test_admin_can_convert(self, admin_client, parked_hub_email):
         resp = admin_client.post(
@@ -338,13 +393,28 @@ class TestHubEmailApiPermissions:
         assert resp.data["state"] == "dismissed"
 
     def test_viewer_cannot_convert(self, viewer_client, parked_hub_email):
-        """Viewer has hub_email.view via the ≤40 fallback but NOT
-        hub_email.convert — the seeded role has no permissions at all,
-        and the fallback grants view only."""
+        """Viewer (level 40) is below the agent floor — fully gated out of the
+        Hub, so convert is denied at the access gate."""
         resp = viewer_client.post(
             f"/api/v1/inbox-hub/hub-emails/{parked_hub_email.id}/convert-to-ticket/",
             {}, format="json",
         )
+        assert resp.status_code == 403
+
+    def test_viewer_cannot_list(self, viewer_client, parked_hub_email):
+        """Role floor: a Viewer can't even read the backlog, even in a tenant
+        with no departments (closes the old 'grouped Viewer reads all' hole)."""
+        resp = viewer_client.get("/api/v1/inbox-hub/hub-emails/")
+        assert resp.status_code == 403
+
+    def test_viewer_in_department_still_denied(
+        self, viewer_client, viewer_user, tenant, admin_user, parked_hub_email
+    ):
+        """Even if an admin mistakenly adds a Viewer to a department, the role
+        floor keeps them out — department membership never overrides it."""
+        dept = _make_department(tenant, admin_user, slug="support")
+        _add_to_department(tenant, dept, viewer_user)
+        resp = viewer_client.get("/api/v1/inbox-hub/hub-emails/")
         assert resp.status_code == 403
 
     def test_anon_denied(self, anon_client, parked_hub_email):
@@ -385,6 +455,272 @@ class TestHubEmailApiPermissions:
 
 
 # ---------------------------------------------------------------------------
+# Attachments — customer-sent files surface on the detail + stream via an
+# authed, index-addressed download action (never the raw storage path).
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def hub_email_with_attachments(parked_hub_email):
+    """A parked HubEmail whose inbound carries one image + one non-image file,
+    both persisted to default_storage. Files are cleaned up after the test."""
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+
+    inbound = parked_hub_email.inbound
+    img_path = default_storage.save(
+        f"inbound_emails/{inbound.pk}/photo.png", ContentFile(b"\x89PNG\r\n\x1a\nfake"),
+    )
+    doc_path = default_storage.save(
+        f"inbound_emails/{inbound.pk}/notes.txt", ContentFile(b"hello world"),
+    )
+    inbound.attachment_metadata = [
+        {"filename": "photo.png", "content_type": "image/png",
+         "size": 9, "storage_path": img_path},
+        {"filename": "notes.txt", "content_type": "text/plain",
+         "size": 11, "storage_path": doc_path},
+    ]
+    inbound.save(update_fields=["attachment_metadata", "updated_at"])
+    yield parked_hub_email
+    for p in (img_path, doc_path):
+        if default_storage.exists(p):
+            default_storage.delete(p)
+
+
+@pytest.mark.django_db
+class TestHubEmailAttachments:
+    def _detail(self, client, hub_email):
+        return client.get(f"/api/v1/inbox-hub/hub-emails/{hub_email.id}/")
+
+    def test_detail_exposes_attachments(self, admin_client, hub_email_with_attachments):
+        resp = self._detail(admin_client, hub_email_with_attachments)
+        assert resp.status_code == 200
+        atts = resp.data["attachments"]
+        assert len(atts) == 2
+        img, doc = atts[0], atts[1]
+        assert img["filename"] == "photo.png"
+        assert img["is_image"] is True
+        assert img["url"].endswith("/attachment/?i=0")
+        assert doc["is_image"] is False
+        assert doc["url"].endswith("/attachment/?i=1")
+
+    def test_list_row_summarises_attachments(self, admin_client, hub_email_with_attachments):
+        """List rows carry has/count (not the full list) so the paperclip + count
+        can render without the detail round-trip."""
+        resp = admin_client.get("/api/v1/inbox-hub/hub-emails/")
+        row = next(r for r in resp.data["results"]
+                   if r["id"] == str(hub_email_with_attachments.id))
+        assert row["has_attachments"] is True
+        assert row["attachment_count"] == 2
+        assert "attachments" not in row  # detail-only
+
+    def test_download_image_served_inline(self, admin_client, hub_email_with_attachments):
+        resp = admin_client.get(
+            f"/api/v1/inbox-hub/hub-emails/{hub_email_with_attachments.id}/attachment/?i=0"
+        )
+        assert resp.status_code == 200
+        assert resp["Content-Type"] == "image/png"
+        assert resp["X-Content-Type-Options"] == "nosniff"
+        # Inline (embeddable in <img>), not a forced download.
+        assert "attachment" not in (resp.get("Content-Disposition") or "")
+        assert b"".join(resp.streaming_content) == b"\x89PNG\r\n\x1a\nfake"
+
+    def test_download_nonimage_forced_attachment(self, admin_client, hub_email_with_attachments):
+        resp = admin_client.get(
+            f"/api/v1/inbox-hub/hub-emails/{hub_email_with_attachments.id}/attachment/?i=1"
+        )
+        assert resp.status_code == 200
+        assert "attachment" in (resp.get("Content-Disposition") or "")
+        assert resp["X-Content-Type-Options"] == "nosniff"
+
+    def test_image_force_download_with_dl_flag(self, admin_client, hub_email_with_attachments):
+        resp = admin_client.get(
+            f"/api/v1/inbox-hub/hub-emails/{hub_email_with_attachments.id}/attachment/?i=0&dl=1"
+        )
+        assert resp.status_code == 200
+        assert "attachment" in (resp.get("Content-Disposition") or "")
+
+    def test_download_index_out_of_range_404(self, admin_client, hub_email_with_attachments):
+        resp = admin_client.get(
+            f"/api/v1/inbox-hub/hub-emails/{hub_email_with_attachments.id}/attachment/?i=9"
+        )
+        assert resp.status_code == 404
+
+    def test_download_missing_file_404(self, admin_client, hub_email_with_attachments):
+        """Once the email is converted, the bytes move to a Ticket Attachment and
+        the inbound storage path is deleted — a stale link must 404, not 500."""
+        from django.core.files.storage import default_storage
+
+        default_storage.delete(
+            hub_email_with_attachments.inbound.attachment_metadata[0]["storage_path"]
+        )
+        resp = admin_client.get(
+            f"/api/v1/inbox-hub/hub-emails/{hub_email_with_attachments.id}/attachment/?i=0"
+        )
+        assert resp.status_code == 404
+
+    def test_anon_cannot_download(self, anon_client, hub_email_with_attachments):
+        resp = anon_client.get(
+            f"/api/v1/inbox-hub/hub-emails/{hub_email_with_attachments.id}/attachment/?i=0"
+        )
+        assert resp.status_code in (401, 403)
+
+    def test_viewer_cannot_download(self, viewer_client, hub_email_with_attachments):
+        """The Hub access gate (role floor) also guards the file stream."""
+        resp = viewer_client.get(
+            f"/api/v1/inbox-hub/hub-emails/{hub_email_with_attachments.id}/attachment/?i=0"
+        )
+        assert resp.status_code == 403
+
+
+@pytest.mark.django_db
+class TestCreateTicketFromEmailApi:
+    """POST /api/v1/inbound-email/{id}/create-ticket/ — the agent Emails-page
+    'Create ticket' form posting field overrides instead of one-click create."""
+
+    def _url(self, hub_email):
+        return f"/api/v1/inbound-email/{hub_email.inbound_id}/create-ticket/"
+
+    def test_applies_overrides(self, admin_client, parked_hub_email):
+        resp = admin_client.post(
+            self._url(parked_hub_email),
+            {
+                "subject": "Refined subject",
+                "description": "A proper description.",
+                "priority": "high",
+                "category": "Billing",
+            },
+            format="json",
+        )
+        assert resp.status_code == 201, resp.data
+        from apps.tickets.models import Ticket
+
+        ticket = Ticket.unscoped.get(pk=resp.data["ticket_id"])
+        assert ticket.subject == "Refined subject"
+        assert ticket.description == "A proper description."
+        assert ticket.priority == "high"
+        assert ticket.category == "Billing"
+
+    def test_blank_subject_falls_back_to_email_subject(self, admin_client, parked_hub_email):
+        """Clearing the subject keeps the email's subject rather than creating
+        a blank-titled ticket (preserves the old one-click semantics)."""
+        resp = admin_client.post(
+            self._url(parked_hub_email), {"subject": "  "}, format="json",
+        )
+        assert resp.status_code == 201, resp.data
+        assert resp.data["ticket_subject"] == "Triage me"  # from the fixture
+
+    def test_rejects_closed_status(self, admin_client, parked_hub_email, tenant):
+        set_current_tenant(tenant)
+        closed = TicketStatusFactory(
+            tenant=tenant, name="Closed", slug="closed-x", is_closed=True,
+        )
+        clear_current_tenant()
+        resp = admin_client.post(
+            self._url(parked_hub_email), {"status": str(closed.id)}, format="json",
+        )
+        assert resp.status_code == 400
+        assert "status" in resp.data
+
+    def test_malformed_reference_returns_400_not_500(self, admin_client, parked_hub_email):
+        """A non-UUID queue id must be a clean 400, not an unhandled 500."""
+        resp = admin_client.post(
+            self._url(parked_hub_email), {"queue": "not-a-uuid"}, format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_invalid_priority_returns_400(self, admin_client, parked_hub_email):
+        resp = admin_client.post(
+            self._url(parked_hub_email), {"priority": "bogus"}, format="json",
+        )
+        assert resp.status_code == 400
+        assert "priority" in resp.data
+
+
+@pytest.mark.django_db
+class TestHubConvertOverrides:
+    """POST /api/v1/inbox-hub/hub-emails/{id}/convert-to-ticket/ — the cockpit
+    'Convert to ticket' panel now posts the FULL override set, validated by the
+    same shared build_ticket_overrides as the Emails-page form (so the two stay
+    in lock-step). Previously the Hub forwarded only queue/status/assignee/
+    priority; subject/description/category/due_date/tags were unreachable here."""
+
+    def _url(self, hub_email):
+        return f"/api/v1/inbox-hub/hub-emails/{hub_email.id}/convert-to-ticket/"
+
+    def _ticket(self, hub_email):
+        from apps.tickets.models import Ticket
+
+        hub_email.refresh_from_db()
+        return Ticket.unscoped.get(pk=hub_email.converted_ticket_id)
+
+    def test_full_overrides_applied(self, admin_client, parked_hub_email):
+        resp = admin_client.post(
+            self._url(parked_hub_email),
+            {
+                "subject": "Refined subject",
+                "description": "<p>A proper description.</p>",
+                "priority": "high",
+                "category": "Billing",
+                "tags": ["vip", "billing"],
+            },
+            format="json",
+        )
+        assert resp.status_code == 201, resp.data
+        ticket = self._ticket(parked_hub_email)
+        assert ticket.subject == "Refined subject"
+        assert ticket.description == "<p>A proper description.</p>"
+        assert ticket.priority == "high"
+        assert ticket.category == "Billing"
+        # The 'email' provenance tag survives alongside the agent's tags.
+        assert "email" in ticket.tags
+        assert "vip" in ticket.tags and "billing" in ticket.tags
+
+    def test_blank_subject_keeps_email_subject(self, admin_client, parked_hub_email):
+        resp = admin_client.post(
+            self._url(parked_hub_email), {"subject": "  "}, format="json",
+        )
+        assert resp.status_code == 201, resp.data
+        assert self._ticket(parked_hub_email).subject == "Triage me"  # fixture subject
+
+    def test_invalid_priority_rejected(self, admin_client, parked_hub_email):
+        # 'normal' is the HubEmail vocab — NOT a Ticket priority. The old modal
+        # offered it and 400'd; the panel now maps it to 'medium', but the
+        # server must still reject a raw 'normal'.
+        resp = admin_client.post(
+            self._url(parked_hub_email), {"priority": "normal"}, format="json",
+        )
+        assert resp.status_code == 400
+        assert "priority" in resp.data
+
+    def test_rejects_closed_status(self, admin_client, parked_hub_email, tenant):
+        set_current_tenant(tenant)
+        closed = TicketStatusFactory(
+            tenant=tenant, name="Closed", slug="closed-hub", is_closed=True,
+        )
+        clear_current_tenant()
+        resp = admin_client.post(
+            self._url(parked_hub_email), {"status": str(closed.id)}, format="json",
+        )
+        assert resp.status_code == 400
+        assert "status" in resp.data
+
+    def test_malformed_queue_returns_400(self, admin_client, parked_hub_email):
+        resp = admin_client.post(
+            self._url(parked_hub_email), {"queue": "not-a-uuid"}, format="json",
+        )
+        assert resp.status_code == 400
+
+    def test_non_member_assignee_returns_400(self, admin_client, parked_hub_email):
+        outsider = UserFactory()
+        resp = admin_client.post(
+            self._url(parked_hub_email), {"assignee": str(outsider.id)}, format="json",
+        )
+        assert resp.status_code == 400
+        assert "assignee" in resp.data
+
+
+# ---------------------------------------------------------------------------
 # Triage cockpit: enriched serializer + Hub-local customer-context action
 # ---------------------------------------------------------------------------
 
@@ -399,6 +735,8 @@ def _build_hub_email(
     sla_response_due_at=None,
     response_breached=False,
     state=None,
+    department=None,
+    assignee=None,
 ):
     """Create a parked HubEmail directly via the ORM (explicit tenant), so the
     cockpit serializer/context tests can control body, attachments and SLA
@@ -425,6 +763,25 @@ def _build_hub_email(
         priority=HubEmail.Priority.NORMAL,
         sla_response_due_at=sla_response_due_at,
         response_breached=response_breached,
+        department=department,
+        assignee=assignee,
+    )
+
+
+def _make_department(tenant, lead, *, slug, name=None):
+    """Create an active Department with the given lead (PROTECT FK)."""
+    from apps.inbox_hub.models import Department
+
+    return Department.unscoped.create(
+        tenant=tenant, name=name or slug.title(), slug=slug, lead=lead,
+    )
+
+
+def _add_to_department(tenant, department, user):
+    from apps.inbox_hub.models import DepartmentMembership
+
+    return DepartmentMembership.unscoped.create(
+        tenant=tenant, department=department, user=user,
     )
 
 
@@ -515,13 +872,9 @@ class TestHubEmailContextAction:
         ticket for the contact CAN read the Hub-local context action (its
         row-scoping is the Hub's own), while the contacts endpoint 404s them
         (it scopes contacts to tickets the agent created/owns)."""
-        from apps.accounts.models import UserGroup
-
-        # Agent needs group membership to use the Hub at all (access gate); the
-        # NEW HubEmail is then visible via IsHubEmailAccessible's row-scope.
-        group = UserGroup.unscoped.create(tenant=tenant, name="Support")
-        group.members.add(agent_user)
-
+        # This tenant has no departments, so the access gate falls open for
+        # agent-tier; the NEW unrouted HubEmail is then visible via
+        # IsHubEmailAccessible's row-scope (NEW + no department = shared pool).
         contact = ContactFactory(tenant=tenant, email="stranger@example.com")
         hub = _build_hub_email(tenant, contact=contact)
 
@@ -554,3 +907,132 @@ class TestSlaRiskLens:
         ids = [r["id"] for r in resp.data["results"]]
         # Only the two live deadlines, soonest first.
         assert ids == [str(e_b.id), str(e_a.id)]
+
+
+@pytest.mark.django_db
+class TestDepartmentScopedVisibility:
+    """The team-inbox access model: agents see their own department(s)' NEW
+    backlog (plus unrouted mail and anything assigned to them); they do NOT see
+    another department's email. Supervisors (Manager+) see everything."""
+
+    def _ids(self, resp):
+        return {r["id"] for r in resp.data["results"]}
+
+    def test_agent_sees_own_department_not_another(
+        self, agent_client, agent_user, tenant, admin_user
+    ):
+        sales = _make_department(tenant, admin_user, slug="sales")
+        support = _make_department(tenant, admin_user, slug="support")
+        _add_to_department(tenant, sales, agent_user)
+
+        mine = _build_hub_email(tenant, department=sales)
+        theirs = _build_hub_email(tenant, department=support)
+        shared = _build_hub_email(tenant, department=None)  # unrouted pool
+
+        resp = agent_client.get("/api/v1/inbox-hub/hub-emails/")
+        assert resp.status_code == 200
+        ids = self._ids(resp)
+        assert str(mine.id) in ids
+        assert str(shared.id) in ids       # shared pool visible to every agent
+        assert str(theirs.id) not in ids   # another department's mail is hidden
+
+    def test_department_filter_param_cannot_widen_scope(
+        self, agent_client, agent_user, tenant, admin_user
+    ):
+        """A crafted ?department=<other> must not surface another team's mail —
+        the scope is enforced server-side, the param only narrows within it."""
+        sales = _make_department(tenant, admin_user, slug="sales")
+        support = _make_department(tenant, admin_user, slug="support")
+        _add_to_department(tenant, sales, agent_user)
+        theirs = _build_hub_email(tenant, department=support)
+
+        resp = agent_client.get(
+            f"/api/v1/inbox-hub/hub-emails/?department={support.id}"
+        )
+        assert resp.status_code == 200
+        assert str(theirs.id) not in self._ids(resp)
+
+    def test_assigned_email_in_other_department_is_visible(
+        self, agent_client, agent_user, tenant, admin_user
+    ):
+        """Black-hole fix: an agent assigned mail in a department they're not a
+        member of can still SEE it (assignee=me crosses the boundary) AND can
+        open the Hub at all even though departments exist."""
+        from apps.inbox_hub.models import HubEmail
+
+        sales = _make_department(tenant, admin_user, slug="sales")
+        # agent_user is in NO department.
+        assigned = _build_hub_email(
+            tenant, department=sales, assignee=agent_user,
+            state=HubEmail.State.ASSIGNED,
+        )
+
+        resp = agent_client.get("/api/v1/inbox-hub/hub-emails/")
+        assert resp.status_code == 200          # gate safety-valve let them in
+        assert str(assigned.id) in self._ids(resp)
+
+    def test_agent_in_dept_does_not_see_others_in_flight(
+        self, agent_client, agent_user, tenant, admin_user
+    ):
+        """Within a shared department the agent sees the NEW backlog, but an
+        in-flight email assigned to a teammate is not theirs to see (only NEW
+        or assigned-to-me cross the line)."""
+        from apps.inbox_hub.models import HubEmail
+
+        support = _make_department(tenant, admin_user, slug="support")
+        _add_to_department(tenant, support, agent_user)
+        teammate = UserFactory()
+        MembershipFactory(user=teammate, tenant=tenant)
+        _add_to_department(tenant, support, teammate)
+
+        new_one = _build_hub_email(tenant, department=support)
+        in_flight = _build_hub_email(
+            tenant, department=support, assignee=teammate,
+            state=HubEmail.State.IN_PROGRESS,
+        )
+
+        ids = self._ids(agent_client.get("/api/v1/inbox-hub/hub-emails/"))
+        assert str(new_one.id) in ids
+        assert str(in_flight.id) not in ids
+
+    def test_deactivated_department_mail_hidden(
+        self, agent_client, agent_user, tenant, admin_user
+    ):
+        """Membership of a soft-disabled department surfaces none of its mail,
+        even when the agent has Hub access via another active department."""
+        sales = _make_department(tenant, admin_user, slug="sales")
+        support = _make_department(tenant, admin_user, slug="support")
+        _add_to_department(tenant, sales, agent_user)
+        _add_to_department(tenant, support, agent_user)
+        support.is_active = False
+        support.save(update_fields=["is_active", "updated_at"])
+
+        in_sales = _build_hub_email(tenant, department=sales)
+        in_support = _build_hub_email(tenant, department=support)
+
+        resp = agent_client.get("/api/v1/inbox-hub/hub-emails/")
+        assert resp.status_code == 200
+        ids = self._ids(resp)
+        assert str(in_sales.id) in ids
+        assert str(in_support.id) not in ids  # disabled dept's mail is hidden
+
+    def test_manager_sees_all_departments(
+        self, manager_client, tenant, admin_user
+    ):
+        sales = _make_department(tenant, admin_user, slug="sales")
+        support = _make_department(tenant, admin_user, slug="support")
+        a = _build_hub_email(tenant, department=sales)
+        b = _build_hub_email(tenant, department=support)
+
+        ids = self._ids(manager_client.get("/api/v1/inbox-hub/hub-emails/"))
+        assert {str(a.id), str(b.id)} <= ids
+
+    def test_agent_without_department_denied_when_departments_exist(
+        self, agent_client, tenant, admin_user
+    ):
+        """Once a tenant has departments, an agent in none of them is locked
+        out (no longer the no-department fall-open case)."""
+        _make_department(tenant, admin_user, slug="sales")
+        _build_hub_email(tenant, department=None)
+        resp = agent_client.get("/api/v1/inbox-hub/hub-emails/")
+        assert resp.status_code == 403

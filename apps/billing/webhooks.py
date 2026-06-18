@@ -12,6 +12,7 @@ from datetime import datetime, timezone as dt_tz
 
 import stripe
 from django.conf import settings
+from django.core.cache import cache
 from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
@@ -131,6 +132,30 @@ def _sync_subscription_from_stripe(stripe_sub):
             stripe_sub_id,
         )
         return None
+
+    # A tenant has at most ONE Subscription row (Subscription.tenant is a
+    # OneToOneField). If we're about to create a NEW subscription id for a
+    # tenant that already has a row under a DIFFERENT id (e.g. re-subscribe
+    # after cancellation, or a brand-new subscription replacing a canceled
+    # one), inserting would violate the unique tenant constraint with an
+    # IntegrityError. Instead, repoint the tenant's existing row at the new
+    # Stripe subscription id and refresh its fields.
+    if existing is None and "tenant" in defaults:
+        tenant_existing = Subscription.objects.filter(
+            tenant=defaults["tenant"]
+        ).first()
+        if tenant_existing is not None:
+            old_id = tenant_existing.stripe_subscription_id
+            for field, value in defaults.items():
+                setattr(tenant_existing, field, value)
+            tenant_existing.stripe_subscription_id = stripe_sub_id
+            tenant_existing.save()
+            logger.info(
+                "Re-subscribe: tenant %s subscription %s replaced by %s "
+                "(status=%s, plan=%s)",
+                defaults["tenant"].pk, old_id, stripe_sub_id, local_status, plan.tier,
+            )
+            return tenant_existing
 
     subscription, created = Subscription.objects.update_or_create(
         stripe_subscription_id=stripe_sub_id,
@@ -278,7 +303,16 @@ def stripe_webhook(request):
         return JsonResponse({"detail": "Invalid signature."}, status=400)
 
     event_type = event.get("type", "")
-    logger.info("Received Stripe event: %s (id=%s)", event_type, event.get("id"))
+    event_id = event.get("id", "")
+    logger.info("Received Stripe event: %s (id=%s)", event_type, event_id)
+
+    # Replay guard: Stripe re-delivers events (retries, at-least-once). Skip an
+    # event id we've already handled successfully. The marker is set only AFTER
+    # the handler succeeds, so a failed handler still gets retried.
+    marker = f"stripe_webhook_processed:{event_id}" if event_id else None
+    if marker and cache.get(marker):
+        logger.info("Skipping duplicate Stripe event %s", event_id)
+        return HttpResponse(status=200)
 
     handler = EVENT_HANDLERS.get(event_type)
     if handler is not None:
@@ -287,6 +321,8 @@ def stripe_webhook(request):
         except Exception:
             logger.exception("Error handling Stripe event %s", event_type)
             return JsonResponse({"detail": "Webhook handler error."}, status=500)
+        if marker:
+            cache.set(marker, True, timeout=60 * 60 * 24 * 7)  # 7 days
     else:
         logger.debug("Unhandled Stripe event type: %s", event_type)
 

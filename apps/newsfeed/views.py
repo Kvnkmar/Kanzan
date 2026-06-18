@@ -91,7 +91,7 @@ class NewsPostViewSet(viewsets.ModelViewSet):
         # Non-admin users only see published posts
         if self.action in ("list", "retrieve"):
             membership = getattr(self.request, "_cached_tenant_membership", None)
-            if not membership or membership.role.hierarchy_level > 20:
+            if not membership or membership.effective_role.hierarchy_level > 20:
                 qs = qs.filter(is_published=True)
 
         return qs

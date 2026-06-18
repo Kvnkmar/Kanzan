@@ -86,14 +86,21 @@ class BadgeCountView(APIView):
 
     @staticmethod
     def _ticket_count(tenant, user, is_agent):
-        """Active tickets (open or in-progress/review), scoped by role."""
+        """Active tickets needing attention, scoped by role.
+
+        Counts every non-closed, non-resolved ticket — i.e. open,
+        in-progress *and* waiting — so the badge matches the active total a
+        user sees on the ticket list (the sum of the non-done status tabs:
+        Open + In Progress + Waiting). Resolved and closed are terminal
+        "done" states and stay out of the count.
+        """
         from apps.tickets.models import Ticket, TicketStatus
 
         active_statuses = TicketStatus.unscoped.filter(
             tenant=tenant,
             is_closed=False,
         ).exclude(
-            slug__in=["resolved", "waiting", "closed"],
+            slug__in=["resolved", "closed"],
         ).values_list("pk", flat=True)
 
         qs = Ticket.unscoped.filter(
@@ -234,23 +241,35 @@ class BadgeCountView(APIView):
         escalated or dismissed it leaves the Hub, so the badge counts only
         ``state=NEW`` — matching what the page actually shows.
 
-        Access is group-gated: only Admins, or members of ≥1 ``UserGroup``,
-        may use the Hub. Anyone else is locked out entirely, so their badge is
-        zeroed to match the hidden nav entry + 403 page.
+        Access is department-scoped: supervisors (Manager+) always, agent-tier
+        only if they belong to a ``Department``, Viewers never. Anyone locked
+        out has their badge zeroed to match the hidden nav entry + 403 page.
         """
         try:
             from apps.inbox_hub.models import HubEmail
         except ImportError:
             return 0
 
-        from apps.inbox_hub.access import can_access_inbox_hub
+        from django.db.models import Q
+
+        from apps.inbox_hub.access import can_access_inbox_hub, user_department_ids
 
         if not can_access_inbox_hub(membership, user=user, tenant=tenant):
             return 0
 
-        return HubEmail.unscoped.filter(
-            tenant=tenant, state=HubEmail.State.NEW,
-        ).count()
+        qs = HubEmail.unscoped.filter(tenant=tenant, state=HubEmail.State.NEW)
+        # Agent-tier only count their own departments' untriaged mail (plus the
+        # unrouted shared pool, plus any NEW mail assigned to them) so the badge
+        # matches the NEW subset of their scoped list view (access.hub_rows_q);
+        # supervisors (Manager+) see the whole tenant's NEW backlog.
+        if membership.effective_role.hierarchy_level > 20:
+            dept_ids = user_department_ids(user, tenant)
+            qs = qs.filter(
+                Q(department_id__in=list(dept_ids))
+                | Q(department__isnull=True)
+                | Q(assignee_id=user.pk)
+            )
+        return qs.count()
 
     @staticmethod
     def _knowledge_count(tenant, user):
