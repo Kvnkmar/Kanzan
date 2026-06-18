@@ -39,6 +39,10 @@ PLANS = [
         "has_custom_roles": False,
         "has_sso": False,
         "has_sla_management": False,
+        # VoIP (operator-tunable): Free tier has no telephony.
+        "has_voip": False,
+        "has_call_recording": False,
+        "max_calls_per_month": 0,
         "audit_retention_days": 30,
     },
     {
@@ -62,6 +66,10 @@ PLANS = [
         "has_custom_roles": True,
         "has_sso": False,
         "has_sla_management": True,
+        # VoIP (operator-tunable): Pro includes telephony + recording, capped.
+        "has_voip": True,
+        "has_call_recording": True,
+        "max_calls_per_month": 1000,
         "audit_retention_days": 365,
     },
     {
@@ -85,6 +93,10 @@ PLANS = [
         "has_custom_roles": True,
         "has_sso": True,
         "has_sla_management": True,
+        # VoIP (operator-tunable): Enterprise includes unlimited telephony.
+        "has_voip": True,
+        "has_call_recording": True,
+        "max_calls_per_month": None,  # Unlimited
         "audit_retention_days": None,  # Unlimited retention
     },
 ]

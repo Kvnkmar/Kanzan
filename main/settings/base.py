@@ -163,9 +163,14 @@ STORAGES = {
     },
 }
 
-# Media files
+# Media files. Served through apps.attachments.media_views.serve_protected_media
+# (auth + tenant ownership), NOT statically. In prod, flip USE_X_ACCEL_REDIRECT
+# on and let nginx stream the bytes from X_ACCEL_MEDIA_PREFIX (an internal
+# location). See docs/deploy/protected-media.md.
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
+USE_X_ACCEL_REDIRECT = env.bool("USE_X_ACCEL_REDIRECT", default=False)
+X_ACCEL_MEDIA_PREFIX = env.str("X_ACCEL_MEDIA_PREFIX", default="/protected_media/")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -330,6 +335,10 @@ CELERY_BEAT_SCHEDULE = {
     "check-hub-sla-breaches": {
         "task": "apps.inbox_hub.tasks.check_hub_sla_breaches",
         "schedule": 120.0,  # Inbox Hub SLA breach + escalation sweep
+    },
+    "fire-due-reminders": {
+        "task": "apps.crm.tasks.fire_due_reminders",
+        "schedule": 30.0,  # Pop a "reminder due" alert within ~30s of due time
     },
 }
 

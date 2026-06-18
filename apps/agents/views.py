@@ -564,6 +564,14 @@ class AgentAvailabilityViewSet(viewsets.ModelViewSet):
         except Role.DoesNotExist:
             raise ValidationError("Role not found in this tenant.")
 
+        # The Admin role is never grantable as a temporary role -- this mirrors
+        # the assignable_roles admin-slug exclusion so the grant endpoint can't
+        # be used to escalate someone to Admin behind the UI's back.
+        if role.slug == "admin":
+            raise ValidationError(
+                "The Admin role cannot be granted as a temporary role."
+            )
+
         # Resolve optional permission subset. Silently drop ids that
         # aren't in the role — the admin's checklist should already
         # restrict to role perms, but be defensive against tampering.

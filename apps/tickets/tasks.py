@@ -206,6 +206,16 @@ def _fire_breach(ticket, tenant, breach_type, policy):
         policy.name,
     )
 
+    # Fire the sla.breached webhook (previously an advertised event type that
+    # was never emitted).
+    from apps.tickets.webhook_service import fire_webhooks
+    fire_webhooks(tenant, "sla.breached", {
+        "ticket_id": str(ticket.id),
+        "ticket_number": ticket.number,
+        "breach_type": breach_type,
+        "policy_name": policy.name,
+    })
+
 
 def _check_escalation_rules(ticket, policy, tenant, tenant_settings, now):
     """

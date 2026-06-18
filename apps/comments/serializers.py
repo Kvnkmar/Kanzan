@@ -186,12 +186,17 @@ class CommentCreateSerializer(serializers.ModelSerializer):
 
         comment = Comment.objects.create(**validated_data)
 
-        # Parse and create mentions
+        # Parse and create mentions. Resolve mentioned users ONLY among
+        # active members of this tenant -- silently drop invalid UUIDs and
+        # reject cross-tenant ids (prevents mention-based enumeration /
+        # PII leakage across tenants, mirroring apps/messaging/mentions.py).
         mentioned_user_ids = parse_mentions(comment.body)
         if mentioned_user_ids:
             existing_users = User.objects.filter(
-                id__in=mentioned_user_ids
-            ).values_list("id", flat=True)
+                id__in=mentioned_user_ids,
+                memberships__tenant=comment.tenant,
+                memberships__is_active=True,
+            ).distinct().values_list("id", flat=True)
 
             mentions = [
                 Mention(comment=comment, mentioned_user_id=user_id)

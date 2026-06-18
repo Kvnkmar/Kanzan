@@ -206,10 +206,22 @@ class DashboardView(APIView):
         date_to = self._parse_date(request.query_params.get("date_to"))
 
         ticket_stats = get_ticket_stats(tenant, date_from, date_to, user=request.user)
-        agent_performance = get_agent_performance(tenant, date_from, date_to)
 
         # Determine role level for the current user
         is_admin_or_manager = self._is_admin_or_manager(request.user, tenant)
+
+        # Tenant-wide per-agent performance and SLA-compliance figures are
+        # manager-only analytics (they expose every colleague's metrics and
+        # are NOT scoped to request.user). Agents/Viewers get empty sets --
+        # their personal stats live in the user-scoped keys below.
+        if is_admin_or_manager:
+            agent_performance = get_agent_performance(tenant, date_from, date_to)
+            sla_compliance = get_sla_compliance(tenant, date_from, date_to)
+        else:
+            # Same shape as the real aggregators, just empty -- keeps the
+            # frontend contract (data.agent_performance.agents / .policies).
+            agent_performance = {"agents": []}
+            sla_compliance = {"policies": []}
 
         # Overdue reminders summary
         overdue_reminders = self._get_overdue_reminders_summary(request.user)
@@ -218,7 +230,7 @@ class DashboardView(APIView):
             "ticket_stats": ticket_stats,
             "agent_performance": agent_performance,
             "is_admin_or_manager": is_admin_or_manager,
-            "sla_compliance": get_sla_compliance(tenant, date_from, date_to),
+            "sla_compliance": sla_compliance,
             "due_today": get_due_today(tenant, request.user),
             "overdue_tickets": get_overdue_tickets(tenant, request.user),
             "summary": get_dashboard_summary(tenant, date_from, date_to, request.user),
@@ -289,11 +301,11 @@ class DashboardView(APIView):
         from apps.accounts.models import TenantMembership
 
         membership = (
-            TenantMembership.objects.select_related("role")
+            TenantMembership.objects.select_related("role", "temporary_role")
             .filter(user=user, tenant=tenant, is_active=True)
             .first()
         )
-        return membership is not None and membership.role.hierarchy_level <= 20
+        return membership is not None and membership.effective_role.hierarchy_level <= 20
 
     @staticmethod
     def _parse_date(value):

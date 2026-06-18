@@ -565,18 +565,36 @@ class AuthViewSet(viewsets.GenericViewSet):
 
     @action(detail=False, methods=["post"])
     def register(self, request):
-        """Create a new user account."""
+        """Create a new user account (INACTIVE until email-verified).
+
+        Mirrors the server-rendered registration flow: the account is created
+        inactive and a verification email is sent; NO JWT is issued until the
+        user confirms their email via ``/verify-email/``. This closes the prior
+        bypass where the API returned tokens for an unverified, active account.
+        """
         serializer = UserCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
-        refresh = RefreshToken.for_user(user)
+
+        # The account is not usable until the email is verified.
+        if user.is_active:
+            user.is_active = False
+            user.save(update_fields=["is_active"])
+
+        from apps.tenants.frontend_views import _send_email_verification
+
+        try:
+            _send_email_verification(user)
+        except Exception:
+            logger.exception("Failed to send verification email for %s", user.email)
+
         return Response(
             {
+                "detail": (
+                    "Account created. Check your email to verify your address "
+                    "before signing in."
+                ),
                 "user": UserSerializer(user).data,
-                "tokens": {
-                    "refresh": str(refresh),
-                    "access": str(refresh.access_token),
-                },
             },
             status=status.HTTP_201_CREATED,
         )

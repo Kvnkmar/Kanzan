@@ -79,6 +79,21 @@ class LinkedEmailForTicketSerializer(serializers.ModelSerializer):
 # ---------------------------------------------------------------------------
 
 
+class _AttachmentSummaryMixin:
+    """Adds the ``has_attachments`` / ``attachment_count`` summary so list rows
+    can render a paperclip without pulling the full attachment list."""
+
+    def _attachment_meta(self, obj):
+        meta = obj.attachment_metadata
+        return meta if isinstance(meta, list) else []
+
+    def get_has_attachments(self, obj):
+        return bool(self._attachment_meta(obj))
+
+    def get_attachment_count(self, obj):
+        return len(self._attachment_meta(obj))
+
+
 class _AssigneeNameMixin:
     """Adds a resolved ``assignee_name`` for inbound-email serializers."""
 
@@ -88,7 +103,9 @@ class _AssigneeNameMixin:
         return None
 
 
-class InboundEmailListSerializer(_AssigneeNameMixin, serializers.ModelSerializer):
+class InboundEmailListSerializer(
+    _AttachmentSummaryMixin, _AssigneeNameMixin, serializers.ModelSerializer
+):
     """Compact list view for the inbound email log."""
 
     ticket_number = serializers.IntegerField(
@@ -98,6 +115,8 @@ class InboundEmailListSerializer(_AssigneeNameMixin, serializers.ModelSerializer
         source="ticket.subject", read_only=True, default=None,
     )
     assignee_name = serializers.SerializerMethodField()
+    has_attachments = serializers.SerializerMethodField()
+    attachment_count = serializers.SerializerMethodField()
 
     class Meta:
         model = InboundEmail
@@ -115,13 +134,17 @@ class InboundEmailListSerializer(_AssigneeNameMixin, serializers.ModelSerializer
             "ticket_subject",
             "assignee",
             "assignee_name",
+            "has_attachments",
+            "attachment_count",
             "error_message",
             "created_at",
         ]
 
 
-class InboundEmailDetailSerializer(_AssigneeNameMixin, serializers.ModelSerializer):
-    """Full detail view including body and headers."""
+class InboundEmailDetailSerializer(
+    _AttachmentSummaryMixin, _AssigneeNameMixin, serializers.ModelSerializer
+):
+    """Full detail view including body, headers, and customer-sent attachments."""
 
     ticket_number = serializers.IntegerField(
         source="ticket.number", read_only=True, default=None,
@@ -130,6 +153,9 @@ class InboundEmailDetailSerializer(_AssigneeNameMixin, serializers.ModelSerializ
         source="ticket.subject", read_only=True, default=None,
     )
     assignee_name = serializers.SerializerMethodField()
+    has_attachments = serializers.SerializerMethodField()
+    attachment_count = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
 
     class Meta:
         model = InboundEmail
@@ -154,7 +180,20 @@ class InboundEmailDetailSerializer(_AssigneeNameMixin, serializers.ModelSerializ
             "ticket_subject",
             "assignee",
             "assignee_name",
+            "has_attachments",
+            "attachment_count",
+            "attachments",
             "tenant",
             "created_at",
             "updated_at",
         ]
+
+    def get_attachments(self, obj):
+        """Customer-sent files with index-addressed authed download URLs
+        pointing at the inbound-email viewset's ``attachment`` action."""
+        from apps.inbound_email.attachments import serialize_attachments
+
+        return serialize_attachments(
+            obj,
+            lambda i: f"/api/v1/inbound-email/{obj.id}/attachment/?i={i}",
+        )

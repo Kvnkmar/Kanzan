@@ -8,3 +8,4 @@ class TenantsConfig(AppConfig):
 
     def ready(self):
         import apps.tenants.signals  # noqa: F401
+        import main.checks  # noqa: F401  -- register deploy-time security checks

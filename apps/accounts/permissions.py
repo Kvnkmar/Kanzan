@@ -54,6 +54,8 @@ ACTION_MAP = {
     "vote": "view",
     # Contact custom actions
     "context": "view",
+    # Inbound-email custom actions
+    "attachment": "view",
     # Contact group custom actions
     "add_contacts": "update",
     "remove_contacts": "update",

@@ -22,7 +22,7 @@ from apps.inbox_hub.models import (
     QueueRouting,
     RoutingRule,
 )
-from apps.tickets.models import Queue, Ticket, TicketStatus
+from apps.tickets.models import Ticket
 
 User = get_user_model()
 
@@ -160,6 +160,10 @@ class HubEmailDetailSerializer(_HubEmailBaseSerializer):
 
     inbound = _NestedInboundSerializer(read_only=True)
     notes = HubEmailNoteSerializer(many=True, read_only=True)
+    # Full attachment list (with authed download URLs) so the triage cockpit can
+    # render images the customer sent inline. The base serializer only exposes
+    # the has/count summary used by list rows.
+    attachments = serializers.SerializerMethodField()
 
     class Meta(_HubEmailBaseSerializer.Meta):
         # NB: sla_response_due_at / response_breached / first_responded_at are
@@ -168,6 +172,7 @@ class HubEmailDetailSerializer(_HubEmailBaseSerializer):
         fields = _HubEmailBaseSerializer.Meta.fields + (
             "inbound",
             "notes",
+            "attachments",
             "escalation_count",
             "escalated_to",
             "first_assigned_at",
@@ -176,6 +181,17 @@ class HubEmailDetailSerializer(_HubEmailBaseSerializer):
         )
         read_only_fields = fields
 
+    def get_attachments(self, obj):
+        """Customer-sent files, with index-addressed authed download URLs
+        pointing at this viewset's ``attachment`` action (see
+        :func:`apps.inbound_email.attachments.serialize_attachments`)."""
+        from apps.inbound_email.attachments import serialize_attachments
+
+        return serialize_attachments(
+            obj.inbound,
+            lambda i: f"/api/v1/inbox-hub/hub-emails/{obj.id}/attachment/?i={i}",
+        )
+
 
 # ---------------------------------------------------------------------------
 # Action payloads
@@ -183,27 +199,30 @@ class HubEmailDetailSerializer(_HubEmailBaseSerializer):
 
 
 class ConvertToTicketSerializer(serializers.Serializer):
-    """Payload for ``POST /hub-emails/{id}/convert-to-ticket/``.
+    """Schema for ``POST /hub-emails/{id}/convert-to-ticket/``.
 
-    All fields optional. Each override is validated against the current
-    tenant (the viewset's queryset is tenant-scoped) so cross-tenant
-    primary-key probing returns a 400.
+    Documents the full override payload the cockpit's "Convert to ticket"
+    panel sends. All fields optional — blank/absent ones fall back to the
+    email-derived defaults. NB: the action does **not** validate through this
+    serializer; it delegates to the shared
+    :func:`apps.inbound_email.ticket_overrides.build_ticket_overrides` so the
+    Hub and the Emails-page form stay in lock-step (tenant-scoped FK lookups,
+    closed-status rejection, active-member assignee, aware due_date). This
+    class exists for the OpenAPI schema / browsable API only.
     """
 
-    queue_id = serializers.PrimaryKeyRelatedField(
-        queryset=Queue.objects.all(), source="queue",
-        required=False, allow_null=True,
-    )
-    status_id = serializers.PrimaryKeyRelatedField(
-        queryset=TicketStatus.objects.all(), source="status",
-        required=False, allow_null=True,
-    )
-    assignee_id = serializers.PrimaryKeyRelatedField(
-        queryset=Ticket._meta.get_field("assignee").related_model.objects.all(),
-        source="assignee", required=False, allow_null=True,
-    )
+    subject = serializers.CharField(required=False, max_length=255)
+    description = serializers.CharField(required=False, allow_blank=True)
     priority = serializers.ChoiceField(
         choices=Ticket.Priority.choices, required=False, allow_blank=False,
+    )
+    category = serializers.CharField(required=False, max_length=100)
+    queue = serializers.UUIDField(required=False, help_text="Queue (subcategory) pk.")
+    status = serializers.UUIDField(required=False, help_text="Open TicketStatus pk.")
+    assignee = serializers.UUIDField(required=False, help_text="Active member user pk.")
+    due_date = serializers.DateTimeField(required=False)
+    tags = serializers.ListField(
+        child=serializers.CharField(max_length=50), required=False,
     )
 
 

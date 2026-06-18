@@ -45,7 +45,7 @@ def process_inbound_email_task(self, inbound_email_id):
 
     Retries up to 3 times with 30s delay on failure.
     """
-    from apps.inbound_email.services import process_inbound_email
+    from apps.inbound_email.services import mark_inbound_failed, process_inbound_email
 
     try:
         process_inbound_email(str(inbound_email_id))
@@ -56,4 +56,10 @@ def process_inbound_email_task(self, inbound_email_id):
             self.request.retries + 1,
             self.max_retries + 1,
         )
+        if self.request.retries >= self.max_retries:
+            # Retries exhausted: persist FAILED (outside the rolled-back
+            # processing transaction) so the failure is visible to operators
+            # instead of silently leaving the email un-FAILED forever.
+            mark_inbound_failed(str(inbound_email_id), str(exc))
+            return
         raise self.retry(exc=exc)

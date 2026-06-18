@@ -35,6 +35,7 @@ from apps.messaging.serializers import (
     ConversationSerializer,
     MessageCreateSerializer,
     MessageSerializer,
+    MessageUpdateSerializer,
 )
 
 logger = logging.getLogger(__name__)
@@ -190,9 +191,13 @@ class ConversationViewSet(viewsets.ModelViewSet):
         except User.DoesNotExist:
             raise NotFound("User not found.")
 
-        # Verify user is a member of the current tenant
+        # Verify user is a member of the current tenant. A missing tenant must
+        # DENY (not skip the check) -- otherwise a tenant-less request could add
+        # an arbitrary cross-tenant user to a conversation.
         tenant = getattr(request, "tenant", None)
-        if tenant and not TenantMembership.objects.filter(
+        if tenant is None:
+            raise ValidationError({"detail": "Tenant context required."})
+        if not TenantMembership.objects.filter(
             user=user, tenant=tenant, is_active=True,
         ).exists():
             raise ValidationError(
@@ -340,6 +345,8 @@ class MessageViewSet(viewsets.ModelViewSet):
     def get_serializer_class(self):
         if self.action in ("create",):
             return MessageCreateSerializer
+        if self.action in ("update", "partial_update"):
+            return MessageUpdateSerializer
         return MessageSerializer
 
     def _get_conversation(self) -> Conversation:
@@ -395,7 +402,12 @@ class MessageViewSet(viewsets.ModelViewSet):
         if user_ids:
             from django.contrib.auth import get_user_model
             User = get_user_model()
-            mentioned_users = User.objects.filter(id__in=user_ids)
+            # Only tenant members may be mentioned (no cross-tenant M2M links).
+            mentioned_users = User.objects.filter(
+                id__in=user_ids,
+                memberships__tenant=conversation.tenant,
+                memberships__is_active=True,
+            ).distinct()
             message.mentions.set(mentioned_users)
 
         # Dispatch mention notifications

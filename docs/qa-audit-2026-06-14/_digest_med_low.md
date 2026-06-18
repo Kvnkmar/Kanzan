@@ -1,0 +1,144 @@
+
+## Medium — 92
+- [tenant-isolation-7] (Reliability) Celery Tasks Missing Defensive tenant_context() Wrapping — /home/kavin/Kanzen/apps/crm/tasks.py:68-157 (fire_due_reminders, check_overdue_reminders)
+- [tenant-isolation-8] (Data Integrity) InboundEmail.tenant Field Is Nullable, Allowing Ambiguous Data State — /home/kavin/Kanzen/apps/inbound_email/models.py:69-75
+- [tenant-isolation-9] (Security) InboundEmail Assignee Lookup Missing Defense-in-Depth Tenant Validation — /home/kavin/Kanzen/apps/inbound_email/api_views.py:121-134 (_build_ticket_overrides)
+- [authn-4] (Security) TenantMiddleware context set on /admin/ without explicit permission guard — /home/kavin/Kanzen/main/settings/base.py:102, main/admin.py
+- [authn-5] (Security) SessionVersionMiddleware can fail to revoke sessions on global logout — /home/kavin/Kanzen/apps/accounts/middleware.py:34-45
+- [authn-6] (Data Integrity) Missing row-level locking in inbox hub manual email assignment — /home/kavin/Kanzen/apps/inbox_hub/services.py
+- [authz-rbac-6] (Business Logic) pick_email_agent and inbox_hub._candidate_user_ids filter on raw role, excluding temp-promoted agents from auto-assign — apps/agents/services.py:226, apps/inbox_hub/assignment.py:226-230
+- [authz-rbac-7] (Security) ACTION_MAP unmapped actions default to deny, but many viewsets lack HasTenantPermission entirely — apps/accounts/permissions.py:156-165, multiple viewsets
+- [inbox-hub-access-1] (Business Logic) Escalation Counter Increments Even on Illegal State Transition — apps/inbox_hub/services.py:261-283 (escalate_hub_email function)
+- [inbox-hub-access-5] (Business Logic) ConvertToTicketSerializer Does Not Expose Full Override Set — apps/inbox_hub/views.py:147-168 (convert_to_ticket action) vs. apps/inbound_email/api_views.py:45-154 (_build_ticket_overrides)
+- [inbox-hub-access-6] (Business Logic) Manual Claim/Assign Bypasses Agent Capacity Checks — apps/inbox_hub/views.py:194-199 (claim action), apps/inbox_hub/views.py:201-211 (_do_assign), and apps/inbox_hub/assignment.py:88-114 (assign_to function)
+- [inbox-hub-access-8] (Data Integrity) Group Gate Uses Unscoped Query, Creating Tenant Isolation Footgun — apps/inbox_hub/access.py:30-36 (user_in_any_group function)
+- [tickets-core-8] (Business Logic) get_queryset agent-visibility filter uses raw role instead of effective_role — apps/tickets/views.py:576 (TicketViewSet.get_queryset) [DUP-OF authz-rbac-2]
+- [tickets-services-sla-2] (Reliability) SLA business-hours iteration cap (365*24 = 8760) may silently truncate far-future deadlines — apps/tickets/sla.py:353 (_add_business_minutes), 402 (_next_business_day_start)
+- [tickets-services-sla-3] (Security) Webhook secret string encoding does not validate UTF-8 safety before HMAC — apps/tickets/webhook_service.py:44-50 (deliver_webhook)
+- [tickets-services-sla-6] (Business Logic) SLA pause calculation semantics are unclear: wall-clock vs business-hours — apps/tickets/sla.py:175-201 (get_total_pause_minutes)
+- [tickets-services-sla-7] (Business Logic) ALLOWED_TRANSITIONS marks closed as terminal with no admin escape hatch — apps/tickets/services.py:472-478 (ALLOWED_TRANSITIONS)
+- [tickets-services-sla-8] (Reliability) Auto-close and CSAT survey tasks are scheduled AFTER commit, risking race with concurrent transitions — apps/tickets/services.py:721-730 and 863-921 (task scheduling)
+- [tickets-services-sla-10] (Reliability) SLA policy escalation may fire multiple times without deduplication — apps/tickets/tasks.py:120-121 (_check_escalation_rules), comment mentions 'dedup via TicketActivity'
+- [tickets-services-sla-11] (Business Logic) Change ticket priority does not re-attach SLA policy or recalculate deadlines — apps/tickets/services.py:1218-1259 (change_ticket_priority)
+- [tickets-signals-6] (Business Logic) Resolved and closed timestamps both set to 'now', losing distinction between resolution and closure — apps/tickets/signals.py:86-90
+- [tickets-signals-7] (Reliability) Activity dedup window may miss duplicate logging under very high concurrency — apps/tickets/signals.py:183-195
+- [tickets-signals-8] (Reliability) Error handling in kanban sync operations swallows exceptions and hides failures — apps/tickets/signals.py:524-527, 578-579, 633-639
+- [inbound-email-3] (Code Quality) Settings Variable Shadowing in process_inbound_email — apps/inbound_email/services.py:360
+- [inbound-email-4] (Data Integrity) IMAP Dedup Query Missing Tenant Filter on Null Tenant Case — apps/inbound_email/imap_poller.py:337 [DUP-OF tenant-isolation-1]
+- [inbound-email-6] (Reliability) IMAP Message Recipient Resolution Could Fail Silently — apps/inbound_email/imap_poller.py:347-356
+- [inbound-email-7] (Reliability) IMAP Poll State Can Be Lost on Server Restart During Batch — apps/inbound_email/imap_poller.py:157-173
+- [inbound-email-8] (Data Integrity) InboundEmail Tenant Is Nullable and Resolved Post-Parse — apps/inbound_email/models.py:69-75
+- [inbox-hub-engine-6] (Business Logic) _candidate_user_ids Uses Raw role Instead of effective_role — apps/inbox_hub/assignment.py:228 [DUP-OF authz-rbac-2]
+- [inbox-hub-engine-7] (Business Logic) Feature B Overrides Unreachable via Hub's Own convert_to_ticket Endpoint — apps/inbox_hub/serializers.py:ConvertToTicketSerializer [DUP-OF feature-b-overrides-1]
+- [inbox-hub-engine-8] (Business Logic) reassign_hub_email Does Not Validate Tenant Membership — apps/inbox_hub/services.py:307
+- [inbox-hub-engine-9] (Reliability) assign_to Capacity Check Race Condition (Multiple Concurrent Assignments) — apps/inbox_hub/assignment.py:107-114
+- [feature-a-reminder-1] (UI/UX) Due reminder notifications do not bump Reminders sidebar badge — static/js/app.js:904-917
+- [feature-a-reminder-3] (Reliability) Stale recipient data used if user modified between fetch and send_notification — apps/crm/tasks.py:81, 90, 117
+- [feature-b-overrides-4] (Data Integrity) Description Validation Does Not Enforce 20000-Char Limit — apps/inbound_email/api_views.py:84-88
+- [feature-b-overrides-5] (Code Quality) Missing Direct Tests for API Endpoint — tests/test_inbox_hub.py:451-511 vs test_inbound_email.py
+- [feature-b-overrides-6] (Data Integrity) Missing Atomicity in Legacy Path — apps/inbound_email/api_views.py:308-314
+- [notifications-1] (Reliability) No select_for_update guard on fire_due_reminders claim-first pattern — apps/crm/tasks.py:102-104 [DUP-OF tenant-isolation-7]
+- [notifications-2] (Reliability) Contact reply email queued without checking Contact.email_bouncing — apps/notifications/signal_handlers.py:181-226 (calls into apps/tickets/email_service.py:265-318)
+- [notifications-3] (Security) Internal comment bodies broadcast to tenant via LiveBus without explicit role filtering — apps/comments/signals.py:45-51 (broadcast_comment_save) and apps/comments/signals.py:31-42 (_serialise_comment)
+- [websockets-4] (Security) NotificationConsumer does not verify tenant membership; missing auth check and inconsistent close code — apps/notifications/consumers.py:39-51 (connect method)
+- [websockets-6] (Reliability) ChatConsumer parent message lookup lacks UUID format validation before database query — apps/messaging/consumers.py:246-253 (_create_message method)
+- [websockets-7] (Reliability) Reminder-due notification sent before due_notified_at stamp is persisted; stamp loss on crash allows duplicate alerts — apps/crm/tasks.py:102-130 (fire_due_reminders, claim-first pattern)
+- [contacts-crm-3] (Reliability) ContactEvent and last_activity_at changes are invisible to live broadcast layer — apps/contacts/services.py:14-44; apps/contacts/signals.py (no signal for ContactEvent); apps/crm/tasks.py:318-425 (calculate_lead_scores uses ContactEvent but no signal emitted)
+- [contacts-crm-4] (Reliability) Score calculation tasks use .update() which bypasses signals and real-time broadcast — apps/crm/tasks.py:418 (calculate_lead_scores), line 526 (calculate_account_health_scores)
+- [contacts-crm-5] (Reliability) Reminder.due_notified_at re-arm logic has no select_for_update, risking duplicate alerts on concurrent workers — apps/crm/tasks.py:70-104 (fire_due_reminders)
+- [contacts-crm-7] (Data Integrity) Account.health_score validation only in clean(), never called by API or scoring task — apps/contacts/models.py:49-56 (Account.clean()); apps/contacts/serializers.py:99-115 (AccountSerializer never calls clean()); apps/crm/tasks.py:526 (calculate_account_health_scores uses .update())
+- [contacts-crm-8] (Business Logic) Feature B: Hub cockpit convert_to_ticket serializer unreachable for 5 override fields — apps/inbound_email/services.py:383-438; apps/inbox_hub/services.py (convert_to_ticket); apps/inbound_email/api_views.py:45-154 (_build_ticket_overrides)
+- [contacts-crm-9] (Data Integrity) Company custom_data never synced to CustomFieldValue (no post_save signal) — apps/custom_fields/signals.py:20-43 (only Ticket + Contact); apps/contacts/models.py:59-101 (Company.custom_data exists)
+- [knowledge-3] (Code Quality) KBRevision Model Dead-Write: No Code Creates Revisions — apps/knowledge/models.py:168-191, apps/knowledge/migrations/0004_kbrevision_kbsearchgap_kbticketlink_kbvote_and_more.py:21-32
+- [knowledge-4] (Code Quality) KBTicketLink Model Dead-Write: No Code Links Tickets to Articles — apps/knowledge/models.py:236-262, apps/knowledge/migrations/0004_kbrevision_kbsearchgap_kbticketlink_kbvote_and_more.py:46-52, 111-115
+- [knowledge-7] (Security) Missing Input Validation on Search Query: Potential Search Injection or DOS — apps/knowledge/views.py:555-569, apps/knowledge/search.py:24
+- [kanban-5] (Business Logic) Pipeline stage sync fails silently when column is deleted — apps/tickets/signals.py:616-619
+- [kanban-6] (Code Quality) CardPosition migration 0003 loses explicit db_index declaration — apps/kanban/migrations/0003_alter_cardposition_tenant.py:15-19
+- [kanban-7] (Data Integrity) Soft-deleted tickets leave orphaned CardPosition rows — apps/tickets/signals.py:642-675
+- [kanban-8] (Security) No explicit tenant validation in column creation — apps/kanban/views.py:180-181
+- [billing-4] (Code Quality) require_feature Decorator Never Used — apps/billing/decorators.py:23-95
+- [billing-5] (Reliability) Fire-Due-Reminders Task Unprotected Against Concurrent Beat Instances — apps/crm/tasks.py:102-104
+- [billing-6] (Business Logic) SubscriptionMiddleware Fail-Open - Missing Subscription Grants Access — apps/billing/middleware.py:52-94
+- [analytics-exports-5] (Business Logic) DashboardView._get_overdue_reminders_summary returns top 5 tenant-wide reminders, not user-filtered — apps/analytics/views.py:247-251, method DashboardView._get_overdue_reminders_summary
+- [analytics-exports-6] (Reliability) fire_due_reminders lacks select_for_update, theoretical race condition with multiple workers — apps/crm/tasks.py:102-104, function fire_due_reminders
+- [analytics-exports-7] (Code Quality) Feature B: Hub cockpit's convert_to_ticket endpoint doesn't support new override fields — apps/inbox_hub/views.py:148-161, method HubEmailViewSet.convert_to_ticket; apps/inbox_hub/serializers.py (ConvertToTicketSerializer)
+- [attachments-7] (Data Integrity) GenericForeignKey Orphaning Has No Database Constraint — apps/attachments/models.py:27-33, Attachment model with GenericForeignKey
+- [attachments-8] (Reliability) File Size Validation Redundancy — apps/attachments/views.py:193-196 vs apps/attachments/validators.py:67-72
+- [attachments-9] (Security) Office Documents with Macros Are Allowed Without Warning — apps/attachments/validators.py:31-42, ALLOWED_MIME_TYPES frozenset
+- [custom-fields-agents-6] (Performance) due_notified_at filter in fire_due_reminders unindexed; F() predicate is sequential — apps/crm/tasks.py:70-84 (fire_due_reminders task) + apps/crm/models.py:156-165
+- [custom-fields-agents-7] (Reliability) Presence reaper has no select_for_update; concurrent Beat workers cause redundant updates — apps/agents/tasks.py:44-48 (reap_stale_presence task)
+- [custom-fields-agents-8] (Business Logic) Inbox Hub no-department fallback uses raw role, not effective_role (inconsistent RBAC) — apps/inbox_hub/assignment.py:222-231 (_candidate_user_ids function, no-department fallback) [DUP-OF authz-rbac-2]
+- [settings-secrets-5] (Security) SECURE_HSTS_PRELOAD not enabled in prod settings — main/settings/prod.py (missing)
+- [settings-secrets-6] (Reliability) Kanzan_webhooks queue routed but empty (no actual billing task consumers) — main/celery.py:21, apps/billing/tasks.py (does not exist)
+- [settings-secrets-7] (Business Logic) CELERY_TIMEZONE UTC vs TIME_ZONE Asia/KL timezone mismatch causes Beat crontab entries to fire at wrong local time — main/settings/base.py:149 (TIME_ZONE), 282 (CELERY_TIMEZONE), 312-317 (crontab entries)
+- [settings-secrets-8] (Reliability) Makefile 'stop' and 'restart' targets omit kanzan-smtp process — Makefile:56, 60
+- [settings-secrets-9] (Security) dev.py overrides ALLOWED_HOSTS=* which bypasses Host header validation — main/settings/dev.py:4
+- [settings-secrets-10] (Security) JWT_SECRET_KEY defaults to SECRET_KEY, creating shared signing material — main/settings/base.py:253
+- [settings-secrets-11] (Business Logic) Feature B (create-ticket-from-email overrides) widened service but not Hub serializer, creating unreachable feature — apps/inbound_email/services.py:383, apps/inbox_hub/views.py (serializer not widened)
+- [frontend-js-5] (Reliability) Inconsistent WebSocket heartbeat timeouts across channels — static/js/live-connection.js:42-43 (25s heartbeat, 8s timeout) vs static/js/app.js (notifications, no heartbeat) vs static/js/ticket-feed.js (ticket-feed, no heartbeat)
+- [frontend-js-6] (Reliability) Potential event listener accumulation in notification item binding — static/js/app.js:610-637 (bindNotifClicks function)
+- [frontend-js-7] (UI/UX) ReminderAlerts modal degradation lacks user feedback on pre-auth pages — static/js/app.js:365-370 (ReminderAlerts.renderNext)
+- [templates-uiux-1] (Code Quality) Hardcoded z-index in toast container violates CSS token system — templates/base.html:177
+- [templates-uiux-3] (Accessibility) Reminder modal Open action uses semantic link instead of button — templates/base.html:166-168
+- [templates-uiux-4] (Data Integrity) Description textarea missing maxlength constraint — templates/pages/emails/list.html:414
+- [templates-uiux-6] (Accessibility) Icon-only buttons missing aria-label attributes — templates/includes/navbar.html:34-36,100-102,137-139
+- [templates-uiux-8] (Accessibility) Modal does not restore focus on close for keyboard users — templates/pages/emails/list.html:1083-1084,1124
+- [templates-uiux-9] (Accessibility) Reminder modal aria-hidden may block screen reader announcement — templates/base.html:151-152
+- [performance-db-7] (Reliability) select_for_update() No-op on SQLite: TicketCounter Race Condition in Dev — apps/tickets/models.py:200-230 and line 603-609
+- [performance-db-8] (Performance) InboxViewSet.get_queryset() Missing Related Field Prefetch — apps/inbound_email/api_views.py:354-365
+- [performance-db-9] (Business Logic) Feature B: convert_to_ticket Overrides Not Reachable via Hub Cockpit Serializer — apps/inbox_hub/views.py:147-168 vs apps/inbound_email/api_views.py:297-314
+- [performance-db-11] (Performance) Missing select_related on DashboardWidget Serialization — apps/analytics/views.py:99-100
+- [data-model-integrity-6] (Performance) InboundEmail save SELECT performance regression — apps/inbound_email/models.py:242-257
+- [data-model-integrity-7] (Business Logic) Reminder reschedule stale watermark — apps/crm/models.py:252-257
+- [data-model-integrity-8] (Business Logic) Feature B serializer not widened for overrides — apps/inbox_hub/views.py
+- [data-model-integrity-9] (Data Integrity) Soft-delete inconsistency across models — apps/tickets/models.py:562
+
+## Low — 48
+- [tenant-isolation-10] (Code Quality) TenantAwareManager Returns .none() Silently Without Prominent Error — /home/kavin/Kanzen/main/managers.py:35-46
+- [authn-7] (Code Quality) Invitation and EmailVerificationToken entropy levels inconsistent — /home/kavin/Kanzen/apps/accounts/views.py:378, 424; apps/tenants/frontend_views.py:645
+- [authn-8] (Code Quality) Email verification TTL is hardcoded and not configurable — /home/kavin/Kanzen/apps/tenants/frontend_views.py:30
+- [authn-9] (Code Quality) Temporary role expiry boundary uses exclusive comparison — /home/kavin/Kanzen/apps/accounts/models.py:281
+- [inbox-hub-access-2] (Code Quality) HubEmailAssignment.Reason.ESCALATION Never Emitted — apps/inbox_hub/models.py:258-262 (HubEmailAssignment.Reason enum) and apps/inbox_hub/services.py:307-383 (reassign_hub_email)
+- [inbox-hub-access-7] (Business Logic) Claim Endpoint May Return Success for No-Op Reassignment — apps/inbox_hub/views.py:194-199 (claim action) and apps/inbox_hub/assignment.py:101-114 (assign_to function)
+- [inbox-hub-access-9] (Code Quality) Dead-but-Public API Endpoints — apps/inbox_hub/views.py:195-252 (claim, escalate, transition, note actions) and inbox-hub.js
+- [tickets-core-4] (Code Quality) Unused local variable old_status (F841) in perform_update — apps/tickets/views.py:613
+- [tickets-core-6] (Code Quality) Unused imports: TicketAssignment, change_ticket_status, TicketAssignmentSerializer, TimeEntrySummarySerializer — apps/tickets/views.py:45, 56, 73, 88
+- [tickets-services-sla-9] (Code Quality) Webhook delivery uses hardcoded 10-second timeout, ignoring per-webhook config — apps/tickets/webhook_service.py:53-58
+- [tickets-signals-4] (Code Quality) Stale documentation: dedup comment says 5-second window but code implements 2-second — apps/tickets/signals.py:204 vs 193
+- [tickets-signals-5] (Code Quality) Unused variable 'now' in _apply_policy_to_tickets at line 790 — apps/tickets/signals.py:790
+- [inbound-email-2] (Code Quality) Unused Return Value from link_email_to_ticket — apps/inbound_email/api_views.py:400-404
+- [inbound-email-5] (Code Quality) Contact Model Lookup is Tenant-Scoped but Implicit — apps/inbound_email/services.py:190
+- [inbound-email-9] (Reliability) IMAP Watermark Initialization Can Cause Backfill Despite Safety Checks — apps/inbound_email/imap_poller.py:106-125
+- [inbox-hub-engine-10] (UI/UX) Hold Notification Reuses HUB_EMAIL_ASSIGNED Type (Semantic Mismatch) — apps/inbox_hub/assignment.py:340
+- [inbox-hub-engine-11] (Reliability) Feature A Re-Fire Logic Vulnerable to Backward Rescheduling — apps/crm/tasks.py:78-79
+- [feature-a-reminder-4] (Code Quality) Recipient fallback check cannot trigger due to PROTECT constraint — apps/crm/tasks.py:90-92
+- [feature-a-reminder-6] (Code Quality) Migration backfill could be clearer about cross-tenant intentionality — apps/crm/migrations/0005_reminder_due_notified_at.py:22
+- [feature-a-reminder-7] (Performance) prefetch_related with iterator(chunk_size) executes query per chunk — apps/crm/tasks.py:82-83
+- [feature-b-overrides-7] (Data Integrity) Naive DateTime Handling for due_date — apps/inbound_email/api_views.py:136-146
+- [feature-b-overrides-8] (UI/UX) Frontend Textarea Missing maxlength Attribute — templates/pages/emails/list.html:414
+- [notifications-4] (Business Logic) Notification preference list response includes virtual defaults for every type, bypassing any future type-hiding — apps/notifications/views.py:167-199 (list method)
+- [notifications-5] (Code Quality) Unused variable F841 in NotificationPreferenceViewSet.update — apps/notifications/views.py:209
+- [notifications-6] (Business Logic) Cleanup task deletes only is_read=True, leaving unread old notifications unbounded — apps/notifications/tasks.py:205-239 (cleanup_old_notifications)
+- [notifications-7] (Reliability) fire_due_reminders does not check for stale/retried reminder state atomically — apps/crm/tasks.py:70-84
+- [notifications-8] (Reliability) Notification consumer mark_read handler lacks rate-limiting — apps/notifications/consumers.py:83-109 (receive_json)
+- [notifications-9] (UI/UX) Notification email template doesn't validate or sanitize data.url — templates/notifications/email/notification.html:142-146 and notification.txt:13-15
+- [websockets-5] (Code Quality) TicketPresenceConsumer docstring promises presence_list event that is never sent — apps/tickets/consumers.py:31-35 (docstring)
+- [contacts-crm-6] (Code Quality) ContactEvent model has no signal receiver, creating a data-model inconsistency — apps/contacts/signals.py (no ContactEvent handler); apps/contacts/models.py:208-266
+- [knowledge-5] (Code Quality) Confusing Date Field Names: review_at vs reviewed_at — apps/knowledge/models.py:98-99, 119, apps/knowledge/tasks.py:20, 35-36
+- [knowledge-6] (Code Quality) PORTAL_VISIBILITY Dead Code: Public KB Portal Never Implemented — apps/knowledge/search.py:9, apps/knowledge/models.py:52-54
+- [knowledge-8] (UI/UX) API Documentation Mismatch: Vote Endpoint Request Body Parameters — apps/knowledge/views.py:525-538
+- [kanban-9] (Business Logic) WIP limit not checked during status change sync — apps/tickets/signals.py:535-579
+- [messaging-6] (Code Quality) Unused variable conv_name in message notification (dead code) — apps/messaging/mentions.py:196-198
+- [billing-7] (Data Integrity) Webhook Plan Resolution Falls Back to INCOMPLETE on Unknown Status — apps/billing/webhooks.py:77-88
+- [analytics-exports-8] (Code Quality) Reminder.objects queries without explicit tenant filter may be fragile — apps/analytics/views.py:241, method DashboardView._get_overdue_reminders_summary
+- [analytics-exports-9] (Code Quality) XLSX fallback silently changes format from .xlsx to CSV — apps/analytics/tasks.py:253-257, function _generate_xlsx
+- [attachments-10] (Code Quality) UUID-Only Object_id Constraint Not Documented in Errors — apps/attachments/models.py:32, Attachment.object_id field
+- [custom-fields-agents-9] (Data Integrity) EAV typed-value integrity: _build_value_kwargs silently downgrades type mismatches to text — apps/custom_fields/services.py:168-224 (_build_value_kwargs function)
+- [settings-secrets-12] (Performance) Feature A (reminder-due popup) does not implement a database index on due_notified_at field — apps/crm/models.py:156-164
+- [settings-secrets-13] (Code Quality) Makefile target 'logs-django' is declared .PHONY but has no body, causing error on invocation — Makefile:23, 159 (missing)
+- [frontend-js-8] (Code Quality) Hardcoded z-index magic number in base.html toast container — templates/base.html:177 (inline style z-index:1090)
+- [templates-uiux-7] (Code Quality) KB sidebar widget is orphan code — templates/includes/kb_sidebar_widget.html
+- [templates-uiux-10] (Business Logic) Create-ticket form allows selection of closed statuses — templates/pages/emails/list.html:393-395
+- [performance-db-12] (Performance) Reminder due_notified_at Re-arm Condition Not Indexed — apps/crm/models.py:202-208 vs apps/crm/tasks.py:78-79
+- [performance-db-13] (Code Quality) Feature B: _build_ticket_overrides Uses .first() Without Explicit Ordering — apps/inbound_email/api_views.py:69-75
+- [performance-db-14] (Performance) Reminder.contacts Prefetch May Over-Fetch: All Contacts Loaded Even If Unused — apps/crm/tasks.py:81-83 and line 106

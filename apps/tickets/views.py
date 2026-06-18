@@ -573,7 +573,7 @@ class TicketViewSet(ModelViewSet):
                     )
                     setattr(self.request, cache_attr, membership)
 
-                if membership and membership.role.hierarchy_level > 20:
+                if membership and membership.effective_role.hierarchy_level > 20:
                     # Agent / Viewer: tickets assigned to them, or created by
                     # them and not yet handed off to another agent. Once a
                     # ticket is assigned to someone else it leaves their view.
@@ -1100,7 +1100,7 @@ class TicketViewSet(ModelViewSet):
 
         membership = _get_membership(request, tenant)
         if not request.user.is_superuser:
-            if membership is None or membership.role.hierarchy_level > 20:
+            if membership is None or membership.effective_role.hierarchy_level > 20:
                 return Response(
                     {"detail": "Admin or Manager access required."},
                     status=status.HTTP_403_FORBIDDEN,
@@ -1205,7 +1205,7 @@ class TicketViewSet(ModelViewSet):
 
                 tenant = getattr(request, "tenant", None)
                 membership = _get_membership(request, tenant) if tenant else None
-                if not membership or membership.role.hierarchy_level > 20:
+                if not membership or membership.effective_role.hierarchy_level > 20:
                     comments_qs = comments_qs.exclude(is_internal=True)
 
             # Batch-fetch attachments for all comments to avoid N+1
@@ -1383,7 +1383,7 @@ class TicketViewSet(ModelViewSet):
             tenant = getattr(request, "tenant", None)
             membership = _get_membership(request, tenant) if tenant else None
             if not request.user.is_superuser:
-                if membership is None or membership.role.hierarchy_level > 20:
+                if membership is None or membership.effective_role.hierarchy_level > 20:
                     return Response(
                         {"error": "You do not have permission to delete tickets."},
                         status=status.HTTP_403_FORBIDDEN,
@@ -2030,7 +2030,7 @@ class TicketViewSet(ModelViewSet):
             .filter(user=user, tenant=tenant, is_active=True)
             .first()
         )
-        if membership and membership.role.hierarchy_level > 20:
+        if membership and membership.effective_role.hierarchy_level > 20:
             # Agent: check if they are assignee or actioned_by on linked emails
             from apps.inbound_email.models import InboundEmail
 
@@ -2341,7 +2341,7 @@ class TicketViewSet(ModelViewSet):
             from apps.accounts.permissions import _get_membership
             tenant = getattr(request, "tenant", None)
             membership = _get_membership(request, tenant) if tenant else None
-            if not membership or membership.role.hierarchy_level > 20:
+            if not membership or membership.effective_role.hierarchy_level > 20:
                 return Response(
                     {"detail": "You can only modify your own time entries."},
                     status=status.HTTP_403_FORBIDDEN,
@@ -2445,7 +2445,7 @@ class CannedResponseViewSet(ModelViewSet):
 
             tenant = getattr(self.request, "tenant", None)
             membership = _get_membership(self.request, tenant) if tenant else None
-            if not membership or membership.role.hierarchy_level > 20:
+            if not membership or membership.effective_role.hierarchy_level > 20:
                 from rest_framework.exceptions import PermissionDenied
 
                 raise PermissionDenied(
@@ -2459,7 +2459,7 @@ class CannedResponseViewSet(ModelViewSet):
 
             tenant = getattr(self.request, "tenant", None)
             membership = _get_membership(self.request, tenant) if tenant else None
-            if not membership or membership.role.hierarchy_level > 20:
+            if not membership or membership.effective_role.hierarchy_level > 20:
                 from rest_framework.exceptions import PermissionDenied
 
                 raise PermissionDenied(
@@ -2549,7 +2549,7 @@ class MacroViewSet(ModelViewSet):
             from apps.accounts.permissions import _get_membership
             tenant = getattr(self.request, "tenant", None)
             membership = _get_membership(self.request, tenant) if tenant else None
-            if not membership or membership.role.hierarchy_level > 20:
+            if not membership or membership.effective_role.hierarchy_level > 20:
                 from rest_framework.exceptions import PermissionDenied
                 raise PermissionDenied(
                     "Only the creator or a manager can edit this macro."
@@ -2561,7 +2561,7 @@ class MacroViewSet(ModelViewSet):
             from apps.accounts.permissions import _get_membership
             tenant = getattr(self.request, "tenant", None)
             membership = _get_membership(self.request, tenant) if tenant else None
-            if not membership or membership.role.hierarchy_level > 20:
+            if not membership or membership.effective_role.hierarchy_level > 20:
                 from rest_framework.exceptions import PermissionDenied
                 raise PermissionDenied(
                     "Only the creator or a manager can delete this macro."

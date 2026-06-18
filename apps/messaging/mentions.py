@@ -70,8 +70,14 @@ def notify_mentions(message, tenant) -> None:
     if not user_ids:
         return
 
-    # Filter to users who actually exist -- silently ignore invalid UUIDs
-    mentioned_users = User.objects.filter(id__in=user_ids)
+    # Filter to ACTIVE MEMBERS of this tenant only -- silently ignore invalid
+    # UUIDs and reject cross-tenant user IDs (prevents mention-based
+    # enumeration / notification leakage across tenants).
+    mentioned_users = User.objects.filter(
+        id__in=user_ids,
+        memberships__tenant=tenant,
+        memberships__is_active=True,
+    ).distinct()
 
     for user in mentioned_users:
         # Don't notify the author about their own mentions

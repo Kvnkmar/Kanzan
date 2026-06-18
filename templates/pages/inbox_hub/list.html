@@ -158,79 +158,100 @@
           </div>
         </header>
 
-        <!-- Customer context — who is writing + our history with them.
-             Filled by JS (renderContext / renderFirstContact). -->
-        <section class="ih-context-card" id="ihContextCard" aria-label="Customer context" hidden></section>
-
         <section class="ih-email-body" aria-label="Email body">
           <div class="ih-body-content" id="ihDetailBody"></div>
         </section>
+
+        <!-- Attachments the customer sent (images render inline; other files
+             show as download chips). Filled by JS (renderAttachments). -->
+        <section class="ih-attachments" id="ihDetailAttachments" aria-label="Attachments" hidden></section>
+
+        <!-- Customer context — who is writing + our history with them. Placed
+             AFTER the message so triage reads subject → body → context (not
+             interrupted by CRM stats before you've read the email).
+             Filled by JS (renderContext / renderFirstContact). -->
+        <section class="ih-context-card" id="ihContextCard" aria-label="Customer context" hidden></section>
       </div>
     </article>
   </section>
 </div>
 
-<!-- Convert-to-Ticket modal -->
-<div class="modal fade" id="ihConvertModal" tabindex="-1" aria-hidden="true" aria-labelledby="ihConvertModalLabel">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="ihConvertModalLabel">
-          <i class="ti ti-ticket me-1"></i> Convert to Ticket
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <form id="ihConvertForm">
-        <div class="modal-body">
-          <div class="mb-3">
-            <label class="form-label">Subject</label>
-            <input type="text" class="form-control" id="ihConvertSubject" disabled>
-            <div class="form-text">Carried over verbatim from the email.</div>
-          </div>
-          <div class="row g-3">
-            <div class="col-md-6">
-              <label for="ihConvertQueue" class="form-label">Queue</label>
-              <select class="form-select" id="ihConvertQueue">
-                <option value="">Default</option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label for="ihConvertPriority" class="form-label">Priority</label>
-              <select class="form-select" id="ihConvertPriority">
-                <option value="">Inherit</option>
-                <option value="low">Low</option>
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-                <option value="urgent">Urgent</option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label for="ihConvertStatus" class="form-label">Status</label>
-              <select class="form-select" id="ihConvertStatus">
-                <option value="">Default (Open)</option>
-              </select>
-            </div>
-            <div class="col-md-6">
-              <label for="ihConvertAssignee" class="form-label">Assignee</label>
-              <select class="form-select" id="ihConvertAssignee">
-                <option value="">Unassigned (or auto)</option>
-              </select>
-            </div>
-          </div>
-          <div class="ih-convert-hint">
-            <i class="ti ti-info-circle"></i>
-            The email body becomes the ticket description and any attachments are copied over.
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
-          <button type="submit" class="btn btn-primary" id="ihConvertSubmit">
-            <i class="ti ti-arrow-right me-1"></i> Create ticket
-          </button>
-        </div>
-      </form>
-    </div>
+<!-- Convert-to-Ticket panel — a full ticket form as a right-side slide-over.
+     Posts the whole override set to /convert-to-ticket/ (validated by the
+     shared build_ticket_overrides), so SLA/provenance/attachment-copy/idempotency
+     all run through the convert service. -->
+<div class="offcanvas offcanvas-end ih-convert-panel" tabindex="-1" id="ihConvertPanel"
+     aria-labelledby="ihConvertPanelLabel" data-bs-scroll="false">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title" id="ihConvertPanelLabel">
+      <i class="ti ti-ticket me-1"></i> Convert to Ticket
+    </h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
   </div>
+
+  <form id="ihConvertForm" class="ih-convert-form" novalidate>
+    <div class="ih-convert-fields">
+      <div class="alert alert-danger d-none ih-convert-alert" id="ihConvertAlert" role="alert"></div>
+
+      <div class="mb-3">
+        <label for="ihConvertSubject" class="form-label">Subject <span class="text-danger">*</span></label>
+        <input type="text" class="form-control" id="ihConvertSubject" maxlength="255" required>
+        <div class="form-text">Defaults to the email subject — refine it for a proper ticket.</div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Description</label>
+        <div id="ihConvertDescEditor"></div>
+        <div class="form-text">Prefilled from the email body. Attachments are copied over automatically.</div>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label for="ihConvertPriority" class="form-label">Priority</label>
+          <select class="form-select" id="ihConvertPriority">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+            <option value="urgent">Urgent</option>
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label for="ihConvertQueue" class="form-label">Queue</label>
+          <select class="form-select" id="ihConvertQueue"><option value="">Default</option></select>
+        </div>
+        <div class="col-md-6">
+          <label for="ihConvertStatus" class="form-label">Status</label>
+          <select class="form-select" id="ihConvertStatus"><option value="">Default (Open)</option></select>
+        </div>
+        <div class="col-md-6">
+          <label for="ihConvertAssignee" class="form-label">Assignee</label>
+          <select class="form-select" id="ihConvertAssignee"><option value="">Unassigned (or auto)</option></select>
+        </div>
+        <div class="col-md-6">
+          <label for="ihConvertCategory" class="form-label">Category</label>
+          <select class="form-select" id="ihConvertCategory"><option value="">No category</option></select>
+        </div>
+        <div class="col-md-6">
+          <label for="ihConvertDueDate" class="form-label">Due date</label>
+          <input type="datetime-local" class="form-control" id="ihConvertDueDate">
+        </div>
+      </div>
+
+      <div class="mb-1 mt-3">
+        <label for="ihConvertTagInput" class="form-label">Tags</label>
+        <div class="ih-tags" id="ihConvertTags"></div>
+        <input type="text" class="form-control" id="ihConvertTagInput"
+               placeholder="Add a tag and press Enter" maxlength="50" autocomplete="off">
+      </div>
+    </div>
+
+    <div class="ih-convert-foot">
+      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="offcanvas">Cancel</button>
+      <button type="submit" class="btn btn-primary" id="ihConvertSubmit">
+        <i class="ti ti-arrow-right me-1"></i> Create ticket
+      </button>
+    </div>
+  </form>
 </div>
 
 <!-- Dismiss modal -->
@@ -266,5 +287,25 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/inbox-hub.js' %}?v=8"></script>
+{% load static %}
+<script type="importmap">
+{
+  "imports": {
+    "@tiptap/core": "https://esm.sh/@tiptap/core@2",
+    "@tiptap/starter-kit": "https://esm.sh/@tiptap/starter-kit@2",
+    "@tiptap/extension-link": "https://esm.sh/@tiptap/extension-link@2",
+    "@tiptap/extension-placeholder": "https://esm.sh/@tiptap/extension-placeholder@2"
+  }
+}
+</script>
+<script type="module">
+import { Editor } from '@tiptap/core';
+import StarterKit from '@tiptap/starter-kit';
+import Link from '@tiptap/extension-link';
+import Placeholder from '@tiptap/extension-placeholder';
+window.tiptap = { Editor, StarterKit, Link, Placeholder };
+window.dispatchEvent(new Event('tiptap-ready'));
+</script>
+<script src="{% static 'js/rich-editor.js' %}"></script>
+<script src="{% static 'js/inbox-hub.js' %}?v=10"></script>
 {% endblock %}

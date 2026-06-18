@@ -40,8 +40,11 @@
     selectedDetail: null,
     queues: [],
     statuses: [],
+    categories: [],
     users: [],
     usersLoaded: false,
+    convertTags: [],             // pill array for the convert panel
+    descEditor: null,            // TipTap rich-text editor for the description
     contextCache: {},            // contactId -> context payload (per session)
     contextReqId: 0,             // token to drop stale context paints (fast J/K)
     currentUserId: document.getElementById('inboxHubShell').dataset.currentUserId || null,
@@ -71,6 +74,7 @@
     detailReceivedAt: document.getElementById('ihDetailReceivedAt'),
     detailSlaBadge: document.getElementById('ihDetailSlaBadge'),
     detailBody: document.getElementById('ihDetailBody'),
+    detailAttachments: document.getElementById('ihDetailAttachments'),
     contextCard: document.getElementById('ihContextCard'),
     openTicketNudge: document.getElementById('ihOpenTicketNudge'),
 
@@ -84,13 +88,19 @@
     countSla: document.getElementById('ihCountSla'),
     lensSla: document.getElementById('ihLensSla'),
 
-    convertModalEl: document.getElementById('ihConvertModal'),
+    convertPanelEl: document.getElementById('ihConvertPanel'),
     convertForm: document.getElementById('ihConvertForm'),
+    convertAlert: document.getElementById('ihConvertAlert'),
     convertSubject: document.getElementById('ihConvertSubject'),
+    convertDescEditor: document.getElementById('ihConvertDescEditor'),
     convertQueue: document.getElementById('ihConvertQueue'),
     convertPriority: document.getElementById('ihConvertPriority'),
     convertStatus: document.getElementById('ihConvertStatus'),
     convertAssignee: document.getElementById('ihConvertAssignee'),
+    convertCategory: document.getElementById('ihConvertCategory'),
+    convertDueDate: document.getElementById('ihConvertDueDate'),
+    convertTags: document.getElementById('ihConvertTags'),
+    convertTagInput: document.getElementById('ihConvertTagInput'),
     convertSubmit: document.getElementById('ihConvertSubmit'),
 
     dismissModalEl: document.getElementById('ihDismissModal'),
@@ -99,8 +109,26 @@
     dismissSubmit: document.getElementById('ihDismissSubmit'),
   };
 
-  var convertModal = els.convertModalEl ? new bootstrap.Modal(els.convertModalEl) : null;
+  var convertPanel = els.convertPanelEl ? new bootstrap.Offcanvas(els.convertPanelEl) : null;
   var dismissModal = els.dismissModalEl ? new bootstrap.Modal(els.dismissModalEl) : null;
+
+  // Rich-text editor for the convert panel's description. Built once at load
+  // (TipTap may still be streaming in via the importmap module — wait for the
+  // `tiptap-ready` event, with a timeout fallback to the plain-textarea mode
+  // that createRichEditor degrades to). Mirrors templates/pages/tickets/create.html.
+  function initConvertDescEditor() {
+    if (state.descEditor || !els.convertDescEditor || typeof createRichEditor !== 'function') return;
+    state.descEditor = createRichEditor('#ihConvertDescEditor', {
+      placeholder: 'Describe the issue — prefilled from the email body…',
+      content: '',
+    });
+  }
+  if (window.tiptap) {
+    initConvertDescEditor();
+  } else {
+    window.addEventListener('tiptap-ready', initConvertDescEditor);
+    setTimeout(function () { if (!state.descEditor) initConvertDescEditor(); }, 5000);
+  }
 
   // ---------- Constants ----------
   var LENS_LABELS = {
@@ -403,6 +431,14 @@
       emItalic.textContent = '(this email has no body)';
       emptyNode.appendChild(emItalic);
       els.detailBody.replaceChildren(emptyNode);
+    }
+
+    // Customer-sent attachments — rendered by the shared Kanzan helper so the
+    // Inbox Hub and Emails page stay identical.
+    if (window.Kanzan && Kanzan.renderMailAttachments) {
+      Kanzan.renderMailAttachments(els.detailAttachments, row.attachments);
+    } else if (els.detailAttachments) {
+      els.detailAttachments.hidden = true;
     }
 
     // Reset scroll to the top of the new message.
@@ -728,10 +764,12 @@
     return Promise.all([
       Api.get('/api/v1/tickets/queues/').catch(function () { return { results: [] }; }),
       Api.get('/api/v1/tickets/ticket-statuses/').catch(function () { return { results: [] }; }),
+      Api.get('/api/v1/tickets/ticket-categories/').catch(function () { return { results: [] }; }),
       loadUsers(),
     ]).then(function (results) {
       state.queues = (results[0] && results[0].results) || [];
       state.statuses = (results[1] && results[1].results) || [];
+      state.categories = (results[2] && results[2].results) || [];
       populateConvertDropdowns();
     });
   }
@@ -752,11 +790,27 @@
     var defaultS = document.createElement('option');
     defaultS.value = ''; defaultS.textContent = 'Default (Open)';
     els.convertStatus.appendChild(defaultS);
-    state.statuses.forEach(function (s) {
+    // A ticket may not start life closed (server rejects it too) — offer open
+    // statuses only.
+    state.statuses.filter(function (s) { return !s.is_closed; }).forEach(function (s) {
       var opt = document.createElement('option');
       opt.value = s.id; opt.textContent = s.name;
       els.convertStatus.appendChild(opt);
     });
+
+    if (els.convertCategory) {
+      els.convertCategory.replaceChildren();
+      var defaultC = document.createElement('option');
+      defaultC.value = ''; defaultC.textContent = 'No category';
+      els.convertCategory.appendChild(defaultC);
+      // Ticket.category is a free-text CharField, so the option value IS the
+      // category name (not a pk) — matches the Emails-page create form.
+      state.categories.forEach(function (c) {
+        var opt = document.createElement('option');
+        opt.value = c.name; opt.textContent = c.name;
+        els.convertCategory.appendChild(opt);
+      });
+    }
 
     if (els.convertAssignee) {
       els.convertAssignee.replaceChildren();
@@ -782,35 +836,156 @@
     return Promise.all([loadList({ silent: true }), loadCounts()]);
   }
 
-  // ---------- Actions: Convert ----------
-  function openConvertModal() {
-    if (!state.selectedDetail || !convertModal) return;
-    els.convertSubject.value = state.selectedDetail.subject || '';
-    els.convertPriority.value = state.selectedDetail.priority || '';
-    loadConvertChoices().then(function () { convertModal.show(); });
+  // ---------- Actions: Convert (full ticket panel) ----------
+
+  // HubEmail priority vocab (low/normal/high/urgent) → Ticket.Priority
+  // (low/medium/high/urgent). "normal" has no Ticket equivalent → medium.
+  function mapHubPriorityToTicket(p) {
+    if (p === 'low' || p === 'high' || p === 'urgent') return p;
+    return 'medium';
+  }
+
+  function textToHtml(text) {
+    if (!text) return '';
+    return '<p>' + esc(text).replace(/\n/g, '<br>') + '</p>';
+  }
+
+  function clearConvertError() {
+    if (!els.convertAlert) return;
+    els.convertAlert.classList.add('d-none');
+    els.convertAlert.textContent = '';
+  }
+
+  function showConvertError(msg) {
+    if (!els.convertAlert) { toast('error', msg); return; }
+    els.convertAlert.textContent = msg;
+    els.convertAlert.classList.remove('d-none');
+  }
+
+  // Surface a DRF error body: {detail}, {error}, or {field: [msg] | msg}.
+  function firstErrorMessage(err) {
+    if (!err) return 'Failed to convert email.';
+    if (err.detail) return err.detail;
+    if (err.error) return err.error;
+    for (var k in err) {
+      if (!Object.prototype.hasOwnProperty.call(err, k) || k === '_status') continue;
+      var v = err[k];
+      var msg = Array.isArray(v) ? v[0] : v;
+      if (msg) return (k === 'non_field_errors' ? '' : (k + ': ')) + msg;
+    }
+    return 'Failed to convert email.';
+  }
+
+  // ----- Tags (pill input) -----
+  function renderConvertTags() {
+    if (!els.convertTags) return;
+    els.convertTags.replaceChildren();
+    state.convertTags.forEach(function (tag, idx) {
+      var pill = ce('span', 'ih-tag');
+      pill.appendChild(document.createTextNode(tag));
+      var x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'ih-tag-x';
+      x.setAttribute('aria-label', 'Remove tag ' + tag);
+      x.appendChild(ce('i', 'ti ti-x'));
+      x.addEventListener('click', function () {
+        state.convertTags.splice(idx, 1);
+        renderConvertTags();
+      });
+      pill.appendChild(x);
+      els.convertTags.appendChild(pill);
+    });
+  }
+
+  function addConvertTag(raw) {
+    var tag = (raw || '').trim().slice(0, 50);
+    if (!tag) return;
+    if (state.convertTags.indexOf(tag) === -1) {
+      state.convertTags.push(tag);
+      renderConvertTags();
+    }
+  }
+
+  function openConvertPanel() {
+    if (!state.selectedDetail || !convertPanel) return;
+    var d = state.selectedDetail;
+    clearConvertError();
+
+    // Subject — editable, defaults to the email subject.
+    els.convertSubject.value = d.subject || '';
+    // Priority — map the HubEmail priority into the Ticket vocab.
+    els.convertPriority.value = mapHubPriorityToTicket(d.priority || '');
+    // Category + due date reset; tags cleared.
+    if (els.convertCategory) els.convertCategory.value = '';
+    if (els.convertDueDate) {
+      if (els.convertDueDate._flatpickr) els.convertDueDate._flatpickr.clear();
+      els.convertDueDate.value = '';
+    }
+    state.convertTags = [];
+    renderConvertTags();
+    if (els.convertTagInput) els.convertTagInput.value = '';
+
+    // Description — prefill the rich editor from the email body.
+    if (state.descEditor) {
+      var inbound = d.inbound || {};
+      var bodyHtml = (inbound.body_html || '').trim();
+      var content = bodyHtml ? sanitizeEmailBody(bodyHtml) : textToHtml(inbound.body_text || '');
+      state.descEditor.setContent(content);
+    }
+
+    loadConvertChoices().then(function () {
+      // Status defaults to "Default (Open)"; assignee defaults to me if listed.
+      if (els.convertStatus) els.convertStatus.value = '';
+      if (els.convertAssignee && state.currentUserId) {
+        var hasMe = Array.prototype.some.call(els.convertAssignee.options, function (o) {
+          return String(o.value) === String(state.currentUserId);
+        });
+        els.convertAssignee.value = hasMe ? state.currentUserId : '';
+      }
+      convertPanel.show();
+    });
   }
 
   function submitConvert(e) {
     e.preventDefault();
     if (!state.selectedDetail) return;
+    clearConvertError();
+
+    var subject = (els.convertSubject.value || '').trim();
+    if (!subject) {
+      showConvertError('Subject is required.');
+      els.convertSubject.focus();
+      return;
+    }
+
     var id = state.selectedDetail.id;
-    var payload = {};
-    if (els.convertQueue.value) payload.queue_id = els.convertQueue.value;
-    if (els.convertStatus.value) payload.status_id = els.convertStatus.value;
+    var payload = { subject: subject };
+
+    if (state.descEditor) {
+      var html = state.descEditor.getHTML();
+      // TipTap serialises an empty doc as "<p></p>" — treat that as no override
+      // so the email body remains the description.
+      if (html && html.replace(/<p>\s*<\/p>/g, '').trim()) payload.description = html;
+    }
     if (els.convertPriority.value) payload.priority = els.convertPriority.value;
-    if (els.convertAssignee && els.convertAssignee.value) payload.assignee_id = els.convertAssignee.value;
+    if (els.convertQueue.value) payload.queue = els.convertQueue.value;
+    if (els.convertStatus.value) payload.status = els.convertStatus.value;
+    if (els.convertAssignee && els.convertAssignee.value) payload.assignee = els.convertAssignee.value;
+    if (els.convertCategory && els.convertCategory.value) payload.category = els.convertCategory.value;
+    if (els.convertDueDate && els.convertDueDate.value) payload.due_date = els.convertDueDate.value;
+    if (state.convertTags.length) payload.tags = state.convertTags.slice();
 
     setBtnLoading(els.convertSubmit, 'Creating…');
     Api.post('/api/v1/inbox-hub/hub-emails/' + encodeURIComponent(id) + '/convert-to-ticket/', payload)
       .then(function (data) {
-        convertModal.hide();
+        convertPanel.hide();
         var ticketNumber = (data && data.ticket && data.ticket.number) || null;
-        if (ticketNumber) toast('success', 'Created ticket #' + ticketNumber + '. Open it from the Tickets list when ready.');
+        if (ticketNumber) toast('success', 'Created ticket #' + ticketNumber + '.');
         else toast('success', 'Email converted to ticket.');
         afterTriage();
       })
       .catch(function (err) {
-        toast('error', (err && (err.detail || err.error)) || 'Failed to convert email.');
+        showConvertError(firstErrorMessage(err));
         console.warn('[InboxHub] convert failed:', err);
       })
       .finally(function () {
@@ -1066,7 +1241,7 @@
       loadList();
     });
 
-    els.actionConvert.addEventListener('click', openConvertModal);
+    els.actionConvert.addEventListener('click', openConvertPanel);
     els.actionAssign.addEventListener('click', function (e) {
       e.stopPropagation();
       if (activeMenu) { closeMenu(); return; }   // toggle
@@ -1077,15 +1252,41 @@
     if (els.convertForm) els.convertForm.addEventListener('submit', submitConvert);
     if (els.dismissForm) els.dismissForm.addEventListener('submit', submitDismiss);
 
+    // Convert panel: tag pill input (Enter / comma to add; Backspace on an
+    // empty input removes the last; commit a half-typed tag on blur).
+    if (els.convertTagInput) {
+      els.convertTagInput.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ',') {
+          e.preventDefault();
+          addConvertTag(els.convertTagInput.value);
+          els.convertTagInput.value = '';
+        } else if (e.key === 'Backspace' && !els.convertTagInput.value && state.convertTags.length) {
+          state.convertTags.pop();
+          renderConvertTags();
+        }
+      });
+      els.convertTagInput.addEventListener('blur', function () {
+        addConvertTag(els.convertTagInput.value);
+        els.convertTagInput.value = '';
+      });
+    }
+    // The base flatpickr auto-init only fires on Bootstrap modals — attach the
+    // themed date picker when the offcanvas is shown (native picker otherwise).
+    if (els.convertPanelEl) {
+      els.convertPanelEl.addEventListener('shown.bs.offcanvas', function () {
+        if (window.initKanzenFlatpickr) window.initKanzenFlatpickr(els.convertPanelEl);
+      });
+    }
+
     document.addEventListener('keydown', function (e) {
       var tag = (e.target && e.target.tagName) || '';
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (e.target && e.target.isContentEditable) return;
-      if (document.querySelector('.modal.show')) return;
+      if (document.querySelector('.modal.show, .offcanvas.show')) return;
 
       if (e.key === 'j') { e.preventDefault(); selectNextRow(1); }
       else if (e.key === 'k') { e.preventDefault(); selectNextRow(-1); }
-      else if (e.key === 'c' && state.selectedDetail) { e.preventDefault(); openConvertModal(); }
+      else if (e.key === 'c' && state.selectedDetail) { e.preventDefault(); openConvertPanel(); }
       else if (e.key === 'a' && state.selectedDetail) { e.preventDefault(); openAssignMenu(); }
       else if (e.key === 'x' && state.selectedDetail) { e.preventDefault(); openDismissModal(); }
       else if (e.key === 'Escape') {

@@ -157,6 +157,92 @@ class TestNoBackfillSafety:
         assert IMAPPollState.objects.count() == 0
 
 
+class _FetchIMAP(_FakeIMAP):
+    """Fake IMAP that returns a fixed RFC822 body for UID FETCH."""
+
+    def __init__(self, raw_bytes):
+        super().__init__()
+        self._raw = raw_bytes
+
+    def uid(self, command, *args):
+        self.uid_calls.append((command, args))
+        if command == "FETCH":
+            return ("OK", [(b"1 (RFC822 {N}", self._raw), b")"])
+        return ("OK", [])
+
+
+def _raw_message(slug, message_id):
+    return (
+        f"From: Customer <cust@example.com>\r\n"
+        f"To: support+{slug}@kanzen.io\r\n"
+        f"Subject: Shared mailing-list mail\r\n"
+        f"Message-ID: <{message_id}>\r\n"
+        f"\r\n"
+        f"Body here\r\n"
+    ).encode()
+
+
+@pytest.mark.django_db
+class TestCrossTenantDedup:
+    """Regression: IMAP dedup must be scoped per-tenant (inbound-email-1).
+
+    Two tenants can legitimately receive the same Message-ID (mailing lists,
+    forwards); a global dedup silently dropped the second tenant's copy.
+    """
+
+    def _make_tenant(self, slug):
+        from apps.tenants.models import Tenant
+
+        return Tenant.objects.create(name=slug.title(), slug=slug, is_active=True)
+
+    def test_same_message_id_ingests_for_each_tenant(self, imap_settings):
+        from unittest.mock import patch as _patch
+
+        tenant_a = self._make_tenant("alpha")
+        tenant_b = self._make_tenant("beta")
+        mid = "shared-list-123@mailinglist"
+
+        # Tenant A already ingested this Message-ID.
+        InboundEmail.objects.create(
+            tenant=tenant_a,
+            message_id=mid,
+            recipient_email="support+alpha@kanzen.io",
+            sender_email="cust@example.com",
+            direction=InboundEmail.Direction.INBOUND,
+            sender_type=InboundEmail.SenderType.CUSTOMER,
+        )
+
+        fake = _FetchIMAP(_raw_message("beta", mid))
+        with _patch("apps.inbound_email.tasks.process_inbound_email_task.delay"):
+            created = imap_poller._ingest_one(fake, b"1")
+
+        # Tenant B's copy must NOT be skipped by tenant A's row.
+        assert created is True
+        assert InboundEmail.objects.filter(tenant=tenant_b, message_id=mid).count() == 1
+        assert InboundEmail.objects.filter(message_id=mid).count() == 2
+
+    def test_duplicate_within_same_tenant_is_skipped(self, imap_settings):
+        from unittest.mock import patch as _patch
+
+        tenant_b = self._make_tenant("beta")
+        mid = "dup-456@mailinglist"
+        InboundEmail.objects.create(
+            tenant=tenant_b,
+            message_id=mid,
+            recipient_email="support+beta@kanzen.io",
+            sender_email="cust@example.com",
+            direction=InboundEmail.Direction.INBOUND,
+            sender_type=InboundEmail.SenderType.CUSTOMER,
+        )
+
+        fake = _FetchIMAP(_raw_message("beta", mid))
+        with _patch("apps.inbound_email.tasks.process_inbound_email_task.delay"):
+            created = imap_poller._ingest_one(fake, b"1")
+
+        assert created is False
+        assert InboundEmail.objects.filter(tenant=tenant_b, message_id=mid).count() == 1
+
+
 @pytest.mark.django_db
 class TestResponseCodeParsing:
     def test_reads_dedicated_key(self):

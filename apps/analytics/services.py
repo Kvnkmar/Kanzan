@@ -49,7 +49,7 @@ def _apply_user_filter(qs, tenant, user):
         .filter(user=user, tenant=tenant, is_active=True)
         .first()
     )
-    if membership and membership.role.hierarchy_level > 20:
+    if membership and membership.effective_role.hierarchy_level > 20:
         from apps.tickets.access import agent_visible_tickets_q
 
         qs = qs.filter(agent_visible_tickets_q(user))
@@ -601,7 +601,7 @@ def get_overdue_tickets(tenant, user):
     )
     is_admin = (
         user.is_superuser
-        or (membership and membership.role.hierarchy_level <= 20)
+        or (membership and membership.effective_role.hierarchy_level <= 20)
     )
     if not is_admin:
         qs = qs.filter(assignee=user)

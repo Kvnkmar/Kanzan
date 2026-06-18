@@ -3621,6 +3621,9 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
       [
         'reminder.created', 'reminder.updated',
         'reminder.completed', 'reminder.cancelled', 'reminder.deleted',
+        // Fired by the fire_due_reminders task when a reminder comes due —
+        // pulls the row into the overdue/now group without waiting for a save.
+        'reminder.due',
       ],
       function () { refetchReminders(); }
     );

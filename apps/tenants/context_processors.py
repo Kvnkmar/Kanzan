@@ -45,8 +45,8 @@ def tenant_context(request):
             is_admin_or_manager = user_role.hierarchy_level <= 20
             is_agent_or_above = user_role.hierarchy_level <= 30
 
-    # Inbox Hub is group-gated: Manager+ always, everyone else only if they
-    # belong to ≥1 UserGroup. Drives whether the sidebar entry renders.
+    # Inbox Hub is department-scoped: Manager+ always, agent-tier only if they
+    # belong to a Department, Viewers never. Drives sidebar-entry rendering.
     can_access_inbox_hub = False
     if tenant and membership:
         from apps.inbox_hub.access import can_access_inbox_hub as _can_access_hub

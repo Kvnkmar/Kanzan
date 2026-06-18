@@ -1,45 +1,51 @@
 # Kanzen — Project Intelligence
 
-> Last refreshed: **2026-06-10** — verified against branch `main` @ HEAD `8682e80` ("new updates") via a fresh from-scratch deep-dive (7 parallel agents; CLAUDE.md + MEMORY.md detached and re-derived from the code, then key files re-read directly). HEAD is unchanged, but **the uncommitted working tree has grown again past the "triage-only desk" the prior doc described** — it is now **39 modified + 14 untracked files, +4,246 / −1,444 lines vs HEAD** (CLAUDE.md itself is one of the modified files). The prior CLAUDE.md was written 2026-06-09 02:28 — **hours before a Jun-9 03:33–04:51 access-control refactor that it does not capture.** `makemigrations --check` is **clean**; **3 untracked migrations** (`agents/0007_agentavailability_last_seen`, `tenants/0010_tenantsettings_inbox_hub_auto_assign_and_more`, `inbound_email/0010_inboundemail_assignee_and_more`).
+> Last refreshed: **2026-06-18** — independent re-verification pass (CLAUDE.md + MEMORY.md **detached**; 6 parallel agents each re-derived the load-bearing facts FRESH from code with no access to these docs; full `pytest` run + every quality gate re-executed). **Finding: the working tree is byte-stable since the 2026-06-16 refresh** — `find apps main static templates tests -newermt "2026-06-16 06:00"` returns nothing, so every count and claim below was re-confirmed (zero contradictions across all 6 agents) rather than re-derived from changed code. Previous deep-dive: 2026-06-16. Verified against branch **`qa/sprint-0-critical-fixes`** (forked from `main` @ HEAD **`9575577`**; the branch tip is still that commit — **all work below is UNCOMMITTED working tree**).
 >
-> **THREE big working-tree shifts the prior doc got WRONG / missed:**
-> 1. **NEW Jun-9 access-control refactor — 3 untracked modules consolidating + tightening row-scoping.** (a) **`apps/tickets/access.py`** (36 LOC) is now the single source of truth for agent ticket visibility: `agent_visible_tickets_q(user)` = `Q(assignee=user) | (Q(created_by=user) & Q(assignee__isnull=True))` + object-level `agent_can_see_ticket`. **BEHAVIORAL CHANGE:** an agent who *created* a ticket now LOSES visibility once it's handed off to another agent (old rule was the looser `created_by OR assignee` — creator kept it forever). Wired into 5 surfaces: `tickets/views.py` (list), `accounts/permissions.py::IsTicketAccessible` (object), `analytics/services.py` (dashboards), `nav/views.py` (badge), `kanban/serializers.py` (cards). (b) **`apps/inbox_hub/access.py`** (52 LOC) **REPLACES the Hub's department-based row-scoping with a GROUP-MEMBERSHIP access gate**: `can_access_inbox_hub(membership)` = Admin (`level ≤ 10`) OR member of ≥1 `UserGroup`. Everyone Manager-and-below in **no** group is fully locked out (hidden nav, zeroed badge, 403 on page + API). Wired into permissions, viewset queryset, `frontend_views` (new `_inbox_hub_access_required` decorator → 403.html), `context_processors` (`can_access_inbox_hub` flag → sidebar `{% if %}`), and the badge. The old Team-Lead-sees-their-department visibility is **gone** — TLs are now agent-tier (NEW + assigned-to-me). (c) **`apps/contacts/context.py`** (119 LOC) extracts `build_contact_context()` out of `ContactViewSet`, **enriches** it (adds company/account/last_activity), bumps the cache prefix to `contact_context_v2`, and is now shared with the new Hub cockpit.
-> 2. **The Inbox Hub frontend grew from "triage desk" into a TRIAGE COCKPIT.** `inbox-hub.js` is now **1,177 LOC** (was 828), cache-bust **`?v=8`** (was `?v=6`). The left rail is **5 workload LENSES** (`all` / `unassigned` / `mine` / `oldest` / `sla`), NOT 3 priority filters — the **SLA lens self-hides** when its count is 0 (no SLA policies seeded by default). Counts are 4 parallel HEAD requests (all/unassigned/mine/sla). Biggest addition: a **customer-context card** that calls a NEW **`GET /api/v1/inbox-hub/hub-emails/{id}/context/`** action (`HubEmailViewSet.context`, codename `hub_email.view`) — served off the Hub viewset, NOT `/contacts/{id}/context/`, so it respects Hub row-scoping (agents can't reach a freshly-parked contact via the contacts endpoint). Plus an SLA badge (info/warning/danger by ≤60min/≤15min/overdue) and an "N open tickets" duplicate-ticket nudge. Triage actions unchanged: convert/assign/dismiss + floating body-portaled Assign menu; keybinds J/K/C/A/X/Esc. The HubEmail **list serializer is now a "cockpit" projection** — adds `contact_id`, an HTML-stripped 140-char `snippet`, `has_attachments`/`attachment_count`, and promotes `sla_response_due_at`/`response_breached`/`first_responded_at` to the list row. The `claim`/`escalate`/`transition`/`note` backend endpoints still exist but the UI never calls them.
-> 3. **`BadgeCountView` badge semantics were rewritten** (`apps/nav/views.py`): `_email_count` is now a **personal-inbox** count (`assignee=me` ∪ internal-to-me, `inbox_status IN (pending, linked)`, excl. BOUNCED — mirrors `/emails/`), not tenant-wide `is_read=False`; `_message_count` now counts **unread CHAT messages** (`ConversationParticipant`/`Message` vs `last_read_at`), NOT unread comments — **this breaks 2 stale tests** in `test_badges.py` (14.05, 14.09 assert the old comment semantics); `_inbox_hub_count` counts only `state=NEW` tenant-wide and returns 0 for group-locked-out members; `_ticket_count` adds `is_deleted=False` + uses `agent_visible_tickets_q`; `is_agent` uses `effective_role`.
+> **⚠️ The working tree is DIRTY — THREE stacked, uncommitted layers** (43 modified tracked files + 7 untracked code/test files + the QA-audit docs dir + a new `.github/`). A reviewer would split:
+> - **Layer 1 — QA Sprint 0 critical-fixes** (the reason this branch exists; implements **all 8 launch-blockers** from `docs/qa-audit-2026-06-14/06-REMEDIATION-PLAN.md` — see **§Sprint 0 Hardening**): `main/settings/__init__.py` (DEBUG default flip), `apps/messaging/{mentions,consumers,serializers,views}.py` (cross-tenant user scoping), `apps/attachments/{access.py [NEW],views.py}` (object-level authz + authed `download/`), `apps/billing/{management/commands/seed_plans.py,webhooks.py}` + mig `billing/0003` (VoIP seeding + re-subscribe), `apps/inbound_email/imap_poller.py` (per-tenant dedup), `.github/workflows/ci.yml` (**NEW — first-ever CI**), + re-greened stale tests + 3 new test modules.
+> - **Layer 2 — Feature A "Reminder-due popup"**: `apps/crm/{models,tasks}.py`, `apps/notifications/{models,services}.py`, `main/settings/base.py`, `static/js/app.js`, `templates/{base.html,pages/reminders/list.html}`, `static/css/custom-v15.css`, `tests/test_recalls.py` + migs `crm/0005`, `notifications/0006`.
+> - **Layer 3 — Feature B "Create ticket from email with overrides" + inbound-email attachments + Inbox-Hub access refactor** (these three landed together as Hub-cockpit work and now overlap): `apps/inbound_email/{api_views,services,serializers}.py` + `apps/inbound_email/ticket_overrides.py` **[NEW]** + `apps/inbound_email/attachments.py` **[NEW]**, `apps/inbox_hub/{services,serializers,views,permissions,access}.py`, `apps/{nav/views,tenants/context_processors,tenants/frontend_views}.py`, `templates/pages/{emails,inbox_hub}/list.html`, `static/js/inbox-hub.js` (`?v=10`), `tests/test_inbox_hub.py` + `tests/test_inbound_email.py`.
 >
-> Also this refresh: **`tickets/detail.html` REMOVED the Delete-Ticket feature** (button + modal + handlers) and the **macro dropdown** from the comment composer (Flatpickr time-input fix + email modals re-homed to `<body>` + company auto-fill reflection retained). **`tickets/list.html`** replaced hardcoded Open/In-Progress tabs with **dynamic per-status stat tabs** (`buildStatusTabs` from `/tickets/ticket-statuses/`, event delegation). **`reminders/list.html`** (now 3,635 LOC) gained a **natural-language quick-add parser** (`parseQuickAddTime`: "call Acme tomorrow 4pm urgent" → date+priority) + a 5-col stat grid + body-portaled Filters popover. **`audit_log/list.html`** export now mirrors live filters + walks all paginated pages (`fetchAllLogs`, was silently truncated to 50). `analytics/services.py` adds `is_deleted=False` to the dashboard querysets. **Verified factual counts** (this refresh):
-> - **91 Django model classes** across 21 apps with `models.py` (per-app: tickets 22, inbox_hub 8, accounts 8, knowledge 6, contacts 5, voip 5, analytics 4, billing 4, comments 4, kanban 3, inbound_email 3, messaging 3, newsfeed 3, agents 2, crm 2, custom_fields 2, notifications 2, tenants 2, api_keys 1, attachments 1, notes 1). Raw `^class` grep gives **102** — the extra 11 are nested `TextChoices`/`IntegerChoices`/`Manager`/`QuerySet` subclasses, not Django models.
-> - **116 migrations total** across 21 apps; **3 untracked** (`agents/0007`, `tenants/0010`, `inbound_email/0010`). `inbox_hub` still has exactly **1 migration** (`0001_initial`, all 8 models + 5 indexes + conditional uniques).
-> - **23 `/api/v1/*/` `path(...)` includes** in `main/urls.py` (22 unique URLConfs — `inbound-email/` dual-mounts as `emails/`).
-> - **35 frontend URL paths** in `apps/tenants/frontend_urls.py` (`/inbox-hub/` now gated by `_inbox_hub_access_required`, not bare `_membership_required`).
-> - **6 WebSocket consumers** at `ws/messaging/<id>/`, `ws/notifications/`, `ws/tickets/<id>/presence/`, `ws/tickets/feed/`, `ws/voip/events/`, `ws/live/`. (Note: `apps/inbox_hub/routing.py` is the **RoutingEngine**, NOT a Channels route.)
-> - **26 Celery `@shared_task` functions** across **10 task modules** (incl. `apps/agents/tasks.py`, `apps/inbox_hub/tasks.py`); **11 in Beat schedule** (incl. `reap-stale-presence` 60s, `check-hub-sla-breaches` 120s).
-> - **63 test modules total** (56 root + 7 app-level). **Verified run 2026-06-10:** Inbox Hub `test_inbox_hub.py` (**21**, was 13) + `test_inbox_hub_routing_assignment.py` (**38**, was 25/27) = **59 passed**; `test_inbound_email.py` (**14**) passed; `test_access_control.py` (**12**, +1 new — the ticket-handoff-visibility test) passed; **`test_badges.py` 36 passed / 2 FAILED** (14.05 + 14.09 — stale tests asserting the old unread-comments "messages" badge, now repurposed to unread-chat; intentional behavior change, tests not updated). `apps/tickets/tests/test_creation.py` 17 passed / 1 skipped (SQLite SELECT-FOR-UPDATE).
-> - **`static/css/custom-v15.css` is now 24,934 LOC** (HEAD 24,622; +312 net — Inbox Hub section rewritten for the cockpit: added `.ih-context-*` card block, `.ih-sla-badge--*`, lens/avatar rules; theme-check still **PASSES**, 146 hex tracked vs baseline 147, zero new leakage).
-> - **48 `.html` templates**; **18 `templates/pages/` subfolders**.
-> - **14 JS files / 5,262 LOC** in `static/js/` (`inbox-hub.js` **1,177**; `agent-availability.js` 244 with `subscribePresence()`).
-> - **42 signal receivers** across 10 apps with `signals.py` + `notifications/signal_handlers.py`. **`apps/inbox_hub/` still has NO `signals.py`** — its `apps.py` has no `ready()`; it fans events from its service/routing/assignment layer, not signals.
-> - **8 management commands** (incl. `seed_inbox_hub_defaults`).
-> - **`logs/` is now ~74MB** (gitignored runtime artifact) — `celery-worker-error.log` ~40MB, `celery-beat-error.log` ~15MB, `django.log` ~14MB, `django-error.log` ~5.7MB. Still no rotation.
-> - **33 Makefile targets** (`logs-django` declared in `.PHONY` but has no rule body — calling it errors).
-> - **Repo is tidy**: no stray Claude temp files, no committed junk, no root screenshots/`.bak`/scratch files. `static/images/DP.png` is a legitimate committed favicon. `env` is a committed symlink → `.venv`. Only gitignored runtime artifacts (`logs/`, `tmp/emails/`, caches, `db.sqlite3`, `celerybeat-schedule`, `media/` uploads) exist on disk.
+> **Quality gates (re-run 2026-06-18 — identical to 2026-06-16):** full `pytest -q` = **894 passed / 0 failed / 22 skipped / 1 xfailed** ✅ **GREEN** (182s on SQLite; unchanged from the 06-16 run). `makemigrations --check --dry-run` = **"No changes detected" (exit 0)**. `python scripts/check_theme.py` **PASSES** ("146 pre-existing hex literals tracked", baseline 147/11). `ruff check .` = **197 errors** (157 auto-fixable; mostly F401 unused-import + F841 + F541 — non-blocking). **CI runs against PostgreSQL 16 + Redis 7** on every push-to-`main` + PR (ruff `continue-on-error`; migrate-check / theme-check / pytest are blocking).
+>
+> **⚠️ Two residual gaps the Sprint 0 fixes did NOT fully close:** (1) the DEBUG fix is the **default-flip only** — there is NO startup assertion that `DEBUG is False` under https, and no dedicated settings-default unit test (CI just sets `DJANGO_DEBUG="True"` explicitly). (2) Attachment authz gates the **DRF API** (retrieve/download/upload/destroy + the new inbound-email `attachment/` stream) but **raw `/media/` is still served unauthenticated** — the in-code `download` docstring itself flags X-Accel-Redirect as future work.
+>
+> **⚠️ What changed since the 2026-06-15 snapshot (same branch, same tip — work landed across 2026-06-15→16):** three things evolved past the prior doc. (1) **Inbox Hub access was re-architected AGAIN** — the binary `UserGroup` gate is **GONE** (`user_in_any_group` fully deleted) and replaced by **DEPARTMENT-SCOPED visibility** (`apps/inbox_hub/access.py`: `can_access_inbox_hub` + `hub_rows_q` + `agent_can_see_hub_email` + `user_department_ids`). (2) **Feature B's Hub-cockpit reachability gap is CLOSED** — a shared validator `apps/inbound_email/ticket_overrides.py::build_ticket_overrides` now serves BOTH the Emails-page `create_ticket` AND the Hub `convert_to_ticket`, so the full 9-field override set reaches both; `ConvertToTicketSerializer` is now schema-only; the cockpit gained a full `#ihConvertPanel` offcanvas (TipTap description + tags + flatpickr due-date). (3) **NEW inbound-email attachments feature** — `apps/inbound_email/attachments.py` (`serialize_attachments` + `stream_attachment`) + an authed `attachment/` `@action` on BOTH `InboundEmailViewSet` and `HubEmailViewSet`. Counts that moved 06-15→16: **pytest 864 → 894**; **css 24,996 → 25,149 LOC**; **JS 5,416 → 5,722 LOC** (`inbox-hub.js` 1,177 → **1,378** `?v=8 → ?v=10`, `app.js` 1,034 → **1,139**); **2 new untracked code modules** (`ticket_overrides.py`, `attachments.py`). Migrations still **119**, models still **91**.
+>
+> **Still-open (NOT addressed by Sprint 0 — pre-existing footguns, carried forward):** `role` vs `effective_role` drift (~20 sites: `tickets/views.py` list, `analytics/services.py`, `kanban/serializers.py`, `agents/services.py::pick_email_agent`, Hub `_candidate_user_ids`); model `clean()` validators never called by `save()` (`Ticket` assignee, `Account.health_score`, `Contact.lead_score`); internal-comment bodies broadcast tenant-wide on the LiveBus; Inbox-Hub `first_responded_at` never written → SLA response-breach always fires + auto-escalates; `check_overdue_reminders` still DEAD (not in Beat); Company custom-fields never synced; `KBRevision`/`KBTicketLink`/`require_feature`/`PARKED_IN_HUB` dead; `DashboardView` under-permissioned; `kanzan_voip` queue unconsumed + `run_ari_listener` not in PM2; logs unrotated (~95MB); command-palette `/contacts/new/` dead link; XLSX-without-openpyxl writes CSV into a `.xlsx`. These are the QA audit's **Sprint 1–3** backlog (`docs/qa-audit-2026-06-14/06-REMEDIATION-PLAN.md`).
+>
+> **Re-verified factual counts (re-confirmed 2026-06-18, all unchanged since 2026-06-16):**
+> - **91 Django model classes** across 21 apps with `models.py` (per-app: tickets 22, inbox_hub 8, accounts 8, knowledge 6, contacts 5, voip 5, analytics 4, billing 4, comments 4, agents 2, custom_fields 2, crm 2, inbound_email 3, kanban 3, messaging 3, newsfeed 3, notifications 2, tenants 2, api_keys 1, attachments 1, notes 1). (Raw `^class`/nested-class greps over-count by including `TextChoices`/`Manager`/`QuerySet`.)
+> - **119 migrations** (was 118; **+`billing/0003_backfill_voip_plan_flags`**). `makemigrations --check` clean. `main` has no `migrations/` dir. Latest per heavy app: accounts 0012, agents 0007, inbound_email 0010, tenants 0010, tickets 0027, comments 0010, **billing 0003 (untracked)**, **crm 0005 (untracked)**, **notifications 0006 (untracked)**, inbox_hub 0001. (3 untracked migration files in total.)
+> - **INSTALLED_APPS = 46** = 21 `apps.*` + `main` + **24 third-party** (incl. `daphne`, `jazzmin`, 7× `django.contrib.*`, allauth ×6, etc.). **`apps.nav` is NOT installed** — it is the lone URL-only module (no `models.py`/`apps.py`), mounted at `/api/v1/nav/`. There are 22 app dirs; 21 have `models.py`.
+> - **MIDDLEWARE = 14 layers.**
+> - **28 `path()` in `main/urls.py`**; **23 `/api/v1/*` includes** (22 unique URLConfs — `inbound-email/` dual-mounts as `emails/`). **35 frontend URL paths** in `apps/tenants/frontend_urls.py`.
+> - **6 WebSocket consumers** (5 Channels `routing.py` files). `apps/inbox_hub/routing.py` is the **RoutingEngine** (email→department), NOT a Channels route.
+> - **27 Celery `@shared_task`** across **10** task modules; **12** in Beat.
+> - **42 signal receivers** across 10 apps with `signals.py` + `notifications/signal_handlers.py`. **`apps/inbox_hub/` has NO `signals.py`** and `apps.py` has no `ready()` — it fans events imperatively.
+> - **66 test modules** (59 root + 7 app-level — incl. 3 untracked Sprint-0 tests: `test_attachment_authz`, `test_billing_voip_and_webhook`, `test_messaging_tenant_isolation`; the Feature-B/attachments/Hub-access tests were **added into existing** `test_inbox_hub.py` + `test_inbound_email.py`, not new files). conftest 343 LOC = 16 factories + 20 fixtures (3 autouse).
+> - **`static/css/custom-v15.css` = 25,149 LOC** (the only loaded project CSS; grew +153 from the Hub-convert offcanvas + override-form styling); `custom.css` = 20,431 LOC (committed snapshot, NOT loaded, theme-check-allowlisted).
+> - **48 `.html` templates**; **18 `pages/` subfolders**; **8** `pages/` root files; **6 `includes/`** (1 orphan: `kb_sidebar_widget.html` @158 LOC; `page_back_button.html` included by **18**).
+> - **14 JS files / 5,722 LOC** in `static/js/` (`inbox-hub.js` **1,378** `?v=10`, `app.js` **1,139**). **Only `inbox-hub.js` is cache-busted**; the other 13 are unversioned (so an uncommitted `app.js` change can serve stale without a hard refresh).
+> - **8 management commands.** **33 Makefile targets** (`logs-django` is in `.PHONY` but has no rule body → calling it errors).
+> - **`logs/` is ~95MB** (gitignored, no rotation). `tmp/emails/` holds dev captures. `env` is a committed symlink → `.venv`.
 
 ## Project Overview
 
-Multi-tenant CRM, Ticketing, Knowledge Base and VoIP SaaS. **Django 6.0.2 + DRF 3.16+ + Channels 4.2+ + Celery 5.4+** with Bootstrap 5.3.3 + vanilla JS frontend (SIP.js softphone, TipTap rich editor, DOMPurify sanitization). Row-level multi-tenancy via subdomain routing and **contextvars-based** tenant binding (async-safe). PM2 process management.
+Multi-tenant CRM, Ticketing, Knowledge Base and VoIP SaaS. **Django 6.0.2 + DRF 3.16+ + Channels 4.2+ + Celery 5.4+** with Bootstrap 5.3.3 + vanilla JS frontend (SIP.js softphone, TipTap rich editor, DOMPurify sanitization). Row-level multi-tenancy via subdomain routing and **contextvars-based** tenant binding (async-safe). Admin is jazzmin-skinned, superuser-locked. PM2 process management. **CI exists as of this branch** — `.github/workflows/ci.yml` runs ruff (non-blocking) + migrate-check + theme-check + `pytest` against **PostgreSQL 16 + Redis 7** on every push-to-`main`/PR; locally `make check` (lint → migrate-check → test) is the same gate.
 
 **Port:** 8001 (ASGI via Gunicorn + Uvicorn worker) | **Dev DB:** SQLite | **Prod DB:** PostgreSQL
-**Redis:** db3 (cache + cached_db sessions, prefix `kanzan`), db4 (Celery broker + django-db result backend), db5 (Channels layer, prefix `kanzan:channels`)
-**SMTP in-process server:** 2525 (kanzan-smtp PM2 process) | **Flower:** 5556 | **TIME_ZONE:** `Asia/Kuala_Lumpur` (Celery UTC; `USE_TZ=True`)
+**Redis:** db3 (cache + `cached_db` sessions, prefix `kanzan`), db4 (Celery broker; result backend = `django-db`), db5 (Channels layer, prefix `kanzan:channels`)
+**SMTP in-process server:** 2525 (kanzan-smtp PM2 process, prod only) | **Flower:** 5556 | **TIME_ZONE:** `Asia/Kuala_Lumpur` (⚠ `CELERY_TIMEZONE = "UTC"` — crontab beat entries fire on UTC wall-clock; `USE_TZ=True`)
 
 ## Quick Reference
 
 ```
 Superuser:      admin@kanzen.local / Pl@nC-ICT_2024
-Django Admin:   http://localhost:8001/admin/   (locked to is_superuser — see main/admin.py)
-Tenants:
-  Straat-X:     http://straat-x.localhost:8001
-Flower:         http://localhost:5556 (admin:changeme — KANZAN_FLOWER_AUTH)
+Django Admin:   http://localhost:8001/admin/   (jazzmin "darkly"; locked to is_superuser — see main/admin.py)
+Tenants:        http://straat-x.localhost:8001
+Flower:         http://localhost:5556 (admin:changeme — KANZAN_FLOWER_AUTH, read only by PM2 configs)
 API Docs:       http://straat-x.localhost:8001/api/docs/
 ```
 
@@ -47,339 +53,338 @@ API Docs:       http://straat-x.localhost:8001/api/docs/
 
 ```
 /home/kavin/Kanzen/
-├── apps/                          # 22 Django apps in INSTALLED_APPS (21 with models.py; nav is URL-only)
-│   ├── accounts/                  # Users (+is_service_account), 7-role RBAC + temp-role overrides + temp-perms intersection, invitations, profiles, UserGroups, middleware
-│   ├── agents/                    # AgentAvailability (+last_seen presence heartbeat, is_assignable gate) + CustomAgentStatus + presence.py + reap-stale-presence task + load-fairness email picker
-│   ├── analytics/                 # Reports, dashboard widgets, exports, calendar events
-│   ├── api_keys/                  # APIKey model + auth class + viewset + per-key throttle + rate-limit-headers middleware + drf-spectacular extension
-│   ├── attachments/               # File uploads (polymorphic GenericFK)
-│   ├── billing/                   # Stripe billing, plans, subscriptions, webhooks, decorators
-│   ├── comments/                  # Comments + Mention + CommentRead + ActivityLog (audit, 34 actions incl. 8 EMAIL_* for Inbox Hub) + LIVE signals
-│   ├── contacts/                  # Contacts, Companies, Accounts, Groups, ContactEvent (360°) + LIVE signals + context.py (build_contact_context, shared with Hub cockpit)
-│   ├── crm/                       # Activity + Reminder (M2M contacts/tickets), lead/account scoring + LIVE signals
-│   ├── custom_fields/             # EAV custom fields per tenant + sync signals
-│   ├── inbound_email/             # SMTP+IMAP ingestion; forks on TenantSettings.inbox_hub_enabled → legacy ticket-create OR park in Inbox Hub
-│   ├── inbox_hub/                 # Email-triage workspace: 8 models + services + RoutingEngine + AssignmentEngine + state machine + SLA task + 11 viewset actions (+context) + 4 config viewsets + access.py (group gate)
-│   ├── kanban/                    # Visual boards, columns, polymorphic CardPosition; drags route through tickets service (full audit/feed/SLA)
-│   ├── knowledge/                 # KB articles, categories, search, stale alerts, gap digest, allowed_groups M2M
+├── apps/                          # 22 dirs; 21 in INSTALLED_APPS (nav is URL-only, no models.py)
+│   ├── accounts/                  # Users (+is_service_account), 7-role RBAC + temp-role overrides + temp-perms intersection, invitations, profiles, UserGroups (⚠ NO LONGER the Hub gate — see access refactor; still "one user per group"), middleware
+│   ├── agents/                    # AgentAvailability (+last_seen presence heartbeat, is_assignable gate) + CustomAgentStatus + presence.py + reap-stale-presence task + load-fairness pick_email_agent
+│   ├── analytics/                 # Reports, dashboard widgets (⚠ DashboardView under-permissioned), exports (PDF/XLSX→CSV placeholder), calendar events
+│   ├── api_keys/                  # APIKey (SHA-512) + auth class + viewset + per-key throttle + rate-limit-headers middleware + drf-spectacular extension
+│   ├── attachments/               # File uploads (polymorphic GenericFK, python-magic MIME, 25MB cap)
+│   ├── billing/                   # Stripe billing, plans, subscriptions, webhooks (5 events), decorators (⚠ require_feature dead; NO tasks.py)
+│   ├── comments/                  # Comment + Mention + CommentRead + ActivityLog (34 actions incl. 8 EMAIL_*) + LIVE signals (⚠ broadcasts internal comments)
+│   ├── contacts/                  # Contacts, Companies, Accounts, Groups, ContactEvent (360°, NOT live-broadcast) + LIVE signals + context.py (build_contact_context, shared with Hub cockpit)
+│   ├── crm/                       # Activity + Reminder (M2M contacts/tickets) + lead/account scoring + LIVE signals + NEW fire_due_reminders task (Feature A)
+│   ├── custom_fields/             # EAV custom fields per tenant + sync signals (Ticket + Contact ONLY — NOT Company)
+│   ├── inbound_email/             # SMTP+IMAP ingestion; forks on TenantSettings.inbox_hub_enabled → legacy ticket-create OR park in Inbox Hub; agent email-inbox handoff; create_ticket+overrides (Feature B); ticket_overrides.py [NEW shared validator] + attachments.py [NEW: serialize/stream customer-sent files]
+│   ├── inbox_hub/                 # Email-triage workspace: 8 models + services + RoutingEngine + AssignmentEngine + state machine + SLA task + 11 viewset actions (+context +attachment) + 4 config viewsets + access.py (⚠ DEPARTMENT-scoped — group gate REMOVED). NO signals.py.
+│   ├── kanban/                    # Visual boards, columns (is_personal), polymorphic CardPosition; cross-status drags route through tickets service (full audit/feed/SLA)
+│   ├── knowledge/                 # KB articles (PG FTS), categories, search, stale alerts, gap digest, allowed_groups M2M (⚠ KBRevision/KBTicketLink dead-write)
 │   ├── messaging/                 # Real-time conversations (WS); Conversation.source_group; attachments on messages (POST broadcast action)
-│   ├── nav/                       # URL-only helper (BadgeCountView — 7 categories: tickets/calendar/messages/emails/reminders/knowledge/inbox_hub; effective_role; emails=personal-inbox, messages=unread-chat)
+│   ├── nav/                       # URL-only module (BadgeCountView — 7 categories; effective_role; NOT an installed app)
 │   ├── newsfeed/                  # Internal announcements, reactions, read receipts + LIVE signals
-│   ├── notes/                     # Personal sticky notes (6 colors, pinning)
-│   ├── notifications/             # In-app + email notifications + WebSocket (20 NotificationType values incl. 5 HUB_EMAIL_* — now all emitted)
+│   ├── notes/                     # Personal sticky notes (6 colors, pinning) — no signals
+│   ├── notifications/             # In-app + email + WebSocket notifications (21 NotificationType incl. 5 HUB_EMAIL_* + NEW REMINDER_DUE); NOT polymorphic (data JSONField)
 │   ├── tenants/                   # Tenant model, middleware, frontend views, frontend_urls (35 paths), live broadcast layer, palette; LiveEventConsumer stamps presence on heartbeat
-│   ├── tickets/                   # Core ticketing; Queue gains optional department FK (Inbox Hub); access.py (shared agent-visibility helper); SLA + business hours, CSAT, pipelines, macros, webhooks, deals
-│   └── voip/                      # Asterisk ARI integration, SIP softphone, call logs, recordings, queues
+│   ├── tickets/                   # Core ticketing; Queue gains optional department FK; access.py (shared agent-visibility helper); SLA + business hours, CSAT, pipelines, macros, webhooks, deals
+│   └── voip/                      # Asterisk ARI integration, SIP softphone, call logs, recordings, queues (runtime is manual-launch — see Pitfalls)
 ├── main/                          # Django project root
-│   ├── settings/{__init__,base,dev,prod}.py  # __init__ branches on DJANGO_DEBUG; base.py holds CELERY_BEAT_SCHEDULE + AGENT_PRESENCE_* + HUB_SLA_WARNING_MINUTES
-│   ├── admin.py                   # SuperuserOnlyAdminSite + TenantFilteredAdmin mixin (full add/change/save with tenant picker)
-│   ├── celery.py                  # Celery app + queue routing (7 globs + default), autodiscover_tasks() — NO beat schedule (lives in base.py)
-│   ├── asgi.py                    # ProtocolTypeRouter: HTTP + WebSocket (6 consumer endpoints)
+│   ├── settings/{__init__,base,dev,prod}.py  # __init__ branches on DJANGO_DEBUG (**default now False — Sprint-0 fail-safe**, matches base.py) → dev.py / prod.py; base.py holds CELERY_BEAT_SCHEDULE (12) + AGENT_PRESENCE_* + HUB_SLA_*
+│   ├── admin.py                   # SuperuserOnlyAdminSite (reassigns admin.site.__class__) + TenantFilteredAdmin mixin (full add/change/save with tenant picker); registers 0 models
+│   ├── celery.py                  # Celery app + queue routing (8 globs incl. default) — NO beat schedule (lives in base.py)
+│   ├── asgi.py                    # ProtocolTypeRouter: HTTP + WebSocket (6 consumer endpoints, WebSocketTenantMiddleware)
 │   ├── context.py                 # contextvars-based tenant context (async-safe)
-│   ├── models.py                  # TimestampedModel, TenantScopedModel
-│   ├── managers.py                # TenantQuerySet, TenantAwareManager, SoftDeleteTenantManager
-│   └── urls.py                    # 23 /api/v1/ includes (22 unique URLConfs; inbound-email dual-mounted at emails/) + /api/docs/
+│   ├── models.py / managers.py    # TimestampedModel, TenantScopedModel; TenantQuerySet, TenantAwareManager (fail-closed .none()), SoftDeleteTenantManager
+│   └── urls.py                    # 28 path() (23 /api/v1/ includes; 22 unique URLConfs) + /admin/ + /api/{schema,docs}/ + /accounts/ + frontend ""
 ├── templates/                     # 48 .html files (18 subfolders under pages/)
-│   ├── base.html                  # 265 lines — palette <style>, toast container, live-bus + live-connection JS, Flatpickr 3-CDN loader, sidebar-collapse FOUC fix
-│   ├── includes/                  # 6 files — navbar, sidebar (Inbox Hub entry + avatar bg-image), softphone, messages, kb_sidebar_widget (orphan), page_back_button (11 sidebar paths incl. /inbox-hub/)
-│   ├── pages/                     # 18 subfolders + 8 root html files (api_quickstart, calendar, dashboard, landing, login, profile, register, 403)
+│   ├── base.html                  # 292 lines — palette <style>, toast container (hardcoded z-index:1090), live-bus + live-connection JS, Flatpickr loader, sidebar-collapse FOUC fix, NEW #reminderDueModal
+│   ├── includes/                  # 6 files — navbar, sidebar (Inbox Hub entry gated {% if can_access_inbox_hub %}), softphone, messages, page_back_button (18 includes), kb_sidebar_widget (ORPHAN)
+│   ├── pages/                     # 18 subfolders + 8 root html files (403, api_quickstart, calendar, dashboard, landing, login, profile, register)
 │   ├── landing/landing_crm.html   # Standalone marketing page (1,393 LOC; doesn't extend base.html)
-│   └── {auth,knowledge,notifications,tickets}/email/  # 6 transactional email pairs
+│   └── {auth,knowledge,notifications,tickets}/email/  # 6 transactional email templates
 ├── static/
-│   ├── css/custom-v15.css         # 24,934 LOC (live file referenced by base.html — Crimson Black v9)
+│   ├── css/custom-v15.css         # 25,149 LOC (loaded; "Crimson Black v9.0")
 │   ├── css/custom.css             # 20,431 LOC (committed snapshot — NOT loaded; allowlisted in theme check)
-│   ├── images/                    # Logo, favicon, hero artwork
-│   └── js/                        # 14 vanilla-JS modules (5,262 LOC, incl. live-bus.js + live-connection.js + inbox-hub.js 1,177)
-├── tests/                         # 56 root pytest modules + 7 app-level (63 total) + tests/base.py legacy scaffold
-├── conftest.py                    # 16 factories + 20 fixtures (3 autouse: celery_eager, free_plan, clear_tenant_context)
-├── pytest.ini                     # DJANGO_SETTINGS_MODULE=main.settings; pythonpath=. (3 lines, no asyncio_mode set)
-├── requirements/{base,dev,prod}.txt   # prod.txt is literally `-r base.txt` — no extras; base.txt ~30 requirement lines
+│   ├── images/                    # Logo, favicon (DP.png), hero artwork
+│   └── js/                        # 14 vanilla-JS modules (5,722 LOC, incl. live-bus + live-connection + inbox-hub.js 1,378 + app.js 1,139)
+├── tests/                         # 59 root pytest modules + 7 app-level (66 total; +3 untracked Sprint-0)
+├── conftest.py / pytest.ini       # 343 LOC: 16 factories + 20 fixtures (3 autouse); pytest.ini = 3 lines, no asyncio_mode
+├── requirements/{base,dev,prod}.txt   # prod = -r base.txt (no extras); base ~30 lines; dev = base + 11 tools (now incl. pytest-asyncio; ⚠ still no pytest-timeout)
+├── .github/workflows/ci.yml       # NEW (Sprint 0) — first CI: ruff(non-blk)+migrate-check+theme-check+pytest on PG16+Redis7
 ├── requirements.txt               # ROOT — byte-identical duplicate of requirements/base.txt
 ├── ecosystem.config.js            # PM2 prod: 5 processes
 ├── ecosystem.dev.config.js        # PM2 dev: 4 processes (no SMTP, watch-mode reloads)
-├── Makefile                       # 33 targets (logs-django declared in .PHONY but no rule body — calling it errors)
-├── docs/                          # README + architecture.md (stale 2026-02-06) + reference/{4 docs} (regen 2026-05-22 @ ea87bb2 — all stale vs Inbox Hub) + ui-consistency-audit.md
-├── tmp/emails/                    # Dev email capture (filebased EmailBackend, gitignored)
-├── logs/                          # PM2 log files — ~74MB (gitignored; celery-worker-error 40M, celery-beat-error 15M, django 14M, django-error 5.7M, no rotation)
+├── Makefile                       # 33 targets (logs-django in .PHONY but no rule body — calling it errors)
+├── docs/                          # README + architecture.md (v1.0 2026-02-06 STALE) + reference/{4 docs, STALE pre-Inbox-Hub} + ui-consistency-audit.md (stale) + **qa-audit-2026-06-14/ (11 files — the audit driving this branch)**
+├── tmp/emails/                    # Dev email capture (filebased EmailBackend, gitignored — 20 captures)
+├── logs/                          # PM2 log files — ~95MB (gitignored; no rotation)
 ├── media/                         # User-uploaded: tenants/{id}/… and inbound_emails/{id}/…
 ├── scripts/                       # check_theme.py + .theme_baseline.json (147 hex literals across 11 files)
 ├── db.sqlite3                     # Dev database (~12MB, gitignored)
 ├── celerybeat-schedule            # Celery Beat shelve file (built-in scheduler — django-celery-beat removed for Django 6 compat)
-└── .env                           # 26 keys (.env.example covers only 16; 23 read-but-undocumented vars)
+└── .env                           # ~26 keys (.env.example covers 16; ~22 read-but-undocumented vars)
 ```
+
+## Sprint 0 Hardening (UNCOMMITTED — the reason branch `qa/sprint-0-critical-fixes` exists)
+
+A 2026-06-14 end-to-end QA/security audit (`docs/qa-audit-2026-06-14/`, readiness **38/100**) found **6 confirmed Criticals + no CI**. This branch implements all 8 Sprint-0 launch-blockers from `06-REMEDIATION-PLAN.md`. **All 8 verified present 2026-06-15; suite GREEN.** Per-fix detail (the inline "⚠ broken" notes elsewhere in this doc are superseded here):
+
+1. **DEBUG split-default → fixed (default flip).** `main/settings/__init__.py:12` flipped `env.bool("DJANGO_DEBUG", default=True)` → **`default=False`**, so an UNSET `DJANGO_DEBUG` now fails safe to `prod.py` (`DEBUG=False`, real `ALLOWED_HOSTS`) instead of silently loading `dev.py`. ⚠ **Caveat:** default-flip ONLY — no runtime "DEBUG must be False under https" assertion, no dedicated settings-default test; CI sets `DJANGO_DEBUG="True"` so tests still run under dev.
+
+2. **Messaging cross-tenant enumeration/injection → fixed (4 sites).** User resolution is now membership-scoped: `mentions.py:73` (`notify_mentions`), `consumers.py:317` (`ChatConsumer._create_message`), `views.py:398` (`MessageViewSet`) all filter `memberships__tenant=tenant, memberships__is_active=True`. `serializers.py::ConversationCreateSerializer.validate` adds a `TenantMembership.exists()` check for DM creation (`"User is not a member of this tenant."`) and validates every supplied `user_ids` member for manual-group creation (`"One or more users are not members of this tenant."`). Read-side (mentions, no notification leak) **and** write-side (DM/group) closed. Tests: `tests/test_messaging_tenant_isolation.py` (5).
+
+3. **Attachment authz → fixed (API-level).** New `apps/attachments/access.py::can_access_target(user, tenant, content_type, object_id)` — single source of truth. Admin/Manager (`effective_role` ≤20) bypass; non-members → sentinel level 999. Per-type: **tickets.ticket** → `tickets.access.agent_can_see_ticket`; **comments.comment** → internal+level>30 denied, else if parent is a Ticket delegate to `agent_can_see_ticket`; **messaging.message** → must be a `ConversationParticipant`; **all other tenant-scoped targets fall through to allow** (tenant isolation still applies). `views.py`: new `CanAccessAttachmentObject(BasePermission)` (object-level on retrieve/destroy/download), a new authed **`@action download/`** (streams via `FileResponse(as_attachment=True)`), and an explicit `can_access_target` check in `create()` (upload has no object yet → can't use `has_object_permission`). ⚠ **Caveat:** raw `/media/` URLs remain **unauthenticated** — only the DRF endpoints are gated (the `download` docstring itself flags X-Accel-Redirect/X-Sendfile as the prod follow-up). Tests: `tests/test_attachment_authz.py`.
+
+4. **Billing VoIP entitlement → fixed (seeder + backfill).** `seed_plans.py` now sets per plan: Free `has_voip=False / has_call_recording=False / max_calls_per_month=0`; **Pro** `True / True / 1000`; **Enterprise** `True / True / None` (unlimited). New data migration **`billing/0003_backfill_voip_plan_flags`** backfills existing `Plan` rows by tier via `.update()` (forward-only, noop reverse). `check_call_limit` now permits calls on Pro/Enterprise. **This invalidates the old "VoIP denies everyone" pitfall.**
+
+5. **Billing re-subscribe IntegrityError → fixed (repoint OneToOne).** `webhooks.py::_sync_subscription_from_stripe:135-159` — when a NEW `stripe_subscription_id` arrives for a tenant that already has a `Subscription` row (re-subscribe after cancel; `Subscription.tenant` is OneToOne), it now **repoints that row** (copies `defaults`, sets the new sub-id, `.save()`, returns early) instead of INSERTing a duplicate → no IntegrityError. Keyed on `tenant`, not on a `.deleted` event. Tests: `tests/test_billing_voip_and_webhook.py`.
+
+6. **IMAP cross-tenant dedup → fixed (per-tenant).** `imap_poller.py::_ingest_one` removed the global `InboundEmail.objects.filter(message_id=…).exists()` and now resolves the tenant first (`resolve_tenant_from_address(recipient)`), dedups on **`filter(tenant=tenant, message_id=…)`**, and stamps `tenant=tenant` at `create()`. Two tenants can receive the same Message-ID. ⚠ Unresolvable recipient → falls back to `tenant=None` scope (still created). Tests: `tests/test_imap_poller_safety.py::TestCrossTenantDedup`.
+
+7. **CI → added.** `.github/workflows/ci.yml`: single `test` job, `ubuntu-latest`, Python 3.12, on push-to-`main` + all PRs (concurrency-cancel). Services **postgres:16** + **redis:7** (health-checked) — exercises PG-only paths (KB FTS, `SELECT … FOR UPDATE`). Steps: ruff (**`continue-on-error: true`** — non-blocking until lint debt cleared), `makemigrations --check` (blocking), `scripts/check_theme.py` (blocking), `pytest -q` (blocking). Inlines `make check` rather than calling it.
+
+8. **Stale tests re-greened.** Outbound-email tests (`test_email_outbound.py`, `test_outbound_email.py`) re-pointed `@example.com` → **`@clientmail.com`** (outbound now skips RFC-2606 reserved domains). `test_badges.py` 14.05/14.09 rewritten comments→**unread-chat** (matching the already-shipped `nav/views.py` badge repurpose). `test_comment_visibility.py` now also clears `assignee` (the tightened agent-visibility rule needs the ticket unassigned, not just self-created).
+
+> **Net:** the 6 audit Criticals + CI gap are closed (with the 2 caveats above). The audit's **Sprint 1–3 backlog** (role/effective_role drift, `clean()` validators, LiveBus internal-comment leak, Hub `first_responded_at`, custom-fields Company sync, dead code, a11y, perf N+1s, log rotation, `kanzan_voip` worker) is **NOT** in this branch.
 
 ## Multi-Tenancy Architecture
 
 ### Three-Layer Isolation
 
-1. **TenantMiddleware** (`apps/tenants/middleware.py`): Resolves tenant from subdomain (`{slug}.localhost` / `{slug}.{BASE_DOMAIN}`), or `TenantSettings.domain` for custom domains. Sets `request.tenant` and binds context. **`EXEMPT_PATH_PREFIXES`** (16 entries): `/static/`, `/media/`, `/api/v1/accounts/auth/`, `/api/v1/billing/plans/`, `/api/v1/billing/webhook/`, `/api/v1/tickets/csat/`, `/api/docs/`, `/api/schema/`, `/accounts/`, `/inbound/email/`, `/login/`, `/register/`, `/logout/`, `/verify-email/`, `/verify-email-sent/`, `/setup-company/`, `/workspaces/`. **`/admin/` is NOT in the exempt list** — it has a dedicated branch ([middleware.py:119-144](apps/tenants/middleware.py#L119)) that resolves the tenant from the subdomain when present, so a superuser on `straat-x.localhost:8001/admin/` gets `request.tenant=<Straat-X>` and `TenantScopedModel.save()` succeeds in admin creates. Bare `localhost:8001/admin/` still has `request.tenant=None`. **`/auth/handoff/` intentionally NOT exempt** — it must resolve the current tenant to verify membership.
+1. **TenantMiddleware** (`apps/tenants/middleware.py`): Resolves tenant from subdomain (`{slug}.localhost` / `{slug}.{BASE_DOMAIN}`), or `TenantSettings.domain` for custom domains. `_extract_slug` rejects nested sub-subdomains on `{slug}.{BASE_DOMAIN}`. Sets `request.tenant` and binds context. **`EXEMPT_PATH_PREFIXES` (17 entries):** `/static/`, `/media/`, `/api/v1/accounts/auth/`, `/api/v1/billing/plans/`, `/api/v1/billing/webhook/`, `/api/v1/tickets/csat/`, `/api/docs/`, `/api/schema/`, `/accounts/`, `/inbound/email/` (⚠ dead — no URLConf maps to it), `/login/`, `/register/`, `/logout/`, `/verify-email/`, `/verify-email-sent/`, `/setup-company/`, `/workspaces/`. **`/admin/` is NOT exempt** — a dedicated branch resolves the tenant from subdomain when present, sets context **regardless (even to None)**, and defers access control to `SuperuserOnlyAdminSite`. A real-host lookup that resolves to no tenant → `JsonResponse(404)` (JSON even for HTML requests). **`/auth/handoff/` intentionally NOT exempt** — it must resolve the tenant to verify membership.
 
-2. **TenantAwareManager** (`main/managers.py`): Default `objects` manager auto-filters by `get_current_tenant()`. Returns **empty queryset** when no tenant in context. Use `Model.unscoped` for cross-tenant queries.
+2. **TenantAwareManager** (`main/managers.py`): Default `objects` manager auto-filters by `get_current_tenant()`. Returns an **empty queryset** (`.none()`) when no tenant in context (fail-closed). Use `Model.unscoped` for cross-tenant queries. `SoftDeleteTenantManager` adds an `is_deleted=False` filter on top.
 
-3. **TenantScopedModel** (`main/models.py`): Abstract base. UUID PK + Timestamped + `tenant` FK (CASCADE, editable=False, db_index=True). `objects = TenantAwareManager()`, `unscoped = models.Manager()`. Overridden `save()` auto-assigns `tenant` from context; raises `ValueError` if no tenant is bound and none provided. `SoftDeleteTenantManager` adds `is_deleted=False` filter on top.
+3. **TenantScopedModel** (`main/models.py`): Abstract base. UUID PK + Timestamped + `tenant` FK (CASCADE, `editable=False`, db_index=True). `objects = TenantAwareManager()`, `unscoped = models.Manager()`. Overridden `save()` auto-assigns `tenant` from context; **raises `ValueError`** if no tenant is bound and none provided.
 
 ### Async-Safe Tenant Context (`main/context.py`)
 
 ```python
-set_current_tenant(tenant); get_current_tenant(); clear_current_tenant()
-with tenant_context(tenant): ...  # context-manager form (preferred for tasks)
+set_current_tenant(tenant); get_current_tenant(); clear_current_tenant()  # clear hard-sets None
+with tenant_context(tenant): ...  # snapshots+restores previous (nesting-safe — preferred for tasks/consumers)
 ```
+A single `contextvars.ContextVar("current_tenant", default=None)` — safe across asyncio tasks and Channels consumers. **`clear_current_tenant()` is NOT nesting-safe** (hard-sets None regardless of prior); middleware uses it in `finally` (fine for a per-request lifecycle). `WebSocketTenantMiddleware` resolves tenant from the Host header, sets `scope["tenant"]`, binds context, clears in `finally`.
 
-Uses `contextvars.ContextVar` named `"current_tenant"` — safe across asyncio tasks and Channels consumers.
+### Admin: jazzmin theme + Superuser Lock + Tenant-Filtered Mixin (`main/admin.py`)
 
-### Superuser Admin Lock + Tenant-Filtered Mixin (`main/admin.py`, 106 lines)
+- **`daphne`/`jazzmin` are INSTALLED_APPS entries 1–2.** Admin is a **jazzmin "darkly"-themed** site (`JAZZMIN_SETTINGS` defines `search_model = ["accounts.User","tenants.Tenant"]` + icons for ~30 models). jazzmin only re-skins templates.
+- **`SuperuserOnlyAdminSite`** reassigns `admin.site.__class__` at import time (a global monkeypatch); `has_permission(request)` = `is_active AND is_superuser`. Non-superusers get 403 on `/admin/` regardless of `is_staff`. jazzmin does NOT override `has_permission`, so the lock holds.
+- **`TenantFilteredAdmin` mixin** — drop-in for any `ModelAdmin` of a `TenantScopedModel`: `get_queryset` uses `model.unscoped.all()` then filters by `request.tenant`; `get_form` injects a `tenant = forms.ModelChoiceField` (because the model field is `editable=False`) with a guard for Django's recursive `_get_form_for_get_fields` discovery pass; `save_model` backfills `obj.tenant`. **`main/admin.py` registers NO models** — it only exports the mixin and swaps the site class; registration happens in each app's own `admin.py`.
 
-- **`SuperuserOnlyAdminSite`** replaces `admin.site.__class__`; non-superusers get 403 on `/admin/` regardless of `is_staff`. Override of `has_permission(request)`: `request.user.is_active and request.user.is_superuser`.
-- **`TenantFilteredAdmin` mixin** — drop-in for any `ModelAdmin` of a `TenantScopedModel`. Three responsibilities: `get_queryset` uses `model.unscoped.all()` then filters by `request.tenant`; `get_form` injects a `tenant = forms.ModelChoiceField` into the add/change form (because `TenantScopedModel.tenant` is `editable=False`); `save_model` backfills `obj.tenant` from form pick or `request.tenant` so the no-context guard in `TenantScopedModel.save()` doesn't trip. Guards against Django's recursive `_get_form_for_get_fields` discovery pass.
+### Palette (`apps/tenants/colors.py::derive_palette`)
 
-`main/admin.py` does NOT register any models — exports the mixin and replaces the admin site class.
+`derive_palette(primary, accent)` returns a ~21-key dict of CSS custom-property values (50–900 lightness scale via `colorsys` HLS, hover/active/dark/light/subtle/ring/rgb + WCAG-picked `text_on_primary`/`text_on_accent` = white `#FFFFFF` vs near-black `#0B0B0B`; `logger.warning` if primary contrast < AA 4.5). Defaults `#C1121F`/`#E11D2D` (Crimson Black) on bad/empty hex. Model defaults are `#6366F1`/`#F59E0B`. Wired via `tenants/context_processors.py` → `tenant_palette` → base.html `:root` block.
 
-## Live Broadcast Layer (committed)
+## Settings Split, Redis, Ports
+
+- `main/settings/__init__.py`: `from .base import *`, then `if env.bool("DJANGO_DEBUG", default=False)` → `from .dev import *` (try/except ImportError) **else** `from .prod import *`. **✅ Split-default footgun FIXED (Sprint 0):** `__init__` now defaults `DJANGO_DEBUG=False`, matching `base.py` — an unset var fails safe to `prod.py`. ⚠ Still no startup assertion that `DEBUG is False` under https; CI sets `DJANGO_DEBUG="True"` explicitly to keep tests on dev.py.
+- **Redis:** db3 cache + `cached_db` sessions (`KEY_PREFIX="kanzan"`); db4 Celery broker (result backend = `django-db`, not Redis); db5 Channels (`prefix="kanzan:channels"`).
+- **Sessions** are `cached_db`, **host-only cookies** (no `Domain` — Chrome refuses `Domain=.localhost`); cross-host auth uses signed handoff tokens via `/auth/handoff/`.
+- DRF auth order **JWT → APIKey → Session**; SimpleJWT access 15min/refresh 7d (rotate+blacklist, HS256, signing key `JWT_SECRET_KEY` → falls back to `SECRET_KEY`). Allauth `ACCOUNT_LOGIN_METHODS={"email"}`; `django.contrib.sites` NOT installed. File upload caps 25MB. `django.contrib.postgres` is installed (for KB FTS).
+
+## Live Broadcast Layer
 
 Unified pub/sub real-time layer: a per-tenant WebSocket fans server-side mutations to a client-side `LiveBus`. Coexists with per-domain consumers (chat, notifications, ticket-feed, presence, voip).
 
 ### Backend
 
-- **`apps/tenants/live.py::broadcast_live_event(tenant, event, payload, *, immediate=False)`**. `tenant` may be a model instance OR a raw pk. Group: `live_tenant_{pk}`. Wire shape: `{type:"live_event", event:"<domain>.<verb>", payload:{...}, ts:ISO8601}`. Defers via `transaction.on_commit` (unless `immediate=True`); swallows `_send` exceptions (best-effort).
-- **`apps/tenants/consumers.py::LiveEventConsumer`** (`GROUP_PREFIX="live_tenant"`). Anonymous → close 4001. No tenant → close 4001. Non-member → close 4003 (membership verified even for valid JWTs). **Phase 1B**: on `connect` it stamps agent presence (`is_connect=True`), and on each inbound `{action:"ping"}` heartbeat it re-stamps presence (`is_connect=False`) and replies `{type:"live.pong"}`. Presence is intentionally NOT cleared on `disconnect` (avoids tab-refresh flapping) — the reaper task ages stale sessions out.
+- **`apps/tenants/live.py::broadcast_live_event(tenant, event, payload=None, *, immediate=False)`** — `tenant` may be a model instance OR a raw pk. Group: `live_tenant_{pk}`. Wire shape: `{type:"live_event", event:"<domain>.<verb>", payload:{...}, ts:ISO8601}`. Defers via `transaction.on_commit` (unless `immediate=True`); swallows `_send` exceptions (best-effort, logs).
+- **`apps/tenants/consumers.py::LiveEventConsumer`** (group `live_tenant_{tenant_id}`). Anonymous → close **4001**; no tenant → close **4001**; non-member → close **4003** (membership verified even for valid JWTs). On `connect` stamps agent presence (`is_connect=True`); on each inbound `{action:"ping"}` re-stamps (`is_connect=False`) and replies `{type:"live.pong"}`. Presence is intentionally NOT cleared on `disconnect` (avoids tab-refresh flapping) — the reaper ages stale sessions out. The `live_event` handler re-shapes to `{type:<event name>, payload, ts}` (the wire `type` is the dotted event name, NOT `"live_event"`).
 - **`apps/tenants/routing.py`** → `re_path(r"ws/live/$", LiveEventConsumer.as_asgi())`.
 
-### Signal Emitters
+### Signal Emitters (5 apps via signals.py + inbox_hub imperative + presence + the new reminder.due task)
 
-| App | Receivers | Verbs |
+| App / source | Trigger | Verbs |
 |-----|-----------|-------|
-| `accounts` | `TenantMembership.post_save/delete`, `Profile.post_save`, `User.post_save` (fans across every active membership; emits `avatar` URL in payload) | `membership.created/updated/deleted`, `profile.created/updated`, `user.updated` |
-| `comments` | `Comment.post_save/delete` | `comment.created/updated/deleted` (payload `content_type="app_label.model"`, `object_id`) |
-| `contacts` | `Contact/Company/Account/ContactGroup × post_save/delete` (ContactEvent intentionally skipped) | `contact.*`, `company.*`, `account.*`, `contact_group.*` |
-| `crm` | `Activity/Reminder × post_save/delete`. Reminder verb resolved by state | `activity.*`, `reminder.created/updated/completed/cancelled/deleted` |
-| `newsfeed` | `NewsPost.post_save/delete`, `NewsPostReaction.post_save/delete` | `newsfeed.created/updated/deleted`, `newsfeed.reacted` |
-| `inbox_hub` (services/routing/assignment-emitted, NOT signal-emitted) | `park_email_in_hub`, routing/assignment/transition/escalate/reassign/note/convert/dismiss service fns | `hub_email.created/transitioned/assigned/reassigned/escalated/converted_to_ticket/dismissed` (all 7 now emitted) |
+| `accounts` (`signals.py`) | `TenantMembership.post_save/delete`, `Profile.post_save`, `User.post_save` (fans across every active membership; emits `avatar` URL) | `membership.created/updated/deleted`, `profile.created/updated`, `user.updated` |
+| `comments` (`signals.py`) | `Comment.post_save/delete` | `comment.created/updated/deleted` (⚠ **broadcasts `is_internal` bodies too** — clients expected to filter; latent info-leak) |
+| `contacts` (`signals.py`) | `Contact/Company/Account/ContactGroup × post_save/delete` (ContactEvent intentionally skipped — and `last_activity_at` is written via `.update()` so it fires **no** signal either) | `contact.*`, `company.*`, `account.*`, `contact_group.*` |
+| `crm` (`signals.py`) | `Activity/Reminder × post_save/delete`. Reminder verb resolved by state (no `rescheduled` verb → reschedule emits `updated`) | `activity.*`, `reminder.created/updated/completed/cancelled/deleted` |
+| `newsfeed` (`signals.py`) | `NewsPost.post_save/delete`, `NewsPostReaction.post_save/delete` (compact payload, no body) | `newsfeed.created/updated/deleted`, `newsfeed.reacted` (`added: bool` — add AND remove both emit) |
+| `inbox_hub` (imperative — service/routing/assignment) | park/route/assign/transition/escalate/reassign/convert/dismiss | `hub_email.created/transitioned/assigned/reassigned/escalated/converted_to_ticket/dismissed` (all 7 emitted) |
 | `agents`/`tenants` (presence) | `presence.handle_live_heartbeat`, `reap_stale_presence` task | `agent.presence` (broadcast `immediate=True`) |
+| `crm` **task** (Feature A) | `fire_due_reminders` per due reminder | **`reminder.due`** (imperative, tenant-wide, payload incl. `recipient_id`) |
 
-**Tickets do NOT server-side broadcast to `live_tenant_*`** — `apps/tickets/services.py::broadcast_ticket_event` publishes only to `ticket_feed_{tenant_id}`. The bridge to LiveBus is **client-side** in `static/js/ticket-feed.js`.
-
-App configs (`apps/{accounts,comments,contacts,crm,newsfeed}/apps.py`) import their `signals` module in `ready()`. **`apps/inbox_hub/apps.py` has NO `ready()`** — no `signals.py` exists; the Hub emits LiveBus events imperatively from its service/routing/assignment functions.
+App configs (`apps/{accounts,comments,contacts,crm,newsfeed}/apps.py`) import their `signals` module in `ready()`. **`apps/inbox_hub/apps.py` has NO `ready()`**; no `signals.py` exists. **Tickets do NOT server-side broadcast to `live_tenant_*`** — `tickets/services.py::broadcast_ticket_event` publishes only to `ticket_feed_{tenant_id}`; the LiveBus bridge is **client-side** in `static/js/ticket-feed.js`.
 
 ### Frontend
 
-- **`static/js/live-bus.js`** (175 LOC) — global `window.LiveBus`. API: `on/onMany/publish/debounce/rafBatch/isConnected/setChannelState`. Wildcard `"*"` subscriber gets all events. Cross-tab fan-out via optional `BroadcastChannel('kanzan-live')`. Handler errors caught + logged.
-- **`static/js/live-connection.js`** (206 LOC) — global `window.LiveConnection`. Single shared `wss?://host/ws/live/`. Skips pre-auth pages and pages without a Django `sessionid` cookie. Exponential backoff 1s→30s with ±20% jitter, infinite retries. **25s heartbeat `{action:"ping"}`** with 8s pong timeout — this ping is also what drives server-side agent-presence stamping. Reconnect → publishes `live.reconnected`. Visibility-hook: regaining focus while closed forces immediate reconnect.
-- **Wiring in `templates/base.html`** — load order: Bootstrap → DOMPurify → live-bus.js (always) → api.js → app.js → command-palette.js → custom-select.js → conditional on `tenant and user.is_authenticated`: live-connection.js → agent-availability.js → notes-panel.js → keyboard-shortcuts.js → ticket-feed.js → (if `voip_enabled`) SIP.js CDN + voip-softphone.js. **`inbox-hub.js` is page-specific** — loaded only by `templates/pages/inbox_hub/list.html` via `{% block extra_js %}`.
-- **Live-status pill in navbar** — `#liveStatusPill` surfaced by `app.js::initLiveStatusPill()` when any tracked channel (`live`, `notifications`, `ticket_feed`) was previously open and is now reconnecting/closed.
-- **`app.js::initSidebarUserLive`**: subscribes to `user.updated`, filters by `data-current-user-id` on `.sidebar-user`. Sets `style.backgroundImage = 'url("…")'` + `.has-image` class when `payload.avatar` is present (with embedded-quote escaping). Falls back to text initial otherwise.
-- **`agent-availability.js::subscribePresence()`** (Phase 1B): **subscribes** to server-pushed `agent.presence` (filtered to current user) and reflects builtin-status changes in the navbar pill without clobbering a chosen custom status. It does NOT send heartbeats — that's `live-connection.js`'s 25s ping.
-- **`ticket-feed.js`** continues to own `ws/tickets/feed/` and `LiveBus.publish('ticket.<verb>', …)` for sidebar/dashboard subscribers. Banner click → `ticket.show_pending {count}`. **Tenant-wide `ticket_assigned` Toast was removed**.
+- **`static/js/live-bus.js`** (175 LOC) — global `window.LiveBus`. API: `on/onMany/publish/debounce/rafBatch/isConnected/setChannelState`. Wildcard `"*"` subscriber gets all. Cross-tab fan-out via `BroadcastChannel('kanzan-live')` (`fromTab` flag). Handler errors caught + logged.
+- **`static/js/live-connection.js`** (206 LOC) — global `window.LiveConnection`. Single shared `wss?://host/ws/live/`. Skips pre-auth pages and pages without a `sessionid` cookie. Exponential backoff 1s→30s ±20% jitter, **infinite** retries. **25s heartbeat `{action:"ping"}`** with 8s pong timeout — this ping drives server-side presence stamping. ⚠ Code comments saying the server "doesn't speak heartbeat / ignores receive_json" are **stale** — it does stamp presence (harmless; any inbound counts as a pong).
+- **Wiring (`templates/base.html`)** — always: Bootstrap → DOMPurify → live-bus.js → api.js → app.js → command-palette.js → custom-select.js; then conditional on `tenant and user.is_authenticated`: live-connection.js → agent-availability.js → notes-panel.js → keyboard-shortcuts.js → ticket-feed.js → (if `voip_enabled`) SIP.js CDN + voip-softphone.js. **`inbox-hub.js` (`?v=10`) and `rich-editor.js` are page-specific** via `{% block extra_js %}`. `theme.js` loads synchronously in `<head>` (FOUC guard). **Only `inbox-hub.js` is versioned** — the other 13 are unversioned (so an uncommitted `app.js` change can serve stale without a hard refresh).
 
-### Event Naming
+### Channel-Layer Groups & Close Codes
 
-`<domain>.<verb>` — domains: `user`, `membership`, `profile`, `comment`, `contact`, `company`, `account`, `contact_group`, `activity`, `reminder`, `newsfeed`, `ticket` (client-side normalisation), `notification`, `live`, `livebus`, **`hub_email`** (created/assigned/reassigned/transitioned/escalated/converted_to_ticket/dismissed — **all 7 now emitted server-side**), **`agent.presence`** (NEW Phase 1B; immediate broadcast on status change).
+- `live_tenant_{tenant_id}` — live events; `notifications_{user_id}`; `chat_{conversation_id}`; `ticket_feed_{tenant_id}`; `ticket_{ticket_id}_presence`; `voip_{tenant_id}`.
+- `1000` clean close; `4001` anon/no-tenant (chat, presence, list, live); `4002` invalid conversation UUID (chat); `4003` non-member (presence/list/live); `4004` conversation tenant ≠ Host (chat). **`NotificationConsumer` and `CallEventConsumer` use a bare `close()` (no code)** for rejections — the asymmetry vs the explicit-code consumers.
 
-### Frontend subscribers (where each event drives UI)
+## Feature A — Reminder-Due Popup (UNCOMMITTED working-tree feature)
 
-| Page | Events | Handler |
-|------|--------|---------|
-| `dashboard.html` | `ticket.event`, `notification.received`, `newsfeed.*`, `live.reconnected` | Debounced 600ms refresh of stats + recent activity |
-| `tickets/list.html` | `ticket.created`, `ticket.updated/.assigned/.closed/.deleted`, `ticket.show_pending` | Debounced reload (page 1 only) |
-| `tickets/detail.html` | `comment.*` (filtered), `ticket.updated/.assigned/.closed`, `ticket.deleted`, `live.reconnected` | Refetch ticket/comments/activity |
-| `contacts/list.html` | `contact.*`, `company.*`, `account.*`, `contact_group.*`, `live.reconnected` | Debounced 500ms list reload |
-| `reminders/list.html` | `reminder.created/updated/completed/cancelled/deleted`, `live.reconnected` | Debounced 500ms refetch |
-| `inbox_hub/list.html` | 7 `hub_email.*` events, `live.reconnected` | Debounced 400ms list+counts refresh (detail-pane refresh was removed — triaged mail leaves the backlog) |
-| `app.js` (global) | `user.updated`, `livebus.channel_state`, 7 `hub_email.*` events, `agent.presence` | Sidebar live updates; live-status pill; **inbox_hub badge refetch (debounced 500ms)**; navbar status pill |
+A "can't-miss" alert when a reminder comes due: a centered modal + Web-Audio chime + desktop/OS notification, delivered over the existing `/ws/notifications/` rail so it works on every authenticated page. Supersedes the "reminders never auto-fire" gap **for due alerts only** (overdue escalation still dead).
 
-All page subscribers use a `document.visibilityState !== "hidden"` guard + `visibilitychange` listener.
+### Data model + migration
+- **`Reminder.due_notified_at`** (`apps/crm/models.py`, `DateTimeField(null=True, blank=True)`) — a **watermark, not a boolean**. Help-text documents the re-arm contract. **Not indexed** (the existing `reminder_overdue_idx` partially covers the hot filter; the `F()` predicate is a sequential filter within an already-narrow set).
+- **mig `crm/0005_reminder_due_notified_at`** — `AddField` + `RunPython suppress_existing_due_reminders` (reverse=noop): backfills `due_notified_at = F("scheduled_at")` for reminders **already past-due AND active** at migrate time, so the first 30s tick does NOT pop the entire historical backlog (equal stamp counts as "handled"; future reschedules still re-arm). Correctly uses `Reminder.objects` (NOT `.unscoped` — `apps.get_model` returns a plain historical Manager with no `unscoped`).
 
-### Channel-Layer Groups
+### Notification type
+- **`NotificationType.REMINDER_DUE`** (`apps/notifications/models.py`) → NotificationType now **21 members** (mig `notifications/0006` AlterFields both `Notification.type` and `NotificationPreference.notification_type`).
+- Added to **`INTERNAL_ONLY_TYPES`** frozenset (`notifications/services.py`) → **in-app/WS only, never emailed** (now 5 members: TICKET_OVERDUE, TICKET_FOLLOWUP_OVERDUE, REMINDER_DUE, REMINDER_OVERDUE, AGENT_STATUS_CHANGE). **No new creator fn** — reuses the generic `send_notification(...)`.
 
-- `live_tenant_{tenant_id}` — primary live events (newsfeed, CRM, memberships, contacts, comments, **hub_email**, **agent.presence**)
-- `notifications_{user_id}` — in-app notifications
-- `chat_{conversation_id}` — chat messages (with attachments)
-- `ticket_feed_{tenant_id}` — ticket lifecycle (client republishes into LiveBus)
-- `ticket_{ticket_id}_presence` — agent presence on a ticket
-- `voip_{tenant_id}` — call state
+### The task — `apps/crm/tasks.py::fire_due_reminders` (Beat `fire-due-reminders` @ 30s → kanzan_default)
+- `@shared_task(bind, max_retries=1, acks_late)`. Iterates `Tenant.objects.filter(is_active=True)` (per-tenant + per-row try/except isolation), `Reminder.unscoped`.
+- **Fire condition:** `scheduled_at <= now AND completed_at IS NULL AND cancelled_at IS NULL AND (due_notified_at IS NULL OR due_notified_at < F("scheduled_at"))`. The `< scheduled_at` half is the **re-arm guard** — a forward reschedule (or raw PATCH of `scheduled_at`) leaves the old stamp behind → auto-re-arms with no flag reset.
+- **Recipient** = `assigned_to or created_by` (`created_by` is PROTECT → always a recipient — distinct from the dead `check_overdue_reminders` which skips unassigned).
+- **Claim-first ordering:** stamps `Reminder.unscoped.filter(pk=).update(due_notified_at=now)` **BEFORE** `send_notification`. The task runs outside an atomic block (synchronous WS push), so claim-first means a downstream failure costs at most one *missed* alert, never a duplicate loop. `.update()` (not `.save()`) avoids re-tripping the Reminder `post_save` signal. ⚠ No `select_for_update` → a theoretical SELECT-then-UPDATE race if two workers overlap (single-beat avoids it).
+- Emits `send_notification(REMINDER_DUE, data={reminder_id, contact_ids, priority, scheduled_at, url:"/reminders/"})` over `notifications_{recipient_id}` **AND** a separate tenant-wide `broadcast_live_event(tenant, "reminder.due", {...recipient_id...})` (the latter only drives the reminders-list refetch, not the popup).
 
-### Close codes
+### Frontend
+- **`static/js/app.js::ReminderAlerts`** IIFE (push-driven, NOT a poller): in `initNotifications`, `if (data.type === 'reminder_due') ReminderAlerts.show(data); else showFlyout(data)`. `show()`: arms audio + `Notification.requestPermission` on first gesture; plays a **Web-Audio two-tone chime** (880/1174.66 Hz, no asset); fires a desktop `Notification` (`requireInteraction:true`, `tag:reminder-<id>` OS-dedup, click → `/reminders/`); queues + serializes a centered `#reminderDueModal` (one at a time, drains 250ms after `hidden.bs.modal`); **degrades to a sticky 8s Toast** on pre-auth pages. New `NOTIF_TYPE_CONFIG` rows for `reminder_due` + `reminder_overdue`. ⚠ `reminder_due` does NOT bump the sidebar Reminders badge (`NOTIF_TO_BADGE` maps only `reminder_overdue`).
+- **`templates/base.html`** `#reminderDueModal` — `data-bs-backdrop="static"` (must be acknowledged via a button), inside the authed block. `#reminderDueDismiss` id is markup-only (dismiss works via `data-bs-dismiss`).
+- **`static/css/custom-v15.css`** `.reminder-due-*` block (+62 LOC, token-only zero hex → theme-check green): pulsing icon (`@keyframes reminderDuePulse`), `prefers-reduced-motion` guard.
+- **`templates/pages/reminders/list.html`** (+3 LOC) — adds `'reminder.due'` to the LiveBus refetch subscription (debounced 500ms). ⚠ Does NOT filter by `recipient_id` (harmless — refetch is server-scoped).
+- **Tests** (`tests/test_recalls.py::TestFireDueReminders`, 9): fires once, future excluded, completed/cancelled excluded, creator fallback, re-arm on move-forward, suppressed-when-already-notified, internal-only, **claim-first-prevents-refire-on-delivery-failure**.
 
-| Code | Where | Reason |
-|------|-------|--------|
-| `1000` | `live-connection.js` | Manual clean close on `beforeunload` |
-| `4001` | `ChatConsumer`, `TicketPresenceConsumer`, `TicketListConsumer`, `LiveEventConsumer` | Anonymous user or missing tenant |
-| `4002` | `ChatConsumer` | Invalid `conversation_id` UUID |
-| `4003` | presence/list/live consumers | Non-tenant-member |
-| `4004` | `ChatConsumer` | Conversation belongs to different tenant than Host header |
+## Feature B — Create Ticket From Email With Field Overrides (UNCOMMITTED working-tree feature)
 
-## Messaging Attachments (committed)
+Upgrades email→ticket conversion from a one-click POST to a full **override form** so an agent can craft a *proper* ticket (refined subject, written description, priority/queue/status/assignee/category/tags/due_date) instead of accepting the raw email-derived defaults. **The 2026-06-15→16 work CLOSED the old Hub-cockpit reachability gap** — both surfaces now share one validator and carry the full 9-field override set.
 
-- **`MessageCreateSerializer.body`** is `CharField(allow_blank=True, required=False, default="")`. Attachment-only message valid serializer-side; the frontend must block fully-empty send.
-- **`MessageSerializer.attachments`** is a `SerializerMethodField`. Uses `_prefetched_attachments` if set, else GenericFK lookup.
-- **`MessageViewSet.broadcast`** — `POST /api/v1/messaging/conversations/{conv}/messages/{msg}/broadcast/`. **Author-only.** Re-emits the message over `chat_{conv_id}` group after client links attachments. `_broadcast_message` is a `@classmethod` that calls `cls._build_attachment_payload(message)` and includes `attachments` + `author_name` (fallback email if name blank).
-- **`ChatConsumer._create_message`** includes `"attachments": []` in inbound-sent payloads (forward-compat).
-- **`templates/pages/messaging/chat.html`** adds a pending-attachments tray (`#pendingAttachments`, `#messageAttachInput`), `buildAttachmentBlock()` helper.
+- **`apps/inbound_email/ticket_overrides.py::build_ticket_overrides(data, tenant)` [NEW — single source of truth].** Extracted from the old private `api_views._build_ticket_overrides`. Used by **BOTH** email→ticket surfaces so they can never drift. Validates → raises **DRF 400 (not 500)** on bad input: `subject` ≤255, `description` ≤20000 (Ticket.description is an unbounded TextField and `save()` does no `full_clean()`, so it's bounded manually), `priority` ∈ `Ticket.Priority.choices` (case-insensitive), `category` ≤100 (CharField, not a FK), `queue`/`status` tenant-scoped PK lookup (malformed UUID → clean 400), **`status` rejects `is_closed`** (pre_save won't stamp resolved/closed_at on creation), `assignee` must be an active `TenantMembership`, `due_date` parsed + made-aware (non-string → 400), `tags` list each ≤50. Blank/absent fields are **omitted** so email-derived defaults survive.
+- **`apps/inbound_email/services.py::_create_ticket_from_email(..., *, overrides=None)`** — overrides folded into the **initial `Ticket(**kwargs)`** (NOT a second `save()`), so `initialize_sla` runs against the **final** priority and lifecycle/assignment bookkeeping stay correct. Preserves the `"email"` provenance tag while appending agent tags (deduped). **`_maybe_auto_assign` is SKIPPED when an explicit assignee override is supplied** (avoids double-count + stale assignment row). `overrides=None` → byte-identical to the legacy path.
+- **`apps/inbox_hub/services.py::convert_to_ticket(...)`** — signature widened to the **full 9 fields** `subject/description/category/due_date/tags` + `queue/status/assignee/priority`; the old "create then patch with `save(update_fields=)`" block is **replaced** by a drop-None `overrides` dict passed into `_create_ticket_from_email`. **Correctness fix:** the old post-patch path seeded SLA against the wrong (model-default) priority; folding into creation fixes it.
+- **Both API actions call the shared validator:** `apps/inbound_email/api_views.py::InboundEmailViewSet.create_ticket` (`POST /inbound-email/{id}/create-ticket/`, role ≤30, idempotent → 400 w/ `ticket_number`) and `apps/inbox_hub/views.py::HubEmailViewSet.convert_to_ticket` (`POST /inbox-hub/hub-emails/{id}/convert-to-ticket/`) both call `build_ticket_overrides(request.data, tenant)` then `**overrides` into the service. The legacy (never-parked) path is wrapped in `transaction.atomic()` (previously **not** atomic — fixed here).
+- **✅ Reachability gap CLOSED.** `apps/inbox_hub/serializers.py::ConvertToTicketSerializer` is now **schema-only** (OpenAPI docs) — the action does NOT validate through it; it delegates to `build_ticket_overrides`. So `subject/description/category/due_date/tags` ARE now reachable through the Hub convert endpoint. (Contrast the prior doc, which said they were unreachable.)
+- **`templates/pages/emails/list.html`** (+317/−20) — the `#createTicketModal` form (subject* / priority [default "medium"] / queue / status / assignee / category / description); `loadTicketMeta()` lazy-loads 4 dropdown sources in parallel, filters out closed statuses client-side, defaults assignee to `CURRENT_USER_ID`; preview "Create ticket" opens the form **after** the preview modal fully hides (Bootstrap dual-modal backdrop guard via `hidden.bs.modal`); idempotent-400 (`err.ticket_number`) treated as success.
+- **`templates/pages/inbox_hub/list.html` + `static/js/inbox-hub.js` (`?v=10`)** — the cockpit "Convert" action now opens a full **`#ihConvertPanel` offcanvas** (TipTap rich description + tags + flatpickr due-date + queue/status/assignee/priority/category), POSTing the full override set to the Hub convert endpoint.
+- **Tests** (`tests/test_inbox_hub.py`): `TestConvertToTicketParity` (legacy↔Hub field parity, idempotency, priority + field overrides land, provenance preserved) + `TestHubConvertOverrides` (full overrides applied, blank-subject falls back, `normal`→400 [HubEmail vocab ≠ Ticket], closed status → 400, malformed queue UUID → 400, non-member assignee → 400).
 
-## Inbox Hub (Phase 0+1A committed @ `8682e80`; Phase 1B engine + triage-COCKPIT frontend + email-inbox handoff + group-gated access in working tree)
+## Feature — Inbound-Email Attachments (UNCOMMITTED working-tree feature)
 
-Email-to-Queue triage workspace. Reshapes inbound-email flow so NEW messages land in a centralised Hub for agent triage instead of auto-creating tickets, then routes them to a department, seeds SLA deadlines, and auto-assigns to an online agent. **Default: OFF** — the seam at `apps/inbound_email/services.py` (committed) forks on `TenantSettings.inbox_hub_enabled` (BoolField, default `False`).
+Surfaces + safely streams customer-sent email attachments on BOTH the agent Emails page and the Inbox-Hub cockpit, behaving identically via one shared helper module. Inbound files are saved to `default_storage` and described in **`InboundEmail.attachment_metadata`** (JSONField list of `{filename, content_type, size, storage_path}`).
 
-> **Backend vs frontend split (working tree):** the *backend* is the full Phase 1B engine (routing, presence-aware assignment, hold/drain, state machine, SLA breach task, 10 viewset actions incl. claim/escalate/transition/note + a read-only `context` action). The *frontend* (`inbox-hub.js` 1,177 LOC + `inbox_hub/list.html`) is a **triage cockpit** that surfaces convert/assign/dismiss over the untriaged backlog (5 workload lenses) plus a per-email **customer-context card** — it does NOT call the claim/escalate/transition/note endpoints. The "real work" on an email happens after triage, either in the converted Ticket or in the assigned agent's Emails page (see §"Agent email-inbox handoff").
+- **`apps/inbound_email/attachments.py` [NEW]** — two helpers. `serialize_attachments(inbound, url_for)` turns metadata into renderable rows `{index, filename, content_type, size, is_image, url}` (URL is **index-addressed** via the `url_for(index)` callable — the raw storage path is never exposed). `stream_attachment(inbound, raw_index, *, force_download=False)` returns a `FileResponse`; bad/out-of-range index or missing file → **`Http404`** (not 500 — expected once an email is converted and bytes move to a Ticket `Attachment`). **Safe raster images** (`png/jpeg/gif/webp/bmp` — the `INLINE_IMAGE_TYPES` allowlist) are served inline for `<img>` embedding; **everything else (incl. SVG → script risk) is forced to download**, always with `X-Content-Type-Options: nosniff`.
+- **Authed download `@action` on BOTH viewsets:** `InboundEmailViewSet.attachment` (`GET /inbound-email/{id}/attachment/?i=<n>[&dl=1]`) and `HubEmailViewSet.attachment` (`GET /inbox-hub/hub-emails/{id}/attachment/?i=<n>[&dl=1]`). Each runs `get_object()` first, so the surface's own permission stack gates the stream (Emails = `HasTenantPermission`; Hub = `IsHubEmailAccessible` department scoping). `?dl=1` forces download for any type.
+- **Serializers:** list rows carry only `has_attachments` (bool) + `attachment_count` (int); the **detail** serializer adds the full `attachments` array with authed per-index download URLs pointing at its own surface's `attachment` action.
+- **Tests:** `tests/test_inbound_email.py::TestInboundEmailAttachments` (~6) + `tests/test_inbox_hub.py::TestHubEmailAttachments` (~9) — inline-vs-forced delivery, `nosniff`, `?dl=1`, out-of-range/missing-file → 404, anon → 401/403, Viewer → 403.
+
+## Inbox Hub (engine committed @ `9575577`; access refactor + convert-panel + attachments UNCOMMITTED — full Phase 1B engine + triage-cockpit frontend + DEPARTMENT-scoped access + agent email-inbox handoff)
+
+Email-to-Queue triage workspace. Reshapes inbound-email flow so NEW messages land in a centralised Hub for agent triage instead of auto-creating tickets, then routes to a department, seeds SLA deadlines, and auto-assigns to an online agent. **Default: OFF** — the seam at `apps/inbound_email/services.py` forks on `TenantSettings.inbox_hub_enabled` (default `False`).
+
+> **Backend vs frontend split:** the *backend* is the full engine (routing, presence-aware assignment, hold/drain, state machine, SLA breach task, **11 viewset actions** incl. claim/escalate/transition/note + read-only `context` + authed `attachment` stream). The *frontend* (`inbox-hub.js` **1,378 LOC** `?v=10` + `inbox_hub/list.html`) is a **triage cockpit** surfacing **convert (full offcanvas panel) / assign / dismiss** over the untriaged backlog (5 workload lenses) plus a per-email **customer-context card + attachment thumbnails** — it does NOT call claim/escalate/transition/note. The "real work" happens after triage, in the converted Ticket or the assigned agent's Emails page.
 >
-> **⚠️ Access is now GROUP-GATED (NEW Jun-9 refactor).** `apps/inbox_hub/access.py::can_access_inbox_hub(membership)` is the single source of truth: a member may use the Hub only if **Admin (`effective_role.hierarchy_level ≤ 10`) OR they belong to ≥1 `UserGroup` in the tenant.** Non-Admins in no group are fully locked out — hidden sidebar entry, zeroed badge, 403 on both the page (`_inbox_hub_access_required` decorator → `pages/403.html`) and the API (`HubEmailPermission` + `IsHubEmailAccessible`). This **replaced** the old department-based row-scoping entirely; admins control Hub access from the Groups page. Admins are exempt because the "one user per group per tenant" rule often prevents them being a member.
+> **⚠️ Access is now DEPARTMENT-SCOPED (the binary `UserGroup` gate is GONE; `user_in_any_group` fully deleted).** `apps/inbox_hub/access.py` is the single source of truth (all gates use **`effective_role`**):
+> - **`can_access_inbox_hub(membership, *, user, tenant)`** — Admin/Manager (`hierarchy_level ≤ 20`) → **always**; Viewer (`> 30`) → **never**; agent-tier (Team Lead/Agent/IT/HR, levels 21–30) → **conditional**: granted iff (a) member of ≥1 **active** `inbox_hub.Department` (`user_department_ids`), OR (b) the tenant has **zero active departments** (`tenant_has_departments` → **fall-open** safety valve for fresh setup), OR (c) they have ≥1 `HubEmail` assigned to them (`_has_assigned_hub_email` → **black-hole** safety valve so auto-assigned mail is reachable).
+> - **Row visibility** — supervisors (≤20) see all rows; agent-tier rows scoped by twin helpers kept in lock-step: queryset `hub_rows_q(user, dept_ids)` = `(state=NEW AND (department∈dept_ids OR department IS NULL)) OR assignee=me`, and object-level `agent_can_see_hub_email(obj, user, dept_ids)`. So an agent sees **untriaged NEW mail for their department(s) + the unrouted shared pool + anything assigned to them** (assigned mail stays visible across the full lifecycle).
+> - **Lockout surfaces** when denied: hidden sidebar entry + zeroed badge (`nav/views.py`) + 403 on the page (`_inbox_hub_access_required` → `pages/403.html`) + 403 on the API (`HubEmailPermission` + `IsHubEmailAccessible`).
+> - **Rollout note:** on a tenant that already has departments, an agent who is NOT a Department member (and has no assigned mail) now **403s** — make triagers Department members. This refactor killed two prior holes: the auto-assign black-hole (mail assigned to a group-less agent was invisible) and the "any-group-member reads the whole backlog" over-grant.
 
-### The seam — `apps/inbound_email/services.py` (committed)
+### The seam — `apps/inbound_email/services.py` (`process_inbound_email`)
 
 ```python
 if existing_ticket:
-    _add_reply_to_ticket(inbound, existing_ticket, contact, system_user)
+    _add_reply_to_ticket(inbound, existing_ticket, contact, system_user)   # ALWAYS — replies never go to the Hub
 else:
-    settings = getattr(tenant, "settings", None)
+    settings = getattr(tenant, "settings", None)        # ⚠ shadows django.conf.settings
     if settings is not None and settings.inbox_hub_enabled:
         from apps.inbox_hub.services import park_email_in_hub
         park_email_in_hub(inbound, tenant, contact, system_user)
     else:
-        _create_ticket_from_email(inbound, tenant, contact, system_user)
+        _create_ticket_from_email(inbound, tenant, contact, system_user)   # (Feature B adds overrides= here)
 ```
+**Existing-thread replies always go straight to the matching ticket regardless of the flag** — the Hub triages NEW conversations only. **Footgun:** the local `settings` rebinds the module-level `from django.conf import settings`; harmless today but a latent trap.
 
-> **Variable-shadowing footgun**: the local `settings` rebinds the module-level `from django.conf import settings`. Sibling `resolve_tenant_from_address` is unaffected (separate function), but future code in `process_inbound_email` after the seam would silently get `TenantSettings | None`.
+### Models (8 — `apps/inbox_hub/models.py`, 431 LOC; 1 migration `0001_initial`)
 
-**Existing-thread reply** path always goes straight to the matching ticket regardless of the flag — the Hub triages NEW conversations only. `resolve_tenant_from_address` also has a **Strategy 4** (`settings.IMAP_DEFAULT_TENANT_SLUG` last-resort fallback) so shared mailboxes route somewhere instead of returning `None`.
+- **`Department(TenantScopedModel)`** — `name`, `slug` (UniqueConstraint per tenant), `lead` (FK User PROTECT), `members` (M2M via `DepartmentMembership`), `default_queue` (FK `tickets.Queue` SET_NULL), `business_hours` (FK SET_NULL), `is_active`. Index `(tenant, is_active)`.
+- **`DepartmentMembership(TenantScopedModel)`** — through-model. `department`, `user`, `skills` (JSON list — **seeded-but-unused**, Phase-3 placeholder). UniqueConstraint `(department, user)`.
+- **`HubEmail(TenantScopedModel)`** — the workspace entity. `inbound` 1:1 to `InboundEmail` CASCADE (`related_name="hub_email"`), `contact`, `department`, `queue`, `assignee` (all db_indexed). **9-state enum** (`NEW → ASSIGNED → IN_PROGRESS → PENDING_AGENT ⇄ AWAITING_CUSTOMER → ESCALATED → RESOLVED → CONVERTED_TO_TICKET | DISMISSED`) + **4-priority enum** (`low/normal/high/urgent` — **NO "medium"**; contrast: Reminder HAS medium). SLA fields (`sla_response_due_at` db_indexed, `sla_resolution_due_at`, `response_breached`, `resolution_breached`, `first_responded_at` ⚠read-never-written, `first_assigned_at`, `pause_started_at`/`total_pause_seconds` ⚠unused). Escalation: `escalation_count`, `escalated_to`. Terminal: `converted_ticket` (1:1 Ticket SET_NULL, `related_name="origin_hub_email"`), `dismissed_at`/`by`/`reason`. `auto_classification_data` JSONField (AI drop-zone; also the `sla_warning_sent` dedup store). `tags` JSONField (in serializer but **never written**). **5 indexes**: 4 composite `(tenant, …, state)` + partial `ih_email_active_sla_due` on `(tenant, sla_response_due_at)` filtered to active states (⚠ the partial-index condition does NOT include `escalated`, but the breach task DOES scan ESCALATED).
+- **`HubEmailAssignment(TenantScopedModel)`** — immutable audit row. `Reason` enum (`AUTO/MANUAL/ESCALATION/REASSIGNMENT` — **ESCALATION never emitted**: `escalate_hub_email` creates no assignment row). `assigned_to` PROTECT, `assigned_by` null=system.
+- **`HubEmailNote(TenantScopedModel)`** — internal note (`ordering=["created_at"]` ASC; not carried over on conversion). `author` PROTECT.
+- **`HubEmailSLA(TenantScopedModel)`** — per-(queue, priority) or per-(department, priority) policy with `response_minutes`/`resolution_minutes`/`escalation_minutes` (escalation_minutes **unused**). Both FKs nullable; **conditional UniqueConstraints** scope uniqueness to non-null queue/department.
+- **`RoutingRule(TenantScopedModel)`** — ordered IF/THEN rule. `match` JSON: `{sender_domain[], subject_regex, recipient_local[], keyword[]}` (keys AND, values OR). Outputs: `department`, `queue`, `category`, `priority`, `stop_on_match` (default True).
+- **`QueueRouting(TenantScopedModel)`** — 1:1 supplement to `tickets.Queue`. `strategy_code` (default `"availability_aware|least_loaded|round_robin"`) + `leave_unassigned_when_no_match` (**unused** — AssignmentEngine never reads it).
 
-### Models (8 — `apps/inbox_hub/models.py`, 431 LOC)
+### State machine (`state_machine.py`)
 
-- **`Department(TenantScopedModel)`** — `name`, `slug` (UniqueConstraint per tenant `ih_department_tenant_slug_uniq`), `description`, `lead` (FK User PROTECT), `members` (M2M via `DepartmentMembership`), `default_queue` (FK `tickets.Queue` SET_NULL), `business_hours` (FK `tickets.BusinessHours` SET_NULL), `is_active`. Index `(tenant, is_active)`.
-- **`DepartmentMembership(TenantScopedModel)`** — through-model. `department`, `user`, `skills` (JSON list — empty until skill-based routing). UniqueConstraint `(department, user)`.
-- **`HubEmail(TenantScopedModel)`** — the workspace entity. `inbound` 1:1 to `InboundEmail` CASCADE (`related_name="hub_email"`), `contact`, `department`, `queue`, `assignee` (all db_indexed). **9-state enum** (`NEW → ASSIGNED → IN_PROGRESS → PENDING_AGENT ⇄ AWAITING_CUSTOMER → ESCALATED → RESOLVED → CONVERTED_TO_TICKET | DISMISSED`) + **4-priority enum** (`low/normal/high/urgent` — NO "medium"). SLA fields (`sla_response_due_at` db_indexed, `sla_resolution_due_at`, `response_breached`, `resolution_breached`, `first_responded_at`, `first_assigned_at`, `pause_started_at`, `total_pause_seconds`). Escalation: `escalation_count`, `escalated_to`. Terminal paths: `converted_ticket` (OneToOne to Ticket SET_NULL, `related_name="origin_hub_email"`), `dismissed_at`/`by`/`reason`. `auto_classification_data` JSONField (AI drop-zone; also used for `sla_warning_sent` dedup flag). **5 indexes**: 4 composite on `(tenant, …, state)` + one partial `ih_email_active_sla_due` on `(tenant, sla_response_due_at)` filtered to active states.
-- **`HubEmailAssignment(TenantScopedModel)`** — immutable audit row. `Reason` enum (`AUTO/MANUAL/ESCALATION/REASSIGNMENT`). `assigned_to` PROTECT, `assigned_by` null=system.
-- **`HubEmailNote(TenantScopedModel)`** — internal agent note (`ordering=["created_at"]` ASC — old notes first; intentionally NOT carried over on conversion). `author` PROTECT.
-- **`HubEmailSLA(TenantScopedModel)`** — per-(queue, priority) or per-(department, priority) policy with `response_minutes`/`resolution_minutes`/`escalation_minutes`. Both FKs nullable; **conditional UniqueConstraints** scope uniqueness to non-null queue/department (Postgres native; SQLite ≥3.30).
-- **`RoutingRule(TenantScopedModel)`** — ordered IF/THEN rule consulted by RoutingEngine. `match` JSON: `{sender_domain[], subject_regex, recipient_local[], keyword[]}` (keys AND, values OR). Outputs: `department`, `queue`, `category`, `priority`, `stop_on_match`.
-- **`QueueRouting(TenantScopedModel)`** — 1:1 supplement to `tickets.Queue`. `strategy_code` (pipe-delimited fallback chain, default `"availability_aware|least_loaded|round_robin"`) + `leave_unassigned_when_no_match`.
+`can_transition(old,new)` is False if equal; `assert_transition` raises `ValueError`. Allowed (abridged): `NEW→{ASSIGNED,ESCALATED,DISMISSED,CONVERTED}`; `ASSIGNED→{NEW,IN_PROGRESS,PENDING_AGENT,AWAITING_CUSTOMER,ESCALATED,RESOLVED,DISMISSED,CONVERTED}`; the in-flight states reach RESOLVED/CONVERTED/DISMISSED; `ESCALATED→{ASSIGNED,IN_PROGRESS,RESOLVED,DISMISSED,CONVERTED}`; `RESOLVED→{IN_PROGRESS,CONVERTED,DISMISSED}`; `CONVERTED`/`DISMISSED` terminal. **`convert_to_ticket`, `dismiss_hub_email`, `assign_to`, `reassign_hub_email` set `state` directly (no `assert_transition`)**; only `transition_hub_email` enforces it.
 
-### Phase 1B engine (working tree)
+### Engine
 
-**`_post_park_hooks` is now FILLED** ([services.py]) — scheduled via `transaction.on_commit` from `park_email_in_hub`, each step try/except-isolated so a failure never breaks the inbound pipeline:
-1. `RoutingEngine.classify_and_route(hub_email)` — resolve department/queue/category/priority.
-2. `_initialize_hub_sla(hub_email)` — seed `sla_response_due_at`/`sla_resolution_due_at` from the matching `HubEmailSLA` (queue+priority → department+priority; no-op if none). **Wall-clock deadlines** (no business-hours math yet). Done BEFORE assignment.
-3. `AssignmentEngine.try_assign(hub_email)` — only when `settings.inbox_hub_auto_assign` (default True).
+**`_post_park_hooks`** (scheduled via `transaction.on_commit` from `park_email_in_hub`, each step try/except-isolated): (1) `RoutingEngine.classify_and_route`, (2) `_initialize_hub_sla` (wall-clock deadlines, queue+priority → dept+priority `HubEmailSLA`; `escalation_minutes` never read), (3) `AssignmentEngine.try_assign` (only when `settings.inbox_hub_auto_assign`, default True).
 
-**`apps/inbox_hub/routing.py` — RoutingEngine** (NOT a Channels route): `classify_and_route` recomputes routing fields from `RoutingRule.unscoped.filter(tenant, is_active=True).order_by("order","id")`. Match: keys AND-combined, values OR-combined; `sender_domain` exact-or-`.subdomain`; `keyword` substring over `subject\nbody`; `subject_regex` IGNORECASE (invalid regex → clause fails + warns). Empty `match` matches **nothing** (never a catch-all). Last-matched rule's non-null outputs win; `stop_on_match` breaks. Fallback department = `TenantSettings.inbox_hub_default_department` (if active) else the single active Department if exactly one exists; queue falls back to `department.default_queue`. Writes `EMAIL_CATEGORISED` (+`EMAIL_QUEUED`), broadcasts `hub_email.transitioned`.
+**`RoutingEngine`** (`routing.py`, NOT a Channels route): `RoutingRule.unscoped.filter(tenant, is_active=True).order_by("order","id")`. Match keys AND / values OR; `sender_domain` exact-or-`.subdomain`; `keyword` substring over `subject\nbody`; `subject_regex` IGNORECASE against subject only (invalid regex → clause fails closed + warns). **Empty `match` matches nothing** (never a catch-all). Last-matched rule's non-null outputs win; `stop_on_match` breaks. Fallback dept = `TenantSettings.inbox_hub_default_department` (if active) else the single active Department iff exactly one exists; queue falls back to `department.default_queue`. Writes `EMAIL_CATEGORISED` (+`EMAIL_QUEUED` if queue changed), broadcasts `hub_email.transitioned`. State untouched; early-returns if nothing changed.
 
-**`apps/inbox_hub/assignment.py` — AssignmentEngine + hold/drain**: Strategies are **string tokens** (not classes), applied left-to-right as sort-key tie-breakers: `availability_aware` (most spare capacity first) → `least_loaded` (active HubEmail count + `current_ticket_count`) → `round_robin` (least-recently-assigned first). `DEFAULT_STRATEGY = "availability_aware|least_loaded|round_robin"`, overridable per-queue via `QueueRouting.strategy_code`.
-- `try_assign(hub_email, *, actor=None)` — candidate pool = department members (or, if no department, tenant members at `hierarchy_level==30`), filtered to `is_assignable`, selected via the strategy chain, `assign_to(..., require_online=True)`. **If none online → "held"** (stays NEW/unassigned) and `_notify_hold` nudges the department lead.
-- `assign_to(hub_email, user, *, reason, actor=None, require_online=False)` — atomic `select_for_update` on the HubEmail (concurrency guard: bails if already assigned or not NEW); locks `AgentAvailability` + re-checks `is_assignable` when online required; sets assignee, `first_assigned_at`, state→ASSIGNED; creates `HubEmailAssignment`; bumps `current_ticket_count`; writes `EMAIL_AGENT_ASSIGNED`; broadcasts `hub_email.assigned`.
-- `drain_department_backlog(user, tenant)` — **"drain"**: on agent (re)connect, assign oldest held NEW/unassigned emails in their department(s) up to `remaining_capacity`. Called from `presence._maybe_drain`.
+**`AssignmentEngine`** (`assignment.py`): string-token strategies as sort-key tie-breakers: `availability_aware` (most spare capacity) → `least_loaded` (active HubEmail count + `current_ticket_count`) → `round_robin` (least-recently-assigned). `DEFAULT_STRATEGY` overridable per-queue via `QueueRouting.strategy_code`.
+- `_candidate_user_ids`: department members (or, if no department, `TenantMembership.objects` at `role__hierarchy_level == 30` — ⚠ **raw role, not effective_role**), then filtered by `is_assignable`.
+- `try_assign` — **if none online → "held"** (stays NEW/unassigned) + `_notify_hold` nudges the dept lead (reuses `HUB_EMAIL_ASSIGNED` with a `data.held` flag).
+- `assign_to` — atomic `select_for_update`; concurrency guard (bails if already assigned or not NEW); locks `AgentAvailability` + re-checks `is_assignable` when online required; sets assignee, `first_assigned_at`, state→ASSIGNED; creates `HubEmailAssignment(AUTO)`; bumps `current_ticket_count`; writes `EMAIL_AGENT_ASSIGNED`; broadcasts `hub_email.assigned`. **Does NOT touch `inbound.assignee`** (auto-assign ≠ email handoff).
+- `drain_department_backlog(user, tenant)` — on agent (re)connect, assigns oldest held NEW/unassigned emails in their department(s) **or department-less**, up to `remaining_capacity`. Called from `presence._maybe_drain`. Respects `inbox_hub_auto_assign`.
 
-**Presence layer** (`apps/agents/presence.py` + `apps/agents/models.py` + `apps/agents/tasks.py`):
-- `AgentAvailability.last_seen` (DateTimeField, db_indexed, migration `agents/0007`). Module const `DEFAULT_PRESENCE_TTL_SECONDS = 90`.
-- `AgentAvailability.is_assignable` — the single gate the AssignmentEngine consults: `status == ONLINE` AND `remaining_capacity > 0` AND `presence_fresh` (last_seen within `settings.AGENT_PRESENCE_TTL_SECONDS`) AND (if `auto_away_outside_hours`) within working hours.
-- `presence.touch_presence(user, tenant)` — `get_or_create` on `AgentAvailability.unscoped`; stamps `last_seen`; auto-promotes **OFFLINE→ONLINE only** when `AGENT_PRESENCE_AUTO_ONLINE` (never overrides manual AWAY/BUSY).
-- `presence.handle_live_heartbeat(user, tenant, *, is_connect=False)` — sync entry called by `LiveEventConsumer`; stamps presence, broadcasts `agent.presence` on change, drains held backlog via `_maybe_drain` on any (re)connect or status change. Error-swallowing.
-- `agents.tasks.reap_stale_presence` (`@shared_task`, default queue) — flips `ONLINE` rows whose `last_seen` is NULL or older than TTL to `AWAY`, broadcasts `agent.presence` per row, iterates `chunk_size=200`. **Beat: every 60s.**
+**Presence layer** (`apps/agents/presence.py` + `models.py` + `tasks.py`):
+- `AgentAvailability.last_seen` (DateTime, db_indexed, mig `agents/0007`). `DEFAULT_PRESENCE_TTL_SECONDS = 90`.
+- **`is_assignable`** (the single auto-assign gate) — `status == ONLINE` AND `remaining_capacity > 0` AND `presence_fresh` (last_seen within `AGENT_PRESENCE_TTL_SECONDS`) AND (if `auto_away_outside_hours`) within working hours (⚠ uses **server-local** time, not per-tenant tz; fail-open on misconfig). **Don't confuse with `is_available`** (looser — omits the freshness check).
+- `touch_presence(user, tenant)` — `get_or_create` on `.unscoped`; stamps `last_seen`; auto-promotes **OFFLINE→ONLINE only** when `AGENT_PRESENCE_AUTO_ONLINE` (never overrides manual AWAY/BUSY); uses `.update()` (no signal churn).
+- `handle_live_heartbeat(user, tenant, *, is_connect=False)` — sync entry from `LiveEventConsumer`; stamps presence, broadcasts `agent.presence` on change, drains held backlog on any (re)connect/status change. Error-swallowing.
+- `agents.tasks.reap_stale_presence` (`@shared_task`, kanzan_default) — flips `ONLINE` rows whose `last_seen` is NULL or older than TTL to `AWAY`, broadcasts per row, `iterator(chunk_size=200)`. **Beat: 60s.**
 
-**`apps/inbox_hub/state_machine.py`** — `ALLOWED_TRANSITIONS`, `can_transition(old,new)` (False if equal), `assert_transition` (raises `ValueError`):
-```
-NEW               → {ASSIGNED, ESCALATED, DISMISSED, CONVERTED_TO_TICKET}
-ASSIGNED          → {NEW, IN_PROGRESS, PENDING_AGENT, AWAITING_CUSTOMER, ESCALATED, RESOLVED, DISMISSED, CONVERTED_TO_TICKET}
-IN_PROGRESS       → {PENDING_AGENT, AWAITING_CUSTOMER, ESCALATED, RESOLVED, DISMISSED, CONVERTED_TO_TICKET}
-PENDING_AGENT     → {IN_PROGRESS, AWAITING_CUSTOMER, ESCALATED, RESOLVED, DISMISSED, CONVERTED_TO_TICKET}
-AWAITING_CUSTOMER → {IN_PROGRESS, PENDING_AGENT, ESCALATED, RESOLVED, DISMISSED, CONVERTED_TO_TICKET}
-ESCALATED         → {ASSIGNED, IN_PROGRESS, RESOLVED, DISMISSED, CONVERTED_TO_TICKET}
-RESOLVED          → {IN_PROGRESS, CONVERTED_TO_TICKET, DISMISSED}
-CONVERTED_TO_TICKET → {}   DISMISSED → {}   (terminal)
-```
+**`apps/inbox_hub/tasks.py::check_hub_sla_breaches`** (`@shared_task`, kanzan_default; **Beat 120s**) — cross-tenant `.unscoped`. Sweeps `state ∈ {NEW,ASSIGNED,IN_PROGRESS,PENDING_AGENT,ESCALATED}` with a response deadline. Flags response breaches (auto-escalates via `escalate_hub_email`), fires a one-shot warning `HUB_SLA_WARNING_MINUTES` (default 15) before deadline (deduped via `auto_classification_data["sla_warning_sent"]`), flags resolution breaches (flag-only, no escalate). **⚠ `first_responded_at` is NEVER written anywhere** — the response-breach guard `first_responded_at is None` is always True, so the breach always fires on the deadline (no concept of a reply marking SLA met) and every breach also auto-escalates.
 
-**`apps/inbox_hub/tasks.py::check_hub_sla_breaches`** (`@shared_task`, default queue) — flags response breaches (auto-escalates via `escalate_hub_email`), fires a one-shot warning `HUB_SLA_WARNING_MINUTES` (default 15) before deadline (deduped via `auto_classification_data["sla_warning_sent"]`), flags resolution breaches. Cross-tenant (`.unscoped`). **Beat: every 120s.**
+### Service layer (`apps/inbox_hub/services.py`, ~546 LOC)
 
-### Service layer (`apps/inbox_hub/services.py`, 545 LOC)
+All write polymorphic `ActivityLog` rows and broadcast LiveBus on commit. **All 8 `EMAIL_*` ActivityLog actions + all 5 `HUB_EMAIL_*` Notifications are emitted.** (Stale module docstring still says "Phase 1A — out of scope".)
+- `park_email_in_hub` — idempotent `get_or_create(inbound=…)`; `EMAIL_RECEIVED`; broadcasts `hub_email.created` (immediate); schedules `_post_park_hooks` on_commit.
+- `convert_to_ticket(...)` — idempotent; reuses `_create_ticket_from_email` (Feature B widened its overrides); state→CONVERTED; `EMAIL_CONVERTED_TO_TICKET`; broadcasts `hub_email.converted_to_ticket`.
+- `dismiss_hub_email(...)` — idempotent; state→DISMISSED; `EMAIL_DISMISSED`.
+- `transition_hub_email(...)` — `assert_transition`; `STATUS_CHANGED`; `hub_email.transitioned`.
+- `escalate_hub_email(...)` — `escalation_count += 1` **(bumped even when the ESCALATED transition is illegal)**, `escalated_to`=dept lead, state→ESCALATED only if legal; `EMAIL_ESCALATED`; `_notify_escalation` (`HUB_EMAIL_ESCALATED_TO_ME`, deep-links `/inbox-hub/`).
+- `reassign_hub_email(...)` — `select_for_update`; online NOT required (manual override); `EMAIL_REASSIGNED`/`EMAIL_AGENT_ASSIGNED`; `_notify_reassignment` (deep-links `/emails/`). **Also stamps `inbound.assignee = new_user` + `inbox_status=PENDING` + `is_read=False`** — the agent email-inbox handoff backing `assign`/`reassign`/`claim`.
+- `add_hub_email_note(...)` — creates `HubEmailNote`; broadcasts `hub_email.transitioned`.
 
-All write polymorphic `ActivityLog` rows and broadcast LiveBus on commit. **All 8 `EMAIL_*` actions and all 5 `HUB_EMAIL_*` Notifications are now emitted** (the prior doc's "no Notification creators" / "_post_park_hooks empty" claims are obsolete).
-- `park_email_in_hub` — idempotent `get_or_create(inbound=…)`; sets `PARKED_IN_HUB`; `EMAIL_RECEIVED`; broadcasts `hub_email.created`; schedules `_post_park_hooks`.
-- `convert_to_ticket(hub_email, actor, *, queue=None, status=None, assignee=None, priority=None)` — idempotent; reuses `_create_ticket_from_email` (returns the ticket); applies overrides; state→CONVERTED_TO_TICKET; `EMAIL_CONVERTED_TO_TICKET`; broadcasts (payload `ticket_id`/`ticket_number`).
-- `dismiss_hub_email(hub_email, actor, reason="")` — idempotent; state→DISMISSED + dismissed_at/by/reason; `EMAIL_DISMISSED`.
-- **NEW** `transition_hub_email(hub_email, new_state, actor=None, *, note="")` — `assert_transition`; `STATUS_CHANGED`; broadcast `hub_email.transitioned`.
-- **NEW** `escalate_hub_email(hub_email, actor=None, *, reason="")` — `escalation_count += 1`, `escalated_to`=dept lead, state→ESCALATED if legal; `EMAIL_ESCALATED`; `_notify_escalation` (`HUB_EMAIL_ESCALATED_TO_ME`).
-- `reassign_hub_email(hub_email, new_user, actor=None, *, reason="")` — `select_for_update`; online NOT required (manual override); adjusts both agents' counts; `EMAIL_REASSIGNED`/`EMAIL_AGENT_ASSIGNED`; `_notify_reassignment`. **Also stamps `inbound.assignee = new_user` + `inbox_status=PENDING` + `is_read=False`** (the agent email-inbox handoff — backs the `assign`/`reassign`/`claim` viewset actions).
-- `add_hub_email_note(hub_email, author, body)` — creates `HubEmailNote`; broadcasts `hub_email.transitioned`. **Service exists but the cockpit frontend no longer calls it** (no `/note/` UI).
+### API surface (`apps/inbox_hub/views.py` + `urls.py`)
 
-### API surface (`apps/inbox_hub/views.py` + `urls.py`, working tree)
+`HubEmailViewSet` (list/retrieve only) permission stack `[IsAuthenticated, IsTenantMember, HubEmailPermission, IsHubEmailAccessible]`; `get_queryset` `select_related(...)` + `prefetch_related("notes","notes__author")`. **Agent-tier row filter (uses `effective_role`):** for `level > 20`, applies `hub_rows_q(user, dept_ids)` = `(state=NEW AND (department∈my-active-depts OR department IS NULL)) OR assignee=me` (supervisors ≤20 see all). Chips: `assignee=me|unassigned|<uuid>`, `state`/`priority`/`queue`/`department`, **`sla_risk=true`** (`sla_response_due_at IS NOT NULL AND response_breached=False`).
 
-`HubEmailViewSet` (list/retrieve only — `mixins.ListModelMixin + RetrieveModelMixin`) permission stack `[IsAuthenticated, IsTenantMember, HubEmailPermission, IsHubEmailAccessible]`; fresh `get_queryset` with `select_related("inbound","contact","department","queue","assignee","converted_ticket","escalated_to")` + `prefetch_related("notes","notes__author")`. **Agent-tier row filter (in the queryset):** `if membership.effective_role.hierarchy_level > 20: qs = qs.filter(Q(state=NEW) | Q(assignee=me))` — so a crafted `?state=` can't surface another agent's in-flight mail. Chips: `assignee=me|unassigned|<uuid>`, `state`/`priority`/`queue`/`department`, and **`sla_risk=true`** (rows with `sla_response_due_at IS NOT NULL AND response_breached=False` — the SLA-at-risk lens, paired client-side with `?ordering=sla_response_due_at`).
-
-| Action | Method / URL | Codename | Service |
+| Action | Method / URL | Codename | Service / note |
 |---|---|---|---|
 | `list`/`retrieve` | `GET /hub-emails/[{id}/]` | `hub_email.view` | — |
-| **`context`** | `GET /{id}/context/` | `hub_email.view` | `contacts.context.build_contact_context` → `{contact, stats, recent_tickets}` (`{contact:None,...}` if no contact) — **NEW** triage-cockpit customer card |
-| `convert_to_ticket` | `POST /{id}/convert-to-ticket/` | `hub_email.convert` | `convert_to_ticket` → `{ticket, hub_email}` 201 |
+| **`context`** | `GET /{id}/context/` | `hub_email.view` | `contacts.context.build_contact_context` — served off the Hub viewset (NOT `/contacts/`) so agents can reach a freshly-parked contact |
+| **`attachment`** | `GET /{id}/attachment/?i=<n>[&dl=1]` | `hub_email.view` | `attachments.stream_attachment(obj.inbound, i)` — authed customer-attachment stream (inline raster / forced download + `nosniff`) |
+| `convert_to_ticket` | `POST /{id}/convert-to-ticket/` | `hub_email.convert` | → `{ticket, hub_email}` 201 (✅ now carries the **full 9-field** override set via shared `build_ticket_overrides` — gap CLOSED) |
 | `dismiss` | `POST /{id}/dismiss/` | `hub_email.dismiss` | `dismiss_hub_email` |
-| `assign` | `POST /{id}/assign/` | `hub_email.assign` | `reassign_hub_email` (validates member via `_require_member`) |
+| `assign` | `POST /{id}/assign/` | `hub_email.assign` | `reassign_hub_email` (validates member) |
 | `reassign` | `POST /{id}/reassign/` | `hub_email.reassign` | `reassign_hub_email` |
 | `claim` | `POST /{id}/claim/` | **none** — agent-level (≤30) | `reassign_hub_email(self)` |
 | `escalate` | `POST /{id}/escalate/` | `hub_email.escalate` | `escalate_hub_email` |
 | `transition` | `POST /{id}/transition/` | **none** — agent-level (≤30) | `transition_hub_email` (`ValueError`→400) |
 | `note` | `POST /{id}/note/` | `hub_email.note` | `add_hub_email_note` → 201 |
 
-**No `reply` action** despite the `hub_email.reply` codename being seeded. **4 config viewsets** (all `ModelViewSet`, registered in `urls.py`): `DepartmentViewSet` (+`add-members`/`remove-members`; list/retrieve open to members, writes `IsTenantAdminOrManager`), `RoutingRuleViewSet` (+`reorder`, manager-gated), `HubEmailSLAViewSet`, `QueueRoutingViewSet` (manager-gated).
+**No `reply` action** despite the `hub_email.reply` codename being seeded (dead codename). **`claim`/`escalate`/`transition`/`note` are live backend endpoints the cockpit never calls** (dead-but-present surface). **4 config viewsets** (`ModelViewSet`): `DepartmentViewSet` (+add/remove-members; list/retrieve open to members, writes `IsTenantAdminOrManager`), `RoutingRuleViewSet` (+reorder, manager-gated), `HubEmailSLAViewSet`, `QueueRoutingViewSet` (manager-gated).
 
-**`HubEmailPermission`** (`apps/inbox_hub/permissions.py`) — a **local** permission class replacing the global `HasTenantPermission`/`ACTION_MAP`, because action names `assign`/`escalate` collide with `TicketViewSet` (mapped to `update`). Uses `effective_role`. **First gate = the group access gate**: `if level > 10 and not user_in_any_group(user, tenant): return False`. Then `ACTION_CODENAMES` per-action map (incl. `context → hub_email.view`); `AGENT_LEVEL_ACTIONS = {claim, transition}` gated `≤ 30` with no codename; when the role carries explicit perms it checks the codename, else hierarchy fallback: `view ≤40`, `convert/reply/escalate/note ≤30`, `assign/reassign/dismiss ≤20`. **`IsHubEmailAccessible` row-scoping** (object-level, `effective_role`): `≤10` unrestricted; **non-Admin must be `user_in_any_group` (defence-in-depth)**; `≤20` all rows; agent-tier (`>20`) → `state=NEW OR assignee=me`. **All department-based scoping (the old `department_memberships ∪ led_departments` + safety-valve) is GONE** — access is now group-gated, row-scope is state/assignee only.
+**`HubEmailPermission`** (`permissions.py`) — a **local** permission class (NOT the global `ACTION_MAP` — `assign`/`escalate` collide with `TicketViewSet`). Uses `effective_role`. **First gate = the new department access gate**: `if not can_access_inbox_hub(membership, user, tenant): return False`. Then `AGENT_LEVEL_ACTIONS = {claim, transition}` gated `≤30`; else per-action codename; explicit-perm check or hierarchy fallback: `view ≤40`, `convert/reply/escalate/note ≤30`, `assign/reassign/dismiss ≤20`. **`IsHubEmailAccessible` row-scope:** delegates to `agent_can_see_hub_email` — `≤20` all rows; agent-tier (`21–30`) → `assignee=me OR (state=NEW AND department∈my-depts/NULL)`; Viewer (`>30`) never.
 
-### Frontend — TRIAGE COCKPIT (working tree; rewritten again)
-
-⚠️ **The Hub frontend grew from "triage desk" (3 priority filters) into a triage cockpit (5 workload lenses + a customer-context card).** It still does NOT call claim/escalate/transition/note (those remain backend-only).
-
-- **`templates/pages/inbox_hub/list.html`** (**270 LOC**) + **`static/js/inbox-hub.js`** (**1,177 LOC**, cache-bust **`?v=8`**, vanilla IIFE). Untriaged-first; `document.body.classList.add('ih-page')` → full-viewport surface.
-- **Left rail = 5 workload LENSES** (`state.activeLens`), NOT priority filters: **`all`** (state=new) / **`unassigned`** (state=new & unassigned) / **`mine`** (assignee=me, any state) / **`oldest`** (state=new, created_at asc) / **`sla`** (`sla_risk=true`, ordered by `sla_response_due_at`). The **SLA lens self-hides** when its count is 0 (default tenants seed no SLA policies) and falls back to `all`. Counts = 4 parallel HEAD requests (`all/unassigned/mine/sla`).
-- **NEW customer-context card** (`#ihContextCard`, biggest addition) — selecting a row fires `loadContextFor(row)` in parallel with the body load, hitting **`GET /api/v1/inbox-hub/hub-emails/{id}/context/`** (deliberately the Hub action, NOT `/contacts/.../context/` which row-scopes agents out of a parked contact). Renders known-vs-new badge, company/MRR/health, bounce warning, a stats strip (total/open/CSAT/last ticket), and clickable recent-ticket rows. Per-session `contextCache` (keyed by contactId) + a `contextReqId` token to drop stale paints during fast J/K nav. Unknown senders → minimal "First contact" card.
-- **SLA badge** in the detail header (`renderSlaBadge`) — only when a response deadline exists; tone info→warning→danger (≤60min / ≤15min / overdue). **Open-ticket nudge** (`renderOpenTicketNudge`) — "⚠ N open tickets" linking to the latest, to discourage duplicate tickets.
-- **Three triage actions**: **convert** / **assign** / **dismiss**. Convert modal gained an assignee dropdown (`assignee_id`) + priority `medium`→`normal` fix; 8s post-convert auto-redirect → toast. The `/claim/`, `/escalate/`, `/transition/`, `/note/` endpoints are NOT called.
-- **Floating Assign menu** — `openAssignMenu()`/`positionMenu()` build a `position:fixed` menu portaled to `<body>` (escapes `overflow:hidden`, viewport flip-up/clamp), listing "Assign to me" + other agents (cached `/api/v1/accounts/users/`); posts `POST /{id}/assign/ {assignee_id}`. Closes on outside-click / Esc / resize / scroll.
-- **Keybinds**: J/K navigate, C convert, **A assign**, X dismiss, Esc close. `afterTriage()` resets the pane + refreshes list/counts (the email left the backlog). Body via strict `BODY_SANITIZE_CONFIG` DOMPurify; all customer text via `textContent`/`createElement`.
-- **List serializer is a "cockpit" projection** (`_HubEmailBaseSerializer`): adds `contact_id` (null for unknown sender), an HTML-stripped 140-char `snippet` (`strip_tags` + `Truncator`), `has_attachments`/`attachment_count`, and **promotes** `sla_response_due_at`/`response_breached`/`first_responded_at` onto the list row (for the badge + SLA lens). Detail serializer adds the nested inbound body + notes + escalation/resolution SLA fields.
-- **LiveBus subs**: 7 `hub_email.*` + `live.reconnected`, debounced 400ms → list + counts only.
-- **Frontend URL** `frontend_urls.py`: `path("inbox-hub/", views.inbox_hub_page)` — now gated by **`@_inbox_hub_access_required`** (login + active membership + `can_access_inbox_hub`; denies → `pages/403.html` "limited to members of a group"). Sidebar entry is wrapped in `{% if can_access_inbox_hub %}` (FIRST link in "Inbox" section, `#sidebarBadgeInboxHub`). `page_back_button.html` includes `/inbox-hub/`.
-- **`apps/nav/views.py::BadgeCountView._inbox_hub_count(tenant, user, membership)`** — returns 0 if `not can_access_inbox_hub(membership)`; else counts only `HubEmail.unscoped.filter(tenant, state=NEW)` tenant-wide. (Was: 5-state active set narrowed per-agent.)
-- **CSS** `custom-v15.css` — the Hub section was rewritten for the cockpit: added a full **`.ih-context-*` customer-card** block (head/avatar/id/name/badge/meta/stats/tickets/`.ih-warn`/`.ih-tkt-*`), `.ih-sla-badge--{info,warning,danger}`, `.ih-row-avatar--{known,new}`, `.ih-row-main/-snippet/-clip`, `.ih-nav-foot`, plus the carried-over `.ih-actionbar`/`.ih-btn-caret`/floating `.ih-menu*` (`@keyframes ihMenuIn` + reduced-motion guard) and `body.ih-page` grid. **Zero new hex** — all `var(--crm-*)`/`var(--status-*)`.
-
-### Agent email-inbox handoff (`InboundEmail.assignee` — NEW working tree)
-
-When a HubEmail is **manually** assigned, the original customer message is handed to that agent's personal Emails page. This is how an agent actually "works" a triaged email.
-
-- **`InboundEmail.assignee`** FK (SET_NULL, db_indexed, `related_name="assigned_inbound_emails"`) + index `email_tenant_assignee_idx (tenant, assignee, inbox_status)` — migration **`inbound_email/0010` (untracked)**. `assignee` is NOT immutable (unlike `linked_*`/`actioned_*`).
-- **Set only by `reassign_hub_email`** (`apps/inbox_hub/services.py`): on `assign`/`reassign`/`claim`, it sets `inbound.assignee = new_user`, `inbox_status = PENDING`, `is_read = False`. ⚠️ **`AssignmentEngine.assign_to` (the auto-assign path) does NOT touch `inbound.assignee`** — only `he.assignee`. So auto-assigned mail stays in the Hub; only manual claim/assign/reassign reaches the agent's email inbox.
-- **Consumer side — `apps/inbound_email/api_views.py`**: `InboundEmailViewSet.get_queryset` gains query-param branches — `?assigned=me` (`filter(assignee=request.user)`, bypasses the internal/customer split + bounce-hiding), `?internal=true` (excludes `sender_type=CUSTOMER`), `?mine=true` (`recipient_email__iexact=user.email`, drops OUTBOUND/SYSTEM noise). New **`create_ticket` action** `POST /api/v1/inbound-email/{id}/create-ticket/` (`get_permissions` swaps to `[IsAuthenticated, IsTenantMember]`, handler enforces `effective_role ≤ 30`; idempotent → 400 if `ticket_id` set): if `email.hub_email` exists → `inbox_hub.services.convert_to_ticket`; else legacy `_create_ticket_from_email`. `serializers.py` adds `assignee`/`assignee_name` (via `_AssigneeNameMixin`) to both list + detail serializers.
-- **`templates/pages/emails/list.html`** (**923 LOC**): new **"Assigned to me" stat tab** (`#emailCountAssigned`); dual-source load = `Promise.all` of `?internal=true&mine=true` + `?assigned=me`, merged/deduped by id; new **"Create ticket"** button (`#previewCreateTicketBtn`) in the unlinked-email preview → the `create-ticket` action (shown only when `_assigned || assignee || sender_type==='customer'`).
-- The reassign Notification deep-links to `/emails/` (vs `/inbox-hub/` for assignment/escalation/SLA notifications).
-
-### RBAC (12 codenames — `apps/accounts/defaults.py` + migration `accounts/0012`) + group gate
+### RBAC (12 codenames — `apps/accounts/defaults.py` + mig `accounts/0012`) + department access gate
 
 - `hub_email.{view, assign, reassign, convert, dismiss, reply, escalate, note}` (8) + `department.{view, manage}` (2) + `routing_rule.manage` (1) + `hub_sla.manage` (1).
 - Grants: Admin/Manager = all 12; Team Lead = agent-tier (`view/convert/reply/escalate/note` + `department.view`) **plus** `assign/reassign/dismiss`; Agent/IT/HR = agent-tier only; Viewer = `view` via ≤40 fallback only.
-- `accounts/0012_seed_inbox_hub_permissions` uses `role.permissions.add(*perms)` (not `.set()`) so operator customisations are preserved. Reversible.
-- ⚠️ **The codename grants are now SUBORDINATE to the group access gate** (`apps/inbox_hub/access.py`, NEW). Even a Manager with all 12 codenames is denied the Hub entirely (403 + zeroed badge + hidden nav) unless they are an Admin OR a member of ≥1 `UserGroup`. Admins (`≤10`) bypass the gate. This is a sharp behavioral shift — existing Managers/Team-Leads with no group membership are locked out until added to a group.
+- `accounts/0012` uses `role.permissions.add(*perms)` (not `.set()`) so operator customisations survive. **The codename grants are SUBORDINATE to the department access gate** — a group-less / department-less agent (no assigned mail, tenant has departments) is locked out regardless of codenames; Admin/Manager (≤20) are always in.
+
+### Agent email-inbox handoff (`InboundEmail.assignee`)
+
+When a HubEmail is **manually** assigned, the original customer message is handed to that agent's personal Emails page.
+- **`InboundEmail.assignee`** FK (SET_NULL, db_indexed, `related_name="assigned_inbound_emails"`, mig `inbound_email/0010`) + index `email_tenant_assignee_idx`. `assignee` is **mutable** (the `save()` immutability guard covers only `linked_*`/`actioned_*`).
+- **Set only by `reassign_hub_email`** (assign/reassign/claim). **`AssignmentEngine.assign_to` (auto-assign) does NOT touch `inbound.assignee`** — only `he.assignee`. So auto-assigned mail stays in the Hub; only manual claim/assign/reassign reaches the agent's `/emails/?assigned=me`.
+- **Consumer side — `apps/inbound_email/api_views.py`**: `InboundEmailViewSet.get_queryset` query-param branches — `?assigned=me` (bypasses internal/customer split + bounce-hiding), `?internal=true` (excludes `sender_type=CUSTOMER`), `?mine=true` (`recipient_email__iexact=user.email`, drops OUTBOUND/SYSTEM); default hides BOUNCED unless `?status=` or `?include_bounces=true`. The **`create_ticket` action** `POST /inbound-email/{id}/create-ticket/` (`get_permissions` swaps to `[IsAuthenticated, IsTenantMember]`; handler enforces `effective_role ≤ 30`; idempotent → 400 if `ticket_id` set): if `email.hub_email` exists → `convert_to_ticket`; else `_create_ticket_from_email` (Feature B wires overrides into both).
+- **`templates/pages/emails/list.html`**: "Assigned to me" stat tab; dual-source load = `Promise.all` of `?internal=true&mine=true` + `?assigned=me`, merged/deduped by id; "Create ticket" button → the `create-ticket` action (Feature B's form).
 
 ### Configuration & seeding
 
-- **`TenantSettings`** new fields (migration `tenants/0010`): `inbox_hub_auto_assign` (BoolField, default **True** — toggles auto-assign + hold/drain; False = manual claim only); `inbox_hub_default_department` (FK `inbox_hub.Department`, SET_NULL, routing fallback). (`inbox_hub_enabled`, default False, came earlier in `tenants/0009`.) All 3 exposed in serializer + Manager write allowlist. Two settings-UI toggles in `settings/tenant.html` (`#inboxHubEnabledToggle`, `#inboxHubAutoAssignToggle`).
+- **`TenantSettings`** fields: `inbox_hub_enabled` (default **False**, mig 0009), `inbox_hub_auto_assign` (default **True**, mig 0010; False = manual claim only), `inbox_hub_default_department` (FK SET_NULL, mig 0010). Two toggles in `settings/tenant.html`.
 - **Settings constants** (`main/settings/base.py`, env-overridable): `AGENT_PRESENCE_TTL_SECONDS=90`, `AGENT_PRESENCE_AUTO_ONLINE=True`, `HUB_SLA_WARNING_MINUTES=15`.
-- **`manage.py seed_inbox_hub_defaults [--tenant-slug <slug> | --all-tenants]`** — seeds **one "General" Department** (lead = lowest-hierarchy active member; default queue = "General"/"Support" else oldest; enrolls active non-viewer members), points `TenantSettings.inbox_hub_default_department` at it. Idempotent. **Does NOT seed** RoutingRules/HubEmailSLA/QueueRouting.
+- **`manage.py seed_inbox_hub_defaults [--tenant-slug <slug> | --all-tenants]`** — seeds **one "General" Department** (lead = lowest-hierarchy active member; default queue = "General"/"Support" else oldest; enrolls active non-viewer members), points `inbox_hub_default_department` at it. Idempotent. **Does NOT seed** RoutingRules/HubEmailSLA/QueueRouting.
 
-### Tests (verified run 2026-06-10)
+### Known gaps / footguns (Inbox Hub)
 
-- **`tests/test_inbox_hub.py`** (**21**, was 13) — Phase 1A services/RBAC PLUS new: `TestCockpitSerializer` (cockpit row fields — snippet HTML-strip/truncate, `contact_id` null for unknown sender), `TestHubEmailContextAction` (the `context` action; agent can reach Hub-context but NOT contacts-context), `TestSlaRiskLens` (`sla_risk` filter+order), and **group-gated listing** (`test_manager_in_group_can_list` / `test_manager_without_group_denied`).
-- **`tests/test_inbox_hub_routing_assignment.py`** (**38**, was 25/27) — presence `is_assignable` + `reap_stale_presence`; RoutingEngine; AssignmentEngine (assign/hold/load-balance/department-scope) + drain; end-to-end `park_email_in_hub`; HTTP action API + config-viewset RBAC.
-- **`tests/test_inbound_email.py`** (14) — incl. `TestEmailsInternalPersonalScope` (3 funcs, `?internal=true&mine=true`). Still no `?assigned=me`/`create_ticket` coverage.
-- **`tests/test_access_control.py`** (**12**, +1) — new `test_agent_created_ticket_hidden_after_assigned_to_other` documents the `tickets/access.py` tightening (creator loses visibility on handoff).
-- **Result:** inbox_hub 21 + routing_assignment 38 = **59 passed**; inbound_email 14 + access_control 12 = **26 passed**. (Separately, `test_badges.py` 36/2 — 2 stale fails from the `_message_count` comment→chat repurpose.)
+- **Auto-assign ≠ email handoff** — `assign_to` sets only `HubEmail.assignee`, never `InboundEmail.assignee`.
+- **Dead-but-present surface** — backend `claim`/`escalate`/`transition`/`note` actions + `hub_email.reply` codename are live but unused by the cockpit.
+- **`first_responded_at` read-but-never-written** → response-breach always fires on the deadline (→ also auto-escalates every breach).
+- **`escalate_hub_email` increments `escalation_count` even when the ESCALATED transition is illegal.** `HubEmailAssignment.Reason.ESCALATION` seeded-but-never-emitted.
+- **Seeded-but-unused fields**: `DepartmentMembership.skills`, `HubEmail.tags`/`pause_started_at`/`total_pause_seconds`, `QueueRouting.leave_unassigned_when_no_match`, `HubEmailSLA.escalation_minutes`.
+- **`InboundEmail.Status.PARKED_IN_HUB` is write-dead** — `park_email_in_hub` never sets it; parked mail keeps `PROCESSING`. `?status=parked_in_hub` returns nothing.
+- **Stale module docstrings** in `inbox_hub/{urls,services,serializers}.py` reference "Phase 1A".
+- **`convert_to_ticket`/`dismiss_hub_email` bypass the state machine** (set state directly).
+- **`_candidate_user_ids` no-department fallback uses raw `role`, not `effective_role`.**
+- **Worktree gap (Feature B)**: `convert_to_ticket` service widened ahead of its serializer+viewset → 5 override keys unreachable via the Hub convert endpoint (reachable only via the Emails-page `create_ticket`).
+- Still future: business-hours-aware Hub SLA (currently wall-clock); `auto_classification_data` AI classification; historical backfill when the flag flips ON; auto-seed of a default Department on tenant creation; RoutingRule/HubEmailSLA/QueueRouting seeding.
 
-### Remaining future scope / known gaps
-
-- **Auto-assign ≠ email handoff**: `AssignmentEngine.assign_to` sets only `HubEmail.assignee`, never `InboundEmail.assignee`, so auto-assigned mail does not appear in the agent's Emails page (only manual claim/assign/reassign do).
-- **Dead-but-present surface**: the backend `claim`/`escalate`/`transition`/`note` viewset actions + the `hub_email.reply` codename are all live server-side but unused by the cockpit frontend.
-- **`first_responded_at` read-but-never-written**: `tasks.py::check_hub_sla_breaches` guards the response-breach branch on `first_responded_at is None`, but no engine code ever WRITES `first_responded_at` — so a parked email is never marked first-responded and the response-breach always fires on the deadline. Latent gap.
-- **`escalate_hub_email` increments `escalation_count` even when the ESCALATED transition is illegal** (e.g. from RESOLVED) — only the state change is silently skipped. `HubEmailAssignment.Reason.ESCALATION` is a seeded-but-never-emitted enum value (escalation creates no assignment row).
-- **Seeded-but-unused fields**: `DepartmentMembership.skills`, `HubEmail.tags` (surfaced in the serializer but never written), `QueueRouting.leave_unassigned_when_no_match`, `HubEmail.pause_started_at`/`total_pause_seconds` (Hub SLA is pure wall-clock), `HubEmailSLA.escalation_minutes` (only response/resolution used).
-- **Stale module docstrings**: `inbox_hub/urls.py` ("Phase 1A only registers the HubEmail viewset" — all 5 are registered), `inbox_hub/services.py` ("RoutingEngine/AssignmentEngine … out of scope for Phase 1A"), and `inbox_hub/serializers.py` ("Phase 1A surface").
-- Still future: **business-hours-aware** SLA (currently wall-clock); `auto_classification_data` AI classification; backfill of historical `InboundEmail` when the flag flips ON; auto-seed of a default Department on tenant creation (still manual via `seed_inbox_hub_defaults`); RoutingRule/HubEmailSLA/QueueRouting seeding; test coverage for `?assigned=me` + `create_ticket`.
-
-## Models (91 model classes across 21 apps with models.py — `nav` is URL-only)
-
-> Counted as `class X(<…>)` in `apps/*/models.py`, excluding `TextChoices/IntegerChoices`, `Manager`, `QuerySet`. Raw `^class` grep gives 102.
+## Models (91 model classes across 21 apps with models.py)
 
 ### Base Models (Abstract)
 - **TimestampedModel**: UUID PK + `created_at` + `updated_at`; default ordering `["-created_at"]`.
@@ -387,65 +392,63 @@ When a HubEmail is **manually** assigned, the original customer message is hande
 
 ### Tenants / Accounts
 
-**tenants** (2): `Tenant` (name, slug unique, domain unique nullable, is_active, logo); `TenantSettings` (1:1; auth_method, SSO config, timezone, date_format, branding `primary_color`+`accent_color` with hex validators, `inbound_email_address`, business hours/days, `auto_close_days` (5), `csat_delay_minutes` (60), `auto_transition_on_assign`, `auto_send_ticket_created_email`, `auto_assign_inbound_email_tickets`, **`inbox_hub_enabled` (default False, mig 0009)**, **`inbox_hub_auto_assign` (default True, mig 0010)**, **`inbox_hub_default_department` (FK, mig 0010)**). Defaults: `primary_color="#6366F1"`, `accent_color="#F59E0B"`. Crimson Black `#C1121F`/`#E11D2D` is only the fallback in `apps/tenants/colors.py::derive_palette`.
+**tenants** (2): `Tenant` (name, slug unique, domain unique nullable, is_active, logo); `TenantSettings` (1:1; auth_method, SSO config, timezone, date_format, branding `primary_color="#6366F1"`/`accent_color="#F59E0B"` with hex validators, `inbound_email_address` unique, business hours/days, `auto_close_days` 5, `csat_delay_minutes` 60, `auto_transition_on_assign`, `auto_send_ticket_created_email`, `auto_assign_inbound_email_tickets` default False, **`inbox_hub_enabled`** False, **`inbox_hub_auto_assign`** True, **`inbox_hub_default_department`** FK).
 
-**accounts** (8): `User(AbstractUser)` (email-based, UUID PK, `auth_version`, `avatar`, `phone`, `username=None`, `is_service_account`). `Permission` — **global** (not tenant-scoped); `Action` enum (7: view/create/update/delete/assign/export/manage). `Role(TenantScopedModel)` — M2M `permissions`, `hierarchy_level` default 100, `is_system`. `Profile(TenantScopedModel)`. `TenantMembership` — NOT TenantScoped; UUID PK; FKs `user`, `tenant`, `role` (PROTECT), `temporary_role`, `temporary_role_granted_by`, `invited_by`; **M2M `temporary_permissions` → Permission** (empty = full temp role perms; non-empty = intersection); methods `has_active_temporary_role`, `effective_role`, `get_effective_permissions_qs()`, `has_effective_permission(codename)`. `Invitation(TenantScopedModel)`. `UserGroup(TenantScopedModel)` (mig 0009; M2M `members`; **NOT in admin**; used by `Article.allowed_groups`; "one user per group" enforced in serializer + viewset). `EmailVerificationToken`.
+**accounts** (8): `User(AbstractUser)` (email-based, UUID PK, `username=None`, `auth_version`, `avatar`, `phone`, `is_service_account`). `Permission` — **global** (not tenant-scoped); `Action` enum (7: view/create/update/delete/assign/export/manage). ⚠ The inbox-hub verbs (`convert/dismiss/reassign/reply/escalate/note`) are NOT in `Permission.Action` but are stored as the `action` column value — choices aren't DB-enforced. `Role(TenantScopedModel)` — M2M `permissions`, `hierarchy_level` default 100, `is_system`. `Profile(TenantScopedModel)` (per-tenant prefs incl. free-text `department` string — distinct from inbox_hub `Department`). `TenantMembership` — NOT TenantScoped; UUID PK; FKs `user`/`tenant`/`role` (PROTECT)/`temporary_role`/`temporary_role_granted_by`/`invited_by`; **M2M `temporary_permissions` → Permission** (empty = full temp-role perms; non-empty = intersection); methods `has_active_temporary_role`, `effective_role`, `get_effective_permissions_qs()`, `has_effective_permission(codename)`. `Invitation(TenantScopedModel)`. `UserGroup(TenantScopedModel)` (M2M `members`; **NOT in admin**; "one user per group" enforced in serializer + viewset with a **flat-string `detail`** error; ⚠ docstring "does not grant permissions or route work" is **stale** — it now gates the Inbox Hub). `EmailVerificationToken` (global).
 
 ### Tickets (22 model classes — heaviest app)
 
-`Pipeline`, `PipelineStage`, `TicketStatus` (incl. `pauses_sla`, `is_closed`, `is_default`), `Queue` (`default_assignee`, `auto_assign`, **`department` FK to inbox_hub.Department SET_NULL** — mig 0027), `TicketCategory`, `TicketCounter` (NOT TenantScoped; OneToOne tenant; SELECT FOR UPDATE + F-expression), `Ticket` (~64 fields; soft delete; CSAT; deal fields; `merged_into`; `auto_close_task_id`; `pre_wait_status`; `tags`+`custom_data` JSON). **`Ticket.save()` auto-populates `company_id`** from linked Contact's company when not explicitly set ([tickets/models.py:601-612](apps/tickets/models.py#L601)). `TicketLink` (4 types + circular guard via BFS), `SLAPolicy`, `EscalationRule`, `BusinessHours` (IANA timezone + schedule JSON), `PublicHoliday`, `SLAPause`, `TicketActivity` (**27 event choices**), `CannedResponse`, `Macro`, `SavedView`, `TicketAssignment` (immutable audit), `TicketWatcher` (4 reasons, `is_muted`), `TimeEntry` (1–1440 mins), `TicketTemplate`, `Webhook` (HMAC SHA-256, 8 EventType members, auto-disable at 10 failures).
-
-> Admin registers 17 of 22 — TicketLink, TicketCounter, Macro, TicketActivity are NOT in admin.
+`Pipeline`, `PipelineStage` (`is_won`/`is_lost`, `probability`), `TicketStatus` (incl. `pauses_sla`, `is_closed`, `is_default`), `Queue` (`default_assignee`, `auto_assign`, **`department` FK → inbox_hub.Department SET_NULL** — mig 0027, nullable opt-in), `TicketCategory`, `TicketCounter` (NOT TenantScoped; OneToOne tenant; `next_number()` SELECT-FOR-UPDATE + F-expression — ⚠ no-op on SQLite), `Ticket` (~80 fields; soft delete; CSAT; deal fields; `merged_into`; `pre_wait_status`; `tags`+`custom_data` JSON). **`Ticket.save()` auto-populates `company_id`** from the linked Contact's company when not explicitly set (via `Contact.unscoped`; never overwrites an explicit company). `Ticket.clean()` validates assignee membership but is **not** called by `save()`. `TicketLink` (4 types + circular guard via BFS over `blocks`), `SLAPolicy`, `EscalationRule`, `BusinessHours` (IANA tz + schedule JSON keyed "0".."6"), `PublicHoliday`, `SLAPause` (`duration_minutes`), `TicketActivity` (**27 `Event` choices** — the inner class is `Event`, NOT `EventType`; `EventType` belongs to `Webhook`), `CannedResponse`, `Macro`, `SavedView`, `TicketAssignment` (immutable audit), `TicketWatcher` (4 reasons, `is_muted`), `TimeEntry`, `TicketTemplate`, `Webhook` (HMAC SHA-256, 8 EventType, auto-disable at 10 failures).
 
 ### Contacts (5)
 
-`Account` (CRM account; `mrr`, `health_score` clamped 0–100), `Company` (name unique per tenant), `Contact` (email unique per tenant, `email_bouncing` indexed, `lead_score` 0–100, `last_activity_at` indexed, `source` 6-choice), `ContactGroup` (M2M contacts), `ContactEvent` (append-only 360° timeline; `source` 4-choice; intentionally NOT live-broadcast). **ContactEvent NOT in admin.**
+`Account` (`mrr`, `health_score` default 50, ⚠ clamped only in `clean()` which save() doesn't call), `Company` (name unique per tenant; `custom_data` JSON ⚠**never synced to CustomFieldValue** — no Company sync signal), `Contact` (email unique per tenant, `email_bouncing` indexed, `lead_score` default 50 ⚠no clamp at all, `last_activity_at` indexed — written only via `.update()` so no signal, `source` 6-choice), `ContactGroup` (M2M contacts), `ContactEvent` (append-only 360° timeline; intentionally NOT live-broadcast; NOT in admin). `build_contact_context` in `context.py` (cache prefix `contact_context_v2`, 60s TTL, cache skipped when `exclude_ticket` given) — shared by `ContactViewSet.context` and `HubEmailViewSet.context`.
 
 ### CRM (2)
 
-`Activity` (call/email/meeting/task), `Reminder` (formerly `Recall`; **M2M `contacts`/`tickets`** since migration 0004; priority; `status` is **derived property** of completed_at/cancelled_at/scheduled_at; `unscoped` manager; `ReminderQuerySet.overdue()/pending()/for_user()`; methods `mark_completed/mark_cancelled/reschedule`).
+`Activity` (call/email/meeting/task; ⚠ docstring claims save() bumps `ticket.last_activity_at` but it's the viewset's `_touch_ticket` — direct `.objects.create` bypasses it). `Reminder` (formerly Recall; **M2M `contacts`/`tickets`**; `Priority` 4-choice incl. **MEDIUM** default — differs from HubEmail's no-medium; `status` is a **derived property**; custom `ReminderManager`/`ReminderUnscopedManager` from `ReminderQuerySet` with `.overdue()/.pending()/.for_user()`; `mark_completed/mark_cancelled/reschedule`; **+ `due_notified_at`** watermark — Feature A).
 
 ### Inbound Email (3)
 
-`InboundEmail` extends `TimestampedModel` (NOT TenantScopedModel — tenant nullable, resolved post-parse). `Status` (**9 members** incl. `PARKED_IN_HUB` from migration 0009). `Direction` unified inbound+outbound; `SenderType` (customer/system/agent); `InboxStatus` (4: pending/linked/actioned/ignored); `InboxAction` (3). **NEW `assignee` FK** (SET_NULL, db_indexed, `related_name="assigned_inbound_emails"`, migration `inbound_email/0010` — untracked) + index `email_tenant_assignee_idx (tenant, assignee, inbox_status)` — set when a HubEmail is manually assigned, surfaces the original mail in the agent's Emails page (§"Agent email-inbox handoff"). Threading: `message_id` (indexed, stored without `<>`), `in_reply_to`, `references`. Idempotency keys: `"in:{tenant_id}:{message_id}"` / `"out:{tenant_id}:{ticket_id}:{message_id}"`. `is_read` indexed (migration 0007). `save()` enforces immutability of `linked_at/by` + `actioned_at/by` once set (**`assignee` is mutable**). `BounceLog` for hard bounces. `IMAPPollState` (`uid_validity`+`last_uid` watermark). **Only InboundEmail in admin** — BounceLog and IMAPPollState are not (admin does not yet expose `assignee`).
+`InboundEmail` extends `TimestampedModel` (NOT TenantScopedModel — tenant nullable, resolved post-parse → default `objects` is a PLAIN manager, cross-tenant; every query must filter `tenant=` explicitly). `Status` (**9 members** incl. `PARKED_IN_HUB` ⚠write-dead). `Direction`/`SenderType`/`InboxStatus`/`InboxAction`. **`assignee` FK** (SET_NULL, db_indexed, mig 0010, **mutable**). **`attachment_metadata` JSONField** — list of `{filename, content_type, size, storage_path}` for customer-sent files (surfaced + streamed by `apps/inbound_email/attachments.py`; storage path never exposed — index-addressed download). Threading: `message_id` (indexed, stored without `<>`), `in_reply_to`, `references`. Idempotency keys: `"in:{tenant}:{mid}"` / `"out:{tenant}:{ticket}:{mid}"` (unique). `save()` enforces immutability of `linked_at/by` + `actioned_at/by` (does a fresh SELECT on every update). `BounceLog`, `IMAPPollState` (uid_validity + last_uid watermark). **Only InboundEmail in admin.** 6 indexes.
 
 ### Knowledge (6)
 
-`Category`, `Article` (status: draft/pending_review/published/rejected/flagged; visibility: internal/public; review workflow + Postgres FTS via `SearchVectorField` + GinIndex; PDF/DOCX via mammoth + sanitisation; **`allowed_groups` M2M to UserGroup** — migration 0005; auto-slug with collision suffix via `Article.unscoped` scan). **`Article.save()` resolves tenant** from `main.context.get_current_tenant()` before slug scan, falls back to `"article"` when `slugify(title)` empty. `KBRevision`, `KBVote` (session_key-keyed), `KBSearchGap`, `KBTicketLink`. **Only Category + Article in admin.**
+`Category`, `Article` (status 5-choice DRAFT/PENDING_REVIEW/PUBLISHED/REJECTED/FLAGGED; visibility internal/public; Postgres FTS via `SearchVectorField`+GinIndex — ⚠ a **dev no-op** since `update_search_vector` early-returns on non-Postgres; **`allowed_groups` M2M to UserGroup** = audience gate independent of `visibility`; **`tags` JSON IS live** read/write/`tags__contains`-filter — unlike HubEmail.tags; auto-slug with collision suffix via `Article.unscoped`; **`save()` resolves tenant** from context before slug scan; ⚠ two confusingly-named date fields `reviewed_at` [workflow] vs `review_at` [stale-content scheduler]). `KBRevision` ⚠**dead-write**, `KBVote` (session_key-keyed, anon portal voting), `KBSearchGap`, `KBTicketLink` ⚠**dead-write**. **Only Category + Article in admin.**
 
 ### Kanban (3)
 
-`Board` (`resource_type` TICKET/DEAL, `is_default`, `is_personal` migration 0004 — private to creator), `Column` (board, order, optional status FK, wip_limit, color), `CardPosition` (polymorphic GenericFK; unique on column+content_type+object_id).
+`Board` (`resource_type` TICKET/DEAL, `is_default`, **`is_personal`** — private to creator, no status writeback), `Column` (board, order, optional `status` FK, wip_limit, color), `CardPosition` (polymorphic GenericFK; unique on column+content_type+object_id).
 
 ### Comments / Messaging / Newsfeed / Notifications / Inbox Hub
 
-**comments** (4): `Comment` (polymorphic GenericFK, threaded, `is_internal`), `Mention`, `CommentRead`, `ActivityLog` (**34 action choices** after migration 0010 — adds 8 `EMAIL_*` for Inbox Hub, all now emitted).
+**comments** (4): `Comment` (polymorphic GenericFK, threaded via self-FK `parent`, `is_internal`), `Mention` (plain model), `CommentRead` (plain model — row existence = read), `ActivityLog` (**34 action choices** — 26 core + 8 `EMAIL_*` for Inbox Hub). Comment + Mention + ActivityLog in admin; **CommentRead NOT**.
 
-**messaging** (3): `Conversation` (DIRECT/GROUP/TICKET; FK `source_group` to UserGroup migration 0002), `ConversationParticipant`, `Message` (threaded; mentions M2M; `is_edited`).
+**messaging** (3): `Conversation` (DIRECT/GROUP/TICKET — no default; FK `source_group` to UserGroup, dedupes per-creator group convs), `ConversationParticipant` (plain model, no tenant col; `last_read_at`), `Message` (`body` **required at model level** but `MessageCreateSerializer.body` allow_blank for attachment-only; null author = system; threaded; mentions M2M; `is_edited`; attachments via GenericFK). **✅ Cross-tenant user enumeration/injection FIXED (Sprint 0)** — DM/group creation + mentions + WS `_create_message` now reject/scope `user_ids` to active tenant members (see §Sprint 0 Hardening #2).
 
-**newsfeed** (3): `NewsPost` (5 categories), `NewsPostReaction` (6 emoji), `NewsPostRead` (NOT tenant-scoped — row existence = read).
+**newsfeed** (3): `NewsPost` (5 categories; `author` **CASCADE** — deleting user nukes posts; per-post free-text `emoji`), `NewsPostReaction` (6 emoji; one per user per post), `NewsPostRead` (plain model, no tenant col — row existence = read). **All 3 in admin.**
 
-**notifications** (2): `Notification` (**20 NotificationType choices** after migration 0005 — adds 5 `HUB_EMAIL_*`, all now created by Phase 1B). **`Notification` is NOT polymorphic** — only a `data` JSONField. `NotificationPreference`.
+**notifications** (2): `Notification` (**21 NotificationType** — +5 `HUB_EMAIL_*` + the new `REMINDER_DUE`). **NOT polymorphic** — only a `data` JSONField + `recipient` FK. `NotificationPreference` (no row ⇒ both channels ON). Single creator `send_notification(...)`; `INTERNAL_ONLY_TYPES` (5) force email off.
 
 **inbox_hub** (8): see §Inbox Hub above.
 
 ### Agents / Custom Fields / Billing / Analytics / Attachments / Notes / API Keys / VoIP
 
-**agents** (2): `AgentAvailability` (online/away/busy/offline + `custom_status` FK; load fields + working hours JSON + `auto_away_outside_hours`; **+`last_seen` (mig 0007) + `presence_fresh`/`is_assignable`/`remaining_capacity` properties** for Inbox Hub presence-aware assignment); `CustomAgentStatus` (migration 0006; tenant-scoped; `StatusColor` 8-choice). `BUILTIN_STATUS_SLUGS` frozenset. **CustomAgentStatus NOT in admin.**
+**agents** (2): `AgentAvailability` (online/away/busy/offline + `custom_status` FK; load + working-hours JSON + `auto_away_outside_hours`; **+`last_seen` mig 0007 + `presence_fresh`/`is_assignable`/`is_available`/`remaining_capacity` properties**); `CustomAgentStatus` (tenant-scoped; `StatusColor` 8-choice; NOT in admin). `BUILTIN_STATUS_SLUGS` frozenset.
 
-**custom_fields** (2): `CustomFieldDefinition` (8 field types × 3 modules; M2M `visible_to_roles`), `CustomFieldValue` (EAV; 4 typed value columns).
+**custom_fields** (2): `CustomFieldDefinition` (8 field types × **3 modules: ticket/contact/company**; M2M `visible_to_roles`), `CustomFieldValue` (EAV; 4 typed value columns). **⚠ Sync signals exist only for Ticket + Contact — NOT Company** (so Company custom fields never produce `CustomFieldValue` rows).
 
-**billing** (4): `Plan` (tiered + `has_voip`, `has_call_recording`, `max_calls_per_month`, `audit_retention_days` from migration 0002), `Subscription` (1:1 Tenant; 6 status choices; 7-day `in_grace_period`), `Invoice`, `UsageTracker`.
+**billing** (4): `Plan` (global; tiered + `has_voip`/`has_call_recording`/`max_calls_per_month` — **model defaults False/False/NULL, but ✅ the seeder now SETS them (Sprint 0)**: Free off, Pro `True/True/1000`, Enterprise `True/True/None`; mig `billing/0003` backfills existing rows), `Subscription` (1:1 Tenant; 6 status; `is_active`/`in_grace_period` properties; **✅ webhook now repoints the OneToOne row on re-subscribe** — no IntegrityError), `Invoice`, `UsageTracker`. **No `apps/billing/tasks.py`** (the `kanzan_webhooks` route for billing tasks is dormant — file doesn't exist). `decorators.py::require_feature` is **100% dead** (zero call sites). `SubscriptionMiddleware` → HTTP 402 when neither active nor in grace (own 14-entry exempt list; fail-open on no tenant/no subscription).
 
-**analytics** (4): `ReportDefinition`, `DashboardWidget`, `ExportJob` (CSV/XLSX/PDF), `CalendarEvent` (`color`/`end_date` migration 0003). **CalendarEvent NOT in admin.**
+**analytics** (4): `ReportDefinition`, `DashboardWidget` (null user = shared), `ExportJob` (CSV/XLSX/PDF — ⚠ **PDF → CSV bytes in a `.csv` filename**; **XLSX-without-openpyxl → CSV bytes in a `.xlsx` filename**), `CalendarEvent`. **⚠ `DashboardView` has only `IsAuthenticated`** (no `HasTenantPermission` — bypasses resource RBAC; tenant isolation still holds via scoped querysets). `process_export_job.delay()` not wrapped in `on_commit` (early-run can strand a job at `pending`).
 
-**attachments** (1): `Attachment` (polymorphic GenericFK; `tenants/{id}/attachments/YYYY/MM/{filename}`).
+**attachments** (1): `Attachment` (polymorphic GenericFK with **UUIDField object_id** — only UUID-PK models attachable; `tenants/{id}/attachments/YYYY/MM/{12hex}_{filename}`; **python-magic true-MIME validation** ignoring client Content-Type, 25MB cap, allowlist; cross-tenant validated in serializer). **✅ Object-level authz added (Sprint 0)** — `apps/attachments/access.py::can_access_target` + `CanAccessAttachmentObject` perm + authed `download/` action gate retrieve/download/upload/destroy by the *target object's* visibility (tickets/comments/messages explicit; other targets allow). ⚠ raw `/media/` still unauthenticated — see §Sprint 0 Hardening #3.
 
-**notes** (1): `QuickNote` (6 colors; pinning; per-user).
+**notes** (1): `QuickNote` (6 colors; pinning; per-user). No signals.
 
-**api_keys** (1): `APIKey(TenantScopedModel)` — `name`, `service_user` (1:1 hidden `User` with `is_service_account=True`), `role` (FK PROTECT — drives `HasTenantPermission`), `prefix` (indexed), `hashed_key` (SHA-512 hex; cleartext never persisted), `created_by` PROTECT, `is_active`, `expires_at`, `last_used_*`, `request_count`. Cleartext format: `kz_live_<slug6>_<token_urlsafe(32)>`. Sister files: `authentication.py`, `services.py`, `throttling.py`, `middleware.py` (`RateLimitHeadersMiddleware`), `extensions.py` (drf-spectacular `APIKeyAuthScheme`, registered via `apps.py::ready()`), `views.py`, `tasks.py`.
+**api_keys** (1): `APIKey(TenantScopedModel)` — `name`, `service_user` (1:1 hidden `User` with `is_service_account=True`), `role` (FK PROTECT — drives `HasTenantPermission`), `prefix` (indexed, = `cleartext[:20]`), `hashed_key` (**SHA-512** hex; cleartext never persisted), `created_by` PROTECT, `is_active`, `expires_at`, `last_used_*`, `request_count`. Cleartext format: `kz_live_<slug6>_<token_urlsafe(32)>`. `regenerate` rotates in place; `revoke` soft-disables key+service-user+membership.
 
-**voip** (5): `VoIPSettings` (singleton; encrypted ARI creds; STUN/TURN; `pjsip_context`), `Extension` (sip_username **globally unique**, encrypted password), `CallLog` (direction 3-choice, status 9-choice, indexed `asterisk_channel_id`), `CallRecording` (1:1 CallLog; `tenants/{id}/recordings/YYYY/MM/{uuid}.{ext}`), `CallQueue` (5 ACD strategies + M2M Extension members).
+**voip** (5): `VoIPSettings` (singleton; encrypted ARI creds; STUN/TURN; `pjsip_context`; **`is_active` — NOT `Plan.has_voip` — drives softphone UI visibility**), `Extension` (sip_username **globally unique**, encrypted password), `CallLog` (3 directions, 9 statuses, indexed `asterisk_channel_id`), `CallRecording` (1:1 CallLog), `CallQueue` (5 ACD strategies + M2M Extension members).
 
 ### Polymorphic (GenericFK) Models — 5 total
 
@@ -455,708 +458,357 @@ When a HubEmail is **manually** assigned, the original customer message is hande
 
 **Hierarchy:** Admin(10) → Manager(20) → **Team Lead(25)** → Agent(30) / **IT(30)** / **HR(30)** → Viewer(40).
 
-**Default role seeding (`apps/tenants/signals.py::create_default_roles`)** runs on `Tenant.post_save (created=True)` and seeds **all seven** system roles inline. All `is_system=True`. Permission sets for the **six** perm-bearing roles (Viewer is intentionally permission-less, leans on ≤40 view fallback) come from `apps/accounts/defaults.py::ROLE_DEFINITIONS` (6 entries). Backfill for existing tenants via `accounts/0011_seed_team_lead_it_hr_roles`. The 12 Inbox Hub permissions are backfilled via `accounts/0012_seed_inbox_hub_permissions` (`.add(*perms)`). `PERMISSION_DEFINITIONS` → `ALL_CODENAMES` = **69 unique codenames** (12 inbox_hub-related).
+**Default role seeding (`apps/tenants/signals.py::create_default_roles`)** runs on `Tenant.post_save (created=True)` and seeds **all seven** system roles inline (all `is_system=True`); permission sets for the **six** perm-bearing roles come from `apps/accounts/defaults.py::ROLE_DEFINITIONS` (**6 entries** — Viewer is intentionally permission-less, leans on the ≤40 view fallback). `ALL_CODENAMES` = **69 unique codenames** (12 inbox-hub-related). ⚠ The signal path uses `Role.objects.get_or_create` during `post_save` with **no tenant context bound** — masked by the explicit `tenant=instance` arg + DB unique constraint; it diverges from `defaults.provision_default_roles` (which correctly uses `Role.unscoped` but is **dead** — no runtime callers; permissions are seeded by migrations `accounts/0011`/`0012`).
 
-- `is_admin`: `hierarchy_level ≤ 10`; `is_admin_or_manager`: `≤ 20`; `is_agent_or_above`: `≤ 30`. **Team Lead (25)** satisfies `is_agent_or_above` but NOT `is_admin_or_manager`. **IT/HR (30)** satisfy `is_agent_or_above`. Viewer (40) satisfies none.
-- Non-manager row-scoping (`level > 20`): the membership sees only own/assigned tickets, linked contacts, filtered kanban cards, own reminders/activities.
-- **Always use `TenantMembership.effective_role`** — temporary role wins until `temporary_role_expires_at`. `BadgeCountView` and the inbox_hub permission classes use `effective_role`. ⚠️ **Mixed `role` vs `effective_role` (pre-existing footgun, now more visible):** the ticket-list queryset (`tickets/views.py`), `analytics/services.py::_apply_user_filter`, and `kanban/serializers.py` still gate the agent branch on raw `membership.role.hierarchy_level`, whereas `IsTicketAccessible` and the badges use `effective_role`. A temp-promoted agent gets object-perm + badges as a manager but is still list/kanban/analytics-filtered.
-- **`AgentAvailabilityViewSet.assignable_roles`** **excludes the `admin` slug** to prevent privilege escalation through the UI. Each returned role dict includes a `description` field.
-- **Shared visibility modules (NEW Jun-9 refactor)** — two single-source-of-truth helper modules so a scoping rule can't drift between surfaces:
-  - **`apps/tickets/access.py`** — `agent_visible_tickets_q(user)` = `Q(assignee=user) | (Q(created_by=user) & Q(assignee__isnull=True))` + object-level `agent_can_see_ticket(user, ticket)`. **An agent sees a ticket only if it's assigned to them, or they created it AND it's still unassigned — a self-created ticket handed off to another agent LEAVES the creator's view.** Imported by `tickets/views.py` (list), `accounts/permissions.py::IsTicketAccessible` (object), `analytics/services.py` (dashboards), `nav/views.py` (badge), `kanban/serializers.py` (cards). Admin/Manager (≤20) bypass.
-  - **`apps/inbox_hub/access.py`** — `can_access_inbox_hub(membership)` (Admin ≤10 OR `user_in_any_group`) + `user_in_any_group(user, tenant)`. The Hub group gate; see §Inbox Hub. Imported by `inbox_hub/permissions.py`, `inbox_hub/views.py`, `tenants/frontend_views.py`, `tenants/context_processors.py`, `nav/views.py`.
+- `is_admin`: `≤10`; `is_admin_or_manager`: `≤20`; `is_agent_or_above`: `≤30`. **Team Lead (25)** satisfies `is_agent_or_above` but NOT `is_admin_or_manager` (so `_role_required(20)` pages deny Team Lead by design). Viewer (40) satisfies none (≤40 view-fallback only). IT/HR share level 30 with Agent (+`user.view`).
+- **Always use `TenantMembership.effective_role`** — temporary role wins until `temporary_role_expires_at`. ⚠️ **Mixed `role` vs `effective_role` drift (pre-existing footgun):** permission classes (`HasTenantPermission`, `IsTicketAccessible`, `IsTenantAdmin*`), nav badges, and the Hub permission classes use `effective_role`; but the **ticket-list queryset** (`tickets/views.py` — many sites), **`analytics/services.py`**, **`kanban/serializers.py::_get_allowed_ticket_ids`**, **`apps/agents/services.py::pick_email_agent`**, and the Hub **`_candidate_user_ids`** no-department fallback still gate on **raw `role.hierarchy_level`**. A temp-promoted agent gets object-perms + badges as a manager but is still list/kanban/analytics-filtered (and email-routed) as an agent.
+- **`AgentAvailabilityViewSet.assignable_roles`** **excludes the `admin` slug** to prevent privilege escalation through the UI. `grant_temp_role` sets `temporary_permissions.set([...])` (empty clears → full role).
+- **Shared visibility modules** (single source of truth):
+  - **`apps/tickets/access.py`** — `agent_visible_tickets_q(user)` = `Q(assignee=user) | (Q(created_by=user) & Q(assignee__isnull=True))` + object-level `agent_can_see_ticket`. **An agent sees a ticket only if assigned to them, or they created it AND it's still unassigned — a self-created ticket handed off LEAVES the creator's view.** Imported by `tickets/views.py` (list), `accounts/permissions.py::IsTicketAccessible` (object), `analytics/services.py`, `nav/views.py` (badge), `kanban/serializers.py` (cards). Admin/Manager (≤20) bypass.
+  - **`apps/inbox_hub/access.py`** — **DEPARTMENT-scoped** Hub gate (the old `user_in_any_group` is DELETED). `can_access_inbox_hub(membership, *, user, tenant)` (Admin/Manager ≤20 always; Viewer >30 never; agent-tier iff in active dept OR tenant has no active depts OR has assigned mail) + `hub_rows_q` / `agent_can_see_hub_email` (twin row-scope helpers) + `user_department_ids` + `tenant_has_departments`. Imported by `inbox_hub/permissions.py`, `inbox_hub/views.py`, `tenants/frontend_views.py`, `tenants/context_processors.py`, `nav/views.py`.
+  - **`apps/contacts/context.py`** — `build_contact_context(contact, tenant, *, exclude_ticket=None)`. Cache prefix `contact_context_v2`, 60s TTL, cache skipped when `exclude_ticket` given. Shared by `ContactViewSet.context` and `HubEmailViewSet.context`.
 - **Permission classes** (`apps/accounts/permissions.py`):
-  - `HasTenantPermission` — codename-based; `ACTION_MAP` maps 70+ DRF action names to `{resource}.{action}`; includes `convert_to_ticket → convert`, `dismiss → dismiss`, `send_creation_email → update`. Note: `assign`/`escalate` are deliberately NOT remapped here (they collide with TicketViewSet) — Inbox Hub uses its own `HubEmailPermission`. Hierarchy fallback: `view → ≤40`, `create/update → ≤30`, all others → ≤20.
-  - `IsTicketAccessible` — object-level row filtering for agents (≤20 bypass; otherwise delegates to **`agent_can_see_ticket(user, obj)`** — the tightened shared rule above).
-  - `IsTenantMember`, `IsTenantAdmin`, `IsTenantAdminOrManager`.
-  - **`HubEmailPermission` + `IsHubEmailAccessible`** (`apps/inbox_hub/permissions.py`) — Inbox Hub's local stack with the group access gate; see §Inbox Hub.
-  - Helper `_get_membership()` caches on `request._cached_tenant_membership` (`select_related("role","temporary_role")`).
-- `_role_required(20)` decorator gates admin/manager frontend pages. **Team Lead (25) does NOT pass `_role_required(20)`** by design. `_role_required(30)` gates Outbound Emails (admits Team Lead/Agent/IT/HR). **`/settings/`** is `@_membership_required + @ensure_csrf_cookie` — any member can load; API enforces admin-only writes (with per-field allowlist for Managers).
+  - `HasTenantPermission` — codename-based; `ACTION_MAP` maps ~95 DRF actions to `{resource}.{action}` (incl. `convert_to_ticket → convert`, `dismiss → dismiss`, `context → view`; `assign`/`escalate` deliberately remapped to `update` and NOT used by Inbox Hub — they collide with TicketViewSet). Uses `effective_role`; no `permission_resource` → **allow**; unmapped action → **deny**. Explicit-perm check first, then hierarchy fallback (`view ≤40`, `create/update ≤30`, else ≤20).
+  - `IsTicketAccessible` — object-level (≤20 bypass; else `agent_can_see_ticket`).
+  - `IsTenantMember` (⚠ returns `True` when `request.tenant is None` — for public/main-site endpoints), `IsTenantAdmin`, `IsTenantAdminOrManager`.
+  - **`HubEmailPermission` + `IsHubEmailAccessible`** — Inbox Hub's local stack with the department access gate (`can_access_inbox_hub` + `agent_can_see_hub_email`).
+- `_role_required(20)` gates admin/manager frontend pages (Team Lead 25 does NOT pass by design). `_role_required(30)` gates Emails. **`/settings/`** is `@_membership_required + @ensure_csrf_cookie` — any member can load; API enforces admin-only writes (per-field allowlist for Managers).
 
-## Signals (10 apps with signals.py + notifications/signal_handlers.py)
+## Signals (10 apps with signals.py + notifications/signal_handlers.py — 42 receivers)
 
-**42 total receivers** wired up. Apps with `signals.py`: accounts, comments, contacts, crm, custom_fields, knowledge, newsfeed, tenants, tickets, voip. `notifications` uses `signal_handlers.py`. **`apps/inbox_hub/` has NO `signals.py`** — `apps.py` has no `ready()`; the Hub fans events imperatively from its service/routing/assignment layer.
-
-### Tenants — 2 receivers
-- `Tenant.post_save (created=True)` → `create_tenant_settings` + `create_default_roles` (seeds 7 system roles inline).
-
-### Accounts — 5 receivers
-- `TenantMembership.post_save` → `create_profile_on_membership` + `broadcast_membership_save`
-- `TenantMembership.post_delete` → `broadcast_membership_delete`
-- `Profile.post_save` → `broadcast_profile_save`
-- `User.post_save` → `broadcast_user_save` (skips creation; on update fans across every active membership's tenant group; emits `avatar` URL in payload via `_serialise_user`)
-
-### Tickets — 11 receivers
-- `Ticket.pre_save` → `handle_ticket_status_change`
-- `Ticket.post_save` → `fire_ticket_created_signal`, `fire_ticket_assigned_signal`, `log_ticket_activity` (2s dedup + respects `_skip_signal_logging`), `handle_sla_pause_on_status_change`, `create_kanban_card_on_ticket_save`, `sync_kanban_card_on_status_change`, `sync_kanban_card_on_pipeline_stage_change`
-- `Ticket.post_delete` → `remove_kanban_cards_on_ticket_delete` (commit `79eeb88`) — hard-delete cleanup via `CardPosition.unscoped`
-- `@receiver(ticket_closed)` → `check_kb_article_coverage`
-- `SLAPolicy.post_save` → `propagate_sla_policy_change` (async via Celery if >50 tickets)
-
-### Custom Fields — 2 receivers
-- `Ticket.post_save`/`Contact.post_save` → sync `CustomFieldValue` from JSON `custom_data`
-
-### Knowledge — 1 receiver
-- `Article.post_save` → `update_search_vector` (Postgres FTS; uses `.update()` to avoid recursion; skips non-Postgres)
-
-### Notifications — 2 receivers (in `signal_handlers.py`)
-- `@receiver(ticket_assigned)` → `handle_ticket_assigned`
-- `@receiver(ticket_comment_created)` → `handle_comment_notification` + `_queue_contact_reply_email`
-
-### VoIP — 1 receiver
-- `CallLog.post_save` on terminal status → writes `TicketActivity` + `ActivityLog` + queues `process_call_recording`. `_timeline_logged` flag dedup; `_TERMINAL_STATUSES` frozenset.
-
-### Comments — 2 receivers
-- `Comment.post_save/delete` → `broadcast_comment_save/delete`
-
-### Contacts — 8 receivers
-- `Contact/Company/Account/ContactGroup × post_save/delete` → `broadcast_*_save/delete`
-
-### CRM — 4 receivers
-- `Activity/Reminder × post_save/delete` → `broadcast_*_save/delete` (Reminder verb resolved by state)
-
-### Newsfeed — 4 receivers
-- `NewsPost/NewsPostReaction × post_save/delete` → `broadcast_newspost_*` + `broadcast_reaction_*` (with `added: bool`)
+- **Tenants — 2:** `Tenant.post_save(created)` → `create_tenant_settings` + `create_default_roles` (7 system roles inline).
+- **Accounts — 5:** `TenantMembership.post_save` → `create_profile_on_membership` + `broadcast_membership_save`; `post_delete` → broadcast; `Profile.post_save` → broadcast; `User.post_save` → `broadcast_user_save` (skips creation; fans across every active membership; emits avatar URL).
+- **Tickets — 11:** `pre_save handle_ticket_status_change` (snapshots old values; stamps resolved/closed_at; resolution-breach check); `post_save` × `fire_ticket_created_signal`, `fire_ticket_assigned_signal`, `log_ticket_activity` (**2-sec dedup** via `_activity_already_logged`; reads `_skip_signal_logging`; ⚠ docstrings say "5-second" but code is 2s), `handle_sla_pause_on_status_change`, `create_kanban_card_on_ticket_save`, `sync_kanban_card_on_status_change` (by status FK), `sync_kanban_card_on_pipeline_stage_change` (⚠ by column **name** — rename breaks it silently); `post_delete remove_kanban_cards_on_ticket_delete` (hard-delete only); `@receiver(ticket_closed) check_kb_article_coverage`; `SLAPolicy.post_save propagate_sla_policy_change` (async via Celery if >50 tickets).
+- **Custom Fields — 2:** `Ticket.post_save`/`Contact.post_save` → sync `CustomFieldValue` from `custom_data`. (⚠ No Company receiver.)
+- **Knowledge — 1:** `Article.post_save update_search_vector` (PG FTS; `.update()`; early-returns on non-Postgres).
+- **Notifications — 2 (`signal_handlers.py`):** `@receiver(ticket_assigned) handle_ticket_assigned` (skips self-assign); `@receiver(ticket_comment_created) handle_comment_notification` (+ `@email@domain` mention parsing + `_queue_contact_reply_email`, which skips when author email == contact email).
+- **VoIP — 1:** `CallLog.post_save` on terminal status → `TicketActivity` + `ActivityLog` + queues `process_call_recording`.
+- **Comments — 2:** `Comment.post_save/delete` → `broadcast_comment_save/delete` (⚠ broadcasts internal comment bodies tenant-wide).
+- **Contacts — 8:** `Contact/Company/Account/ContactGroup × post_save/delete` (ContactEvent skipped).
+- **CRM — 4:** `Activity/Reminder × post_save/delete` (Reminder verb resolved by state).
+- **Newsfeed — 4:** `NewsPost/NewsPostReaction × post_save/delete`.
 
 ## Dual-Write Logging
 
 **Two parallel log systems:**
-1. **TicketActivity** — human-readable timeline, **27 events** (after migration 0026). Endpoint: `/api/v1/tickets/tickets/{id}/timeline/`.
-2. **ActivityLog** — polymorphic audit trail with diffs+IP, **34 actions** (after migration 0010 — 26 pre-Inbox-Hub + 8 `EMAIL_*`). Endpoint: `/api/v1/tickets/tickets/{id}/activity/`.
+1. **TicketActivity** — human-readable timeline, **27 `Event`s**. `/api/v1/tickets/tickets/{id}/timeline/`.
+2. **ActivityLog** — polymorphic audit trail with diffs+IP, **34 actions** (26 core + 8 `EMAIL_*`). `/api/v1/tickets/tickets/{id}/activity/`.
 
-**Dedup pattern:** The signal `log_ticket_activity` checks `instance._skip_signal_logging`. **Service-layer functions** (`assign_ticket`, `change_ticket_status`, `escalate_ticket`, `change_ticket_priority`) set this flag before their `ticket.save(update_fields=…)`. ViewSets also set it; use `serializer.instance` in `perform_update` so the flag persists. 2-sec window in signal.
+**Dedup pattern:** `log_ticket_activity` checks `instance._skip_signal_logging` (set in 7 service sites + `views.py perform_update`, read in 1 signal site); a 2-sec window in `_activity_already_logged` is the safety net for paths that don't set the flag.
 
-**Service layer** (`apps/tickets/services.py`) — every mutation writes to BOTH logs atomically and broadcasts WebSocket events via `transaction.on_commit()`. Public: `create_ticket_activity`, `assign_ticket`, `transition_ticket_status`, `change_ticket_status`, `change_ticket_priority`, `log_ticket_comment`, `close_ticket`, `escalate_ticket`, `merge_tickets`, `split_ticket`, `bulk_update_tickets`, `apply_macro/render_macro`, `record_first_response`, `transition_pipeline_stage`, `initialize_sla`, `log_sla_change`, `broadcast_ticket_event`, `validate_status_transition`, `resume_from_wait`. **`ALLOWED_TRANSITIONS["waiting"] = ["open","in-progress","resolved","closed"]`** — Waiting→Resolved/Closed legal.
+**Service layer** (`apps/tickets/services.py`, **20 public** functions of 27) — every mutation writes to BOTH logs atomically + broadcasts via `transaction.on_commit`: `broadcast_ticket_event`, `initialize_sla`, `log_sla_change`, `create_ticket_activity`, `assign_ticket`, `validate_status_transition`, `transition_ticket_status`, `resume_from_wait`, `change_ticket_status`, `close_ticket`, `escalate_ticket`, `change_ticket_priority`, `log_ticket_comment`, `bulk_update_tickets`, `record_first_response`, `merge_tickets`, `split_ticket`, `render_macro`, `apply_macro`, `transition_pipeline_stage`. **⚠ There is NO `create_ticket()` service fn** — creation is serializer-driven in `TicketViewSet.perform_create` (plan-limit check → `serializer.save()` → `create_ticket_activity`). `_create_ticket_activity` mirrors to `ContactEvent` (best-effort). **`ALLOWED_TRANSITIONS`** (slug-keyed): `open→[in-progress,waiting,resolved,closed]`, `in-progress→[open,waiting,resolved,closed]`, `waiting→[open,in-progress,resolved,closed]`, `resolved→[closed,open]`, `closed→[]`. Custom (unrecognised slug) statuses transition freely.
 
-**Kanban drags route through services.** `apps/kanban/services.py::move_card(...)` — when dragged card is a `Ticket` AND target column has a different status, calls `apps.tickets.services.change_ticket_status(content_obj, target_column.status, actor, request=request)`. Full dual-write + ticket-feed broadcast + SLA pause handling.
+**Kanban drags route through services.** `apps/kanban/services.py::move_card` — when a dragged Ticket card moves to a column with a different `status` FK (and the board is NOT personal), calls `apps.tickets.services.change_ticket_status(...)` with the dragger as actor (full dual-write + ticket-feed broadcast + SLA pause). Personal boards never write back. Non-Ticket content (deals) does a plain `.save()`.
 
-**Kanban orphan-card cleanup** (`79eeb88`): `apps/tickets/signals.py` registers a `post_delete` receiver that hard-deletes `CardPosition` rows via `CardPosition.unscoped`. **Companion**: `apps/kanban/serializers.py` skips cards whose resolved content object is `None`.
+**Inbox Hub dual-write parity**: each Hub service fn writes an `ActivityLog` row (one of the 8 `EMAIL_*` actions or `STATUS_CHANGED`) AND broadcasts a `hub_email.*` LiveBus event on commit. No `TicketActivity`.
 
-**Inbox Hub dual-write parity**: `park_email_in_hub`, routing, assignment, transition, escalate, reassign, note, `convert_to_ticket`, `dismiss_hub_email` each write an `ActivityLog` row (one of the 8 `EMAIL_*` actions or `STATUS_CHANGED`) AND broadcast a `hub_email.*` LiveBus event on commit. No `TicketActivity` writes — HubEmail's own audit surface is `HubEmailAssignment` (immutable) + `HubEmailNote`.
-
-**Webhook service** (`apps/tickets/webhook_service.py`): `deliver_webhook` HMAC SHA-256, 10s timeout, auto-disable at 10 failures. `fire_webhooks(tenant, event_type, data)` async via Celery. Events: 8 EventType members.
-
-**Transaction safety:** Notifications + WebSocket pushes + email task queues all defer to `transaction.on_commit()`.
+**Webhook service** (`apps/tickets/webhook_service.py`): `deliver_webhook` HMAC SHA-256 (`X-Webhook-Signature: sha256=<hex>` when secret set), 10s timeout, auto-disable at 10 failures. `fire_webhooks(tenant, event_type, data)` async via Celery. 8 EventType members.
 
 ## SLA + Business Hours (`apps/tickets/sla.py`)
 
-Single breach-detection entry point `get_effective_elapsed_minutes()`:
-- Resolves per-tenant schedule via `BusinessHours` (JSON per-day + IANA timezone) or legacy `TenantSettings` flat fields.
-- Skips `PublicHoliday` dates.
-- Subtracts total pause duration from `SLAPause` records.
-- Helpers: `elapsed_business_minutes()`, `add_business_minutes()`, `is_within_business_hours()`, `get_total_pause_minutes()`, `sla_deadline_utc()`.
-- `initialize_sla(ticket)` seeds `response_deadline`/`resolution_deadline`.
-- `_check_first_response_breach` uses atomic UPDATE+WHERE.
+Single breach-detection entry point `get_effective_elapsed_minutes()`: resolves per-tenant schedule via `BusinessHours` (JSON per-day + IANA tz) or legacy `TenantSettings` flat fields; skips `PublicHoliday` dates; subtracts total pause duration. Helpers: `elapsed_business_minutes()`, `add_business_minutes()` (365×24 iteration cap), `is_within_business_hours()`, `get_total_pause_minutes()`, `sla_deadline_utc()`. Falls back to **24/7 wall-clock** when no `BusinessHours` config. `initialize_sla(ticket)` seeds deadlines; `_check_first_response_breach` uses atomic UPDATE+WHERE.
 
 > **Inbox Hub SLA is separate and simpler** — `_initialize_hub_sla` seeds **wall-clock** deadlines from `HubEmailSLA`; `check_hub_sla_breaches` (Beat 120s) flags + warns + auto-escalates. No business-hours math yet.
 
 ## Inbound / Outbound Email
 
 ### Inbound (`apps/inbound_email/`)
-- **In-process SMTP server** via `aiosmtpd`, launched by `run_smtp_server` (PM2 process `kanzan-smtp`). Optional STARTTLS + LOGIN/PLAIN AUTH.
-- **IMAP poller** — shared Gmail-style mailbox; UID > watermark (not UNSEEN). Driven by `fetch_inbound_emails_task` (Celery Beat 60s). Disabled when `IMAP_HOST` blank. **Safety: never backfills** — aborts on UIDVALIDITY/UIDNEXT parse failure.
-- **Tenant resolution** — 4 strategies in `resolve_tenant_from_address`:
-  1. Plus-addressing (`support+{slug}@…`)
-  2. Subdomain routing
-  3. Custom `TenantSettings.inbound_email_address`
-  4. `settings.IMAP_DEFAULT_TENANT_SLUG` last-resort fallback — shared mailboxes route to a default tenant
-- **Filters** run BEFORE tenant resolution: loop detection, noreply senders, RFC 3834 Auto-Submitted / Precedence: bulk/junk/list. `classify_email() → bounce/auto_reply/loop/legitimate`. Bounces write `BounceLog` and flip `Contact.email_bouncing=True`.
+- **In-process SMTP server** via `aiosmtpd` (`run_smtp_server`, PM2 `kanzan-smtp`, default `0.0.0.0:2525`). `handle_RCPT` rejects **550** if no tenant resolves (anti-open-relay); 25MB cap (**552**); optional STARTTLS + LOGIN/PLAIN auth. Creates one InboundEmail per recipient.
+- **IMAP poller** — shared Gmail-style mailbox; UID > watermark (not UNSEEN, because Gmail web-UI marks `\Seen`). Driven by `fetch_inbound_emails_task` (Beat 60s, `kanzan_email`). Disabled when `IMAP_HOST` blank. **Safety: never backfills** — aborts (returns 0) on UIDVALIDITY/UIDNEXT parse failure; watermark advanced per-message. **✅ Dedup is now PER-TENANT (Sprint 0):** `_ingest_one` resolves the tenant from the recipient BEFORE dedup and filters `(tenant, message_id)` — two tenants can legitimately receive the same Message-ID (was a global `message_id`-only check that silently dropped the second tenant's copy). Unresolvable recipient → `tenant=None` scope.
+- **Tenant resolution** — 4 strategies in `resolve_tenant_from_address`: plus-addressing → slug-as-local-part → `TenantSettings.inbound_email_address` → `settings.IMAP_DEFAULT_TENANT_SLUG` last-resort.
+- **Filters run BEFORE tenant resolution** (cheap, no DB): loop (`sender==DEFAULT_FROM_EMAIL`), 8 noreply prefixes, RFC 3834 Auto-Submitted/Precedence, subject patterns. `classify_email() → bounce/auto_reply/loop` (docstring's "legitimate" is never returned). Bounces write `BounceLog` + flip `Contact.email_bouncing=True`.
 - **Threading** — `find_existing_ticket` 3-tier: In-Reply-To → References (reversed) → subject `[#N]` regex.
-- **Processing pipeline** (`process_inbound_email_task`, max_retries=3, default_retry_delay=30s, acks_late): `select_for_update` → filter classifier → tenant resolution → idempotency claim → find/create contact → find existing ticket OR (per the seam) `park_email_in_hub` if `inbox_hub_enabled` else `_create_ticket_from_email` (with `_maybe_auto_assign`) → attach files → queue confirmation email via `transaction.on_commit()`.
-- **Agent inbox workflow** (`inbox_services.py`): `link_email_to_ticket`, `action_email`, `ignore_email`. The `InboundEmailViewSet` (read via `/inbound-email/` + alias `/emails/`) gained **`?assigned=me` / `?internal=true` / `?mine=true`** query branches and a **`create_ticket`** write action (`POST /{id}/create-ticket/`, role ≤30; reuses `convert_to_ticket` for parked Hub mail) — backing the Emails page's "Assigned to me" tab (§"Agent email-inbox handoff").
+- **Processing pipeline** (`process_inbound_email_task`, max_retries=3, retry_delay=30s, acks_late): `select_for_update` (PENDING/PROCESSING proceed) → filters → tenant resolution → idempotency claim (`in:{tenant}:{mid}`) → find/create contact → find existing ticket OR (per the seam) `park_email_in_hub` if `inbox_hub_enabled` else `_create_ticket_from_email` (+ `_maybe_auto_assign`) → attach files → queue confirmation email via `on_commit` (if `auto_send_ticket_created_email`).
+- **Agent inbox workflow** (`inbox_services.py`): `link_email_to_ticket`, `action_email` (open/assign/close), `ignore_email` — each dual-writes ActivityLog + (where applicable) TicketActivity. Exposed by `InboxViewSet` at `/inbound-email/inbox/...`.
 
 ### Outbound (`apps/tickets/email_service.py`)
-- `send_ticket_email()` — single entry point. RFC-compliant Message-IDs.
-- Persists an OUTBOUND `InboundEmail` record for threading.
-- Dev: `filebased.EmailBackend` → `tmp/emails/`. Prod: SMTP.
+- `send_ticket_email()` — single entry point. Skips undeliverable recipients (`.local`, RFC 2606); RFC Message-IDs; reply-to = tenant inbound address or `support+{slug}@{BASE_DOMAIN}`; thread headers from the ticket's recent message_ids. Persists an OUTBOUND `InboundEmail` (`out:` idempotency key) for threading. Dev: `filebased.EmailBackend` → `tmp/emails/`. Prod: SMTP. `_add_reply_to_ticket` deliberately does NOT fire `ticket_comment_created` (avoids emailing the customer into a loop) and reopens resolved/paused tickets on customer reply.
 
-## Auto-Assign (Inbound Email → Agent)
+## Auto-Assign (Inbound Email → Agent — legacy, distinct from Inbox Hub)
 
-`apps/agents/services.py::pick_email_agent(tenant)` (legacy ticket auto-assign, distinct from the Inbox Hub AssignmentEngine):
-1. Active tenant member with `hierarchy_level == 30` (Agent / IT / HR — all eligible).
-2. Not OFFLINE; agents with no `AgentAvailability` eligible.
-3. Pick fewest open tickets (load balancing).
-4. Tie-break by **least-recently-assigned** (`MAX(TicketAssignment.created_at)`, NULLS FIRST for cold-start fairness).
+`apps/agents/services.py::pick_email_agent(tenant)`:
+1. Active member with **`role__hierarchy_level == 30`** (Agent/IT/HR — ⚠ raw role; excludes Admin/Manager/Team Lead/Viewer).
+2. Not OFFLINE; agents with no `AgentAvailability` eligible (fail-open). ⚠ Checks only OFFLINE, not `is_assignable`/freshness (unlike the Hub engine).
+3. Fewest open tickets (load balancing).
+4. Tie-break by least-recently-assigned (NULLS FIRST).
 
-`auto_assign_email_ticket(ticket)` — atomic save + `TicketAssignment` audit + best-effort `AgentAvailability.current_ticket_count` nudge.
+`auto_assign_email_ticket(ticket)` — atomic save + `TicketAssignment` audit + best-effort `current_ticket_count` nudge. Gated by `TenantSettings.auto_assign_inbound_email_tickets`.
 
 ## VoIP
 
 **Architecture:** Asterisk/FreePBX → ARI (REST + WebSocket Stasis). Django wraps ARI, exposes SIP creds to browser softphone (SIP.js over WSS), persists `CallLog`/`CallRecording`.
 
-- **`ari_client.py`** — async `httpx` ARIClient: originate/hangup/hold/unhold/mute/unmute/redirect/bridge/record. `ARIEventListener` connects to `ws(s)://host:port/ari/events?app=kanzan-voip&subscribeAll=true`, exponential reconnect 1–30s.
-- **`services.py`** — sync wrappers; `process_ari_event` dispatches state events to `CallLog` updates.
-- **`consumers.py`** — `CallEventConsumer` (`ws/voip/events/`).
-- **`run_ari_listener`** — long-running async listener; one per active tenant concurrently. **NOT in PM2** by default.
-- **Softphone** — `templates/includes/softphone.html` + `static/js/voip-softphone.js` using **SIP.js 0.21.2** (CDN, conditional on `voip_enabled`).
+- **`ari_client.py`** — async `httpx` ARIClient. `ARIEventListener` connects to `ws(s)://host:port/ari/events?app=kanzan-voip&subscribeAll=true`, exponential reconnect.
+- **`services.py`** — `check_call_limit` (the **only** `Plan.has_voip` enforcement), `increment_call_usage`, `process_ari_event` → `CallLog` updates + `_broadcast_call_event` → `voip_{tenant_id}`.
+- **`consumers.py::CallEventConsumer`** (`ws/voip/events/`). ⚠ **No per-user/extension scoping** — every tenant member on the socket sees all call metadata (numbers, contact_id, ticket_id). Bare `close()` for rejections.
+- **`run_ari_listener`** — one `ARIEventListener` per active tenant. **NOT in any PM2 config** — manual launch only.
+- **Softphone** — `templates/includes/softphone.html` + `static/js/voip-softphone.js` using **SIP.js 0.21.2** (CDN, conditional on `voip_enabled` = `VoIPSettings.is_active`, **decoupled from `Plan.has_voip`** — UI can show while call placement is denied).
 
 ## API Architecture
 
 ### Authentication
-- **API:** JWT (SimpleJWT) — 15min access, 7-day refresh, rotate + blacklist, HS256. **`APIKeyAuthentication`** (`Authorization: Api-Key kz_live_<slug6>_<secret>`). Returns `None` (not 401) when header absent/different scheme. Fails closed (401) on valid-format but invalid/revoked/expired/cross-tenant key.
-- **`DEFAULT_AUTHENTICATION_CLASSES` order:** `JWTAuthentication` → `APIKeyAuthentication` → `SessionAuthentication`. JWT tried FIRST.
-- **Frontend:** Session auth (Redis cached_db, host-only cookie).
-- **SSO:** django-allauth (Google, Microsoft, OIDC) — `ACCOUNT_LOGIN_METHODS = {"email"}` (a set). `django.contrib.sites` NOT in INSTALLED_APPS; allauth ≥65 runs without it.
-- **Global logout:** `User.auth_version` bumped invalidates all prior sessions via `SessionVersionMiddleware`.
+- **API:** JWT (SimpleJWT) — 15min access, 7-day refresh, rotate + blacklist, HS256. **`APIKeyAuthentication`** (`Authorization: Api-Key kz_live_<slug6>_<secret>`). Returns `None` (fail-open) when header absent/different scheme; fails closed (401) on malformed/invalid/revoked/expired/cross-tenant key (timing-safe `compare_digest` of SHA-512).
+- **`DEFAULT_AUTHENTICATION_CLASSES` order:** `JWTAuthentication` → `APIKeyAuthentication` → `SessionAuthentication`.
+- **Frontend:** Session auth (Redis cached_db, host-only cookie). **SSO:** django-allauth (Google, Microsoft, OIDC), email-only login. **Global logout:** `User.auth_version` bump via `SessionVersionMiddleware`.
 
 ### `/api/v1/` Endpoint Map (23 router includes / 22 unique URLConfs — `inbound-email/` dual-mounts as `emails/`)
 
 ```
-/tenants/            TenantViewSet (slug lookup), TenantSettingsViewSet (singleton; per-field Manager allowlist incl. inbox_hub_* toggles)
-/accounts/           AuthViewSet (throttle_scope="auth"), UserViewSet, RoleViewSet, ProfileViewSet, InvitationViewSet, TenantMembershipViewSet, UserGroupViewSet
-/api-keys/           APIKeyViewSet (admin-only; mint/list/reveal-once/regenerate/revoke)
-/tickets/            TicketViewSet (~36 custom actions), TicketStatusViewSet, QueueViewSet, TicketCategoryViewSet, SLAPolicyViewSet, EscalationRuleViewSet, CannedResponseViewSet, MacroViewSet, SavedViewViewSet, BusinessHoursViewSet (singleton), PublicHolidayViewSet, TicketTemplateViewSet, WebhookViewSet, CSATSubmitView (public)
-/contacts/           ContactViewSet, CompanyViewSet, AccountViewSet, ContactGroupViewSet
-/billing/            PlanViewSet (AllowAny), SubscriptionViewSet (+cancel/reactivate), InvoiceViewSet, UsageViewSet, checkout, webhook (CSRF-exempt, Stripe-signed)
-/kanban/             BoardViewSet (+detail), ColumnViewSet, CardPositionViewSet (+move/reorder/add-ticket; actor+request aware)
-/comments/           CommentViewSet, ActivityLogViewSet (read-only)
-/messaging/          ConversationViewSet (+add/remove/leave/search-participants), MessageViewSet (+broadcast author-only action)
-/notifications/      NotificationViewSet (+mark_read, unread_count, admin cleanup), NotificationPreferenceViewSet
-/attachments/        AttachmentViewSet (multipart upload, cross-tenant validated)
-/analytics/          DashboardView (APIView), ReportDefinitionViewSet, DashboardWidgetViewSet, ExportJobViewSet, CalendarEventViewSet
-/agents/             AgentAvailabilityViewSet (10+ actions incl. grant_temp_role/revoke_temp_role/reactivate; assignable_roles excludes admin slug), CustomAgentStatusViewSet
-/custom-fields/      CustomFieldDefinitionViewSet, CustomFieldValueViewSet (read-only)
-/knowledge/          CategoryViewSet, ArticleViewSet (+submit_for_review/approve/reject/record_view/remove_file/preview_file/vote), KBSearchView
-/notes/              QuickNoteViewSet
-/inbound-email/      InboundEmailViewSet (read + create-ticket action; ?assigned=me/?internal=true/?mine=true filters) + InboxViewSet (link/action/ignore)
-/emails/             alias mount of inbound_email.api_urls (namespace="emails_api")
-/crm/                ActivityViewSet (+my-tasks), ReminderViewSet (+overdue/stats/complete/cancel/reschedule/bulk-action), PipelineForecastView
-/nav/                BadgeCountView (7 categories incl. inbox_hub; effective_role; capped at 99 per category)
-/newsfeed/           NewsPostViewSet (+react/mark-read/mark-all-read/unread-count)
-/voip/               VoIPSettingsViewSet, ExtensionViewSet, CallLogViewSet (+active/stats), InitiateCallView, CallHoldView, CallTransferView, CallHangupView, SIPCredentialsView, CallRecordingDownloadView, CallQueueViewSet
-/inbox-hub/          HubEmailViewSet (list/retrieve + convert-to-ticket/dismiss/assign/reassign/claim/escalate/transition/note) + DepartmentViewSet + RoutingRuleViewSet + HubEmailSLAViewSet + QueueRoutingViewSet
+/tenants/      TenantViewSet (slug), TenantSettingsViewSet (singleton; per-field Manager allowlist incl. inbox_hub_* toggles)
+/accounts/     AuthViewSet (throttle_scope="auth"), User, Role, Profile, Invitation, TenantMembership, UserGroup
+/api-keys/     APIKeyViewSet (admin-only; mint/list/reveal-once/regenerate/revoke)
+/tickets/      TicketViewSet (31 @action), TicketStatus, Queue, TicketCategory, SLAPolicy, EscalationRule, CannedResponse, Macro, SavedView, BusinessHours (singleton), PublicHoliday, TicketTemplate, Webhook, CSATSubmitView (public)
+/contacts/     ContactViewSet (+context), Company, Account, ContactGroup
+/billing/      PlanViewSet (AllowAny), SubscriptionViewSet (+cancel/reactivate), Invoice, Usage, checkout, webhook (CSRF-exempt, Stripe-signed)
+/kanban/       BoardViewSet (+detail), Column, CardPositionViewSet (+move/reorder/add-ticket; actor+request aware)
+/comments/     CommentViewSet, ActivityLogViewSet (read-only)
+/messaging/    ConversationViewSet (+add/remove/leave/search-participants), MessageViewSet (+broadcast author-only action)
+/notifications/  NotificationViewSet (+mark_read, unread_count, admin cleanup), NotificationPreferenceViewSet
+/attachments/  AttachmentViewSet (multipart, true-MIME, cross-tenant validated)
+/analytics/    DashboardView (APIView, ⚠ IsAuthenticated only), ReportDefinition, DashboardWidget, ExportJob, CalendarEvent
+/agents/       AgentAvailabilityViewSet (grant/revoke_temp_role/assignable_roles excl admin), CustomAgentStatus
+/custom-fields/  CustomFieldDefinition, CustomFieldValue (read-only)
+/knowledge/    Category, ArticleViewSet (+submit_for_review/approve/reject/record_view/remove_file/preview_file/vote), KBSearchView
+/notes/        QuickNoteViewSet
+/inbound-email/  InboundEmailViewSet (read + create-ticket action; ?assigned=me/?internal=true/?mine=true) + InboxViewSet (link/action/ignore)
+/emails/       alias mount of inbound_email.api_urls (namespace="emails_api")
+/crm/          ActivityViewSet (+my-tasks), ReminderViewSet (+overdue/stats/complete/cancel/reschedule/bulk-action), PipelineForecastView
+/nav/          BadgeCountView (7 categories incl. inbox_hub; effective_role; capped at 99)
+/newsfeed/     NewsPostViewSet (+react/mark-read/mark-all-read/unread-count)
+/voip/         VoIPSettings, Extension, CallLog (+active/stats), InitiateCall, CallHold, CallTransfer, CallHangup, SIPCredentials, CallRecordingDownload, CallQueue
+/inbox-hub/    HubEmailViewSet (list/retrieve + 10 actions) + Department + RoutingRule + HubEmailSLA + QueueRouting
 ```
 
-**Non-HTTP inbound channel:** `kanzan-smtp` PM2 process at `SMTP_SERVER_HOST:SMTP_SERVER_PORT` (default `0.0.0.0:2525`) feeds the same `InboundEmail` + Celery pipeline.
-
-**Docs:** `/api/docs/` (Swagger UI — shows both `ApiKeyAuth` and JWT Bearer), `/api/schema/` (OpenAPI 3.0 JSON).
+**Non-HTTP inbound channel:** `kanzan-smtp` PM2 process (`0.0.0.0:2525`). **Docs:** `/api/docs/` (Swagger), `/api/schema/` (OpenAPI 3.0). **DRF config:** `DEFAULT_PERMISSION_CLASSES=[IsAuthenticated]`; throttles `[ScopedRateThrottle, APIKeyRateThrottle]` (the latter opt-in-free — auto-engages when `request.auth` is an APIKey, buckets on `apikey-<pk>`); rates `auth 10/min, api_default 200/min, api_heavy 30/min, webhook 60/min, api_key 1000/hour`; PAGE_SIZE 50. Only `AuthViewSet` sets `throttle_scope="auth"`.
 
 ### Public / unauthenticated endpoints
-- `POST /api/v1/tickets/csat/` — `CSATSubmitView` (signed token validates caller)
-- `GET /api/v1/billing/plans/` — `PlanViewSet` `[AllowAny]`
-- `POST /api/v1/billing/webhook/` — `stripe_webhook` (HMAC validated; `@csrf_exempt`)
-- `AuthViewSet.register/login/accept_invitation` — `[AllowAny]`, `throttle_scope="auth"`
+- `POST /api/v1/tickets/csat/` (signed token), `GET /api/v1/billing/plans/` (`AllowAny`), `POST /api/v1/billing/webhook/` (HMAC, `@csrf_exempt`), `AuthViewSet.register/login/accept_invitation` (`AllowAny`, throttle `auth`).
 
-### Frontend Routes (`apps/tenants/frontend_urls.py`) — **35 paths**
+### Frontend Routes (`apps/tenants/frontend_urls.py`) — 35 paths
 
 ```
-/                             landing_page
-/login/                       login_page
-/register/                    register_page
-/logout/                      logout_page
-/auth/handoff/                auth_handoff
-/verify-email/                verify_email_page
-/verify-email-sent/           verify_email_sent_page
-/setup-company/               setup_company_page    @login_required
-/workspaces/                  workspaces_page       @login_required
-/dashboard/                   dashboard_page        @_membership_required
-/tickets/                     ticket_list_page      @_membership_required
-/tickets/new/                 ticket_create_page    @_membership_required
-/tickets/<ticket_number>/     ticket_detail_page    @_membership_required
-/contacts/                    contact_list_page     @_membership_required
-/contacts/create/             contact_create_page   @_membership_required
-/contacts/<contact_id>/       contact_detail_page   @_membership_required
-/calendar/                    calendar_page         @_membership_required
-/kanban/                      kanban_page           @_membership_required
-/messaging/                   messaging_page        @_membership_required
-/analytics/                   analytics_page        @_membership_required
-/users/                       users_page            @_role_required(20)
-/settings/                    settings_page         @_membership_required + @ensure_csrf_cookie  (API enforces admin write)
-/billing/                     billing_page          @_role_required(20)
-/agents/                      agents_page           @_role_required(20)
-/groups/                      groups_page           @_role_required(20)
-/emails/                      emails_page           @_role_required(30)        ← Agent-level (outbound log)
-/knowledge/                   knowledge_list_page   @_membership_required
-/knowledge/<article_slug>/    knowledge_article_page @_membership_required
-/profile/                     profile_page          @_membership_required
-/api/quickstart/              api_quickstart_page   @_membership_required
-/inbound-email/               inbound_email_page    @_membership_required (agent inbox)
-/inbox-hub/                   inbox_hub_page        @_inbox_hub_access_required  (login + active membership + group-gate → 403.html)
-/reminders/                   reminders_page        @_membership_required
-/audit-log/                   audit_log_page        @_role_required(20)
-/calls/                       calls_page            @_membership_required
+/ login /register /logout /auth/handoff/ /verify-email/ /verify-email-sent/
+/setup-company/ (login)  /workspaces/ (login)
+/dashboard/ /tickets/ /tickets/new/ /tickets/<num>/ /contacts/ /contacts/create/ /contacts/<id>/
+/calendar/ /kanban/ /messaging/ /analytics/ /knowledge/ /knowledge/<slug>/ /profile/ /api/quickstart/
+/reminders/ /calls/ /inbound-email/  (all @_membership_required)
+/users/ /billing/ /agents/ /groups/ /audit-log/  (@_role_required(20))
+/emails/  (@_role_required(30) — agent-level outbound log)
+/settings/  (@_membership_required + @ensure_csrf_cookie — API enforces admin write)
+/inbox-hub/  (@_inbox_hub_access_required — login + active membership + group-gate → 403.html)
 ```
 
 ## WebSocket Endpoints (6 total — `main/asgi.py`)
 
-Stack: `ProtocolTypeRouter({"http": django_asgi_app, "websocket": AllowedHostsOriginValidator(AuthMiddlewareStack(WebSocketTenantMiddleware(URLRouter(messaging_ws + notification_ws + ticket_ws + voip_ws + live_ws))))})`.
+Stack: `ProtocolTypeRouter({"http": …, "websocket": AllowedHostsOriginValidator(AuthMiddlewareStack(WebSocketTenantMiddleware(URLRouter(messaging + notification + ticket + voip + live))))})`. `WebSocketTenantMiddleware` resolves tenant from Host, sets `scope["tenant"]`; consumers verify membership.
 
-`WebSocketTenantMiddleware` decodes Host from scope, resolves Tenant, sets `scope["tenant"]` and binds `set_current_tenant()` for connection lifetime; clears in `finally`.
+1. **Chat:** `ws/messaging/{conversation_id}/` → `ChatConsumer`. Group `chat_{id}`. Limits 10KB/msg, 5 msg/s, 2s typing. Close 4001/4002/4003/4004. ⚠ `_create_message` hardcodes `"attachments": []` (attachments arrive via the REST `broadcast` action).
+2. **Notifications:** `ws/notifications/` → `NotificationConsumer`. Group `notifications_{user_id}`. Bare `close()` for anon. **This is the rail the reminder-due popup rides.**
+3. **Ticket Presence:** `ws/tickets/{ticket_id}/presence/` → `TicketPresenceConsumer`. Group `ticket_{id}_presence`. **Known gap:** docstring promises `presence_list` for newcomers — not implemented.
+4. **Ticket Feed:** `ws/tickets/feed/` → `TicketListConsumer`. Group `ticket_feed_{tenant_id}`. Read-only.
+5. **VoIP:** `ws/voip/events/` → `CallEventConsumer`. Group `voip_{tenant_id}`. ⚠ Tenant-wide call metadata, no per-user scoping. Bare `close()` for rejections.
+6. **Live:** `ws/live/` → `LiveEventConsumer`. Group `live_tenant_{tenant_id}`. Stamps agent presence on connect + each `ping`.
 
-1. **Chat:** `ws/messaging/{conversation_id}/` → `ChatConsumer`. Actions: `send_message`, `typing`, `mark_read`. Group: `chat_{conversation_id}`. Limits: 10KB/msg, 5 msg/s, 2s typing cooldown.
-2. **Notifications:** `ws/notifications/` → `NotificationConsumer`. Group: `notifications_{user_id}`. Inbound: `{action: "mark_read", notification_id}`.
-3. **Ticket Presence:** `ws/tickets/{ticket_id}/presence/` → `TicketPresenceConsumer`. Group: `ticket_{ticket_id}_presence`. **Known gap:** docstring mentions `presence_list` for newcomers — **not implemented**.
-4. **Ticket Feed:** `ws/tickets/feed/` → `TicketListConsumer`. Group: `ticket_feed_{tenant_id}`. Read-only.
-5. **VoIP:** `ws/voip/events/` → `CallEventConsumer`. Group: `voip_{tenant_id}`.
-6. **Live:** `ws/live/` → `LiveEventConsumer`. Group: `live_tenant_{tenant_id}`. Anon → close 4001; non-member → close 4003. **Stamps agent presence on connect + each `ping` heartbeat** (Phase 1B).
-
-> `apps/inbox_hub/routing.py` is the **RoutingEngine** (email→department classification), NOT a Channels route — it is not in `asgi.py`.
+> `apps/inbox_hub/routing.py` is the **RoutingEngine** (email→department classification), NOT a Channels route.
 
 ## Celery Tasks & Beat Schedule
 
-### Queue Routing (`main/celery.py` — 7 globs + default)
+### Queue Routing (`main/celery.py` — 8 globs incl. default)
 ```
-apps.billing.tasks.*                              → kanzan_webhooks   (dormant — apps/billing/tasks.py does not exist)
+apps.billing.tasks.*                              → kanzan_webhooks   (DORMANT — apps/billing/tasks.py does not exist)
 apps.notifications.tasks.send_email_*             → kanzan_email
 apps.notifications.tasks.send_notification_email  → kanzan_email
 apps.inbound_email.tasks.*                        → kanzan_email
 apps.tickets.tasks.send_ticket_*                  → kanzan_email
 apps.api_keys.tasks.send_api_key_*                → kanzan_email
-apps.voip.tasks.*                                 → kanzan_voip
+apps.voip.tasks.*                                 → kanzan_voip       (⚠ no PM2 worker subscribes)
 *                                                 → kanzan_default
 ```
-(No route for `apps.inbox_hub.tasks.*` or `apps.agents.tasks.*` — both fall through `*` to `kanzan_default`.) **`CELERY_BEAT_SCHEDULE` lives in `main/settings/base.py`, NOT in `celery.py`.**
+(No route for `apps.inbox_hub.tasks.*`, `apps.agents.tasks.*`, `apps.crm.tasks.*`, `apps.analytics.tasks.*`, `apps.knowledge.tasks.*` — all fall to `kanzan_default`, which IS consumed.) **`CELERY_BEAT_SCHEDULE` lives in `main/settings/base.py`, NOT `celery.py`.**
 
-### Beat Schedule (11 tasks)
+### Beat Schedule (12 tasks)
 
-| Beat key | Task name | Schedule |
-|----------|-----------|----------|
+| Beat key | Task | Schedule |
+|----------|------|----------|
 | `check-sla-breaches` | `apps.tickets.tasks.check_sla_breaches` | 120s |
-| `cleanup-old-notifications` | `apps.notifications.tasks.cleanup_old_notifications` | 86400s (daily) |
-| `check-overdue-tickets` | `apps.tickets.tasks.check_overdue_tickets` | 900s (15m) |
-| `calculate-lead-scores` | `apps.crm.tasks.calculate_lead_scores` | 86400s (daily) |
-| `calculate-account-health-scores` | `apps.crm.tasks.calculate_account_health_scores` | 86400s (daily) |
-| `kb-stale-alert` | `knowledge_base.alert_stale_articles` | crontab daily 08:00 |
-| `kb-gap-digest` | `knowledge_base.send_gap_digest` | crontab Monday 09:00 |
-| `cleanup-stale-calls` | `apps.voip.tasks.cleanup_stale_calls` | 3600s (hourly) |
+| `cleanup-old-notifications` | `apps.notifications.tasks.cleanup_old_notifications` | 86400s |
+| `check-overdue-tickets` | `apps.tickets.tasks.check_overdue_tickets` | 900s |
+| `calculate-lead-scores` | `apps.crm.tasks.calculate_lead_scores` | 86400s |
+| `calculate-account-health-scores` | `apps.crm.tasks.calculate_account_health_scores` | 86400s |
+| `kb-stale-alert` | `knowledge_base.alert_stale_articles` | crontab daily 08:00 (UTC) |
+| `kb-gap-digest` | `knowledge_base.send_gap_digest` | crontab Mon 09:00 (UTC) |
+| `cleanup-stale-calls` | `apps.voip.tasks.cleanup_stale_calls` | 3600s (⚠ piles up — kanzan_voip unconsumed) |
 | `fetch-inbound-emails` | `apps.inbound_email.tasks.fetch_inbound_emails_task` | 60s |
-| **`reap-stale-presence`** | `apps.agents.tasks.reap_stale_presence` | **60s** (NEW — ages out dead /ws/live/ sessions, ONLINE→AWAY) |
-| **`check-hub-sla-breaches`** | `apps.inbox_hub.tasks.check_hub_sla_breaches` | **120s** (NEW — Inbox Hub SLA breach + escalation sweep) |
+| `reap-stale-presence` | `apps.agents.tasks.reap_stale_presence` | 60s |
+| `check-hub-sla-breaches` | `apps.inbox_hub.tasks.check_hub_sla_breaches` | 120s |
+| **`fire-due-reminders`** (Feature A, uncommitted) | `apps.crm.tasks.fire_due_reminders` | 30s |
 
-Celery Beat uses the **built-in shelve scheduler** (`celerybeat-schedule`). `django-celery-beat` removed (Django 6 incompat). `apps.crm.tasks.check_overdue_reminders` and `apps.tickets.tasks.check_sla_breach_warnings` exist but are **NOT in Beat**.
+Celery Beat uses the **built-in shelve scheduler** (`celerybeat-schedule`). `django-celery-beat` removed (Django 6 incompat); only `django_celery_results` is installed. **`apps.crm.tasks.check_overdue_reminders` and `apps.tickets.tasks.check_sla_breach_warnings` exist but are NOT in Beat.**
 
-### Task Inventory (26 tasks across 10 modules)
+### Task Inventory (27 tasks across 10 modules)
 
-- **agents** (NEW): `reap_stale_presence` (queue `kanzan_default`; cross-tenant `.unscoped`; chunk_size=200)
-- **inbox_hub** (NEW): `check_hub_sla_breaches` (queue `kanzan_default`; cross-tenant; warns + auto-escalates)
-- **notifications**: `send_notification_email` (retries=3, default_retry_delay=60s, acks_late, kanzan_email), `cleanup_old_notifications`
-- **analytics**: `process_export_job` (retries=3; CSV/XLSX; openpyxl optional → CSV fallback)
-- **inbound_email**: `fetch_inbound_emails_task`, `process_inbound_email_task` (retries=3, default_retry_delay=30s, acks_late)
-- **tickets**: `check_sla_breaches`, `check_overdue_tickets`, `send_ticket_reply_email_task`, `send_ticket_created_email_task`, `send_ticket_email_task`, `auto_close_ticket` (two-guard idempotency), `send_csat_survey_email`, `deliver_webhook_task` (exp backoff), `check_sla_breach_warnings`, `propagate_sla_policy_change_task`
-- **voip**: `process_call_recording`, `cleanup_stale_calls`, `sync_call_state` (queue `kanzan_voip`)
-- **crm**: `check_overdue_reminders` (NOT in Beat), `calculate_lead_scores`, `calculate_account_health_scores`
-- **knowledge**: `alert_stale_articles`, `send_gap_digest` (registered as `knowledge_base.*`)
-- **api_keys**: `send_api_key_created_email_task` (bind, retries=3, default_retry_delay=60s, acks_late)
+- **tickets** (10): `check_sla_breaches`, `check_overdue_tickets`, `send_ticket_reply_email_task`, `send_ticket_created_email_task`, `send_ticket_email_task`, `auto_close_ticket`, `send_csat_survey_email`, `deliver_webhook_task`, `check_sla_breach_warnings` (not in Beat), `propagate_sla_policy_change_task`
+- **crm** (4): `calculate_lead_scores`, `calculate_account_health_scores`, `check_overdue_reminders` (not in Beat — dead), **`fire_due_reminders`** (Beat 30s, Feature A)
+- **voip** (3): `process_call_recording`, `cleanup_stale_calls`, `sync_call_state` (queue `kanzan_voip`, unconsumed)
+- **inbound_email** (2): `fetch_inbound_emails_task`, `process_inbound_email_task`
+- **knowledge** (2): `alert_stale_articles`, `send_gap_digest` (registered `knowledge_base.*`)
+- **notifications** (2): `send_notification_email`, `cleanup_old_notifications`
+- **agents** (1): `reap_stale_presence`
+- **analytics** (1): `process_export_job`
+- **api_keys** (1): `send_api_key_created_email_task`
+- **inbox_hub** (1): `check_hub_sla_breaches`
 
 ## PM2 Processes — 5 prod / 4 dev
 
-### `ecosystem.config.js` (prod, venv at `.venv/`)
+### `ecosystem.config.js` (prod, venv `.venv/`)
 
-| Name | Script | Purpose | Max mem |
-|------|--------|---------|--------|
-| `kanzan-django` | `.venv/bin/gunicorn main.asgi:application -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001 --timeout 120 --graceful-timeout 30` | HTTP + WebSocket | 2GB |
-| `kanzan-celery-worker` | `.venv/bin/celery -A main worker -Q kanzan_default,kanzan_email,kanzan_webhooks -c 4 --pool prefork --max-tasks-per-child=200 -n kanzan-worker@%h` | Background jobs | 2GB |
-| `kanzan-celery-beat` | `.venv/bin/celery -A main beat -l info` | Periodic scheduler | 512MB |
-| `kanzan-flower` | `.venv/bin/celery -A main flower --port=5556 --url_prefix=flower --basic_auth=$KANZAN_FLOWER_AUTH` | Monitoring | 512MB |
-| `kanzan-smtp` | `.venv/bin/python manage.py run_smtp_server` | In-process SMTP (2525) | 512MB |
+| Name | Purpose |
+|------|---------|
+| `kanzan-django` | `gunicorn main.asgi:application -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001 --timeout 120` (2GB) |
+| `kanzan-celery-worker` | `celery -A main worker -Q kanzan_default,kanzan_email,kanzan_webhooks -c 4 --max-tasks-per-child=200` (2GB) |
+| `kanzan-celery-beat` | `celery -A main beat -l info` |
+| `kanzan-flower` | `celery -A main flower --port=5556 --basic_auth=$KANZAN_FLOWER_AUTH` |
+| `kanzan-smtp` | `manage.py run_smtp_server` (2525) |
 
-Common: `kill_timeout=8000ms` (15000ms worker), `max_restarts=10`, `min_uptime="10s"`, `watch=false`.
+> **⚠ Prod & dev worker `-Q` = `kanzan_default,kanzan_email,kanzan_webhooks`** — `kanzan_voip` is in `celery.py` routes but **no worker subscribes** (the 3 voip tasks incl. Beat `cleanup-stale-calls` accumulate). `run_ari_listener` is **not in PM2**. **Makefile `stop`/`restart` omit `kanzan-smtp`** (so a `make stop` leaves prod SMTP running). The prod config header comment is **stale** (claims a Unix-socket/Nginx bind; actual `args` bind `0.0.0.0:8001`).
 
-> **Prod worker `-Q` list is `kanzan_default,kanzan_email,kanzan_webhooks`.** New Inbox Hub/presence tasks route to `kanzan_default` (covered). `kanzan_voip` is in `main/celery.py` routes but the default worker doesn't subscribe; add it or start a dedicated VoIP worker. `run_ari_listener` is **not in PM2** by default.
-> **Makefile `stop`/`restart` omit `kanzan-smtp`** — manage independently with `pm2 stop kanzan-smtp`.
-
-### `ecosystem.dev.config.js` (dev, venv at `env/` symlinked to `.venv/`) — 4 processes
-- `kanzan-django` runs `manage.py runserver 0.0.0.0:8001` (auto-reload).
-- `kanzan-celery-worker` `-c 2 --max-tasks-per-child=50`, **watch enabled** on `apps/*/tasks.py`, `apps/*/services.py`, `main/celery.py` with 2s delay, 1GB.
-- `kanzan-celery-beat`, `kanzan-flower` (same as prod, lower memory).
-- **No `kanzan-smtp` in dev.** Common: `max_restarts=50`, `min_uptime="3s"`.
+### `ecosystem.dev.config.js` (dev, venv `env/` → `.venv/`) — 4 processes
+- `kanzan-django` runs `manage.py runserver 0.0.0.0:8001`. `kanzan-celery-worker` `-c 2`, **watch** on `apps/*/{tasks,services}.py` + `main/celery.py`. `kanzan-celery-beat`, `kanzan-flower`. **No `kanzan-smtp`** (dev inbound relies on IMAP polling only).
 
 ## Frontend Architecture
 
-### JavaScript (`static/js/`, 14 modules, 5,262 LOC — vanilla, no React/Vue)
+### JavaScript (`static/js/`, 14 modules, 5,722 LOC — vanilla, no React/Vue)
 
 | Module | LOC | Role |
 |--------|----:|------|
-| `app.js` | 880 | Global init: alerts, sidebar collapse, density, notification WS, Toast, `Kanzan.formatDate/…`, sidebar badge polling (7 categories incl. emails + inbox_hub), `initLiveStatusPill()`, `initSidebarUserLive()` (avatar bg-image), `initSidebarBadges()` (LiveBus subs for hub_email.* with 500ms debounce). Bell/flyout animations (3s auto-fade) |
-| `inbox-hub.js` | **1,177** | Vanilla IIFE controller for `/inbox-hub/` — **triage COCKPIT** (cache-bust **`?v=8`**). 5 workload lenses (all/unassigned/mine/oldest/sla, SLA self-hides at 0); 4-count HEAD fetch; per-email customer-context card via `GET /hub-emails/{id}/context/` (contextCache + contextReqId); SLA badge + open-ticket nudge; convert/assign/dismiss + floating body-portaled Assign menu; keybinds J/K/C/A/X/Esc; 7 LiveBus subs (400ms, list+counts only); DOMPurify body rendering. NO claim/escalate/transition/note UI. |
-| `voip-softphone.js` | 710 | SIP.js 0.21.2 + `CallEventConsumer`. Dial pad, DTMF, mute/hold/transfer/hangup, incoming-call modal |
-| `custom-select.js` | 371 | `KanzenSelect` global with portal rendering + searchable when >8 options |
-| `command-palette.js` | 337 | Cmd+K modal |
-| `keyboard-shortcuts.js` | 318 | Global hotkeys (j/k/Enter/Esc/a/s/x/c/?, g d/t/c/b go-to). Injects runtime `<style>` using `var(--crm-primary)` |
-| `ticket-feed.js` | 248 | WebSocket `ws/tickets/feed/`. Auto-connects via `data-ticket-feed` or URL match. Banner + row pulse. Publishes into LiveBus |
-| `agent-availability.js` | 244 | Status toggle + persistence; **`subscribePresence()` reflects server `agent.presence` in navbar pill** (skips when a custom status is chosen) |
-| `notes-panel.js` | 238 | Quick notes CRUD (6 colors, pinning, localStorage) |
-| `live-connection.js` | 206 | Single shared `wss?://host/ws/live/`, **25s heartbeat ping (drives presence)** / 8s pong, infinite backoff |
-| `rich-editor.js` | 191 | TipTap wrapper. Page-specific. TipTap via importmap from `esm.sh` (inline in `tickets/detail.html`) |
-| `live-bus.js` | 175 | Global pub/sub `window.LiveBus` |
-| `api.js` | 90 | Central API client (CSRF from cookie + meta fallback, session credentials, JSON + multipart) |
-| `theme.js` | 77 | light/dark/system (default dark). Loaded SYNCHRONOUSLY in `<head>` (FOUC prevention) |
+| `inbox-hub.js` | **1,378** | Triage COCKPIT (`?v=10`): 5 lenses (SLA self-hides at 0), 4-count fetch, customer-context card via `GET /hub-emails/{id}/context/`, **attachment thumbnails/download**, SLA badge + open-ticket nudge, **full `#ihConvertPanel` convert offcanvas** (TipTap + tags + flatpickr) / assign / dismiss + floating Assign menu, J/K/C/A/X/Esc, 7 LiveBus subs (400ms). NO claim/escalate/transition/note UI |
+| `app.js` | **1,139** | Global init: alerts, sidebar collapse/density, notification WS, Toast, `Kanzan.formatDate/…`, `initSidebarBadges` (7 categories), `initLiveStatusPill()`, `initSidebarUserLive()`, **`ReminderAlerts` IIFE** (Feature A). Bell flyout 3s auto-fade |
+| `voip-softphone.js` | 710 | SIP.js 0.21.2 + `CallEventConsumer`. Dial/DTMF/mute/hold/transfer/hangup (naive 5s fixed reconnect) |
+| `custom-select.js` | 371 | `KanzenSelect` portal-rendered styled selects (searchable >8) |
+| `command-palette.js` | 337 | Cmd+K modal (⚠ "New Contact" → dead `/contacts/new/`) |
+| `keyboard-shortcuts.js` | 318 | Global hotkeys; injects runtime `<style>` using `var(--crm-primary)` |
+| `ticket-feed.js` | 248 | `ws/tickets/feed/` → republishes into LiveBus; banner + row pulse (ticket_assigned Toast omitted) |
+| `agent-availability.js` | 244 | Status toggle + `subscribePresence()` reflects server `agent.presence` (no heartbeats) |
+| `notes-panel.js` | 238 | Quick notes CRUD (6 colors, pinning, 600ms autosave) |
+| `live-connection.js` | 206 | Single shared `ws/live/`, 25s heartbeat / 8s pong, backoff 1s→30s ±20% jitter (infinite) |
+| `rich-editor.js` | 191 | TipTap wrapper (page-specific; textarea fallback) |
+| `live-bus.js` | 175 | Global pub/sub `window.LiveBus` (BroadcastChannel cross-tab) |
+| `api.js` | 90 | Central API client (CSRF cookie + meta fallback, same-origin, JSON + multipart) |
+| `theme.js` | 77 | light/dark/system (default dark). Loaded SYNCHRONOUSLY in `<head>` |
 
-### CSS
+> ⚠ Multiple independent notification-WS backoffs with different caps: `app.js initNotifications` (`/ws/notifications/`, max **10**) vs `live-connection.js` (`/ws/live/`, **infinite**) vs `ticket-feed.js` (max 10) vs `voip-softphone.js` (5s fixed). Only `inbox-hub.js` is cache-busted (`?v=10`).
 
-- **`static/css/custom-v15.css`** — **24,934 LOC**. Crimson Black v9 design system. Latest sections:
-  - **PROFILE v2** (~478 LOC, `.pf2-*` namespace — hero banner, inline-edit cards, role badges, `pf2-row--flash`; 4 role variants — Team Lead/IT/HR collapse to `--agent`)
-  - **AUDIT LOG REDESIGN** (~1,268 LOC, Insights ribbon, heat ribbon, color-coded action chips)
-  - **Flatpickr Crimson theme** (globally loaded — all datetime-local inputs themed)
-  - **GLOBAL ANIMATION POLISH** (`@keyframes kz-fade-up`/`kz-fade-in`)
-  - **INBOX HUB triage cockpit** (rewritten — `.ih-prio-dot--{urgent,high}`, `.ih-actionbar`/`.ih-btn-caret`, `.ih-menu*` floating assign menu + `@keyframes ihMenuIn`, `.ih-email-head/-main/-subject/-from/-when`, `.ih-avatar`, `.ih-row-avatar--{known,new}`/`.ih-row-main/-snippet/-clip`, `.ih-nav-foot`, `.ih-sla-badge--{info,warning,danger}`, and a full **`.ih-context-*` customer-context card** block (head/avatar/id/name/badge/meta/stats/tickets/`.ih-warn`/`.ih-tkt-*`), `body.ih-page` full-viewport grid). Fully tokenized, zero new hex.
-  - Token scales (committed 3c99a85): `--crm-font-size-*`, `--crm-weight-{normal:400,medium:500,semibold:600,bold:700}`, `--crm-z-{base,sticky,dropdown,modal,popover,tooltip,flyout:1080,overlay:1085,toast:1090}`, `--crm-radius-{xs:4px,sm:8px,md:6px,lg:14px,xl:16px,pill:9999px}`
+### CSS & Theming
+
+- **`static/css/custom-v15.css`** — **25,149 LOC**, "Design System v9.0 Crimson Black" (the only loaded project CSS). Token scales: `--crm-radius-{xs:4,sm:8,md:6,lg:14,xl:16,pill:9999}` (⚠ `md`<`sm` quirk), `--crm-weight-{normal:400,medium:500,semibold:600,bold:700}`, `--crm-z-{base:1,sticky:10,dropdown:1000,modal-backdrop:1040,modal:1050,popover:1060,tooltip:1070,flyout:1080,overlay:1085,toast:1090}`. Inbox Hub cockpit section (`body.ih-page` grid, `.ih-context-*`, `.ih-sla-badge--*`, `.ih-menu*`, **`.ih-convert-*` offcanvas + attachment chips** + reduced-motion guard). reminder-due-modal block (`.reminder-due-*`, `@keyframes reminderDuePulse`, reduced-motion guard). All token-only (zero hex → theme-check green).
 - **`static/css/custom.css`** — 20,431 LOC committed snapshot, NOT loaded, allowlisted in theme check.
+- **No hex literals in rule bodies.** `make theme-check` enforces against `scripts/.theme_baseline.json` (**baseline 147 hex / 11 files** — custom-v15.css 81, landing_crm.html 21, dashboard.html 13, landing.html 15, contacts/list 5, kanban/board 4, verify_email_sent 3, tickets/detail 2, login 1, reminders/list 1, tickets/list 1). Allowlist: `colors.py`, `check_theme.py`, `settings/tenant.html`, `theme.js`, `custom.css`. Scans inside `<script>` blocks (since `22f284a`). **PASSES** (runtime "146 tracked" — 1 masked literal, cosmetic). ⚠ `base.html` toast container has a hardcoded inline `z-index:1090` (not tokenized; invisible to the hex-only check).
 
-### Theming Architecture
+### Templates (48 .html files)
 
-- **`apps/tenants/colors.py`** (159 LOC) derives **~21-key palette** from primary+accent hex (defaults `#C1121F`/`#E11D2D` if `TenantSettings` fields unset/malformed): 50–900 scale, hover/active/dark/light/subtle/ring/rgb variants, **`text_on_primary`/`text_on_accent`** picked by WCAG 2.x luminance (white vs `#0B0B0B`, whichever wins ≥ 4.5:1). `logger.warning` if final contrast < AA.
-- **`base.html` palette block** emits ~35 CSS vars on `:root, [data-bs-theme="light"], [data-bs-theme="dark"]`.
-- **No hex literals in rule bodies.** Token blocks are the only place hex is permitted. **`make theme-check`** enforces against `scripts/.theme_baseline.json`.
-- **JS color dicts** use `'var(--crm-*)'` literals. **`withAlpha(color, percent)`** uses `color-mix()` for var() inputs, falls back to hex+suffix concat.
-- **Dashboard chart color map**: `STATUS_COLORS`/`PRIORITY_COLORS` route through `--status-*-dot` tokens. **Chart.js** can't resolve var(); charts use `cssVar()` + `resolveColor()`.
+- `templates/base.html` (292 lines) — palette `<style>`, toast container, quick-notes panel, **NEW `#reminderDueModal`** (static backdrop), softphone (conditional), DOMPurify 3.2.4 + SIP.js 0.21.2 CDN (conditional) + Flatpickr loader + synchronous `kanzan_sidebar_collapsed` pre-paint. Default theme: dark. 5 stylesheets (only custom-v15.css is project CSS).
+- `templates/includes/` (6 files): `navbar.html` (189), `sidebar.html` (162 — Inbox Hub FIRST in "Inbox" section gated `{% if can_access_inbox_hub %}`), `softphone.html` (169, conditional), `messages.html` (21), `page_back_button.html` (included by **18**), `kb_sidebar_widget.html` (158 — **ORPHAN, safe-deletion candidate**).
+- `templates/pages/` — **18 subfolders + 8 root files** (403, api_quickstart, calendar, dashboard, landing, login, profile, register).
+- Email templates: 6 single files under `{auth,knowledge,notifications,tickets}/email/`. `landing/landing_crm.html` (1,393 LOC) — standalone marketing page.
 
-**Theme baseline** (`scripts/.theme_baseline.json`): **147 hex literals across 11 files** (custom-v15.css 81 + landing_crm.html 21 + dashboard.html 13 + landing.html 15 + contacts/list.html 5 + kanban/board.html 4 + auth/verify_email_sent.html 3 + tickets/detail.html 2 + login.html 1 + reminders/list.html 1 + tickets/list.html 1). Allowlist files: `apps/tenants/colors.py`, `scripts/check_theme.py`, `templates/pages/settings/tenant.html`, `static/js/theme.js`, `static/css/custom.css`. Theme-check masks CSS comments + `:root`/`[data-bs-theme]` blocks + HTML `{% %}` + `<input type="color">`; **inside `<script>` blocks body code is visible** (since `22f284a`); `.js` files flag string-literal hex.
+### Notable page templates
 
-### Templates (48 .html files total)
+- **`profile.html`** (444) — Profile v2, `.pf2-*` namespace, inline-edit; role badge = 1 of 4 variants (Team Lead/IT/HR collapse to `--agent`).
+- **`reminders/list.html`** (3,638) — split-pane workspace; **natural-language quick-add parser**; 5-col stat grid; body-portaled Filters popover. LiveBus 5 verbs + `live.reconnected` **+ `reminder.due`** (Feature A), debounced 500ms.
+- **`emails/list.html`** (1,196) — "Assigned to me" stat tab; dual-source load; `#createTicketModal` override form (Feature B) → `/inbound-email/{id}/create-ticket/`, idempotent-400 handled, dual-modal-glitch guard; inline attachment thumbnails + download.
+- **`audit_log/list.html`** (2,273) — two tabs; Insights redesign; export mirrors live filters + walks all pages; `dedupTimeline()`.
+- **`tickets/list.html`** (1,470) — **dynamic per-status stat tabs** (`buildStatusTabs` from `/tickets/ticket-statuses/`; static tabs All + Urgent).
+- **`tickets/detail.html`** (3,762) — Delete-Ticket REMOVED. **Macro dropdown HTML stripped but ~44 lines of macro JS remain as dead-but-present no-ops.** TipTap via importmap.
+- **`groups/list.html`** (734) — smart member picker (excludes users in other groups; server response is a **flat string in `detail`**, not a `{conflicts:[…]}` array).
+- **`settings/tenant.html`** (5,116) — searchable hub; 2 Inbox Hub toggles; API-keys pane; color-picker (theme-check-allowlisted).
+- **`kanban/board.html`** (1,999) — SortableJS column DnD; cross-status drags route through tickets service.
 
-- `templates/base.html` (265 lines) — palette `<style>`, toast container, quick-notes panel, softphone (conditional), DOMPurify 3.2.4 CDN + SIP.js 0.21.2 CDN (conditional) + Flatpickr 3-CDN-fallback loader + mobile detection IIFE + synchronous `kanzan_sidebar_collapsed` localStorage pre-paint. Default theme: dark.
-- `templates/includes/` (6 files): `navbar.html` (189 lines, `#liveStatusPill`, availability dropdown, notification cluster `.notif-flyout` 3s auto-fade); `sidebar.html` (Inbox Hub link FIRST in Inbox section + `#sidebarBadgeInboxHub`, Emails uncommented, avatar bg-image); `softphone.html` (169 lines, conditional); `messages.html` (21 lines); `kb_sidebar_widget.html` (158 lines — **ORPHAN**, safe-deletion candidate); `page_back_button.html` (`sidebarPaths` 11 entries incl. `/inbox-hub/`; included by 17 page templates).
-- `templates/pages/` — **18 subfolders + 8 root files**. Subfolders: agents/, analytics/, audit_log/, auth/, billing/, contacts/, emails/, groups/, inbound_email/, inbox_hub/, kanban/, knowledge/, messaging/, reminders/, settings/, tickets/, users/, voip/. Root: 403, api_quickstart, calendar, dashboard, landing, login, profile, register.
-- `templates/landing/landing_crm.html` (1,393 LOC) — standalone marketing page. Email templates (12 files / 6 pairs).
+### Context Processor (`apps/tenants/context_processors.py`)
 
-### Profile v2 page (`templates/pages/profile.html`, 444 LOC)
-
-`.pf2-*` namespace. Hero + 3 cards. Inline-edit fields routed by `data-target` to `PATCH /accounts/users/{id}/` (first_name/last_name/phone) or `PATCH /accounts/profiles/me/` (job_title/department/bio); email locked. Avatar upload via `Api.upload('/accounts/profiles/upload-avatar/')` (2MB cap, MIME check). **No modals** — Enter saves, Esc cancels. **Role badge** = 1 of 4 variants (`--admin/--manager/--agent/--viewer`) — Team Lead/IT/HR collapse to `--agent`.
-
-### Reminders v2 page (`templates/pages/reminders/list.html`, 3,635 LOC)
-
-Split-pane workspace. State `{page, totalPages, mineOnly, status, priority, quickFilter, search, selectedId, selectedReminder, mode:'empty'|'view'|'form', formIsEdit, items, checked:Set()}`. Mode machine `showEmpty/showView/showForm`. **Global keybinds `N` and `Esc` only** — `Enter` is bound per-input on the two quick-add fields (NOT global). 5 group buckets (overdue/today/upcoming/done/cancelled) + chip rail doubling as presets. Workload banner (4 tones). Bulk bar (complete/reschedule/cancel; `__bulk__` sentinel). Endpoints `/crm/reminders/` + `/stats/`/`/complete/`/`/reschedule/`/`/cancel/`/`/bulk-action/`. LiveBus: 5 verbs + `live.reconnected`, debounced 500ms.
-- **NEW natural-language quick-add parser** (`parseQuickAddTime` + `cleanSubject`, ~120 LOC): "call Acme tomorrow 4pm urgent" → parses relative offsets ("in 3h/30 mins/2 days/1 week"), day anchors (today/tonight/tomorrow/weekday + "next"), clocks (am/pm, 24h, noon/midnight/morning/afternoon/evening), priority words (urgent/asap/critical→urgent, high, low, `!`→high `!!`→urgent), then strips matched spans from the subject. Ignores bare "at 4" (ambiguous); clock-only-in-the-past rolls to tomorrow.
-- **Layout refresh**: summary is now a **5-column CSS grid** of stat cards (`rm-summary`, responsive 3/2 cols) inside a page hero; a **body-portaled "Filters" popover** (`buildFilterPop`/`openFilterPop`) collapses the status+priority selects into chips (`.rm-fchip`) with active-count badge + chip↔select sync + close-on-outside/Esc/resize/scroll. Adds 59 `rgba()` literals (not flagged by the hex-based theme check).
-
-### Groups smart member picker (`templates/pages/groups/list.html`, 734 LOC)
-
-`getOtherGroupMemberMap()` → `{user_id: group_name}` for users in any OTHER group; picker excludes them unless already in the edited group. Legacy multi-group users flagged `.bg-danger-subtle` + chip; Save disabled when conflicts selected. **Server enforcement** in BOTH `UserGroupSerializer.validate_member_ids` and `UserGroupViewSet.add_members` — returns a **flat concatenated string in `detail`**, NOT a `{conflicts:[...]}` array.
-
-### Audit log page (`templates/pages/audit_log/list.html`)
-
-Two tabs (`pane-activity` + `pane-inbound-email`). Insights redesign: hero `#statTotal` + stat tiles, top-contributor + risk-signal blocks, 7-day heat ribbon, filter chip rail, dropdown panel, day-grouped timeline, side drawer with prev/next. `dedupTimeline()` merges near-dupes within 2s keyed by `(action, object_id)`. **Export fix (working tree):** CSV/JSON export now (1) mirrors the live filters (action chips via `selectedActions` → `action`/`action__in`, plus `mineOnly`) and (2) walks every paginated `next` link via `fetchAllLogs()` (MAX_PAGES=200, same-origin) — replacing the old `page_size=1000` (which the endpoint ignored, silently truncating to 50 rows). New shared `triggerDownload()`; toasts report exported row count.
-
-### Kanban board page (`templates/pages/kanban/board.html`)
-
-Filter panel teleported to `<body>` at z-index 1085. **SortableJS 1.15.2** column DnD; `onEnd` posts to `CardPositionViewSet.move/reorder` passing `actor=request.user, request=request` → cross-status drags route through `apps.tickets.services.change_ticket_status`.
-
-### Settings hub (`templates/pages/settings/tenant.html`, ~5,116 lines)
-
-Searchable hub with ~20 panes incl. Developer & Integrations (apiKeysPane + apiDocsPane). Email-automation pane now carries 2 Inbox Hub toggles (`#inboxHubEnabledToggle`, `#inboxHubAutoAssignToggle`). API-keys pane: form + 3-filter table + 3 modals.
-
-### Context Processor (`apps/tenants/context_processors.py`, 81 lines)
-
-Injects: `tenant`, `membership`, `user_role` (= `effective_role`), `is_admin`, `is_admin_or_manager`, `is_agent_or_above`, **`voip_enabled`**, **`tenant_palette`** (~21-key), `BASE_URL`. Caches membership on `request._cached_tenant_membership`.
+Injects: `tenant`, `membership` (cached on `request._cached_tenant_membership`), `user_role` (= `effective_role`), `is_admin`/`is_admin_or_manager`/`is_agent_or_above`, **`can_access_inbox_hub`**, `voip_enabled` (= `VoIPSettings.is_active`), `tenant_palette` (~21-key), `BASE_URL`.
 
 ## Middleware Stack (14 layers)
 
-1. SecurityMiddleware
-2. WhiteNoiseMiddleware
-3. SessionMiddleware
-4. CorsMiddleware
-5. CommonMiddleware
-6. CsrfViewMiddleware
-7. AuthenticationMiddleware
-8. AccountMiddleware (allauth)
-9. **SessionVersionMiddleware** (custom — global logout via `User.auth_version`)
-10. **TenantMiddleware** (tenant resolution + async-safe context; `/admin/` has dedicated branch)
-11. **SubscriptionMiddleware** (billing enforcement — HTTP 402 when neither `is_active` nor `in_grace_period`)
-12. **RateLimitHeadersMiddleware** (`apps.api_keys.middleware` — emits `X-RateLimit-*` from `request._kanzan_throttle_info`)
-13. MessageMiddleware
-14. XFrameOptionsMiddleware
+1. SecurityMiddleware 2. WhiteNoiseMiddleware 3. SessionMiddleware 4. CorsMiddleware 5. CommonMiddleware 6. CsrfViewMiddleware 7. AuthenticationMiddleware 8. AccountMiddleware (allauth) 9. **SessionVersionMiddleware** (global logout via `auth_version`) 10. **TenantMiddleware** (tenant resolution; `/admin/` dedicated branch — after auth so `request.user` is available) 11. **SubscriptionMiddleware** (402 when neither active nor in grace) 12. **RateLimitHeadersMiddleware** (`apps.api_keys.middleware` — read-side `X-RateLimit-*`) 13. MessageMiddleware 14. XFrameOptionsMiddleware
 
-## REST Framework Config (`main/settings/base.py`)
+## Billing Plans (⚠ FROM THE SEEDER — `seed_plans.py`)
 
-```python
-DEFAULT_AUTHENTICATION_CLASSES = [JWTAuthentication, APIKeyAuthentication, SessionAuthentication]
-DEFAULT_PERMISSION_CLASSES = [IsAuthenticated]
-DEFAULT_FILTER_BACKENDS = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-DEFAULT_THROTTLE_CLASSES = [ScopedRateThrottle, apps.api_keys.throttling.APIKeyRateThrottle]
-DEFAULT_THROTTLE_RATES = {auth: 10/min, api_default: 200/min, api_heavy: 30/min, webhook: 60/min, api_key: 1000/hour}
-PAGE_SIZE = 50
-SCHEMA = drf-spectacular AutoSchema
-RENDERERS = [JSONRenderer, BrowsableAPIRenderer]
-```
+| Plan | $/mo | Users | Contacts | Tickets/mo | Storage | Custom Fields | API | Realtime | Custom Roles | SSO | SLA | Audit days |
+|------|---|-------|----------|-----------|---------|---|-----|-----|-----|-----|-----|-----|
+| Free | 0 | 3 | 500 | 100 | 1GB | 5 | No | No | No | No | No | 30 |
+| Pro | 29 | 25 | 10K | 5K | 25GB | 50 | Yes | Yes | Yes | No | Yes | 365 |
+| Enterprise | 99 | ∞ | ∞ | ∞ | ∞ | ∞ | Yes | Yes | Yes | Yes | Yes | ∞ |
 
-**Only `AuthViewSet` sets `throttle_scope = "auth"`** — `api_heavy`/`webhook` defined but never opted into. `APIKeyRateThrottle` opt-in-free: auto-engages when `request.auth` is an `APIKey`; stashes `(limit, remaining, reset_epoch)` on BOTH `request._kanzan_throttle_info` and `request._request._kanzan_throttle_info`.
-
-## Third-Party Integrations (selected)
-
-| Integration | Version | Purpose |
-|-------------|---------|---------|
-| Django | 6.0.2 | Framework |
-| DRF | ≥3.16,<4 | REST API |
-| Channels | ≥4.2,<5 | WebSocket |
-| channels-redis | ≥4.2,<5 | Channel layer |
-| Celery | ≥5.4,<6 | Background tasks |
-| django-celery-results | ≥2.5,<3 | Celery result store |
-| django-redis | ≥5.4,<6 | Cache + sessions |
-| psycopg | ≥3.2,<4 | PostgreSQL driver |
-| Stripe | ≥11,<12 | Payments |
-| django-allauth | ≥65,<66 | OAuth2 SSO |
-| SimpleJWT | ≥5.4,<6 | JWT auth |
-| DRF-Spectacular | ≥0.28,<0.29 | OpenAPI 3.0 docs |
-| django-filter | ≥24.3,<25 | API filtering |
-| django-cors-headers | ≥4.6,<5 | CORS |
-| django-environ | ≥0.12,<1 | Env config |
-| WhiteNoise | ≥6.8,<7 | Static serving |
-| python-magic | ≥0.4,<0.5 | MIME detection |
-| Pillow | ≥11,<12 | Image processing |
-| mammoth | ≥1.12,<2 | `.docx` → HTML |
-| openpyxl | ≥3.1,<4 | Excel export (optional) |
-| aiosmtpd | ≥1.4,<2 | In-process SMTP server |
-| httpx | ≥0.27,<1 | Async HTTP for ARI |
-| websockets | ≥12,<14 | WebSocket client for ARI |
-| SIP.js | 0.21.2 (CDN) | Browser SIP/WebRTC |
-| Bootstrap | 5.3.3 (CDN) | CSS framework |
-| Tabler Icons | 3.31.0 (CDN) | Icon webfont |
-| DOMPurify | 3.2.4 (CDN) | XSS sanitization |
-| Flatpickr | latest (3-CDN fallback) | Date pickers |
-| Chart.js | 4 (page-specific CDN) | Dashboard trends |
-| SortableJS | 1.15.2 (page-specific CDN) | Kanban DnD |
-| TipTap | 2 (esm.sh importmap, page-specific) | Rich text editor |
-| Jazzmin | ≥3.0,<4 | Admin theme |
-| daphne | ≥4.2,<5 | ASGI server |
-| gunicorn | ≥25,<26 | WSGI/ASGI server |
-| uvicorn[standard] | ≥0.40,<1 | ASGI worker |
-| Flower | ≥2.0,<3 | Celery monitoring |
-
-`requirements/base.txt` has ~30 requirement lines. `django-celery-beat` excluded (Django 6 incompat). **`requirements/prod.txt` has zero extras** — just `-r base.txt`. Root **`requirements.txt`** is **byte-identical** to `requirements/base.txt`. `requirements/dev.txt` = `-r base.txt` + 10 dev tools.
-
-## Billing Plans
-
-| Plan | Users | Contacts | Tickets/mo | Storage | API | SSO | SLA | VoIP | Call Recording |
-|------|-------|----------|-----------|---------|-----|-----|-----|------|----------------|
-| Free | 3 | 500 | 100 | 1GB | No | No | No | No | No |
-| Pro | 25 | 10K | 5K | 25GB | Yes | No | Yes | Yes | Yes |
-| Enterprise | Unlimited | Unlimited | Unlimited | Unlimited | Yes | Yes | Yes | Yes | Yes |
-
-Plan also has: `has_realtime`, `has_custom_roles`, `max_custom_fields`, `max_calls_per_month`, `audit_retention_days` (NULL = unlimited).
+> **✅ VoIP entitlement NOW SEEDED (Sprint 0 — was the `billing-1` Critical).** `seed_plans.py` sets per plan: **Free** `has_voip=False / has_call_recording=False / max_calls_per_month=0`; **Pro** `True / True / 1000`; **Enterprise** `True / True / None` (unlimited). Migration `billing/0003_backfill_voip_plan_flags` backfills existing `Plan` rows by tier. So `voip/services.py::check_call_limit` (the **only** `Plan.has_voip` enforcement) now permits calls on Pro/Enterprise — the old "denies every seeded plan" footgun is gone. (Softphone *UI* visibility remains gated by `VoIPSettings.is_active`, still decoupled from `Plan.has_voip`. The dead `require_feature("voip")` decorator is unchanged — still 100% unused.)
 
 ## Management Commands (8 total)
 
 ```bash
-# Tenancy
 python manage.py provision_tenant --name "Acme" --slug acme [--domain crm.acme.com]
-
-# Seeding
-python manage.py seed_plans                                    # Free/Pro/Enterprise (idempotent)
-python manage.py setup_queues --tenant-slug demo               # 4 default queues
+python manage.py seed_plans                                    # Free/Pro/Enterprise (idempotent — ✅ now sets VoIP flags)
+python manage.py setup_queues --tenant-slug demo               # default queues
 python manage.py setup_ticket_statuses --tenant-slug demo      # 5 default statuses
-python manage.py backfill_sla_audit [--tenant-slug] [--dry-run]   # baseline SLA audit
-python manage.py seed_inbox_hub_defaults [--tenant-slug <slug> | --all-tenants]  # General dept + memberships (NEW)
-
-# Long-running daemons
+python manage.py backfill_sla_audit [--tenant-slug] [--dry-run]
+python manage.py seed_inbox_hub_defaults [--tenant-slug <slug> | --all-tenants]  # General dept + memberships only
 python manage.py run_smtp_server                               # kanzan-smtp PM2 process
 python manage.py run_ari_listener                              # VoIP Stasis event loop (NOT in PM2)
 ```
 
 ## Environment Variables
 
-### In `.env.example` (16 keys)
-`DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DATABASE_URL`, `REDIS_URL`, `BASE_DOMAIN`, `BASE_SCHEME`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `JWT_SECRET_KEY`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `KANZAN_FLOWER_AUTH`. (`.env` itself has 26 keys; `BASE_SCHEME` is in `.env.example` but not `.env` — harmless default.)
-
-### Read by `base.py` but NOT in `.env.example` (23 keys)
-- **Base:** `BASE_PORT`
-- **IMAP:** `IMAP_HOST`, `IMAP_PORT`, `IMAP_USER`, `IMAP_PASSWORD`, `IMAP_MAILBOX`, `IMAP_USE_SSL`, `IMAP_DEFAULT_TENANT_SLUG`
-- **SMTP server:** `SMTP_SERVER_HOST`, `SMTP_SERVER_PORT`, `SMTP_SERVER_HOSTNAME`, `SMTP_SERVER_REQUIRE_AUTH`, `SMTP_SERVER_AUTH_USERS` (JSON dict), `SMTP_SERVER_TLS_CERT_FILE`, `SMTP_SERVER_TLS_KEY_FILE`
-- **Inbound webhook (unused today):** `INBOUND_EMAIL_WEBHOOK_SECRET`
-- **Email:** `EMAIL_BACKEND`, `DEFAULT_FROM_EMAIL`, `EMAIL_TIMEOUT`, `EMAIL_USE_SSL`
-- **Inbox Hub presence/SLA (NEW Phase 1B):** `AGENT_PRESENCE_TTL_SECONDS` (90), `AGENT_PRESENCE_AUTO_ONLINE` (True), `HUB_SLA_WARNING_MINUTES` (15)
-
-> `KANZAN_FLOWER_AUTH` is NOT read by `base.py` — only consumed by `ecosystem.config.js` for Flower's `--basic_auth`.
-
-`main/settings/__init__.py` loads `base.py` then conditionally loads `dev.py` (when `DJANGO_DEBUG=True`) or `prod.py` (with try/except). `pytest.ini` sets `DJANGO_SETTINGS_MODULE=main.settings`.
+- **`.env.example` (16 keys):** `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DATABASE_URL`, `REDIS_URL`, `BASE_DOMAIN`, `BASE_SCHEME`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `JWT_SECRET_KEY`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `KANZAN_FLOWER_AUTH`.
+- **base.py reads 37 env keys; ~22 are read-but-undocumented:** `BASE_PORT`, `DEFAULT_FROM_EMAIL`, `EMAIL_TIMEOUT`, `EMAIL_USE_SSL`, `INBOUND_EMAIL_WEBHOOK_SECRET`, 7×`IMAP_*` (incl. `IMAP_DEFAULT_TENANT_SLUG`), 7×`SMTP_SERVER_*`, `AGENT_PRESENCE_TTL_SECONDS`, `AGENT_PRESENCE_AUTO_ONLINE`, `HUB_SLA_WARNING_MINUTES`.
+- **`KANZAN_FLOWER_AUTH` is documented but NOT read by `base.py`** — consumed only by `ecosystem.config.js`.
 
 ## Testing
 
-- **Framework:** pytest + pytest-django.
-- **Module counts:** **56 root-level** `tests/test_*.py` + **7 app-level** = **63 total**.
-- **Config:** `pytest.ini` — `DJANGO_SETTINGS_MODULE=main.settings`, `pythonpath=.`. **No `asyncio_mode`** (defaults to `strict`).
-- **Fixtures (`conftest.py`):** **16 factories + 20 fixtures (3 autouse:** `celery_eager`, `free_plan`, `clear_tenant_context`**).** `RoleFactory` declares 4 traits (admin/manager/agent/viewer); tests fetch `Role.unscoped.get(slug=...)` from the signal-seeded set for team-lead/it/hr.
-- **Celery:** Eager mode (autouse).
-- **on_commit tests** wrap POSTs in `django_capture_on_commit_callbacks(execute=True)` so `transaction.on_commit` callbacks fire under pytest-django's atomic-rollback teardown (used by api_keys tests + the Inbox Hub end-to-end park tests).
-- **Inbox Hub:** `tests/test_inbox_hub.py` (**21**) + `tests/test_inbox_hub_routing_assignment.py` (**38**) = **59 passing**; `tests/test_inbound_email.py` (14, incl. internal/mine email-scope) passing; `tests/test_access_control.py` (12) passing. **`tests/test_badges.py` 36/2** — 2 stale fails (14.05/14.09) from the `_message_count` comment→chat repurpose.
-
-## Recent Migration Highlights (116 total; 3 untracked)
-
-| App | Latest | Tracked? | What it adds |
-|-----|--------|----------|--------------|
-| **agents** | **0007_agentavailability_last_seen** | **UNTRACKED** | `AgentAvailability.last_seen` (db_indexed) — presence heartbeat |
-| **tenants** | **0010_tenantsettings_inbox_hub_auto_assign_and_more** | **UNTRACKED** | `inbox_hub_auto_assign` (default True) + `inbox_hub_default_department` FK |
-| **inbound_email** | **0010_inboundemail_assignee_and_more** | **UNTRACKED** | `InboundEmail.assignee` FK + index `email_tenant_assignee_idx` — agent email-inbox handoff |
-| accounts | 0012_seed_inbox_hub_permissions | tracked | Data migration — 12 inbox_hub codenames via `.add(*perms)` |
-| accounts | 0011_seed_team_lead_it_hr_roles | tracked | Backfills Team Lead/IT/HR roles |
-| accounts | 0010_user_is_service_account | tracked | `User.is_service_account` |
-| accounts | 0009_usergroup | tracked | `UserGroup` model |
-| accounts | 0008_add_temporary_permissions | tracked | `TenantMembership.temporary_permissions` M2M |
-| agents | 0006_customagentstatus_…_custom_status | tracked | `CustomAgentStatus` + FK |
-| api_keys | 0002_rename_*_idx | tracked | Cosmetic index renames |
-| comments | 0010_alter_activitylog_action | tracked | ActivityLog actions → **34** (+8 `EMAIL_*`) |
-| crm | 0004_reminder_m2m_contacts_tickets | tracked | Reminder FK → M2M |
-| inbound_email | 0009_alter_inboundemail_status | tracked | `Status.PARKED_IN_HUB` |
-| inbox_hub | 0001_initial | tracked | NEW app, 8 models (5 indexes incl. partial SLA; conditional unique on HubEmailSLA) |
-| kanban | 0004_board_is_personal | tracked | `Board.is_personal` |
-| knowledge | 0005_article_allowed_groups | tracked | `allowed_groups` M2M |
-| messaging | 0002_conversation_source_group | tracked | `source_group` FK |
-| notifications | 0005_alter_notification_type_and_more | tracked | NotificationType → **20** (+5 `HUB_EMAIL_*`) |
-| tenants | 0009_tenantsettings_inbox_hub_enabled | tracked | `inbox_hub_enabled` (default False) |
-| tickets | 0027_queue_department | tracked | `Queue.department` FK → `inbox_hub.Department` (SET_NULL) |
-| tickets | 0026_alter_ticketactivity_event | tracked | TicketActivity → 27 |
-
-## Performance Optimizations
-
-- **Analytics closed-status cache** — per-request `_closed_status_cache` in `DashboardView`.
-- **Analytics negative-delta guard** — filters `first_responded_at__gte=F("created_at")`.
-- **Analytics exclude soft-deleted (NEW working tree)** — all 8 stat querysets in `apps/analytics/services.py` (`get_ticket_stats`, `get_agent_performance`, `get_sla_compliance`, `get_dashboard_summary`, `get_hourly_trends`, `get_unresolved_by_queue`, `get_due_today`, `get_overdue_tickets`) now add `is_deleted=False`, so soft-deleted tickets no longer skew dashboards/reports.
-- **Kanban N+1 fix** — `BoardDetailSerializer.get_columns` batch-fetches GenericFK content objects.
-- **Comment attachment prefetching** — batch-fetched onto `_prefetched_attachments`.
-- **Company `contact_count` annotation** — DB level.
-- **SLA breach iteration** — `iterator(chunk_size=200)`.
-- **First-response race** — atomic UPDATE + WHERE.
-- **Lead/health scoring** — pre-fetches signal sets, iterates chunk_size, bulk-updates by score bucket.
-- **Reminder overdue task** — `Reminder.unscoped + iterator(chunk_size=200)`, 1-per-day dedup.
-- **HubEmailViewSet `get_queryset`** — `select_related("inbound","contact","department","queue","assignee","escalated_to","converted_ticket")` + `prefetch_related("notes","notes__author")`.
-- **AssignmentEngine** — batches candidate load (active HubEmail count) + last-assigned timestamp in 2 queries before sorting.
-- **reap_stale_presence / check_hub_sla_breaches** — cross-tenant `.unscoped` + `iterator(chunk_size=200)`.
-
-## Security Hardening
-
-- `IsTenantMember` applied to AttachmentViewSet, BoardViewSet, ColumnViewSet, CardPositionViewSet, ContactGroupViewSet, ConversationViewSet, MessageViewSet, NotificationViewSet, NotificationPreferenceViewSet, QuickNoteViewSet, ReminderViewSet, InboxViewSet, **HubEmailViewSet** (+ all 4 config viewsets) — blocks cross-tenant JWT access.
-- **`LiveEventConsumer`** verifies tenant membership before joining channel-layer group. **Caveat:** `Comment.is_internal` events broadcast on tenant-wide live channel; clients expected to filter. Latent information-leak vector.
-- ChatConsumer rate limits + tenant-from-scope verification.
-- **Webhook `secret`** write-only in serializer; HMAC SHA-256; auto-disable at 10 failures.
-- **XSS prevention** — ticket detail uses `textContent`; KB sanitises mammoth output. **Inbox Hub email body** rendered via strict `BODY_SANITIZE_CONFIG` DOMPurify allowlist.
-- **Auth throttling** — `AuthViewSet.throttle_scope = "auth"` (10/min). `APIKeyRateThrottle` (1000/hour) auto-engages on `request.auth = APIKey`.
-- **File-upload MIME** — python-magic with content-type fallback. 2MB avatar; 25MB general.
-- **Attachment cross-tenant** — `validate()` ensures target object belongs to current tenant.
-- **Password validation** — full Django `validate_password()`.
-- **Global logout via `auth_version`**.
-- **InboundEmail immutability** — `linked_at/by` and `actioned_at/by` raise `ValidationError` if changed.
-- **IMAP "never backfill"** — poll aborts when UIDVALIDITY/UIDNEXT unparseable.
-- **Superuser-only admin** — `SuperuserOnlyAdminSite`.
-- **`AgentAvailabilityViewSet.assignable_roles` excludes admin slug**.
-- **One user per group per tenant** — enforced client + serializer + viewset.
-- **Inbox Hub RBAC** — local `HubEmailPermission` (effective_role) + `IsHubEmailAccessible` row-scoping; config viewsets manager-gated.
-
-## Key Implementation Details
-
-- **Live broadcasts are best-effort + transactional.** `broadcast_live_event` defers via `transaction.on_commit` and swallows exceptions.
-- **`effective_role` everywhere** — including `BadgeCountView` and the Inbox Hub permission classes as of Phase 1B.
-- **`has_effective_permission` honours `temporary_permissions` intersection**.
-- **Ticket number per-tenant sequencing** via dedicated `TicketCounter` (SELECT FOR UPDATE).
-- **Signal dedup flag** `_skip_signal_logging`; service-layer functions set this automatically.
-- **Kanban drag → ticket service routing** for cross-status drags.
-- **`Ticket.save()` auto-populates `company`** from linked Contact's company.
-- **`Article.save()` resolves tenant from context** with fallback slug.
-- **Session cookie** host-only (Chrome's strict `.localhost` policy).
-- **InboundEmail tenant resolution post-parse** — `tenant` nullable.
-- **CannedResponse ownership** — creator or Manager+.
-- **SavedView default race** — `transaction.atomic() + select_for_update()`.
-- **SLA breach flags persisted before notifications** (dedup).
-- **Ticket soft delete** — `is_deleted=True`; `?include_deleted=true` shows; POST `restore/` reverses.
-- **Knowledge `Article.allowed_groups`** — visibility scope via M2M UserGroup.
-- **Inbox Hub presence** — agent online-state driven by `/ws/live/` 25s ping → `last_seen`; reaper flips stale ONLINE→AWAY at 90s TTL; `is_assignable` is the single gate for auto-assignment.
-- **Inbox Hub hold/drain** — no online agent → email held NEW; first eligible agent's reconnect drains the department backlog up to capacity.
-
-## Common Pitfalls & Fixes Applied
-
-1. `TenantSettings` dual-PK — removed `primary_key=True`.
-2. Allauth config must be a set: `ACCOUNT_LOGIN_METHODS = {"email"}`.
-3. All apps need `migrations/__init__.py`.
-4. DRF 3.15.2 → 3.16.1 (Django 6.0 compat).
-5. `base.html` needs `user.is_authenticated` check.
-6. Role creation includes `hierarchy_level`.
-7. Ticket stats JS reads `data.ticket_stats`.
-8. Flower in requirements/base.txt.
-9. **Viewer IS seeded by default** — **7 system roles total**.
-10. `swagger_fake_view` check in `get_queryset()`.
-11. Use `get_user_model()` in async consumers.
-12. Test fixtures: `UserFactory` `_after_postgeneration` with `skip_postgeneration_save = True`.
-13. Test base: `current_period_start/end` must be tz-aware.
-14. **`django-celery-beat` removed** — Django 6 incompat.
-15. **VoIP queue** — `kanzan_voip` not in default worker `-Q`.
-16. **PM2 count** — 5 prod. Makefile omits `kanzan-smtp`.
-17. **11 Beat tasks** (+`reap-stale-presence`, +`check-hub-sla-breaches`). `check_overdue_reminders` and `check_sla_breach_warnings` exist but NOT scheduled.
-18. **CSS versioning** — `custom-v15.css` (live, 24,934 LOC); `custom.css` (snapshot, 20,431 LOC, NOT loaded).
-19. **IMAP "never backfill" safety**.
-20. **Tenant primary/accent override** supported. Defaults `#6366F1`/`#F59E0B`; fallback Crimson Black.
-21. **Reminder M2M** — `contacts`/`tickets` are M2Ms.
-22. **Knowledge-base task names** — `knowledge_base.*` namespace.
-23. **TicketActivity events** — 27 choices.
-24. **ActivityLog actions** — **34 choices** (+8 `EMAIL_*`, all now emitted by Inbox Hub).
-25. **Temporary role overrides** — use `effective_role`; honour `temporary_permissions` intersection.
-26. **API router include count is 23** (22 unique URLConfs).
-27. **Frontend URL count is 35** (incl. `/inbox-hub/`).
-28. **91 Django model classes** across 21 apps (raw `^class` grep = 102).
-29. **No new hex colour literals in CSS/JS/template rule bodies**.
-30. **Use `var(--crm-text-on-primary)`** for text on tenant-themed surfaces.
-31. **JS color strings use var() too**.
-32. **Hex-alpha concat forbidden** — use `withAlpha(color, percent)`.
-33. **Chart.js can't resolve `var()`** — use `cssVar()` + `resolveColor()`.
-34. **Live broadcast layer is committed**.
-35. **Comment broadcasts ignore `is_internal`** — latent info-leak.
-36. **TicketPresenceConsumer `presence_list` unimplemented**.
-37. **`UserGroup`** — tenant-scoped; "one user per group" enforced (flat-string `detail` response).
-38. **`CustomAgentStatus`** — tenants define custom statuses.
-39. **Messaging attachments** — `body` allow_blank; `_broadcast_message` is `@classmethod`.
-40. **Status transition relaxation** — `ALLOWED_TRANSITIONS["waiting"]` allows `resolved`/`closed`.
-41. **`apps/billing/tasks.*` queue route dormant** — file doesn't exist.
-42. **Notification is NOT polymorphic** — `data` JSONField only. 5 polymorphic models: `Attachment, Comment, ActivityLog, CustomFieldValue, CardPosition`.
-43. **No CI/CD** — `make check` is pre-commit gate. PM2 single-host deploy.
-44. **`BASE_SCHEME` IS in `.env.example`**.
-45. **`main/admin.py` full add/change flow** with `TenantFilteredAdmin` tenant picker.
-46. **API keys cleartext** `kz_live_<slug6>_<token_urlsafe(32)>` — SHA-512; shown once.
-47. **`APIKeyRateThrottle` is `SimpleRateThrottle`-based** — opt-in-free.
-48. **`RateLimitHeadersMiddleware`** (slot 12) — read-side only.
-49. **`drf-spectacular` OpenAPI extension for API keys** registered via `apps.py::ready()`.
-50. **Notification UX** — bell `.is-ringing` ~950ms + `.notif-flyout` 3s auto-fade.
-51. **Seven system roles** — admin/manager/team-lead/agent/it/hr/viewer.
-52. **`/admin/` NOT in `EXEMPT_PATH_PREFIXES`** — dedicated branch resolves tenant.
-53. **DRF auth order is JWT → APIKey → Session**.
-54. **Kanban drags trigger full ticket service** when cross-status.
-55. **`Ticket.save()` auto-fills `company`** from linked Contact.
-56. **`Article.save()` resolves tenant from context**.
-57. **`page_back_button.html` wired into 17 pages.** 11-entry array incl. `/inbox-hub/`.
-58. **`requirements.txt` byte-identical to `requirements/base.txt`**.
-59. **Logs not rotated.** ~74MB; celery-worker-error ~40MB, celery-beat-error ~15MB, django ~14MB. `logs/` is gitignored.
-60. **Reminders v2** — Global keybinds `N`/`Esc` only; `Enter` per-input.
-61. **CELERY_BEAT_SCHEDULE lives in `main/settings/base.py`**, NOT `main/celery.py`.
-62. **Kanban orphan-card cleanup** — `Ticket.post_delete` hard-deletes `CardPosition`. Tickets app has **11 signal receivers**.
-63. **CSS token scales** (`3c99a85`) — no magic numbers in rule bodies.
-64. **`theme-check` scans inside `<script>` blocks** (`22f284a`).
-65. **Inbox Hub seam is flag-gated, OFF by default.** `tenant.settings.inbox_hub_enabled = True` opts in. Reverting restores legacy behaviour for new mail.
-66. **`_post_park_hooks` is now FILLED** — route → SLA init → auto-assign (each try/except-isolated; respects `inbox_hub_auto_assign`).
-67. **Inbox Hub uses a LOCAL `HubEmailPermission`** (effective_role), NOT the global `ACTION_MAP` — `assign`/`escalate` collide with TicketViewSet.
-68. **`ActivityLog.Action` 34** (+8 `EMAIL_*`, all emitted). **`NotificationType` 20** (+5 `HUB_EMAIL_*`, all now created by Phase 1B).
-69. **`Queue.department` FK opt-in and nullable** — legacy queue behaviour unaffected.
-70. **DO NOT set class-level `queryset = Model.objects.all()` on TenantAwareManager viewsets** — evaluates at import time, returns `.none()` forever. Build fresh in `get_queryset()`.
-71. **Profile v2 has only 4 role badge variants** — Team Lead/IT/HR collapse to `--agent`.
-72. **Sidebar Emails visible**; sidebar avatar image-aware via server `user.updated` payload.
-73. **Groups smart picker** — server response is a **flat string in `detail`**, NOT a `{conflicts:[...]}` array.
-74. **`BadgeCountView` rewrites (working tree):** `is_agent` uses `effective_role`; `_email_count` = personal inbox (`assignee=me` ∪ internal-to-me, `inbox_status IN pending/linked`, excl BOUNCED); `_message_count` = **unread CHAT messages** (was unread comments — breaks `test_badges.py` 14.05/14.09); `_inbox_hub_count` = `state=NEW` tenant-wide, 0 if `not can_access_inbox_hub`; `_ticket_count` adds `is_deleted=False` + `agent_visible_tickets_q`.
-75. **Inbox Hub FRONTEND is a TRIAGE COCKPIT** (rewritten again, `inbox-hub.js` 1,177 LOC `?v=8`) — 5 workload lenses (all/unassigned/mine/oldest/sla — SLA self-hides at 0), per-email customer-context card (`GET /hub-emails/{id}/context/`), SLA badge + open-ticket nudge, convert/assign/dismiss + floating Assign menu. NOT a "3 priority filter" desk. Backend `claim/escalate/transition/note` exist but the UI never calls them.
-76. **⚠️ Inbox Hub access is GROUP-GATED (NEW Jun-9 `apps/inbox_hub/access.py`)** — a member may use the Hub only if **Admin (≤10) OR member of ≥1 `UserGroup`**. Non-Admins in no group: hidden nav (`{% if can_access_inbox_hub %}`), zeroed badge, 403 page (`_inbox_hub_access_required`) + 403 API. This REPLACED department-based row-scoping; even a Manager with all 12 codenames is locked out without a group. Row-scope: ≤20 all rows, agent-tier → `state=NEW OR assignee=me`.
-76b. **Agent email-inbox handoff** — manual Hub `assign`/`reassign`/`claim` stamps `InboundEmail.assignee` (+ PENDING/unread) so the original mail shows on `/emails/?assigned=me`; auto-assign does NOT. New `create_ticket` action on `InboundEmailViewSet` (role ≤30).
-76c. **⚠️ Agent ticket visibility TIGHTENED (NEW `apps/tickets/access.py`)** — `agent_visible_tickets_q` = `assignee=me OR (created_by=me AND assignee IS NULL)`. A self-created ticket handed off to another agent LEAVES the creator's list/badge/kanban/dashboard/detail view. Shared across 5 surfaces; `IsTicketAccessible` delegates to `agent_can_see_ticket`. Old rule was the looser `created_by OR assignee`.
-76d. **`contacts/context.py` (NEW)** — `build_contact_context()` extracted from `ContactViewSet`, enriched (company/account/last_activity), cache prefix `contact_context_v2` (60s, skipped when `exclude_ticket` given); shared with the Hub `context` action.
-77. **Inbox Hub presence is heartbeat-driven** — `/ws/live/` 25s ping stamps `AgentAvailability.last_seen`; `reap_stale_presence` (60s) ages stale ONLINE→AWAY at 90s TTL.
-78. **Inbox Hub auto-assign is gated by `TenantSettings.inbox_hub_auto_assign`** (default True). False = manual claim only; no online agent = held + drained on reconnect.
-79. **3 untracked migrations** (`agents/0007`, `tenants/0010`, `inbound_email/0010`); everything else committed in `8682e80`. `makemigrations --check` clean.
-80. **`apps/inbox_hub/routing.py` is the RoutingEngine** (email classification), NOT a Channels WebSocket route — do not confuse it with `apps/tenants/routing.py`.
-81. **`process_inbound_email` variable-shadowing** — local `settings` rebinds module-level `django.conf.settings`. Sibling `resolve_tenant_from_address` unaffected.
-82. **`resolve_tenant_from_address` Strategy 4** — `IMAP_DEFAULT_TENANT_SLUG` last-resort fallback.
-83. **48 `.html` templates / 18 `templates/pages/` subdirs / 14 JS files / 5,262 LOC; `custom-v15.css` 24,934 LOC**.
-84. **`Makefile` `logs-django` declared in `.PHONY` but no rule body** — calling errors. Log targets: `logs`, `logs-celery`, `logs-all`. 33 targets total.
-85. **`KANZAN_FLOWER_AUTH` is PM2-only** — `base.py` doesn't read it.
-86. **`seed_inbox_hub_defaults` seeds ONE "General" Department only** — NOT RoutingRules/SLA/QueueRouting; run before flipping `inbox_hub_enabled`.
-87. **Inbox Hub SLA is wall-clock** (no business-hours math) — distinct from the ticket SLA engine.
-88. **`apps/inbox_hub/` still has NO `signals.py`/`ready()`** — events fan imperatively from service/routing/assignment functions.
-89. **`analytics/services.py` excludes soft-deleted tickets** (`is_deleted=False`) across all 8 stat querysets.
-90. **`EXEMPT_PATH_PREFIXES` = 17 literals**; `ROLE_DEFINITIONS` in `defaults.py` has **6 entries** (Viewer seeded as a row but permission-less); `ALL_CODENAMES` = **69**; `TicketViewSet` itself has **31** `@action`s (36 was the all-classes count in `tickets/views.py`).
-91. **`tickets/detail.html` REMOVED Delete-Ticket** (button + confirm modal + handlers) and the **macro dropdown** from the comment composer. The DELETE endpoint / soft-delete service still exist server-side; the UI just no longer surfaces them.
-92. **`tickets/list.html` stat tabs are now DYNAMIC** — `buildStatusTabs()` injects one tab per tenant `TicketStatus` (from `/tickets/ticket-statuses/`, sorted by `order`, with the status color dot + count) via event delegation on `#ticketStats`. Static tabs remaining: All + Urgent. The hardcoded Open/In-Progress tabs are gone.
-93. **`HubEmail.first_responded_at` is read-but-never-written** — `check_hub_sla_breaches` guards on it, but no engine code writes it, so the response-breach always fires on the deadline. `escalate_hub_email` bumps `escalation_count` even on an illegal ESCALATED transition.
-94. **2 stale `test_badges.py` tests FAIL** (14.05, 14.09) — they assert the old unread-comments "messages" badge; the working tree repurposed `_message_count` to unread-chat. Intentional behavior change, tests not yet updated. Everything else green; `makemigrations --check` clean.
-95. **The Hub `context` action lives on `HubEmailViewSet`, NOT contacts** — deliberately, so it respects `IsHubEmailAccessible` row-scoping (agents can't reach a freshly-parked contact via `/contacts/{id}/context/`). Codename `hub_email.view`.
+- **Framework:** pytest + pytest-django. **66 modules** (59 root + 7 app-level). `pytest.ini`: 3 lines (`DJANGO_SETTINGS_MODULE=main.settings`, `pythonpath=.`, **no `asyncio_mode`** → defaults `strict`; `requirements/dev.txt` now ships `pytest-asyncio` but pytest.ini doesn't set the mode).
+- **Fixtures (`conftest.py`, 343 LOC):** **16 factories + 20 fixtures** (3 autouse: `celery_eager`, `free_plan`, `clear_tenant_context`). `RoleFactory` has 4 traits (admin/manager/agent/viewer); team-lead/it/hr fetched via `Role.unscoped.get(slug=...)`. `ReminderFactory` sets `priority="medium"` + `scheduled_at=now()` (eligible to fire immediately in `fire_due_reminders` tests).
+- **on_commit tests** wrap POSTs in `django_capture_on_commit_callbacks(execute=True)`.
+- **✅ FULL SUITE GREEN — verified run 2026-06-16:** `python -m pytest -q` = **894 passed / 0 failed / 22 skipped / 1 xfailed** (~185s on SQLite; up from 864 on 06-15 as Feature B / inbound-attachments / Hub-access-refactor added ~30 tests). This long ago RESOLVED the QA audit's **18 failed / 834 passed** snapshot (outbound-email RFC-2606 regressions re-pointed `@example.com` → `@clientmail.com`; 2 stale comment→chat badge tests; 1 comment-visibility test). The 22 skips are env-gated (Postgres-only FTS etc.); the 1 xfail is expected. Sprint-0 + new tests pass: `test_messaging_tenant_isolation`, `test_attachment_authz`, `test_billing_voip_and_webhook`, `test_imap_poller_safety::TestCrossTenantDedup`, plus `TestHubConvertOverrides` / `TestHubEmailAttachments` / `TestInboundEmailAttachments` (in existing modules). `makemigrations --check` clean; `make theme-check` green; `ruff check .` = 197 lint issues (non-blocking).
+- ⚠ `make test-fast` uses `--timeout=30` but `pytest-timeout` is STILL NOT in `dev.txt` (`make test-fast` errors without it).
 
 ## Documentation
 
 - `/CLAUDE.md` (this file) — day-to-day source of truth.
-- `/docs/README.md` — index; **stale** (predates Inbox Hub; points to `/CLAUDE.md`).
-- `/docs/architecture.md` — long-form architecture (Version 1.0, **2026-02-06**; STALE — design rationale only).
-- `/docs/ui-consistency-audit.md` (211 LOC, 2026-05-22, `26c989b`) — findings doc; **most recommendations now shipped**. Its self-referenced "baseline 125" / "23,759-line CSS" figures are outdated — current baseline is **147**, CSS is **24,934**.
-- `/docs/reference/{codebase-inventory,api-surface,frontend-surface,infra-surface}.md` (189/242/202/199 LOC) — Verified 2026-05-22 @ `ea87bb2` (code state `241e407`). **STALE vs working tree** — do NOT cover Inbox Hub (Phase 1A/1B, triage-COCKPIT frontend, email-inbox handoff, **group-gated access**), the **Jun-9 `access.py` refactor** (`tickets/access.py`, `inbox_hub/access.py`, `contacts/context.py`), Profile v2, Reminders v2, Groups smart picker, presence layer, the new beat tasks, or the 35 frontend URLs / 23 API mounts. They still say 22 API mounts / 34 frontend URLs / 21 apps / accounts mig 0011. CLAUDE.md wins on any disagreement. (Structure is fine; only content is stale — regenerate against current HEAD when convenient.)
-- `/scripts/check_theme.py` + `.theme_baseline.json` — regression guard. Baseline total: **147 hex / 11 files**.
+- `/docs/README.md` — index; defers to `/CLAUDE.md`.
+- `/docs/architecture.md` — long-form (Version 1.0, **2026-02-06**; STALE design rationale only).
+- `/docs/ui-consistency-audit.md` (2026-05-22) — most recommendations shipped; figures outdated.
+- `/docs/reference/{codebase-inventory,api-surface,frontend-surface,infra-surface}.md` — Verified 2026-05-22 @ `ea87bb2`; **STALE** (predate inbox_hub, the access refactor, presence layer, both features, Sprint 0). CLAUDE.md wins on any disagreement. Structure is fine; regenerate against current HEAD when convenient.
+- **`/docs/qa-audit-2026-06-14/` (11 files)** — the end-to-end QA/security/perf audit that drove this branch. `00-EXECUTIVE-SUMMARY` (38/100), `01-QA-REPORT`, `02-BUG-REPORT`, `03-SECURITY-ASSESSMENT`, `04-UIUX-AUDIT`, `05-PERFORMANCE-AUDIT`, **`06-REMEDIATION-PLAN`** (Sprint 0–3 fix plan — Sprint 0 is what this branch implements), + 4 `_digest_*` raw appendices. Still-current for Sprint 1–3 backlog items.
+- `/scripts/check_theme.py` + `.theme_baseline.json` — regression guard (baseline 147 / 11 files).
 - `README.md` — minimal stub (`# Kanzen`).
+
+## Common Pitfalls & Fixes Applied
+
+1. `ACCOUNT_LOGIN_METHODS = {"email"}` (a set); all apps need `migrations/__init__.py`; DRF ≥3.16 (Django 6); `django-celery-beat` removed; `django.contrib.postgres` installed (KB FTS).
+2. **`daphne` + `jazzmin` ARE in INSTALLED_APPS** (admin is jazzmin "darkly", superuser-locked via `SuperuserOnlyAdminSite` class-swap; `main/admin.py` registers 0 models).
+3. **Working tree DIRTY: THREE uncommitted layers** — Sprint 0 QA fixes (this branch) + Feature A (reminder-due popup) + Feature B (create-ticket-overrides) **+ Hub access refactor + inbound-email attachments** (these three landed together 06-15→16). Counts: migrations **119**, models **91**, test modules **66**, beat 12, tasks 27, NotificationType 21, ActivityLog 34, TicketActivity 27, custom-v15.css **25,149**, app.js **1,139**/JS **5,722**, pytest **894 pass**. **CI now exists** (`.github/workflows/ci.yml`). See **§Sprint 0 Hardening**.
+4. **Viewer IS seeded — 7 system roles** (`ROLE_DEFINITIONS` has 6, Viewer permission-less). **`apps.nav` is NOT installed** (21 `apps.*`).
+5. **91 model classes** across 21 apps. **5 polymorphic GenericFK models:** Attachment, Comment, ActivityLog, CustomFieldValue, CardPosition. **Notification is NOT polymorphic.**
+6. **`/admin/` NOT in `EXEMPT_PATH_PREFIXES` (17 entries)** — dedicated branch sets context even to None. `IsTenantMember` returns True when no tenant. **`/inbound/email/` exempt entry is dead** (no URLConf).
+7. **DRF auth order JWT → APIKey → Session.** API keys `kz_live_<slug6>_<token_urlsafe(32)>` — SHA-512; shown once. `APIKeyRateThrottle` opt-in-free.
+8. **Always use `effective_role`** — BUT mixed `role` vs `effective_role` drift remains in `tickets/views.py` list, `analytics`, `kanban` serializer, `pick_email_agent` (raw role), and Hub `_candidate_user_ids` no-dept fallback. Temp-promoted agents are inconsistently scoped.
+9. **⚠ Inbox Hub access is DEPARTMENT-SCOPED** (`inbox_hub/access.py`; the old `UserGroup` gate is DELETED) — Admin/Manager (≤20) always; Viewer (>30) never; agent-tier iff (in active dept) OR (tenant has no active depts, fall-open) OR (has assigned mail, black-hole valve). Row-scope (`hub_rows_q`/`agent_can_see_hub_email`): ≤20 all rows; agent-tier → `assignee=me OR (state=NEW AND department∈my-depts/NULL)`. Rollout: dept-having tenants must make triagers Department members or they 403.
+10. **⚠ Agent ticket visibility TIGHTENED** (`tickets/access.py`) — `assignee=me OR (created_by=me AND assignee IS NULL)`. Self-created ticket handed off LEAVES the creator's view. Shared across 5 surfaces.
+11. **Agent email-inbox handoff** — manual Hub assign/reassign/claim stamps `InboundEmail.assignee` (+PENDING/unread); **auto-assign does NOT**. New `create_ticket` action on `InboundEmailViewSet` (role ≤30).
+12. **Inbox Hub frontend is a TRIAGE COCKPIT** (`?v=10`) — 5 lenses + customer-context card + attachment thumbnails + full `#ihConvertPanel` convert offcanvas. Backend `claim/escalate/transition/note` exist but UI never calls them. **No `reply` action** despite the seeded codename.
+13. **Inbox Hub presence is heartbeat-driven** — `/ws/live/` 25s ping stamps `last_seen`; `reap_stale_presence` (60s) ages stale ONLINE→AWAY at 90s TTL; `is_assignable` is the single auto-assign gate (don't confuse with looser `is_available`). Auto-assign gated by `inbox_hub_auto_assign` (default True).
+14. **`first_responded_at` read-but-never-written** → Hub response-breach always fires (+auto-escalates). **`escalate_hub_email` bumps `escalation_count` even on illegal transition.** `HubEmailAssignment.Reason.ESCALATION` never emitted. **`InboundEmail.Status.PARKED_IN_HUB` write-dead.**
+15. **`apps/inbox_hub/routing.py` is the RoutingEngine**, NOT a Channels route. `apps/inbox_hub/` has NO `signals.py`/`ready()`.
+16. **✅ Feature B reachability gap CLOSED** — both the Emails-page `create_ticket` AND the Hub `convert_to_ticket` now call the shared `apps/inbound_email/ticket_overrides.py::build_ticket_overrides`, so the full 9-field override set (subject/description/category/due_date/tags + queue/status/assignee/priority) reaches both. `ConvertToTicketSerializer` is schema-only. The cockpit drives it via `#ihConvertPanel`. **NEW: inbound-email attachments** — `apps/inbound_email/attachments.py` + authed `attachment/` action on both `InboundEmailViewSet` and `HubEmailViewSet` (inline raster / forced download + `nosniff`).
+17. **`process_inbound_email` variable-shadowing** — local `settings` rebinds module-level `django.conf.settings`. **IMAP "never backfill"** safety. Filters run BEFORE tenant resolution.
+18. **✅ BILLING VoIP flags NOW SEEDED (Sprint 0)** — Free off / Pro `True/True/1000` / Enterprise `True/True/None`; mig `billing/0003` backfills. `check_call_limit` permits Pro/Enterprise. **`require_feature` decorator is still 100% dead.** `voip_enabled` (softphone UI) gated by `VoIPSettings.is_active`, still decoupled from `Plan.has_voip`. **Also fixed: re-subscribe IntegrityError** (webhook repoints the OneToOne row).
+19. **VoIP runtime is manual** — `kanzan_voip` queue unconsumed; `run_ari_listener` not in PM2; `cleanup-stale-calls` Beat messages pile up. `CallEventConsumer` is tenant-wide (no per-user scoping).
+20. **`check_overdue_reminders` is dead** (not in Beat; docstring honestly corrected). `check_sla_breach_warnings` also unscheduled. **`fire_due_reminders` (Feature A) IS live @30s** — supersedes the due-alert gap, NOT the overdue nag.
+21. **Company custom fields never synced** (no `Company.post_save` in `custom_fields/signals.py`). `Account.health_score`/`Contact.lead_score` clamp only in `clean()` (never auto-called); recalc tasks use `.update()` → invisible to the live layer.
+22. **ContactEvent emits ZERO live events** — `log_contact_event` writes `last_activity_at` via `.update()` (no `post_save`); the `contacts/signals.py` docstring claiming a `contact.updated` is false. Internal comments leak on the live channel. `TicketPresenceConsumer presence_list` unimplemented.
+23. **Kanban drags → ticket service** for cross-status drags (non-personal boards). Orphan-card cleanup via `Ticket.post_delete` (hard-delete only). Pipeline-stage→column sync matches by **name** (rename breaks it).
+24. **`Ticket.save()` auto-fills `company`** from linked Contact (never overwrites explicit). **`Article.save()` resolves tenant from context** + slug-collision loop (FTS is a dev no-op on SQLite). `TicketActivity` inner enum is `Event`, NOT `EventType`.
+25. **ActivityLog 34 actions / NotificationType 21 (+REMINDER_DUE) / TicketActivity 27 Events.** **HubEmail 9 states / 4 priorities** (no medium; Reminder priority HAS medium).
+26. **`Queue.department` FK opt-in/nullable.** **`Board.is_personal`** private to creator. **`Conversation.source_group`** FK dedupes group convs. **`UserGroup`** "one user per group" enforced (flat-string `detail`); gates the Hub.
+27. **No hex literals in CSS/JS/template rule bodies** — `make theme-check` enforces (baseline 147/11). ⚠ `base.html` toast `z-index:1090` is a hardcoded magic number (invisible to the hex-only check).
+28. **`tickets/detail.html` Delete-Ticket REMOVED**; macro JS dead no-ops. **`tickets/list.html` stat tabs dynamic.** **Reminders v2 NL quick-add.** **Profile v2 4 role badges.**
+29. **`kb_sidebar_widget.html` is an orphan** (safe-delete). **`page_back_button.html` included by 18.** **`KBRevision`/`KBTicketLink` are dead-write models.** **`command-palette.js` "New Contact" → dead `/contacts/new/`.**
+30. **✅ CI NOW EXISTS (Sprint 0)** — `.github/workflows/ci.yml` (ruff non-blocking + migrate-check + theme-check + pytest on PG16+Redis7, push-to-`main`/PR); `make check` remains the local gate. **`requirements.txt` byte-identical to `requirements/base.txt`.** **Logs not rotated** (~95MB). **`make logs-django` errors** (`.PHONY`, no body). **`make stop`/`restart` skip `kanzan-smtp`.** **`pytest-timeout` still missing from `dev.txt`** (but `pytest-asyncio` now present). **`analytics.DashboardView` under-permissioned** (IsAuthenticated only — Sprint 1 item).
+31. **✅ Sprint-0 cross-tenant/security fixes:** DEBUG default→False; messaging user_ids tenant-scoped; attachment object-level authz (raw `/media/` still open); IMAP dedup per-`(tenant,message_id)`. **`makemigrations --check` clean; 119 migrations** (3 untracked: `billing/0003`, `crm/0005`, `notifications/0006`). Latest per heavy app: accounts 0012, agents 0007, inbound_email 0010, tenants 0010, tickets 0027, comments 0010, billing 0003, crm 0005, notifications 0006, inbox_hub 0001.

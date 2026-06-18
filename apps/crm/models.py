@@ -153,6 +153,16 @@ class Reminder(TenantScopedModel):
     )
     completed_at = models.DateTimeField(null=True, blank=True)
     cancelled_at = models.DateTimeField(null=True, blank=True)
+    due_notified_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text=(
+            "When the one-shot 'reminder due' alert was sent. Prevents the "
+            "fire_due_reminders task from re-notifying every beat tick. "
+            "Automatically re-arms whenever scheduled_at moves forward "
+            "(the task re-fires while due_notified_at < scheduled_at)."
+        ),
+    )
     priority = models.CharField(
         max_length=10,
         choices=Priority.choices,

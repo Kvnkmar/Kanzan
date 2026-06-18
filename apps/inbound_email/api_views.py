@@ -36,6 +36,7 @@ from apps.inbound_email.serializers import (
     InboxEmailListSerializer,
     LinkEmailSerializer,
 )
+from apps.inbound_email.ticket_overrides import build_ticket_overrides
 
 logger = logging.getLogger(__name__)
 
@@ -132,6 +133,12 @@ class InboundEmailViewSet(ReadOnlyModelViewSet):
         ticket is identical to a Hub convert; falls back to the legacy direct
         create for emails that never went through the Hub. Idempotent — an
         email that already has a ticket returns 400 with the existing number.
+
+        Accepts an optional override payload so the agent can craft a *proper*
+        ticket from the email — refined ``subject``, a written ``description``,
+        plus ``priority``/``queue``/``status``/``assignee``/``category``/
+        ``tags``/``due_date``. Any field left blank inherits the email-derived
+        default, preserving the old one-click behaviour for an empty body.
         """
         tenant = getattr(request, "tenant", None)
         if tenant is None:
@@ -165,6 +172,9 @@ class InboundEmailViewSet(ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Validate the agent's form input up front (raises 400 on bad refs).
+        overrides = build_ticket_overrides(request.data, tenant)
+
         try:
             hub_email = email.hub_email
         except Exception:
@@ -173,17 +183,22 @@ class InboundEmailViewSet(ReadOnlyModelViewSet):
         if hub_email is not None:
             from apps.inbox_hub.services import convert_to_ticket
 
-            ticket = convert_to_ticket(hub_email, actor=request.user)
+            ticket = convert_to_ticket(hub_email, actor=request.user, **overrides)
         else:
+            from django.db import transaction
+
             from apps.inbound_email.services import (
                 _create_ticket_from_email,
                 find_or_create_contact,
             )
 
-            contact, _ = find_or_create_contact(
-                tenant, email.sender_email, email.sender_name,
-            )
-            ticket = _create_ticket_from_email(email, tenant, contact, request.user)
+            with transaction.atomic():
+                contact, _ = find_or_create_contact(
+                    tenant, email.sender_email, email.sender_name,
+                )
+                ticket = _create_ticket_from_email(
+                    email, tenant, contact, request.user, overrides=overrides,
+                )
 
         return Response(
             {
@@ -192,6 +207,31 @@ class InboundEmailViewSet(ReadOnlyModelViewSet):
                 "ticket_subject": ticket.subject,
             },
             status=status.HTTP_201_CREATED,
+        )
+
+    @extend_schema(
+        summary="Download a customer-sent attachment off this email",
+        tags=["Inbound Email"],
+    )
+    @action(detail=True, methods=["get"])
+    def attachment(self, request, pk=None):
+        """Stream a customer-sent attachment off this email.
+
+        ``get_object()`` enforces tenant scoping + the read codename, so only
+        members who can view the email can fetch its files. Addressed by index
+        into ``attachment_metadata`` (``?i=<n>``) — the raw storage path is
+        never exposed. Safe raster images stream inline (so the Emails preview
+        can embed them); everything else is forced to download with ``nosniff``.
+        ``?dl=1`` forces download for any type. Shared with the Inbox Hub (see
+        :func:`apps.inbound_email.attachments.stream_attachment`).
+        """
+        from apps.inbound_email.attachments import stream_attachment
+
+        email = self.get_object()
+        return stream_attachment(
+            email,
+            request.query_params.get("i", ""),
+            force_download=request.query_params.get("dl") == "1",
         )
 
 

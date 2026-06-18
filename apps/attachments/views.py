@@ -14,10 +14,14 @@ from drf_spectacular.utils import (
     extend_schema,
     extend_schema_view,
 )
+from django.http import FileResponse
 from rest_framework import mixins, parsers, permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 
 from apps.accounts.permissions import IsTenantMember
+from apps.attachments.access import can_access_target
 from apps.attachments.models import Attachment
 from apps.attachments.serializers import AttachmentSerializer, AttachmentUploadSerializer
 from apps.comments.models import ActivityLog
@@ -83,6 +87,23 @@ class AttachmentFilter(django_filters.FilterSet):
             return queryset.filter(content_type=ct)
         except (ValueError, ContentType.DoesNotExist):
             return queryset.none()
+
+
+class CanAccessAttachmentObject(permissions.BasePermission):
+    """Object-level check: the user must be allowed to access the attachment's
+    target object (ticket/comment/message/etc.). Runs on retrieve/destroy/
+    download via ``check_object_permissions``. Upload (create) is enforced
+    separately in ``create`` since there is no object yet."""
+
+    message = "You do not have permission to access this attachment's target object."
+
+    def has_object_permission(self, request, view, obj):
+        return can_access_target(
+            request.user,
+            getattr(request, "tenant", None),
+            obj.content_type,
+            obj.object_id,
+        )
 
 
 @extend_schema_view(
@@ -161,7 +182,11 @@ class AttachmentViewSet(
     To replace a file, delete the old attachment and upload a new one.
     """
 
-    permission_classes = [permissions.IsAuthenticated, IsTenantMember]
+    permission_classes = [
+        permissions.IsAuthenticated,
+        IsTenantMember,
+        CanAccessAttachmentObject,
+    ]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser]
     filterset_class = AttachmentFilter
     ordering_fields = ["created_at", "size_bytes", "original_name"]
@@ -177,6 +202,34 @@ class AttachmentViewSet(
             "uploaded_by", "content_type"
         )
 
+    @action(detail=True, methods=["get"])
+    def download(self, request, *args, **kwargs):
+        """Authorized file download.
+
+        ``get_object()`` runs ``check_object_permissions`` ->
+        ``CanAccessAttachmentObject``, so only users permitted to access the
+        target object can stream the file. Production should additionally serve
+        ``/media/`` through this endpoint (or an X-Accel-Redirect / X-Sendfile
+        proxy) rather than exposing raw media URLs without authorization.
+        """
+        attachment = self.get_object()
+        if not attachment.file:
+            return Response(
+                {"detail": "File not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        try:
+            handle = attachment.file.open("rb")
+        except (FileNotFoundError, OSError):
+            # The DB row references a file no longer in storage -> 404, not 500.
+            return Response(
+                {"detail": "File not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+        return FileResponse(
+            handle,
+            as_attachment=True,
+            filename=attachment.original_name,
+        )
+
     def create(self, request, *args, **kwargs):
         """
         Upload a new attachment.
@@ -186,6 +239,21 @@ class AttachmentViewSet(
         """
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        # Object-level authorization: the user must be allowed to modify the
+        # target object before they may attach files to it (e.g. an agent
+        # cannot attach to another agent's ticket or to an internal comment
+        # they can't see). Tenant ownership was already checked in the
+        # serializer; this adds the per-object access check.
+        if not can_access_target(
+            request.user,
+            request.tenant,
+            serializer.validated_data["content_type"],
+            serializer.validated_data["object_id"],
+        ):
+            raise PermissionDenied(
+                "You do not have permission to attach files to this object."
+            )
 
         # Enforce storage limits before saving the file
         from apps.billing.services import PlanLimitChecker

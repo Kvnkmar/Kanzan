@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 INTERNAL_ONLY_TYPES = frozenset({
     NotificationType.TICKET_OVERDUE,
     NotificationType.TICKET_FOLLOWUP_OVERDUE,
+    NotificationType.REMINDER_DUE,
     NotificationType.REMINDER_OVERDUE,
     NotificationType.AGENT_STATUS_CHANGE,
 })

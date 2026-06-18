@@ -493,85 +493,126 @@ class TestHubEmailActionsApi:
 
 
 # ---------------------------------------------------------------------------
-# Group access gate
+# Department access gate
 #
-# The Inbox Hub is visible only to Manager+ OR to agent-tier members who
-# belong to ≥1 UserGroup. A brand-new agent in no group is locked out
-# entirely (403 on the API, zeroed badge). See apps/inbox_hub/access.py.
+# The Inbox Hub is department-scoped: supervisors (Manager+) always; agent-tier
+# only if they belong to a Department; Viewers never. Once a tenant HAS
+# departments, an agent in none of them is locked out (403, zeroed badge). A
+# tenant with NO departments falls open for agents (out-of-box behaviour). See
+# apps/inbox_hub/access.py.
 # ---------------------------------------------------------------------------
 
 
-def _add_to_group(tenant, user, *, name="Support"):
-    from apps.accounts.models import UserGroup
-
-    group = UserGroup.unscoped.create(tenant=tenant, name=name)
-    group.members.add(user)
-    return group
-
-
 @pytest.mark.django_db
-class TestInboxHubGroupGate:
-    def test_agent_in_no_group_denied_list(self, agent_client, tenant):
+class TestInboxHubDepartmentGate:
+    def test_agent_without_department_denied_when_departments_exist(
+        self, agent_client, tenant, admin_user
+    ):
+        _department(tenant, admin_user, slug="sales")  # tenant now has a dept
         _api_hub_email(tenant)
         resp = agent_client.get("/api/v1/inbox-hub/hub-emails/")
         assert resp.status_code == 403
 
-    def test_agent_in_group_can_list(self, agent_client, tenant, agent_user):
+    def test_agent_falls_open_when_no_departments(self, agent_client, tenant):
+        """No departments configured → the gate stays open for agent-tier."""
         _api_hub_email(tenant)
-        _add_to_group(tenant, agent_user)
         resp = agent_client.get("/api/v1/inbox-hub/hub-emails/")
         assert resp.status_code == 200
         assert resp.data["count"] >= 1
 
-    def test_admin_in_no_group_can_list(self, admin_client, tenant):
-        """Only Admins are exempt from the group gate."""
+    def test_agent_in_department_can_list(self, agent_client, tenant, agent_user, admin_user):
+        dept = _department(tenant, admin_user, slug="support")
+        _enroll(tenant, dept, agent_user)
+        # NEW mail routed to the agent's department is visible.
+        he = _api_hub_email(tenant)
+        he.department = dept
+        he.save(update_fields=["department", "updated_at"])
+        resp = agent_client.get("/api/v1/inbox-hub/hub-emails/")
+        assert resp.status_code == 200
+        assert resp.data["count"] >= 1
+
+    def test_admin_without_department_can_list(self, admin_client, tenant, admin_user):
+        """Admins always bypass the gate."""
+        _department(tenant, admin_user, slug="sales")
         _api_hub_email(tenant)
         resp = admin_client.get("/api/v1/inbox-hub/hub-emails/")
         assert resp.status_code == 200
 
-    def test_manager_in_no_group_denied_list(self, manager_client, tenant):
-        """Managers are NOT exempt — they need a group like everyone below Admin."""
+    def test_manager_without_department_can_list(self, manager_client, tenant, admin_user):
+        """Managers are the supervisory see-all tier — no department needed."""
+        _department(tenant, admin_user, slug="sales")
         _api_hub_email(tenant)
-        resp = manager_client.get("/api/v1/inbox-hub/hub-emails/")
-        assert resp.status_code == 403
-
-    def test_manager_in_group_can_list(self, manager_client, manager_user, tenant):
-        _api_hub_email(tenant)
-        _add_to_group(tenant, manager_user)
         resp = manager_client.get("/api/v1/inbox-hub/hub-emails/")
         assert resp.status_code == 200
 
-    def test_agent_in_no_group_denied_retrieve(self, agent_client, tenant):
+    def test_agent_without_department_denied_retrieve(
+        self, agent_client, tenant, admin_user
+    ):
+        _department(tenant, admin_user, slug="sales")
         he = _api_hub_email(tenant)
         resp = agent_client.get(f"/api/v1/inbox-hub/hub-emails/{he.id}/")
         assert resp.status_code == 403
 
-    def test_agent_in_group_can_retrieve_new(self, agent_client, tenant, agent_user):
+    def test_agent_in_department_can_retrieve_new(
+        self, agent_client, tenant, agent_user, admin_user
+    ):
+        dept = _department(tenant, admin_user, slug="support")
+        _enroll(tenant, dept, agent_user)
         he = _api_hub_email(tenant)
-        _add_to_group(tenant, agent_user)
+        he.department = dept
+        he.save(update_fields=["department", "updated_at"])
         resp = agent_client.get(f"/api/v1/inbox-hub/hub-emails/{he.id}/")
         assert resp.status_code == 200
 
-    def test_badge_zero_for_agent_in_no_group(self, agent_client, tenant):
+    def test_badge_zero_for_agent_without_department(
+        self, agent_client, tenant, admin_user
+    ):
+        _department(tenant, admin_user, slug="sales")
         _api_hub_email(tenant)
         resp = agent_client.get("/api/v1/nav/badge-counts/")
         assert resp.status_code == 200
         assert resp.data["inbox_hub"] == 0
 
-    def test_badge_counts_for_agent_in_group(self, agent_client, tenant, agent_user):
+    def test_badge_counts_for_agent_in_department(
+        self, agent_client, tenant, agent_user, admin_user
+    ):
+        dept = _department(tenant, admin_user, slug="support")
+        _enroll(tenant, dept, agent_user)
         _api_hub_email(tenant)
-        _add_to_group(tenant, agent_user)
         resp = agent_client.get("/api/v1/nav/badge-counts/")
         assert resp.status_code == 200
         assert resp.data["inbox_hub"] >= 1
 
-    def test_badge_zero_for_manager_without_group(self, manager_client, tenant):
+    def test_badge_scoped_to_own_department(
+        self, agent_client, tenant, agent_user, admin_user
+    ):
+        """The badge counts only the agent's own department's NEW mail — a NEW
+        email routed to another department must not inflate it."""
+        mine = _department(tenant, admin_user, slug="support")
+        theirs = _department(tenant, admin_user, slug="sales")
+        _enroll(tenant, mine, agent_user)
+
+        he_mine = _api_hub_email(tenant)
+        he_mine.department = mine
+        he_mine.save(update_fields=["department", "updated_at"])
+        he_theirs = _api_hub_email(tenant)
+        he_theirs.department = theirs
+        he_theirs.save(update_fields=["department", "updated_at"])
+
+        resp = agent_client.get("/api/v1/nav/badge-counts/")
+        assert resp.status_code == 200
+        assert resp.data["inbox_hub"] == 1  # only my department's NEW counted
+
+    def test_badge_counts_for_manager_without_department(
+        self, manager_client, tenant, admin_user
+    ):
+        _department(tenant, admin_user, slug="sales")
         _api_hub_email(tenant)
         resp = manager_client.get("/api/v1/nav/badge-counts/")
         assert resp.status_code == 200
-        assert resp.data["inbox_hub"] == 0
+        assert resp.data["inbox_hub"] >= 1
 
-    def test_badge_counts_for_admin_without_group(self, admin_client, tenant):
+    def test_badge_counts_for_admin_without_department(self, admin_client, tenant):
         """Admins are exempt — badge still counts."""
         _api_hub_email(tenant)
         resp = admin_client.get("/api/v1/nav/badge-counts/")

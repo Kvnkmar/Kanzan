@@ -20,6 +20,7 @@ import logging
 from django.contrib.contenttypes.models import ContentType
 from django.core.files.storage import default_storage
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 
 from apps.comments.models import Comment
 from apps.contacts.models import Contact
@@ -364,15 +365,31 @@ def process_inbound_email(inbound_email_id):
                 else:
                     _create_ticket_from_email(inbound, tenant, contact, system_user)
 
-    except Exception as exc:
+    except Exception:
+        # Do NOT write FAILED here. This whole function runs inside
+        # @transaction.atomic, so any status write would be ROLLED BACK by
+        # the re-raise below (together with all partial work -- which is the
+        # point of the atomic). Persisting FAILED is deferred to the task
+        # wrapper (mark_inbound_failed), which runs outside this transaction
+        # once Celery retries are exhausted -- matching the intended
+        # "mark FAILED only on the final attempt" contract.
         logger.exception("Failed to process inbound email %s", inbound.pk)
-        # Mark as FAILED only on the final retry attempt — leave as
-        # PROCESSING for earlier attempts so the Celery retry mechanism
-        # can re-process it (the status guard allows PROCESSING).
-        inbound.status = InboundEmail.Status.FAILED
-        inbound.error_message = str(exc)
-        inbound.save(update_fields=["status", "error_message", "updated_at"])
         raise
+
+
+def mark_inbound_failed(inbound_email_id, error_message):
+    """Persist a permanent processing failure outside any transaction.
+
+    Called by ``process_inbound_email_task`` when all Celery retries are
+    exhausted. Uses ``.update()`` (no ``save()``/signals) and runs in the
+    task's autocommit context, so the FAILED status survives the rolled-back
+    processing transaction instead of vanishing with it.
+    """
+    InboundEmail.objects.filter(pk=inbound_email_id).update(
+        status=InboundEmail.Status.FAILED,
+        error_message=error_message or "",
+        updated_at=timezone.now(),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -380,8 +397,21 @@ def process_inbound_email(inbound_email_id):
 # ---------------------------------------------------------------------------
 
 
-def _create_ticket_from_email(inbound, tenant, contact, system_user):
-    """Create a new ticket from an inbound email."""
+def _create_ticket_from_email(inbound, tenant, contact, system_user, *, overrides=None):
+    """Create a new ticket from an inbound email.
+
+    ``overrides`` (optional dict) lets an agent shape a *proper* ticket at
+    creation time instead of accepting the raw email-derived defaults. Honoured
+    keys: ``subject``, ``description``, ``priority``, ``status``, ``queue``,
+    ``assignee``, ``category``, ``due_date``, ``tags`` (values pre-resolved to
+    model instances where applicable). Folding them into the initial
+    ``Ticket(...)`` — rather than patching with a second ``save()`` afterwards —
+    keeps SLA initialisation, the status-lifecycle timestamps, assignment
+    bookkeeping and the activity log correct and clean. When ``overrides`` is
+    ``None``/empty the behaviour is identical to the legacy auto-create path.
+    """
+    overrides = overrides or {}
+
     default_status = TicketStatus.objects.filter(is_default=True).first()
     if not default_status:
         default_status = TicketStatus.objects.first()
@@ -391,19 +421,36 @@ def _create_ticket_from_email(inbound, tenant, contact, system_user):
     subject = (inbound.subject or "(No Subject)").replace("\r", "").replace("\n", " ")
     body = strip_quoted_reply(inbound.body_text) or inbound.body_text
 
-    ticket = Ticket(
-        subject=subject,
-        description=body,
-        status=default_status,
-        contact=contact,
-        created_by=system_user,
-        tenant=tenant,
-        tags=["email"],
-        custom_data={"source": "email", "message_id": inbound.message_id},
-    )
+    # Preserve the 'email' provenance tag while honouring any agent-supplied
+    # tags (custom_data["source"] also records the origin independently).
+    tags = ["email"]
+    for tag in overrides.get("tags") or []:
+        if tag not in tags:
+            tags.append(tag)
+
+    ticket_kwargs = {
+        "subject": overrides.get("subject") or subject,
+        "description": overrides.get("description") or body,
+        "status": overrides.get("status") or default_status,
+        "contact": contact,
+        "created_by": system_user,
+        "tenant": tenant,
+        "tags": tags,
+        "custom_data": {"source": "email", "message_id": inbound.message_id},
+    }
+    for field in ("priority", "queue", "category", "due_date"):
+        if overrides.get(field) is not None:
+            ticket_kwargs[field] = overrides[field]
+    # An explicit assignee choice is set at creation and pre-empts auto-assign
+    # (see below) so the two never fight over the field or the audit trail.
+    explicit_assignee = overrides.get("assignee")
+    if explicit_assignee is not None:
+        ticket_kwargs["assignee"] = explicit_assignee
+
+    ticket = Ticket(**ticket_kwargs)
     ticket.save()
 
-    # Initialize SLA deadlines based on priority
+    # Initialize SLA deadlines based on priority (now the final, overridden one)
     from apps.tickets.services import initialize_sla
     initialize_sla(ticket)
 
@@ -411,10 +458,13 @@ def _create_ticket_from_email(inbound, tenant, contact, system_user):
     inbound.status = InboundEmail.Status.TICKET_CREATED
     inbound.save(update_fields=["ticket", "status", "updated_at"])
 
-    # Auto-assign to an Agent if the tenant has opted in. Run BEFORE
-    # the confirmation email fires so the assignee appears on the
-    # ticket from the first notification onward.
-    _maybe_auto_assign(ticket, tenant)
+    # Auto-assign to an Agent if the tenant has opted in. Skipped when the agent
+    # already chose an assignee — that intent is honoured as-is and auto-assign
+    # would otherwise double-count workload + leave a stale assignment row. Runs
+    # BEFORE the confirmation email so the assignee appears from the first
+    # notification onward.
+    if explicit_assignee is None:
+        _maybe_auto_assign(ticket, tenant)
 
     # Process attachments
     _attach_inbound_files(inbound, ticket, system_user)

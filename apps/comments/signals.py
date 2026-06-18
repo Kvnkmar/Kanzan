@@ -29,10 +29,15 @@ def _content_type_label(c: Comment) -> str:
 
 
 def _serialise_comment(c: Comment) -> dict:
+    # The live bus fans to EVERY tenant member (incl. Viewers), but internal
+    # comments are agent-only (enforced server-side in CommentViewSet). Never
+    # put an internal body on the wire -- broadcast only the change signal and
+    # let agent clients refetch the full note via the access-gated HTTP API.
+    is_internal = c.is_internal
     return {
         "id":            str(c.id),
-        "body":          c.body,
-        "is_internal":   c.is_internal,
+        "body":          None if is_internal else c.body,
+        "is_internal":   is_internal,
         "author_id":     str(c.author_id) if c.author_id else None,
         "parent_id":     str(c.parent_id) if c.parent_id else None,
         "content_type":  _content_type_label(c),

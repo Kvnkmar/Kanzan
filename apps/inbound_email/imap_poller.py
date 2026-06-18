@@ -334,11 +334,6 @@ def _ingest_one(conn, uid):
         normalize_message_id(raw_msg_id)
         or f"imap-{uuid.uuid4().hex}@{getattr(settings, 'BASE_DOMAIN', 'localhost')}"
     )
-    if InboundEmail.objects.filter(message_id=message_id).exists():
-        logger.info("IMAP skip uid=%s — message_id %s already ingested.", uid, message_id)
-        _mark_seen(conn, uid)
-        return False
-
     sender_name, sender_email = parse_sender(msg.get("From", ""))
     subject = (msg.get("Subject") or "").replace("\r", "").replace("\n", " ")
 
@@ -355,9 +350,27 @@ def _ingest_one(conn, uid):
     if parsed_rcpt:
         recipient = parsed_rcpt
 
+    # Resolve the tenant from the recipient BEFORE deduplicating. The mailbox
+    # is shared across tenants, so dedup MUST be scoped per-tenant: two tenants
+    # can legitimately receive the same Message-ID (mailing lists, forwards),
+    # and a global check would silently drop the second tenant's copy.
+    # InboundEmail is not a TenantScopedModel, so this is an explicit filter.
+    from apps.inbound_email.services import resolve_tenant_from_address
+
+    tenant = resolve_tenant_from_address(recipient)
+
+    if InboundEmail.objects.filter(tenant=tenant, message_id=message_id).exists():
+        logger.info(
+            "IMAP skip uid=%s — message_id %s already ingested for tenant %s.",
+            uid, message_id, getattr(tenant, "slug", None),
+        )
+        _mark_seen(conn, uid)
+        return False
+
     body_text, body_html = _extract_bodies(msg)
 
     inbound = InboundEmail.objects.create(
+        tenant=tenant,
         message_id=message_id,
         in_reply_to=normalize_message_id(msg.get("In-Reply-To", "")),
         references=normalize_references(msg.get("References", "")),

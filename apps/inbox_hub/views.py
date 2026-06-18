@@ -19,7 +19,6 @@ HubEmailPermission, IsHubEmailAccessible]`` — ``HubEmailPermission`` carries t
 Inbox-Hub-local action→codename map (see apps/inbox_hub/permissions.py).
 """
 
-from django.db.models import Q
 from rest_framework import filters, mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
@@ -104,15 +103,19 @@ class HubEmailViewSet(
             "inbound", "contact", "department", "queue", "assignee",
             "converted_ticket", "escalated_to",
         ).prefetch_related("notes", "notes__author")
-        # Agent-tier members (the group-gated tier; Manager+ are unrestricted)
-        # only ever see the untriaged backlog plus mail assigned to them, so a
-        # crafted ``?state=`` param can't surface another agent's in-flight
-        # email. Row-level access is also enforced by IsHubEmailAccessible.
-        membership = _get_membership(self.request, getattr(self.request, "tenant", None))
+        # Agent-tier members (the department-scoped tier; Manager+ are
+        # unrestricted) only ever see the untriaged backlog *for their own
+        # departments* (plus unrouted mail and anything assigned to them), so a
+        # crafted ``?state=`` or ``?department=`` param can't surface another
+        # team's in-flight email. Row-level access is also enforced by
+        # IsHubEmailAccessible (same logic, object form).
+        tenant = getattr(self.request, "tenant", None)
+        membership = _get_membership(self.request, tenant)
         if membership and membership.effective_role.hierarchy_level > 20:
-            qs = qs.filter(
-                Q(state=HubEmail.State.NEW) | Q(assignee=self.request.user)
-            )
+            from apps.inbox_hub.access import hub_rows_q, user_department_ids
+
+            dept_ids = user_department_ids(self.request.user, tenant)
+            qs = qs.filter(hub_rows_q(self.request.user, dept_ids))
         state = self.request.query_params.get("state")
         if state:
             qs = qs.filter(state=state)
@@ -146,19 +149,20 @@ class HubEmailViewSet(
 
     @action(detail=True, methods=["post"], url_path="convert-to-ticket")
     def convert_to_ticket(self, request, pk=None):
-        """Agent-driven conversion: creates a Ticket from this HubEmail."""
+        """Agent-driven conversion: creates a Ticket from this HubEmail.
+
+        Accepts the full override set — subject, description, priority, queue,
+        status, assignee, category, due_date, tags — validated by the shared
+        ``build_ticket_overrides`` (identical rules to the Emails-page
+        "Create ticket" form: 400-not-500, tenant-scoped FK lookups, closed
+        status rejected, assignee must be an active member). Omitted/blank
+        fields fall back to the email-derived defaults inside the service.
+        """
+        from apps.inbound_email.ticket_overrides import build_ticket_overrides
+
         hub_email = self.get_object()
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        overrides = serializer.validated_data
-        ticket = convert_to_ticket(
-            hub_email,
-            actor=request.user,
-            queue=overrides.get("queue"),
-            status=overrides.get("status"),
-            assignee=overrides.get("assignee"),
-            priority=overrides.get("priority"),
-        )
+        overrides = build_ticket_overrides(request.data, request.tenant)
+        ticket = convert_to_ticket(hub_email, actor=request.user, **overrides)
         return Response(
             {
                 "ticket": TicketDetailSerializer(ticket).data,
@@ -195,7 +199,12 @@ class HubEmailViewSet(
     def claim(self, request, pk=None):
         """Self-assign a held/NEW email to the requesting agent."""
         hub_email = self.get_object()
-        reassign_hub_email(hub_email, request.user, actor=request.user, reason="Claimed")
+        try:
+            reassign_hub_email(
+                hub_email, request.user, actor=request.user, reason="Claimed",
+            )
+        except ValueError as exc:
+            raise ValidationError({"detail": str(exc)})
         return Response(self._detail(hub_email), status=status.HTTP_200_OK)
 
     def _do_assign(self, request):
@@ -204,10 +213,13 @@ class HubEmailViewSet(
         serializer.is_valid(raise_exception=True)
         new_user = serializer.validated_data["assignee"]
         self._require_member(new_user)
-        reassign_hub_email(
-            hub_email, new_user, actor=request.user,
-            reason=serializer.validated_data.get("reason", ""),
-        )
+        try:
+            reassign_hub_email(
+                hub_email, new_user, actor=request.user,
+                reason=serializer.validated_data.get("reason", ""),
+            )
+        except ValueError as exc:
+            raise ValidationError({"detail": str(exc)})
         return Response(self._detail(hub_email), status=status.HTTP_200_OK)
 
     # -- workflow ------------------------------------------------------------
@@ -269,6 +281,33 @@ class HubEmailViewSet(
         if not hub_email.contact_id:
             return Response({"contact": None, "stats": None, "recent_tickets": []})
         return Response(build_contact_context(hub_email.contact, request.tenant))
+
+    # -- attachments ---------------------------------------------------------
+
+    @action(detail=True, methods=["get"])
+    def attachment(self, request, pk=None):
+        """Stream a customer-sent attachment off this email.
+
+        ``get_object()`` runs ``IsHubEmailAccessible``, so only users who may
+        see this row can fetch its files. The file is addressed by its index
+        into ``inbound.attachment_metadata`` (``?i=<n>``) — the raw storage
+        path is never exposed.
+
+        Safe raster images are served inline so they can be embedded in an
+        ``<img>``; everything else (incl. SVG/HTML/PDF) is forced to download
+        with ``nosniff`` to avoid inline-script execution from a spoofed
+        content type. ``?dl=1`` forces download for any type. Streaming logic is
+        shared with the Emails page (see
+        :func:`apps.inbound_email.attachments.stream_attachment`).
+        """
+        from apps.inbound_email.attachments import stream_attachment
+
+        hub_email = self.get_object()
+        return stream_attachment(
+            hub_email.inbound,
+            request.query_params.get("i", ""),
+            force_download=request.query_params.get("dl") == "1",
+        )
 
     # -- helpers -------------------------------------------------------------
 
