@@ -7,11 +7,18 @@
 /* Flatpickr — Crimson Black v9 theme (mirrors tickets/create.html) */
 .flatpickr-calendar {
   font-family: 'Inter', sans-serif !important;
-  display: flex !important; flex-direction: column !important;
+  flex-direction: column !important;
   width: 308px; padding: 0; border-radius: 14px !important; overflow: hidden;
   border: 1px solid var(--crm-border) !important; background: var(--crm-surface) !important;
   box-shadow: 0 10px 40px rgba(0,0,0,0.10) !important;
 }
+/* Only OPEN (or inline) calendars take layout space. Closed flatpickr popups are
+   appended to <body>; without this they kept display:flex and sat absolutely
+   positioned below the fold, inflating document height by ~438px and producing a
+   phantom scroll gap that broke the full-viewport rm-page layout. Letting closed
+   popups fall back to flatpickr's own display:none removes the gap. */
+.flatpickr-calendar.open,
+.flatpickr-calendar.inline { display: flex !important; }
 .flatpickr-calendar.arrowTop::before,
 .flatpickr-calendar.arrowTop::after,
 .flatpickr-calendar.arrowBottom::before,
