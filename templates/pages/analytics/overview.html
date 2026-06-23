@@ -148,7 +148,9 @@
 (function() {
   'use strict';
 
-  const PRIORITY_COLORS = { urgent: 'var(--crm-accent)', high: 'var(--crm-primary)', medium: 'var(--crm-accent)', low: 'var(--status-neutral-dot)' };
+  // Priority ramp — single source of truth, mirrors dashboard.html (danger/warning/info/neutral).
+  // Previously urgent/high/medium all rendered red (urgent==medium identical), making the chart unreadable.
+  const PRIORITY_COLORS = { urgent: 'var(--status-danger-dot)', high: 'var(--status-warning-dot)', medium: 'var(--status-info-dot)', low: 'var(--status-neutral-dot)' };
 
   async function loadAnalytics() {
     const days = document.getElementById('dateRange').value;

@@ -30,9 +30,9 @@
     <div class="nav-section">
       <span class="nav-section-label">Inbox</span>
       {% if can_access_inbox_hub %}
-      <a href="{% url 'frontend:inbox-hub' %}" class="sidebar-link {% if request.resolver_match.url_name == 'inbox-hub' %}active{% endif %}" data-sidebar-tooltip="Inbox Hub">
-        <i class="ti ti-inbox"></i>
-        <span class="sidebar-link-text">Inbox Hub</span>
+      <a href="{% url 'frontend:emails' %}" class="sidebar-link {% if request.resolver_match.url_name == 'emails' %}active{% endif %}" data-sidebar-tooltip="Emails">
+        <i class="ti ti-mail"></i>
+        <span class="sidebar-link-text">Emails</span>
         <span class="badge sidebar-badge" id="sidebarBadgeInboxHub" style="display:none;"></span>
       </a>
       {% endif %}
@@ -41,9 +41,9 @@
         <span class="sidebar-link-text">Tickets</span>
         <span class="badge sidebar-badge" id="sidebarBadgeTickets" style="display:none;"></span>
       </a>
-      <a href="{% url 'frontend:emails' %}" class="sidebar-link {% if request.resolver_match.url_name == 'emails' %}active{% endif %}" data-sidebar-tooltip="Emails">
-        <i class="ti ti-mail"></i>
-        <span class="sidebar-link-text">Emails</span>
+      <a href="{% url 'frontend:inbox' %}" class="sidebar-link {% if request.resolver_match.url_name == 'inbox' %}active{% endif %}" data-sidebar-tooltip="Inbox">
+        <i class="ti ti-inbox"></i>
+        <span class="sidebar-link-text">Inbox</span>
         <span class="badge sidebar-badge" id="sidebarBadgeEmails" style="display:none;"></span>
       </a>
       <a href="{% url 'frontend:messaging' %}" class="sidebar-link {% if request.resolver_match.url_name == 'messaging' %}active{% endif %}" data-sidebar-tooltip="Messages">
@@ -153,7 +153,6 @@
         <li><a class="dropdown-item" href="{% url 'frontend:profile' %}"><i class="ti ti-user me-2"></i>Profile</a></li>
         <li><hr class="dropdown-divider"></li>
         <li><a class="dropdown-item" href="{% url 'frontend:settings' %}"><i class="ti ti-settings me-2"></i>Settings</a></li>
-        <li><a class="dropdown-item" href="{% url 'frontend:api-quickstart' %}"><i class="ti ti-code me-2"></i>API Quickstart</a></li>
         <li><hr class="dropdown-divider"></li>
         <li><a class="dropdown-item text-danger" href="{% url 'frontend:logout' %}"><i class="ti ti-logout me-2"></i>Sign Out</a></li>
       </ul>

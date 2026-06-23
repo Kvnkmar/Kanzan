@@ -10,11 +10,12 @@ Rule
 An agent / viewer sees a ticket only when:
 
 * it is **assigned to them**, OR
-* they **created it and it has not been handed off** (``assignee`` is null).
+* they **created it** (even after it has been handed off to another agent).
 
-Once a ticket is assigned to a *different* agent it leaves the creator's view —
-it is now that other agent's responsibility. Admin / Manager (hierarchy_level
-<= 20) bypass this entirely and see every ticket in the tenant.
+A creator keeps a ticket in view after assigning it elsewhere — e.g. an agent
+who triages an inbound email, converts it to a ticket and routes it to a
+teammate still finds it in their own ticket list. Admin / Manager
+(hierarchy_level <= 20) bypass this entirely and see every ticket in the tenant.
 """
 
 from django.db.models import Q
@@ -25,11 +26,9 @@ def agent_visible_tickets_q(user):
 
     Use as ``qs.filter(agent_visible_tickets_q(user))``.
     """
-    return Q(assignee=user) | (Q(created_by=user) & Q(assignee__isnull=True))
+    return Q(assignee=user) | Q(created_by=user)
 
 
 def agent_can_see_ticket(user, ticket):
     """Object-level equivalent of :func:`agent_visible_tickets_q`."""
-    if ticket.assignee_id == user.pk:
-        return True
-    return ticket.created_by_id == user.pk and ticket.assignee_id is None
+    return ticket.assignee_id == user.pk or ticket.created_by_id == user.pk

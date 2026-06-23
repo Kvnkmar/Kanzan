@@ -151,12 +151,13 @@ class TenantSettings(TimestampedModel):
         ),
     )
     auto_send_ticket_created_email = models.BooleanField(
-        default=True,
+        default=False,
         help_text=(
             "When True, the ticket-created confirmation email is sent to the "
             "contact automatically the moment a ticket is created from an "
-            "inbound email. When False, agents send it manually from the "
-            "ticket page (button: 'Send confirmation email')."
+            "inbound email. When False (the default), agents decide per ticket "
+            "and send it manually from the ticket page (button: 'Send "
+            "confirmation email')."
         ),
     )
     auto_assign_inbound_email_tickets = models.BooleanField(

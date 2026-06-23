@@ -3,11 +3,10 @@
   "templates/landing/landing_crm.html": 21,
   "templates/pages/auth/verify_email_sent.html": 3,
   "templates/pages/contacts/list.html": 5,
-  "templates/pages/dashboard.html": 13,
+  "templates/pages/dashboard.html": 12,
   "templates/pages/kanban/board.html": 4,
   "templates/pages/landing.html": 15,
   "templates/pages/login.html": 1,
-  "templates/pages/reminders/list.html": 1,
   "templates/pages/tickets/detail.html": 2,
   "templates/pages/tickets/list.html": 1
 }

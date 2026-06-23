@@ -157,8 +157,8 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 <!-- Page Header -->
 <div class="page-header">
   <div class="d-flex align-items-center gap-3">
-    <a href="{% url 'frontend:ticket-list' %}" class="btn btn-icon btn-ghost" title="Back to Tickets">
-      <i class="ti ti-arrow-left"></i>
+    <a href="{% url 'frontend:ticket-list' %}" class="btn btn-icon btn-ghost" title="Back to Tickets" aria-label="Back to Tickets">
+      <i class="ti ti-arrow-left" aria-hidden="true"></i>
     </a>
     <div>
       <h1 class="page-title">New Ticket</h1>
@@ -239,7 +239,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
               <select id="ticketContact" name="contact" class="form-select ct-select" style="flex:1">
                 <option value="">No contact</option>
               </select>
-              <button type="button" class="btn btn-outline-primary btn-sm" id="addNewContactBtn" title="Add new contact" style="height:38px;white-space:nowrap;flex-shrink:0;">
+              <button type="button" class="btn btn-outline-primary btn-sm" id="addNewContactBtn" title="Add new contact" aria-label="Add new contact" style="height:38px;white-space:nowrap;flex-shrink:0;">
                 <i class="ti ti-user-plus" aria-hidden="true"></i>
               </button>
             </div>

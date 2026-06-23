@@ -480,7 +480,7 @@ def _create_ticket_from_email(inbound, tenant, contact, system_user, *, override
     # the tenant admin has auto-send enabled. When it's off, agents
     # trigger the confirmation manually from the ticket page.
     settings_obj = getattr(tenant, "settings", None)
-    if settings_obj is None or settings_obj.auto_send_ticket_created_email:
+    if settings_obj is not None and settings_obj.auto_send_ticket_created_email:
         def _queue_confirmation():
             try:
                 from apps.tickets.tasks import send_ticket_created_email_task

@@ -461,7 +461,7 @@ def _notify_escalation(tenant, hub_email, target, reason):
             notification_type=NotificationType.HUB_EMAIL_ESCALATED_TO_ME,
             title="Email escalated to you",
             body=(reason or subject or "(no subject)"),
-            data={"hub_email_id": str(hub_email.pk), "url": "/inbox-hub/"},
+            data={"hub_email_id": str(hub_email.pk), "url": "/emails/"},
         )
     except Exception:
         logger.exception("Failed to send escalation notification for %s", hub_email.pk)
@@ -486,7 +486,7 @@ def _notify_reassignment(tenant, hub_email, user, is_reassign):
             notification_type=n_type,
             title="Email reassigned to you" if is_reassign else "Email assigned to you",
             body=subject or "(no subject)",
-            data={"hub_email_id": str(hub_email.pk), "url": "/emails/"},
+            data={"hub_email_id": str(hub_email.pk), "url": "/inbox/"},
         )
     except Exception:
         logger.exception("Failed to send reassignment notification for %s", hub_email.pk)

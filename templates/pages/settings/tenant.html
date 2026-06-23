@@ -1078,7 +1078,7 @@
                 <span class="st-toggle-desc d-block text-muted small">When enabled, Kanzen emails the contact automatically as soon as a ticket is created from an inbound email. When disabled, agents trigger the confirmation manually from the ticket page.</span>
               </div>
               <div class="form-check form-switch mb-0">
-                <input class="form-check-input" type="checkbox" role="switch" id="autoSendCreatedEmailToggle" checked>
+                <input class="form-check-input" type="checkbox" role="switch" id="autoSendCreatedEmailToggle">
               </div>
             </div>
             <hr class="my-2">
@@ -1094,8 +1094,8 @@
             <hr class="my-2">
             <div class="d-flex align-items-center justify-content-between py-2">
               <div>
-                <span class="st-toggle-label">Route inbound email through the Inbox Hub</span>
-                <span class="st-toggle-desc d-block text-muted small">When enabled, new inbound emails are parked in the <strong>Inbox Hub</strong> for triage (routed to a department, then auto-assigned to an online agent) instead of immediately creating a ticket. When disabled, the legacy auto-create-ticket flow runs unchanged. Run <code>manage.py seed_inbox_hub_defaults</code> first so a default department exists.</span>
+                <span class="st-toggle-label">Route inbound email through the Emails triage desk</span>
+                <span class="st-toggle-desc d-block text-muted small">When enabled, new inbound emails are parked in the <strong>Emails</strong> triage desk (routed to a department, then auto-assigned to an online agent) instead of immediately creating a ticket. When disabled, the legacy auto-create-ticket flow runs unchanged. Run <code>manage.py seed_inbox_hub_defaults</code> first so a default department exists.</span>
               </div>
               <div class="form-check form-switch mb-0">
                 <input class="form-check-input" type="checkbox" role="switch" id="inboxHubEnabledToggle">
@@ -2748,7 +2748,7 @@ function switchSettingsTab(targetId) {
          'Email tickets will auto-assign to Agents by load',
          'Email tickets will arrive unassigned');
     bind(hubEnabledToggle, 'inbox_hub_enabled',
-         'Inbound email now routes through the Inbox Hub',
+         'Inbound email now routes through the Emails triage desk',
          'Inbound email now auto-creates tickets (legacy flow)');
     bind(hubAutoAssignToggle, 'inbox_hub_auto_assign',
          'Parked emails will auto-assign to online agents',

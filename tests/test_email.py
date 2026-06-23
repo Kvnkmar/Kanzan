@@ -200,6 +200,47 @@ class InboundEmailProcessingTests(KanzenBaseTestCase):
         # Ticket should have been created
         self.assertIsNotNone(email.ticket)
 
+    # 7.8b -----------------------------------------------------------------
+    @freeze_time("2026-04-05 10:00:00")
+    def test_7_8b_confirmation_not_auto_sent_by_default(self):
+        """7.8b Agent-decides: no auto-confirmation email when auto-send is off
+        (the default). The agent sends it manually from the ticket page."""
+        self.assertFalse(self.tenant_a.settings.auto_send_ticket_created_email)
+        email = _make_inbound_email(
+            recipient_email=f"support+{self.tenant_a.slug}@kanzan.io",
+            subject="No auto confirm",
+            body_text="Please help.",
+        )
+
+        with patch("apps.tickets.tasks.send_ticket_created_email_task.delay") as mock_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                process_inbound_email(email.pk)
+
+        mock_delay.assert_not_called()
+        email.refresh_from_db()
+        self.assertEqual(email.status, InboundEmail.Status.TICKET_CREATED)
+        self.assertIsNotNone(email.ticket)
+
+    # 7.8c -----------------------------------------------------------------
+    @freeze_time("2026-04-05 10:00:00")
+    def test_7_8c_confirmation_auto_sent_when_opted_in(self):
+        """7.8c Tenants that opt back in still get the auto-confirmation email."""
+        settings_obj = self.tenant_a.settings
+        settings_obj.auto_send_ticket_created_email = True
+        settings_obj.save(update_fields=["auto_send_ticket_created_email"])
+
+        email = _make_inbound_email(
+            recipient_email=f"support+{self.tenant_a.slug}@kanzan.io",
+            subject="Auto confirm on",
+            body_text="Please help.",
+        )
+
+        with patch("apps.tickets.tasks.send_ticket_created_email_task.delay") as mock_delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                process_inbound_email(email.pk)
+
+        mock_delay.assert_called_once()
+
     # 7.9 ------------------------------------------------------------------
     @freeze_time("2026-04-05 10:00:00")
     @unittest.skip("Not implemented: automatic SLA resume on inbound email reply")

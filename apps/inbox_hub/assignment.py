@@ -312,7 +312,7 @@ def _notify_assignment(tenant, hub_email, user, actor):
             notification_type=NotificationType.HUB_EMAIL_ASSIGNED,
             title="New email assigned to you",
             body=subject or "(no subject)",
-            data={"hub_email_id": str(hub_email.pk), "url": "/inbox-hub/"},
+            data={"hub_email_id": str(hub_email.pk), "url": "/emails/"},
         )
     except Exception:
         logger.exception("Failed to send HUB_EMAIL_ASSIGNED notification for %s", hub_email.pk)
@@ -340,7 +340,7 @@ def _notify_hold(hub_email, department):
             notification_type=NotificationType.HUB_EMAIL_ASSIGNED,
             title="Unassigned email waiting (no agent online)",
             body=subject or "(no subject)",
-            data={"hub_email_id": str(hub_email.pk), "url": "/inbox-hub/", "held": True},
+            data={"hub_email_id": str(hub_email.pk), "url": "/emails/", "held": True},
         )
     except Exception:
         logger.exception("Failed to send hold notification for %s", hub_email.pk)

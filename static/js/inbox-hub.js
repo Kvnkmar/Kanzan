@@ -1,5 +1,5 @@
 /**
- * Inbox Hub front-end controller — triage cockpit.
+ * Emails (triage) front-end controller — triage cockpit.
  *
  * The Hub lists emails for the active triage LENS (all-new / unassigned /
  * assigned-to-me / oldest-waiting / sla-at-risk — workload, not severity).
@@ -73,6 +73,7 @@
     detailSenderEmail: document.getElementById('ihDetailSenderEmail'),
     detailReceivedAt: document.getElementById('ihDetailReceivedAt'),
     detailSlaBadge: document.getElementById('ihDetailSlaBadge'),
+    detailAssignee: document.getElementById('ihDetailAssignee'),
     detailBody: document.getElementById('ihDetailBody'),
     detailAttachments: document.getElementById('ihDetailAttachments'),
     contextCard: document.getElementById('ihContextCard'),
@@ -195,7 +196,11 @@
   function withVisibility() { return document.visibilityState !== 'hidden'; }
 
   function toast(level, msg) {
-    if (window.Toast && Toast[level]) Toast[level](msg);
+    // app.js exposes Toast both as a bare global (const) and on window. Accept
+    // either so a stale (un-versioned) app.js without `window.Toast` still
+    // surfaces cockpit toasts rather than silently logging to the console.
+    var T = window.Toast || (typeof Toast !== 'undefined' ? Toast : null);
+    if (T && T[level]) T[level](msg);
     else console.log('[Toast]', level, msg);
   }
 
@@ -317,6 +322,15 @@
       var snippetRow = snippet
         ? '<span class="ih-row-snippet">' + snippet + '</span>'
         : '';
+      var assignedTo = row.assignee
+        ? (String(row.assignee) === String(state.currentUserId)
+            ? 'you' : (row.assignee_name || 'assigned'))
+        : '';
+      var assigneeChip = assignedTo
+        ? '<span class="ih-row-assignee" title="Assigned to ' + esc(assignedTo) + '">' +
+          '<i class="ti ti-user-check" aria-hidden="true"></i>' + esc(assignedTo) +
+          '</span>'
+        : '';
 
       return (
         '<button type="button" class="' + classes + '" ' +
@@ -331,6 +345,7 @@
         snippetRow +
         '    <span class="ih-row-meta">' +
         '      <span class="ih-row-sender">' + sender + '</span>' +
+        assigneeChip +
         '      <span class="ih-row-when">' + waited + '</span>' +
         '    </span>' +
         '  </span>' +
@@ -412,6 +427,7 @@
       ? (fmtDateTime(received) + ' · ' + waitedLabel(received))
       : '';
     renderSlaBadge(row);
+    renderAssigneeChip(row);
 
     // Body: prefer HTML, fall back to text. Always sanitise.
     var inbound = row.inbound || {};
@@ -434,7 +450,7 @@
     }
 
     // Customer-sent attachments — rendered by the shared Kanzan helper so the
-    // Inbox Hub and Emails page stay identical.
+    // Emails triage desk and the Inbox page stay identical.
     if (window.Kanzan && Kanzan.renderMailAttachments) {
       Kanzan.renderMailAttachments(els.detailAttachments, row.attachments);
     } else if (els.detailAttachments) {
@@ -446,6 +462,32 @@
     if (scroll) scroll.scrollTop = 0;
 
     showDetailView();
+  }
+
+  // Assignment indicator in the action bar — the cockpit's only window into
+  // who owns an email. Without it a successful Assign looks like a no-op
+  // (the row leaves the lens and the pane shows nothing changed).
+  function renderAssigneeChip(row) {
+    var chip = els.detailAssignee;
+    if (!chip) return;
+    chip.className = 'ih-assignee-chip';
+    if (row && row.assignee) {
+      var who = (String(row.assignee) === String(state.currentUserId))
+        ? 'you'
+        : (row.assignee_name || 'an agent');
+      chip.classList.add('ih-assignee-chip--set');
+      chip.replaceChildren();
+      var ic = document.createElement('i');
+      ic.className = 'ti ti-user-check';
+      chip.appendChild(ic);
+      var lab = document.createElement('span');
+      lab.textContent = 'Assigned to ' + who;
+      chip.appendChild(lab);
+      chip.hidden = false;
+    } else {
+      chip.textContent = 'Unassigned';
+      chip.hidden = false;
+    }
   }
 
   // SLA badge in the detail header. Honest urgency: shown only when a
@@ -714,7 +756,7 @@
         safeAssign(els.listBody,
           '<div class="ih-list-error">' +
           '  <i class="ti ti-alert-triangle"></i>' +
-          '  <p>Could not load Inbox Hub.</p>' +
+          '  <p>Could not load Emails.</p>' +
           '  <button class="btn btn-sm btn-outline-primary" id="ihRetryLoad">Retry</button>' +
           '</div>');
         var retry = document.getElementById('ihRetryLoad');
@@ -1028,7 +1070,28 @@
     if (!state.selectedDetail || !userId) return;
     var id = state.selectedDetail.id;
     Api.post('/api/v1/inbox-hub/hub-emails/' + encodeURIComponent(id) + '/assign/', { assignee_id: userId })
-      .then(function () { toast('success', 'Email assigned.'); afterTriage(); })
+      .then(function (updated) {
+        var who = (updated && updated.assignee_name) ? updated.assignee_name : null;
+        toast('success', who ? ('Assigned to ' + who + '.') : 'Email assigned.');
+        // Keep the email open and re-render it so the new owner is visible
+        // straight away (the /assign/ response is the full updated email).
+        // Blanking the pane here is what made a working assign look broken.
+        if (updated && updated.id && state.selectedDetail &&
+            updated.id === state.selectedDetail.id) {
+          renderDetail(updated);
+          // Assigning moves the email out of the untriaged lens, so the next
+          // loadList() (and the hub_email.assigned LiveBus tick ~400ms later)
+          // would hit the "selected row no longer in list" branch and call
+          // showDetailEmpty() — erasing the confirmation we just rendered.
+          // Drop selectedId so that cleanup is skipped; the detail stays put
+          // showing "Assigned to <name>" until the agent picks the next email.
+          state.selectedId = null;
+        }
+        // Refresh the list + counts in the background so lens membership and
+        // badges stay accurate, without tearing down the open detail.
+        loadList({ silent: true });
+        loadCounts();
+      })
       .catch(function (err) {
         toast('error', (err && (err.detail || err.error ||
           (err.assignee_id && err.assignee_id[0]))) || 'Failed to assign.');

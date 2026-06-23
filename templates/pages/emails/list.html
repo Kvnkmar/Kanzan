@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Emails - Kanzen Suite{% endblock %}
+{% block title %}Inbox - Kanzen Suite{% endblock %}
 
 {% block content %}
 {% include "includes/page_back_button.html" %}
@@ -11,7 +11,7 @@
       <i class="ti ti-mail"></i>
     </div>
     <div>
-      <h1 class="ae-page-title">Emails</h1>
+      <h1 class="ae-page-title">Inbox</h1>
       <p class="ae-page-subtitle">Emails assigned to you &amp; messages from your team &mdash; read, create a ticket, or reply</p>
     </div>
   </div>
@@ -109,7 +109,7 @@
     <div id="inboundEmailsEmpty" class="tl-empty d-none">
       <div class="tl-empty-icon"><i class="ti ti-inbox-off"></i></div>
       <p class="tl-empty-title">No emails yet</p>
-      <p class="tl-empty-text">Emails addressed to you &mdash; plus customer emails assigned to you from the Inbox Hub &mdash; appear here. Open one to read it, create a ticket, or reply.</p>
+      <p class="tl-empty-text">Mail addressed to you &mdash; plus customer emails assigned to you from the Emails triage desk &mdash; appears here. Open one to read it, create a ticket, or reply.</p>
     </div>
   </div>
 
@@ -495,7 +495,7 @@
     loadingEl.classList.remove('d-none');
 
     // Two sources: internal mail addressed to me (notifications/escalations)
-    // AND the original customer emails handed to me from the Inbox Hub
+    // AND the original customer emails handed to me from the Emails triage desk
     // (?assigned=me). They never overlap (assigned mail is customer mail,
     // which the internal view excludes), but we dedupe by id defensively.
     Promise.all([

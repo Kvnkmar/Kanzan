@@ -113,12 +113,13 @@ class TestAccessControl(KanzenBaseTestCase):
         self.assertNotIn(str(t_admin.pk), result_ids, "Agent should NOT see other's tickets")
 
     # ------------------------------------------------------------------
-    # 12.3b Agent loses a ticket they created once it is assigned away
+    # 12.3b Agent keeps a ticket they created after assigning it away
     # ------------------------------------------------------------------
-    def test_agent_created_ticket_hidden_after_assigned_to_other(self):
-        """A ticket an agent created leaves their list AND detail view once it
-        is assigned to a different agent — it is now that agent's job. The new
-        assignee gains visibility."""
+    def test_agent_created_ticket_visible_after_assigned_to_other(self):
+        """A ticket an agent created stays in their list AND detail view even
+        after it is handed off to a different agent — e.g. a triager who
+        converts an inbound email and routes it to a teammate still finds it.
+        The new assignee gains visibility too."""
         agent2 = self._create_agent2_a()
 
         # agent_a creates the ticket, but it is handed off to agent2.
@@ -127,22 +128,22 @@ class TestAccessControl(KanzenBaseTestCase):
             subject="Created by agent_a, handed off", assignee=agent2,
         )
 
-        # agent_a (the creator) no longer sees it in the list...
+        # agent_a (the creator) still sees it in the list...
         self.auth_tenant(self.agent_a, self.tenant_a)
         resp = self.client.get(self.api_url("/tickets/tickets/"))
         self.assertEqual(resp.status_code, 200, resp.content)
         results = resp.data.get("results", resp.data)
         result_ids = {str(r["id"]) for r in results}
-        self.assertNotIn(
+        self.assertIn(
             str(t.pk), result_ids,
-            "Agent should NOT see a ticket they created once it is assigned to another agent",
+            "Agent should still see a ticket they created after assigning it to another agent",
         )
 
-        # ...nor via direct detail access.
+        # ...and via direct detail access.
         resp = self.client.get(self.api_url(f"/tickets/tickets/{t.pk}/"))
-        self.assertIn(resp.status_code, (403, 404))
+        self.assertEqual(resp.status_code, 200, resp.content)
 
-        # The new assignee (agent2) DOES see it.
+        # The new assignee (agent2) DOES see it too.
         self.auth_tenant(agent2, self.tenant_a)
         resp = self.client.get(self.api_url("/tickets/tickets/"))
         results = resp.data.get("results", resp.data)

@@ -116,6 +116,65 @@ class TestNewsfeedReadAccess:
         assert "Secret Draft" not in titles
 
 
+# ── (a2) Newsfeed 24-hour auto-expiry ────────────────────────────────
+
+
+@pytest.mark.django_db
+class TestNewsfeedAutoExpiry:
+    """New posts are available for 24h then auto-hide, unless an explicit
+    expiry was supplied."""
+
+    def _payload(self):
+        return {
+            "title": "Daily Standup Notes",
+            "content": "Sprint board is green.",
+            "category": "update",
+        }
+
+    def test_create_defaults_to_24h_expiry(self, admin_client):
+        from django.utils import timezone
+
+        before = timezone.now()
+        resp = admin_client.post(NEWSFEED_URL, self._payload(), format="json")
+        assert resp.status_code == 201, resp.content
+
+        post = NewsPost.unscoped.get(id=resp.data["id"])
+        assert post.expires_at is not None
+        delta = post.expires_at - before
+        # ~24h, allowing a little slack for test execution time.
+        assert timezone.timedelta(hours=23, minutes=59) <= delta <= timezone.timedelta(hours=24, minutes=1)
+
+    def test_explicit_expiry_is_respected(self, admin_client):
+        from django.utils import timezone
+
+        custom = timezone.now() + timezone.timedelta(days=7)
+        payload = {**self._payload(), "expires_at": custom.isoformat()}
+        resp = admin_client.post(NEWSFEED_URL, payload, format="json")
+        assert resp.status_code == 201, resp.content
+
+        post = NewsPost.unscoped.get(id=resp.data["id"])
+        assert abs((post.expires_at - custom).total_seconds()) < 2
+
+    def test_expired_post_hidden_from_list(self, tenant, admin_user, agent_user):
+        from django.utils import timezone
+
+        with tenant_context(tenant):
+            NewsPost.objects.create(
+                tenant=tenant,
+                author=admin_user,
+                title="Stale Post",
+                content="Should be gone.",
+                category="general",
+                is_published=True,
+                expires_at=timezone.now() - timezone.timedelta(minutes=1),
+            )
+        client = make_api_client(agent_user, tenant)
+        resp = client.get(NEWSFEED_URL)
+        assert resp.status_code == 200, resp.content
+        titles = [p["title"] for p in resp.data["results"]]
+        assert "Stale Post" not in titles
+
+
 # ── (b) Newsfeed draft-broadcast suppression ─────────────────────────
 
 

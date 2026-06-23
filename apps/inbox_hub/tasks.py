@@ -114,7 +114,7 @@ def _notify_sla(hub_email, *, breached):
                 notification_type=n_type,
                 title=title,
                 body=subject or "(no subject)",
-                data={"hub_email_id": str(hub_email.pk), "url": "/inbox-hub/"},
+                data={"hub_email_id": str(hub_email.pk), "url": "/emails/"},
             )
         except Exception:
             logger.exception("Failed to send SLA notification for %s", hub_email.pk)

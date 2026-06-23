@@ -97,7 +97,12 @@ class NewsPostViewSet(viewsets.ModelViewSet):
         return qs
 
     def perform_create(self, serializer):
-        serializer.save(author=self.request.user)
+        # Posts are available for 24 hours then auto-hide, unless the author
+        # supplied an explicit expiry.
+        expires_at = serializer.validated_data.get("expires_at")
+        if expires_at is None:
+            expires_at = timezone.now() + timezone.timedelta(hours=24)
+        serializer.save(author=self.request.user, expires_at=expires_at)
 
     @action(detail=True, methods=["post", "delete"], url_path="react")
     def react(self, request, pk=None):

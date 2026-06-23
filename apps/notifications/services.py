@@ -16,9 +16,12 @@ from apps.notifications.models import Notification, NotificationPreference, Noti
 
 logger = logging.getLogger(__name__)
 
-# Internal-only notification types: agent-facing reminders that should never
+# Internal-only notification types: agent-facing alerts that should never
 # be emailed. Delivered in-app only, regardless of NotificationPreference.
+# Ticket assignment is in here because it already surfaces as a live in-app
+# notification; the emailed copy was redundant noise.
 INTERNAL_ONLY_TYPES = frozenset({
+    NotificationType.TICKET_ASSIGNED,
     NotificationType.TICKET_OVERDUE,
     NotificationType.TICKET_FOLLOWUP_OVERDUE,
     NotificationType.REMINDER_DUE,

@@ -533,14 +533,12 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
           <div class="mb-3">
             <label class="form-label small text-muted mb-1"><i class="ti ti-palette me-1"></i>Color</label>
             <div class="d-flex gap-2" id="eventColorPicker">
-              <button type="button" class="cal-color-dot active" data-color="" title="Default"><i class="ti ti-circle-filled" style="color:var(--crm-text-muted);font-size:0.5rem;"></i></button>
-              <button type="button" class="cal-color-dot" data-color="#E11C2B" title="Red" style="background:var(--crm-accent);"></button>
-              <button type="button" class="cal-color-dot" data-color="#C1121F" title="Amber" style="background:var(--crm-primary);"></button>
-              <button type="button" class="cal-color-dot" data-color="#A8A8AC" title="Green" style="background:var(--status-neutral-dot);"></button>
-              <button type="button" class="cal-color-dot" data-color="#E11C2B" title="Blue" style="background:var(--crm-accent);"></button>
-              <button type="button" class="cal-color-dot" data-color="#E11C2B" title="Purple" style="background:var(--crm-accent);"></button>
-              <button type="button" class="cal-color-dot" data-color="#E11C2B" title="Pink" style="background:var(--crm-accent);"></button>
-              <button type="button" class="cal-color-dot" data-color="#C1121F" title="Blue" style="background:var(--crm-primary);"></button>
+              <button type="button" class="cal-color-dot active" data-color="" title="Default" aria-label="Select default colour"><i class="ti ti-circle-filled" style="color:var(--crm-text-muted);font-size:0.5rem;" aria-hidden="true"></i></button>
+              <button type="button" class="cal-color-dot" data-color="var(--crm-primary)" title="Red" style="background:var(--crm-primary);" aria-label="Select red"></button>
+              <button type="button" class="cal-color-dot" data-color="var(--status-warning-dot)" title="Amber" style="background:var(--status-warning-dot);" aria-label="Select amber"></button>
+              <button type="button" class="cal-color-dot" data-color="var(--status-success-dot)" title="Green" style="background:var(--status-success-dot);" aria-label="Select green"></button>
+              <button type="button" class="cal-color-dot" data-color="var(--status-info-dot)" title="Blue" style="background:var(--status-info-dot);" aria-label="Select blue"></button>
+              <button type="button" class="cal-color-dot" data-color="var(--status-neutral-dot)" title="Gray" style="background:var(--status-neutral-dot);" aria-label="Select gray"></button>
             </div>
             <input type="hidden" id="eventColor" value="">
           </div>
@@ -585,14 +583,16 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   var DAY_NAMES = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
   var DAY_SHORT = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
 
+  // Distinct semantic colour per event type so the month/week views are scannable
+  // (was near-monochrome red). All values are design-system tokens, so they flip in dark mode.
   var EVENT_COLORS = {
-    'ticket':         'var(--crm-primary)',
-    'ticket_created': 'var(--status-neutral-dot)',
-    'ticket_due':     'var(--crm-accent)',
-    'meeting':        'var(--crm-primary)',
-    'call':           'var(--crm-accent)',
-    'task':           'var(--crm-primary)',
-    'reminder':       'var(--crm-primary-active)',
+    'ticket':         'var(--status-info-dot)',     // blue — generic ticket event
+    'ticket_created': 'var(--status-neutral-dot)',  // gray — low-emphasis creation
+    'ticket_due':     'var(--status-danger-dot)',   // red — urgent / due
+    'meeting':        'var(--crm-primary)',         // brand crimson
+    'call':           'var(--status-success-dot)',  // green
+    'task':           'var(--status-warning-dot)',  // amber
+    'reminder':       'var(--crm-primary-active)',  // deep crimson
     'other':          'var(--status-neutral-dot)',
     'default':        'var(--status-neutral-dot)'
   };
@@ -1311,7 +1311,10 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
         dayEvents.slice(0, maxShow).forEach(function(ev) {
           var dot = document.createElement('div');
           dot.className = 'fc-event';
-          dot.style.borderLeftColor = ev.customColor || EVENT_COLORS[ev.type] || EVENT_COLORS['default'];
+          var evColor = ev.customColor || EVENT_COLORS[ev.type] || EVENT_COLORS['default'];
+          dot.style.borderLeftColor = evColor;
+          dot.style.background = 'color-mix(in srgb, ' + evColor + ' 12%, transparent)';
+          dot.style.color = evColor;
           var timePrefix = ev.time ? ev.time + ' ' : '';
           dot.textContent = timePrefix + ev.label;
           dot.addEventListener('click', function(e) {

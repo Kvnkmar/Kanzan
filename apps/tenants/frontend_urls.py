@@ -6,6 +6,7 @@ via JavaScript calls to the DRF API endpoints.
 """
 
 from django.urls import path
+from django.views.generic import RedirectView
 
 from apps.tenants import frontend_views as views
 
@@ -37,13 +38,20 @@ urlpatterns = [
     path("billing/", views.billing_page, name="billing"),
     path("agents/", views.agents_page, name="agents"),
     path("groups/", views.groups_page, name="groups"),
-    path("emails/", views.emails_page, name="emails"),
+    path("inbox/", views.emails_page, name="inbox"),
     path("knowledge/", views.knowledge_list_page, name="knowledge-list"),
     path("knowledge/<str:article_slug>/", views.knowledge_article_page, name="knowledge-article"),
     path("profile/", views.profile_page, name="profile"),
     path("api/quickstart/", views.api_quickstart_page, name="api-quickstart"),
     path("inbound-email/", views.inbound_email_page, name="inbound-email"),
-    path("inbox-hub/", views.inbox_hub_page, name="inbox-hub"),
+    path("emails/", views.inbox_hub_page, name="emails"),
+    # Legacy URL: the triage desk used to live at /inbox-hub/ before it was
+    # relabelled "Emails". Bounce old bookmarks/links to the new path.
+    path(
+        "inbox-hub/",
+        RedirectView.as_view(url="/emails/", query_string=True),
+        name="inbox-hub-redirect",
+    ),
     path("reminders/", views.reminders_page, name="reminders"),
     path("audit-log/", views.audit_log_page, name="audit-log"),
     path("calls/", views.calls_page, name="calls"),

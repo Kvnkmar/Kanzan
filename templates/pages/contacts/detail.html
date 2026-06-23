@@ -20,8 +20,8 @@
       </span>
     </button>
     <div class="dropdown">
-      <button class="btn btn-outline-secondary btn-sm dropdown-toggle no-caret" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-        <i class="ti ti-dots"></i>
+      <button class="btn btn-outline-secondary btn-sm dropdown-toggle no-caret" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More actions">
+        <i class="ti ti-dots" aria-hidden="true"></i>
       </button>
       <ul class="dropdown-menu dropdown-menu-end">
         <li><a class="dropdown-item" href="{% url 'frontend:contact-create' %}"><i class="ti ti-plus"></i> Create New</a></li>
@@ -100,8 +100,8 @@
                 <div class="contact-input-with-actions">
                   <input type="email" id="contactEmail" name="email" class="form-control" placeholder="email@example.com" required>
                   <div class="contact-field-icons">
-                    <button type="button" class="contact-icon-btn" title="Opt-out"><i class="ti ti-mail-off"></i></button>
-                    <button type="button" class="contact-icon-btn" title="Block"><i class="ti ti-shield-x"></i></button>
+                    <button type="button" class="contact-icon-btn" title="Opt-out" aria-label="Opt-out"><i class="ti ti-mail-off" aria-hidden="true"></i></button>
+                    <button type="button" class="contact-icon-btn" title="Block" aria-label="Block"><i class="ti ti-shield-x" aria-hidden="true"></i></button>
                   </div>
                 </div>
               </div>
@@ -128,8 +128,8 @@
                   <select class="form-select contact-phone-country"></select>
                   <input type="tel" id="contactPhone" name="phone" class="form-control" placeholder="12345678" maxlength="30">
                   <div class="contact-field-icons">
-                    <button type="button" class="contact-icon-btn" title="Opt-out"><i class="ti ti-phone-off"></i></button>
-                    <button type="button" class="contact-icon-btn" title="Block"><i class="ti ti-shield-x"></i></button>
+                    <button type="button" class="contact-icon-btn" title="Opt-out" aria-label="Opt-out"><i class="ti ti-phone-off" aria-hidden="true"></i></button>
+                    <button type="button" class="contact-icon-btn" title="Block" aria-label="Block"><i class="ti ti-shield-x" aria-hidden="true"></i></button>
                   </div>
                 </div>
               </div>

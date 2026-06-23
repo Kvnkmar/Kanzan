@@ -239,6 +239,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize notification WebSocket if user is authenticated
   if (document.getElementById('notifDropdown')) {
     initNotifications();
+    // Fire reminder popups at the exact due time (instant), with the 30s
+    // server task as a backstop. Dedup in ReminderAlerts prevents double-pop.
+    ReminderScheduler.start();
   }
 
   // Load sidebar notification badges
@@ -356,7 +359,7 @@ function renderNotifItem(n) {
   var unreadClass = n.is_read ? '' : ' notif-item--unread';
 
   return '<a class="notif-item' + unreadClass + '" href="' + (nUrl || '#') + '" data-notif-id="' + n.id + '">' +
-    '<div class="notif-item-icon" style="background:' + cfg.color + '15;color:' + cfg.color + ';">' +
+    '<div class="notif-item-icon" style="background:color-mix(in srgb, ' + cfg.color + ' 14%, transparent);color:' + cfg.color + ';">' +
       '<i class="' + cfg.icon + '"></i>' +
     '</div>' +
     '<div class="notif-item-content">' +
@@ -501,7 +504,31 @@ var ReminderAlerts = (function () {
     bootstrap.Modal.getOrCreateInstance(modalEl).show();
   }
 
+  // Dedup so a reminder isn't popped twice — once by the instant client-side
+  // timer (ReminderScheduler) and again when the server's reminder_due
+  // notification lands 0–30s later. Keyed on reminder id + due-time (epoch ms,
+  // so format differences between the API and the WS payload don't matter), so
+  // a rescheduled reminder (new due-time) can still re-alert.
+  var shownKeys = Object.create(null);
+  function dedupKey(data) {
+    var d = data.data || {};
+    var rid = d.reminder_id || data.id || '';
+    var t = '';
+    if (d.scheduled_at) {
+      var ms = new Date(d.scheduled_at).getTime();
+      if (!isNaN(ms)) t = String(ms);
+    }
+    return rid + '@' + t;
+  }
+
   function show(data) {
+    var key = dedupKey(data);
+    if (shownKeys[key]) return;
+    shownKeys[key] = Date.now();
+    // Bound memory: drop keys older than 6h.
+    var cutoff = Date.now() - 6 * 3600 * 1000;
+    for (var k in shownKeys) { if (shownKeys[k] < cutoff) delete shownKeys[k]; }
+
     armGestures();
     playChime();
     desktopNotify(data);
@@ -514,6 +541,107 @@ var ReminderAlerts = (function () {
   else document.addEventListener('DOMContentLoaded', armGestures);
 
   return { show: show };
+})();
+
+/**
+ * Reminder scheduler — fires the due-popup at the EXACT scheduled time.
+ *
+ * The server's fire_due_reminders task is a 30s poll: a reliable backstop (for
+ * when no Kanzen tab is open, or for other devices) but up to ~30s late. To
+ * make the popup feel instant while the user has the app open, we fetch their
+ * upcoming reminders and set a precise setTimeout per reminder that calls
+ * ReminderAlerts.show() right as scheduled_at passes. ReminderAlerts dedups by
+ * reminder id + due-time, so the instant timer and the later WS notification
+ * never double-pop. Re-syncs every few minutes and on reminder LiveBus events
+ * so new / rescheduled reminders are picked up promptly.
+ */
+var ReminderScheduler = (function () {
+  var REFRESH_MS = 5 * 60 * 1000;   // re-scan the upcoming window every 5 min
+  var HORIZON_MS = 6 * 60 * 1000;   // only arm precise timers within 6 min (> refresh → no gaps)
+  var myId = null;
+  var timers = Object.create(null); // reminder_id -> { key, timeoutId }
+
+  function getMyId() {
+    if (myId) return myId;
+    var el = document.querySelector('.sidebar-user[data-current-user-id]');
+    myId = el ? el.getAttribute('data-current-user-id') : null;
+    return myId;
+  }
+
+  // Match the server's recipient rule: the assignee if set, else the creator.
+  function isMine(r) {
+    var me = getMyId();
+    if (!me) return false;
+    if (r.assigned_to) return String(r.assigned_to) === String(me);
+    return String(r.created_by) === String(me);
+  }
+
+  function clearTimer(id) {
+    var prev = timers[id];
+    if (prev) { clearTimeout(prev.timeoutId); delete timers[id]; }
+  }
+
+  function arm(r) {
+    if (!r || !r.scheduled_at || !r.id) return;
+    // Reassigned to someone else → no longer my alert; drop any pending timer.
+    if (!isMine(r)) { clearTimer(r.id); return; }
+    var when = new Date(r.scheduled_at).getTime();
+    if (isNaN(when)) return;
+    var key = r.id + '@' + when;
+    var prev = timers[r.id];
+    if (prev && prev.key === key) return;          // unchanged → keep the existing timer
+    clearTimer(r.id);                              // new or rescheduled → drop the stale timer
+    var delay = when - Date.now();
+    if (delay <= 0 || delay > HORIZON_MS) return;  // past → server backstop; far → next sync
+    var tid = setTimeout(function () {
+      delete timers[r.id];
+      ReminderAlerts.show({
+        id: 'local-' + key,
+        title: r.subject || 'Reminder',
+        body: '',
+        data: {
+          reminder_id: r.id,
+          scheduled_at: r.scheduled_at,
+          priority: r.priority,
+          url: '/reminders/',
+        },
+      });
+    }, delay);
+    timers[r.id] = { key: key, timeoutId: tid };
+  }
+
+  function sync() {
+    // NB: Api is a top-level `const` in api.js, so it's a global *lexical*
+    // binding (in scope here) but NOT a property of window — never gate on
+    // `window.Api`, it's always undefined.
+    if (!getMyId() || typeof Api === 'undefined') return;
+    // Soonest-first (the model's default ordering), pending only, mine.
+    Api.get('/api/v1/crm/reminders/?mine=true&status=pending&page_size=200')
+      .then(function (res) {
+        var items = (res && (res.results || res)) || [];
+        if (!Array.isArray(items)) return;
+        var live = Object.create(null);
+        items.forEach(function (r) { if (r && r.id) live[r.id] = true; arm(r); });
+        // Cancel timers for reminders that fell out of the pending set
+        // (completed, cancelled, or rescheduled far out) so they don't pop.
+        for (var id in timers) { if (!live[id]) clearTimer(id); }
+      })
+      .catch(function () { /* offline / transient — the interval retries */ });
+  }
+
+  function start() {
+    if (!getMyId()) return;       // not an authenticated page
+    sync();
+    setInterval(sync, REFRESH_MS);
+    if (window.LiveBus && typeof LiveBus.on === 'function') {
+      ['reminder.created', 'reminder.updated', 'reminder.completed',
+       'reminder.cancelled', 'reminder.due', 'live.reconnected'].forEach(function (ev) {
+        LiveBus.on(ev, function () { setTimeout(sync, 300); });
+      });
+    }
+  }
+
+  return { start: start, sync: sync };
 })();
 
 /**
@@ -1137,3 +1265,9 @@ const Toast = {
     return div.innerHTML;
   },
 };
+
+// `const Toast` lives in the module's lexical scope, NOT on `window`, so other
+// scripts that feature-detect `window.Toast` (inbox-hub.js, the reminder-due
+// fallback below, the Emails page) silently fell back to console.log / alert.
+// Publish it explicitly so toasts actually surface everywhere.
+window.Toast = Toast;

@@ -177,11 +177,12 @@ class BadgeCountView(APIView):
     def _email_count(tenant, user):
         """Unactioned emails in *this user's* personal inbox.
 
-        Mirrors the scope the Emails page (``/emails/``) actually shows so the
+        Mirrors the scope the Inbox page (``/inbox/``) actually shows so the
         badge and the page stay in sync. That page is a personal surface — it
-        dual-loads ``?assigned=me`` (mail handed to the agent from the Inbox
-        Hub) and ``?internal=true&mine=true`` (internal mail addressed to the
-        agent). Customer mail lives in the Inbox Hub (its own badge), and the
+        dual-loads ``?assigned=me`` (mail handed to the agent from the Emails
+        triage desk) and ``?internal=true&mine=true`` (internal mail addressed
+        to the agent). Customer mail lives in the Emails triage desk (its own
+        badge), and the
         tenant's *outbound* system records (sent ticket replies / notification
         copies persisted for threading) are noise here, so both are excluded.
 

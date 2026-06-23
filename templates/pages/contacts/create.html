@@ -20,8 +20,8 @@
       </span>
     </button>
     <div class="dropdown">
-      <button class="btn btn-outline-secondary btn-sm dropdown-toggle no-caret" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-        <i class="ti ti-dots"></i>
+      <button class="btn btn-outline-secondary btn-sm dropdown-toggle no-caret" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="More actions">
+        <i class="ti ti-dots" aria-hidden="true"></i>
       </button>
       <ul class="dropdown-menu dropdown-menu-end">
         <li><a class="dropdown-item" href="#" id="saveAndNewBtn"><i class="ti ti-plus"></i> Save & Create New</a></li>
@@ -93,11 +93,11 @@
                 <div class="contact-input-with-actions">
                   <input type="email" id="contactEmail" name="email" class="form-control" placeholder="email@example.com" required>
                   <div class="contact-field-icons">
-                    <button type="button" class="contact-icon-btn" title="Opt-out" data-action="optout-email">
-                      <i class="ti ti-mail-off"></i>
+                    <button type="button" class="contact-icon-btn" title="Opt-out" data-action="optout-email" aria-label="Opt-out">
+                      <i class="ti ti-mail-off" aria-hidden="true"></i>
                     </button>
-                    <button type="button" class="contact-icon-btn" title="Block" data-action="block-email">
-                      <i class="ti ti-shield-x"></i>
+                    <button type="button" class="contact-icon-btn" title="Block" data-action="block-email" aria-label="Block">
+                      <i class="ti ti-shield-x" aria-hidden="true"></i>
                     </button>
                   </div>
                 </div>
@@ -125,11 +125,11 @@
                   <select class="form-select contact-phone-country"></select>
                   <input type="tel" id="contactPhone" name="phone" class="form-control" placeholder="12345678" maxlength="30">
                   <div class="contact-field-icons">
-                    <button type="button" class="contact-icon-btn" title="Opt-out" data-action="optout-phone">
-                      <i class="ti ti-phone-off"></i>
+                    <button type="button" class="contact-icon-btn" title="Opt-out" data-action="optout-phone" aria-label="Opt-out">
+                      <i class="ti ti-phone-off" aria-hidden="true"></i>
                     </button>
-                    <button type="button" class="contact-icon-btn" title="Block" data-action="block-phone">
-                      <i class="ti ti-shield-x"></i>
+                    <button type="button" class="contact-icon-btn" title="Block" data-action="block-phone" aria-label="Block">
+                      <i class="ti ti-shield-x" aria-hidden="true"></i>
                     </button>
                   </div>
                 </div>
@@ -225,8 +225,8 @@
               <div id="photoPreview" class="d-none mt-2">
                 <div class="contact-photo-preview">
                   <img id="photoPreviewImg" src="" alt="Preview">
-                  <button type="button" class="btn btn-sm btn-outline-danger" id="removePhotoBtn">
-                    <i class="ti ti-x"></i>
+                  <button type="button" class="btn btn-sm btn-outline-danger" id="removePhotoBtn" aria-label="Remove photo">
+                    <i class="ti ti-x" aria-hidden="true"></i>
                   </button>
                 </div>
               </div>
@@ -268,8 +268,8 @@
               <select id="contactAssignedUser" name="assigned_user" class="form-select">
                 <option value="">Select user...</option>
               </select>
-              <button type="button" class="contact-clear-btn" id="clearAssignedUser" title="Clear">
-                <i class="ti ti-x"></i>
+              <button type="button" class="contact-clear-btn" id="clearAssignedUser" title="Clear" aria-label="Clear">
+                <i class="ti ti-x" aria-hidden="true"></i>
               </button>
             </div>
           </div>

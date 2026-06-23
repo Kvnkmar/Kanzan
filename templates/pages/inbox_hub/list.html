@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% load static %}
-{% block title %}Inbox Hub - Kanzen Suite{% endblock %}
+{% block title %}Emails - Kanzen Suite{% endblock %}
 
 {% block content %}
 {% include "includes/page_back_button.html" %}
 
 <div class="ih-shell" id="inboxHubShell" data-current-user-id="{{ user.id }}">
   <!-- =================================================================
-       Triage cockpit — Inbox Hub.
+       Triage cockpit — Emails.
        LEFT   — triage lenses (workload, not severity)
        MIDDLE — list of emails for the active lens
        RIGHT  — email + customer context + triage actions (convert /
@@ -16,7 +16,7 @@
        ================================================================= -->
 
   <!-- LEFT: triage lenses -->
-  <aside class="ih-nav" id="ihNav" aria-label="Inbox Hub lenses">
+  <aside class="ih-nav" id="ihNav" aria-label="Emails lenses">
     <div class="ih-nav-section">
       <span class="ih-nav-label">Triage</span>
       <button type="button" class="ih-nav-link active" data-lens="all">
@@ -49,7 +49,7 @@
       <i class="ti ti-route"></i>
       <p>
         This is a triage desk. Once an email is converted, assigned or
-        dismissed it is routed onward and <strong>leaves the Hub</strong>.
+        dismissed it is routed onward and <strong>leaves this desk</strong>.
       </p>
     </div>
   </aside>
@@ -58,7 +58,7 @@
   <section class="ih-list" aria-label="Untriaged email">
     <header class="ih-list-header">
       <div class="ih-list-header-title">
-        <h1 class="ih-title">Inbox Hub</h1>
+        <h1 class="ih-title">Emails</h1>
         <p class="ih-subtitle" id="ihActiveFilterLabel">Untriaged email</p>
       </div>
       <div class="ih-list-header-tools">
@@ -133,6 +133,7 @@
                 aria-haspopup="menu" aria-expanded="false">
           <i class="ti ti-user-plus me-1"></i> Assign <i class="ti ti-chevron-down ih-btn-caret"></i>
         </button>
+        <span class="ih-assignee-chip" id="ihDetailAssignee" hidden></span>
         <a class="ih-open-ticket-nudge" id="ihOpenTicketNudge" href="#" hidden></a>
         <span class="ih-actionbar-spacer"></span>
         <button type="button" class="btn btn-outline-secondary btn-sm" id="ihActionDismiss">
@@ -307,5 +308,5 @@ window.tiptap = { Editor, StarterKit, Link, Placeholder };
 window.dispatchEvent(new Event('tiptap-ready'));
 </script>
 <script src="{% static 'js/rich-editor.js' %}"></script>
-<script src="{% static 'js/inbox-hub.js' %}?v=10"></script>
+<script src="{% static 'js/inbox-hub.js' %}?v=13"></script>
 {% endblock %}
