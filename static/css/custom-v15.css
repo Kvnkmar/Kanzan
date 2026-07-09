@@ -22,6 +22,15 @@
   --crm-primary-subtle: rgba(193, 18, 31, 0.06);
   --crm-primary-ring: rgba(193, 18, 31, 0.16);
   --crm-focus-ring: rgba(193, 18, 31, 0.28);
+  /* Default primary channels — base.html overrides per-tenant at runtime, but
+     this keeps the stylesheet self-contained for the ~195 rgba(var(--crm-primary-rgb),a)
+     call-sites (button/input focus rings, tints) that would otherwise resolve to
+     nothing if the inline tenant-palette <style> ever fails to load. Mirrors the
+     --crm-accent-rgb fallback below. */
+  --crm-primary-rgb: 193, 18, 31;
+  /* Identity avatars — single red, tuned per theme (see [data-bs-theme="dark"]) */
+  --crm-avatar-bg: var(--crm-primary);
+  --crm-avatar-fg: var(--crm-text-on-primary);
   --crm-glow-primary: 0 0 0 1px rgba(193, 18, 31, 0.18), 0 0 16px rgba(193, 18, 31, 0.18);
 
   /* Full primary scale */
@@ -148,7 +157,7 @@
   --crm-shadow-card-hover: 0 10px 28px -6px rgba(11, 11, 11, 0.10), 0 4px 12px -6px rgba(11, 11, 11, 0.04);
 
   /* Typography — size scale (rem; multiply by 16px for px). Component CSS
-     migrates to these incrementally. Existing literal `font-size: 0.8125rem;`
+     migrates to these incrementally. Existing literal `font-size: var(--crm-text-base);`
      etc. continues to work; the tokens give future refactors a snap-to grid
      and let a single override re-tune density. */
   --crm-text-2xs:   0.625rem;   /* 10px — micro-labels, dense priority badges (use sparingly) */
@@ -168,6 +177,15 @@
   --crm-weight-medium:    500;
   --crm-weight-semibold:  600;
   --crm-weight-bold:      700;
+
+  /* Typography — line-height (leading) scale. The codebase historically wrote
+     ~20 distinct raw line-heights (1.1 … 1.85) with no token. These four steps
+     are the forward standard; existing raw values migrate toward them on future
+     touches (consolidating across bands is a visible change, so it is staged). */
+  --crm-leading-tight:    1.2;    /* headings, single-line labels, badges */
+  --crm-leading-snug:     1.35;   /* dense UI text, table cells, chips */
+  --crm-leading-normal:   1.5;    /* body copy (default) */
+  --crm-leading-relaxed:  1.65;   /* long-form reading, help text */
 
   /* Z-index scale. Bootstrap reserves 1040 (modal-backdrop), 1050 (modal),
      1060 (popover), 1070 (tooltip). The kanban filter and notification
@@ -316,6 +334,10 @@
   --crm-primary-subtle: rgba(193, 18, 31, 0.06);
   --crm-primary-ring: rgba(193, 18, 31, 0.22);
   --crm-focus-ring: rgba(193, 18, 31, 0.28);
+  /* Identity avatars — lift to the brighter red on dark surfaces so the
+     circle stays vivid against #0B0B0B/#121212 instead of sinking in. */
+  --crm-avatar-bg: var(--crm-primary-hover);
+  --crm-avatar-fg: var(--crm-text-on-primary);
   --crm-glow-primary: 0 0 0 1px rgba(193, 18, 31, 0.24), 0 0 20px rgba(193, 18, 31, 0.18);
 
   --crm-primary-50: rgba(193, 18, 31, 0.06);
@@ -1515,7 +1537,10 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
   transition: opacity 0.3s ease;
 }
 
-.sidebar-backdrop.show {
+/* Gate the scrim to mobile (the off-canvas sidebar is mobile-only): if the
+   .show class ever lingers — e.g. after exiting DevTools' device toolbar
+   removes body.is-mobile — the backdrop can't paint over the desktop layout. */
+body.is-mobile .sidebar-backdrop.show {
   display: block;
   opacity: 1;
 }
@@ -2137,7 +2162,7 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
   gap: 8px;
 }
 .tl-view-btn {
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   font-weight: var(--crm-weight-medium);
   font-size: var(--crm-text-base);
   white-space: nowrap;
@@ -2147,7 +2172,7 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
 .tl-toolbar-filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .tl-filter-group { flex-shrink: 0; }
 .tl-filter-select {
-  border-radius: 0.5rem !important;
+  border-radius: var(--crm-radius-sm) !important;
   font-size: var(--crm-text-base) !important;
   min-width: 140px;
   height: 34px !important;
@@ -2181,7 +2206,7 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
 }
 .tl-filter-search .form-control {
   padding-left: 2.25rem;
-  border-radius: 0.5rem !important;
+  border-radius: var(--crm-radius-sm) !important;
   font-size: var(--crm-text-base) !important;
   height: 34px;
   background: var(--crm-bg) !important;
@@ -2196,7 +2221,7 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
 .tl-filter-search:focus-within i { color: var(--crm-primary); }
 .tl-clear-btn {
   flex-shrink: 0;
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   font-size: var(--crm-text-base);
   height: 34px;
   padding: 0 12px;
@@ -2252,7 +2277,7 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
   background: var(--crm-bg);
   color: var(--crm-text-secondary);
   padding: 1px 7px;
-  border-radius: 100px;
+  border-radius: var(--crm-radius-pill);
   min-width: 20px;
   text-align: center;
 }
@@ -2388,7 +2413,7 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
   font-size: var(--crm-text-xs);
   font-weight: var(--crm-weight-semibold);
   padding: 2px 10px;
-  border-radius: 100px;
+  border-radius: var(--crm-radius-pill);
   line-height: 1.4;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -2407,7 +2432,7 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
   font-size: var(--crm-text-xs);
   font-weight: var(--crm-weight-semibold);
   padding: 2px 10px;
-  border-radius: 100px;
+  border-radius: var(--crm-radius-pill);
   line-height: 1.4;
   letter-spacing: 0.01em;
   white-space: nowrap;
@@ -2826,13 +2851,6 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
 /* Prevent flex/grid children from overflowing on zoom */
 .row > [class*="col-"] { min-width: 0; }
 
-/* Card Header Flush (borderless) */
-.card-header-flush {
-  background: transparent;
-  border-bottom: none;
-  padding: 1.25rem 1.25rem 0;
-}
-
 /* ============================================================
    STAT CARDS
    ============================================================ */
@@ -3001,6 +3019,19 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
 
 @media (max-width: 767.98px) {
   .fd-dash-header__top { gap: 0.75rem; }
+  /* Let the date picker drop onto its own full-width row under the title
+     (instead of margin-left:auto shoving it to the right edge) and scroll
+     horizontally rather than wrapping into a ragged two-row pill. */
+  .fd-dash-header__top .header-actions { margin-left: 0; width: 100%; }
+  .date-range-picker {
+    width: 100%;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .date-range-picker::-webkit-scrollbar { display: none; }
+  .btn-date-pill { flex: 0 0 auto; }
   .fd-summary-row { grid-template-columns: repeat(2, 1fr); }
   .fd-summary-card { padding: 0.75rem 0.875rem 0.75rem 1rem; }
   .fd-summary-value { font-size: var(--crm-text-2xl); }
@@ -3039,8 +3070,13 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
 }
 
 .fd-trends-canvas-wrap {
-  flex: 1;
-  min-height: 180px;
+  /* A *definite* height is required here: the trends line chart uses
+     Chart.js `maintainAspectRatio: false`, which sizes the canvas to its
+     parent. With only `flex: 1; min-height` (no fixed height up the chain)
+     the canvas had no height anchor, so Chart.js's ResizeObserver grew the
+     canvas on every window/DevTools-device-toolbar resize in a feedback
+     loop — leaving a huge blank gap that pushed the dashboard down. */
+  height: 200px;
   min-width: 0;
   position: relative;
   overflow: hidden;
@@ -3233,7 +3269,7 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
   background: var(--crm-hover-bg);
   color: var(--crm-text-secondary);
   padding: 0.125rem 0.375rem;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   min-width: 1.25rem;
   text-align: center;
   line-height: 1.2;
@@ -3333,7 +3369,12 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
     flex-wrap: wrap;
     gap: 0.375rem;
   }
-  .fd-agent-strip__item { padding: 0.25rem 0.5rem; }
+  /* Balance the four chips into an even 2x2 grid instead of a ragged 3+1 wrap. */
+  .fd-agent-strip__item {
+    flex: 1 1 calc(50% - 0.1875rem);
+    justify-content: center;
+    padding: 0.375rem 0.5rem;
+  }
   .fd-section-header { gap: 0.5rem; }
 }
 
@@ -3434,7 +3475,7 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
   color: var(--crm-accent);
   background: rgba(var(--crm-accent-rgb), 0.1);
   padding: 0.125rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
 }
 .fd-sla-breach--zero {
   color: var(--crm-text-muted);
@@ -3599,23 +3640,6 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
 .badge-role-agent { background: var(--crm-info-light); color: var(--crm-info); }
 .badge-role-viewer { background: var(--crm-border-light); color: var(--crm-text-secondary); }
 
-/* Badge dot */
-.badge-dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  flex-shrink: 0;
-}
-
-.badge-dot-success { background: var(--crm-success); }
-.badge-dot-warning { background: var(--crm-warning); }
-.badge-dot-danger { background: var(--crm-danger); }
-.badge-dot-info { background: var(--crm-info); }
-.badge-dot-primary { background: var(--crm-primary); }
-.badge-dot-purple { background: var(--crm-purple); }
-.badge-dot-secondary { background: var(--crm-text-muted); }
-
 /* ============================================================
    BUTTONS (Enhanced - consistent radii, hover transitions)
    ============================================================ */
@@ -3766,11 +3790,11 @@ h6, .h6 { font-size: var(--crm-text-base); font-weight: var(--crm-weight-semibol
 }
 
 .form-select:hover {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%232563EB' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23C1121F' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
 }
 
 .form-select:focus {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%232563EB' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23C1121F' viewBox='0 0 16 16'%3E%3Cpath d='M7.247 11.14 2.451 5.658C1.885 5.013 2.345 4 3.204 4h9.592a1 1 0 0 1 .753 1.659l-4.796 5.48a1 1 0 0 1-1.506 0z'/%3E%3C/svg%3E");
 }
 
 .form-label {
@@ -4490,7 +4514,7 @@ textarea.form-control { height: auto; min-height: 80px; resize: vertical; }
   max-height: 180px;
   overflow-y: auto;
   border: 1px solid var(--crm-border);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   margin-top: 0.375rem;
   background: var(--crm-surface);
 }
@@ -4666,12 +4690,12 @@ h4.fw-semibold, h4.fw-bold {
   cursor: grab;
   transition: transform var(--crm-duration-fast) var(--crm-ease), box-shadow var(--crm-duration-fast) var(--crm-ease);
   font-size: var(--crm-text-base);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 3px rgba(11, 11, 11, 0.06), 0 1px 2px rgba(11, 11, 11, 0.04);
   position: relative;
 }
 .kanban-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08), 0 2px 4px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 4px 12px rgba(11, 11, 11, 0.08), 0 2px 4px rgba(11, 11, 11, 0.04);
 }
 .kanban-card:active { cursor: grabbing; transform: none; }
 
@@ -4683,11 +4707,11 @@ h4.fw-semibold, h4.fw-bold {
   border-style: dashed;
 }
 .kanban-card.sortable-chosen {
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12), 0 4px 8px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 8px 24px rgba(11, 11, 11, 0.12), 0 4px 8px rgba(11, 11, 11, 0.06);
   z-index: 100;
 }
 .kanban-card.sortable-drag {
-  box-shadow: 0 16px 40px -4px rgba(15, 23, 42, 0.16), 0 6px 12px -2px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 16px 40px -4px rgba(11, 11, 11, 0.16), 0 6px 12px -2px rgba(11, 11, 11, 0.08);
   transform: rotate(1.5deg) scale(1.03);
 }
 
@@ -5221,7 +5245,7 @@ h4.fw-semibold, h4.fw-bold {
   display: inline-flex; align-items: center; gap: 0.5rem;
   background: rgba(var(--crm-primary-rgb), 0.08); border: 1px solid rgba(var(--crm-primary-rgb), 0.15);
   color: var(--crm-primary-300); font-size: var(--crm-text-sm); font-weight: var(--crm-weight-semibold);
-  padding: 0.375rem 1rem; border-radius: 100px; margin-bottom: 2rem;
+  padding: 0.375rem 1rem; border-radius: var(--crm-radius-pill); margin-bottom: 2rem;
 }
 .lp-pill-dot {
   width: 6px; height: 6px; border-radius: 50%; background: var(--crm-primary);
@@ -5331,7 +5355,7 @@ h4.fw-semibold, h4.fw-bold {
   display: flex; align-items: center; gap: 0.375rem;
   font-size: var(--crm-text-xs); color: rgba(255,255,255,0.2);
   background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
-  border-radius: 100px; padding: 0.3125rem 0.875rem;
+  border-radius: var(--crm-radius-pill); padding: 0.3125rem 0.875rem;
   width: 200px;
 }
 .lp-mc-header-r { display: flex; align-items: center; gap: 0.5rem; }
@@ -5513,7 +5537,7 @@ h4.fw-semibold, h4.fw-bold {
   text-decoration: none;
   color: var(--crm-text);
   transition: background var(--crm-duration-fast) ease;
-  border-radius: 0.375rem;
+  border-radius: var(--crm-radius-md);
   margin-bottom: 0.125rem;
 }
 
@@ -5622,7 +5646,11 @@ h4.fw-semibold, h4.fw-bold {
      below it inside the stretched card. */
   flex: 1 1 auto;
   min-height: 0;
-  max-height: 520px;
+  /* Scroll past the first few rows, but cap the viewport to an exact
+     multiple of the (fixed) row height so the resting view always ends on a
+     whole row — never a clipped/partial item. Rows share --activity-row-h. */
+  --activity-row-h: 4rem;
+  max-height: calc(var(--activity-row-h) * 5);
 }
 .card-body:has(> .activity-list) {
   display: flex;
@@ -5633,7 +5661,11 @@ h4.fw-semibold, h4.fw-bold {
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.75rem 1.25rem;
+  /* Fixed, uniform row height so the list's max-height lands exactly on a
+     row boundary (see .activity-list) — keeps rows compact and prevents a
+     partial row showing at the bottom of the scroll viewport. */
+  height: var(--activity-row-h, 4rem);
+  padding: 0.55rem 1.25rem;
   text-decoration: none;
   color: inherit;
   border-bottom: 1px solid var(--crm-border-light);
@@ -6081,13 +6113,6 @@ h4.fw-semibold, h4.fw-bold {
   font-weight: var(--crm-weight-semibold);
   color: var(--crm-text);
   margin-bottom: 0;
-}
-
-.card-header .card-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-left: auto;
 }
 
 .card-header .card-link {
@@ -6954,7 +6979,7 @@ h4.fw-semibold, h4.fw-bold {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   font-size: 0.9375rem;
 }
 
@@ -6972,7 +6997,7 @@ h4.fw-semibold, h4.fw-bold {
   gap: 0.5rem;
   flex: 1;
   background: var(--crm-bg);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   padding: 0.5rem 0.75rem;
   transition: background var(--crm-duration-fast), box-shadow var(--crm-duration-fast);
 }
@@ -7130,7 +7155,7 @@ h4.fw-semibold, h4.fw-bold {
   cursor: pointer;
   font-size: var(--crm-text-xl);
   padding: 0.375rem;
-  border-radius: 0.375rem;
+  border-radius: var(--crm-radius-md);
   transition: color var(--crm-duration-fast), background var(--crm-duration-fast);
 }
 
@@ -7140,7 +7165,7 @@ h4.fw-semibold, h4.fw-bold {
   background: var(--crm-primary);
   color: var(--crm-text-on-primary);
   border: none;
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   width: 36px;
   height: 36px;
   display: flex;
@@ -7169,7 +7194,7 @@ h4.fw-semibold, h4.fw-bold {
   padding: 0.25rem 0.5rem 0.25rem 0.5rem;
   background: var(--crm-bg);
   border: 1px solid var(--crm-border);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   font-size: var(--crm-text-sm);
   color: var(--crm-text);
   max-width: 14rem;
@@ -7185,7 +7210,7 @@ h4.fw-semibold, h4.fw-bold {
   display: block;
   width: 32px;
   height: 32px;
-  border-radius: 0.375rem;
+  border-radius: var(--crm-radius-md);
   object-fit: cover;
   flex-shrink: 0;
 }
@@ -7202,7 +7227,7 @@ h4.fw-semibold, h4.fw-bold {
   padding: 0 0.125rem;
   color: var(--crm-text-muted);
   cursor: pointer;
-  border-radius: 0.25rem;
+  border-radius: var(--crm-radius-xs);
   display: inline-flex;
   align-items: center;
 }
@@ -7219,7 +7244,7 @@ h4.fw-semibold, h4.fw-bold {
 
 .chat-attach-image {
   display: block;
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   overflow: hidden;
   line-height: 0;
   max-width: 320px;
@@ -7238,7 +7263,7 @@ h4.fw-semibold, h4.fw-bold {
   align-items: center;
   gap: 0.5rem;
   padding: 0.375rem 0.625rem;
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   background: var(--crm-bg);
   border: 1px solid var(--crm-border);
   color: var(--crm-text);
@@ -7371,7 +7396,7 @@ h4.fw-semibold, h4.fw-bold {
   padding: 0.75rem 1rem;
   margin: 0 0.5rem;
   cursor: pointer;
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   transition: background var(--crm-duration-fast) ease;
   position: relative;
 }
@@ -7600,7 +7625,7 @@ h4.fw-semibold, h4.fw-bold {
   position: absolute; top: -12px; left: 50%; transform: translateX(-50%);
   background: var(--crm-primary); color: var(--crm-text-on-primary);
   font-size: var(--crm-text-xs); font-weight: var(--crm-weight-semibold);
-  padding: 0.25rem 0.875rem; border-radius: 100px;
+  padding: 0.25rem 0.875rem; border-radius: var(--crm-radius-pill);
   white-space: nowrap;
 }
 .lp-pcard-head { text-align: center; margin-bottom: 1.5rem; }
@@ -9356,22 +9381,6 @@ h4.fw-semibold, h4.fw-bold {
    TICKET DETAIL PAGE
    ============================================================ */
 
-/* -- Card header title (h6 inside card headers) -- */
-.card-header-title {
-  display: flex;
-  align-items: center;
-  font-size: var(--crm-text-base);
-  font-weight: var(--crm-weight-semibold);
-  color: var(--crm-text);
-  margin-bottom: 0;
-  letter-spacing: 0.01em;
-}
-
-.card-header-title i {
-  font-size: var(--crm-text-md);
-  color: var(--crm-text-muted);
-}
-
 .ticket-number-badge {
   font-size: var(--crm-text-md);
   font-weight: var(--crm-weight-bold);
@@ -10364,7 +10373,7 @@ h4.fw-semibold, h4.fw-bold {
   font-size: var(--crm-text-sm);
   font-weight: var(--crm-weight-semibold);
   padding: 0.25rem 0.875rem 0.25rem 0.625rem;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   background: color-mix(in srgb, var(--td-status-color) 14%, #FFFFFF);
   color: color-mix(in srgb, var(--td-status-color) 70%, var(--crm-text));
   border: 1px solid color-mix(in srgb, var(--td-status-color) 35%, transparent);
@@ -10571,7 +10580,7 @@ h4.fw-semibold, h4.fw-bold {
   font-size: 0.5625rem;
   font-weight: var(--crm-weight-bold);
   padding: 0.15em 0.5em;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   background: var(--crm-hover-bg);
   color: var(--crm-primary);
   min-width: 1.25em;
@@ -11019,6 +11028,12 @@ h4.fw-semibold, h4.fw-bold {
   align-items: center;
   gap: 0.75rem;
 }
+/* Responsive collapse — match the shared .page-header stacking so the
+   bespoke ae- header (agents/list) doesn't squeeze/overflow on mobile. */
+@media (max-width: 767.98px) {
+  .ae-page-header { flex-direction: column; align-items: flex-start; }
+  .ae-page-header__right { width: 100%; justify-content: space-between; }
+}
 .ae-agent-counter {
   display: inline-flex;
   align-items: baseline;
@@ -11067,7 +11082,7 @@ h4.fw-semibold, h4.fw-bold {
 
 /* ── Grant temporary role modal: duration chips ── */
 .ae-duration-chip {
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   padding: 0.3rem 0.75rem;
   font-size: var(--crm-text-base);
   font-weight: var(--crm-weight-medium);
@@ -11170,7 +11185,7 @@ h4.fw-semibold, h4.fw-bold {
   gap: 0.3rem;
   background: var(--crm-bg-translucent, var(--crm-surface));
   border: 1px solid var(--crm-border);
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   padding: 0.1rem 0.55rem 0.1rem 0.45rem;
   font-size: 0.7rem;
   font-weight: var(--crm-weight-semibold);
@@ -11284,7 +11299,7 @@ h4.fw-semibold, h4.fw-bold {
   letter-spacing: 0.05em;
   text-transform: uppercase;
   padding: 0.08rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   background: var(--crm-primary-subtle);
   color: var(--crm-primary);
   border: 1px solid var(--crm-primary-ring);
@@ -12189,7 +12204,7 @@ h4.fw-semibold, h4.fw-bold {
   transition: background-color var(--crm-duration-fast) var(--crm-ease-out), color var(--crm-duration-fast) var(--crm-ease-out), border-color var(--crm-duration-fast) var(--crm-ease-out), box-shadow var(--crm-duration-fast) var(--crm-ease-out), opacity var(--crm-duration-fast) var(--crm-ease-out);
   -webkit-appearance: none;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%232563EB' d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23C1121F' d='M3 5l3 3 3-3'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 0.4rem center;
   font-family: inherit;
@@ -12562,7 +12577,7 @@ h4.fw-semibold, h4.fw-bold {
   font-size: var(--crm-text-2xs);
   font-weight: var(--crm-weight-semibold);
   padding: 0.2rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   background: var(--crm-hover-bg);
   color: var(--crm-text-muted);
   border: 1px solid var(--crm-border);
@@ -12594,7 +12609,7 @@ h4.fw-semibold, h4.fw-bold {
 .td-tag-input {
   font-size: var(--crm-text-2xs);
   border: 1px solid var(--crm-border, var(--crm-border));
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   padding: 0.2rem 0.5rem;
   width: 80px;
   background: transparent;
@@ -13136,9 +13151,9 @@ body.is-mobile-sm .stat-card .stat-value { font-size: var(--crm-text-3xl); }
 body.is-mobile-sm .kanban-board { min-height: 400px; }
 body.is-mobile-sm .kanban-column { min-width: 260px; }
 body.is-mobile-sm .date-range-picker {
-  flex-wrap: wrap;
-  border-radius: var(--crm-radius-sm);
-  gap: 2px;
+  /* Keep the single-row scrolling picker from the 767px breakpoint instead of
+     wrapping the pills into a ragged multi-row pill on small touch screens. */
+  flex-wrap: nowrap;
 }
 
 /* ============================================================
@@ -14848,7 +14863,7 @@ body.is-mobile-sm .date-range-picker {
 .cpanel-job { font-size: var(--crm-text-base); color: var(--crm-text-muted); margin-top: 0.125rem; }
 .cpanel-status-badge {
   position: absolute; top: 0; right: 0;
-  font-size: var(--crm-text-xs); font-weight: var(--crm-weight-semibold); padding: 0.2rem 0.625rem; border-radius: 999px;
+  font-size: var(--crm-text-xs); font-weight: var(--crm-weight-semibold); padding: 0.2rem 0.625rem; border-radius: var(--crm-radius-pill);
   background: rgba(168, 168, 172,0.12); color: var(--crm-text-secondary);
 }
 .cpanel-status-badge.inactive { background: rgba(var(--crm-accent-rgb), 0.12); color: var(--crm-accent); }
@@ -14881,7 +14896,7 @@ body.is-mobile-sm .date-range-picker {
 }
 .cpanel-groups { display: flex; flex-wrap: wrap; gap: 0.375rem; }
 .cpanel-group-tag {
-  font-size: var(--crm-text-sm); font-weight: var(--crm-weight-medium); padding: 0.2rem 0.625rem; border-radius: 999px;
+  font-size: var(--crm-text-sm); font-weight: var(--crm-weight-medium); padding: 0.2rem 0.625rem; border-radius: var(--crm-radius-pill);
   background: rgba(var(--crm-primary-rgb), 0.1); color: var(--bs-primary, var(--crm-primary));
 }
 
@@ -15838,7 +15853,7 @@ body.is-mobile-sm .date-range-picker {
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   font-size: var(--crm-text-sm);
   font-weight: var(--crm-weight-semibold);
   line-height: 1;
@@ -16633,7 +16648,7 @@ body.is-mobile-sm .date-range-picker {
   padding: 0 0.75rem;
   font-size: var(--crm-text-base);
   font-weight: var(--crm-weight-medium);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   background: var(--crm-surface);
   border: 1px solid rgba(var(--crm-primary-rgb), 0.2);
   color: var(--crm-text);
@@ -16727,7 +16742,7 @@ body.is-mobile-sm .date-range-picker {
   width: 100%;
   min-width: 0;
   height: 34px;
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   font-size: var(--crm-text-base);
   border: 1px solid var(--crm-border);
   padding: 0.4rem 2rem 0.4rem 0.75rem;
@@ -16756,7 +16771,7 @@ body.is-mobile-sm .date-range-picker {
 /* Action button base */
 .bulk-card-btn {
   flex-shrink: 0;
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   font-size: 0.775rem;
   font-weight: var(--crm-weight-semibold);
   padding: 0.4rem 1.125rem;
@@ -16847,7 +16862,7 @@ body.is-mobile-sm .date-range-picker {
 }
 .bulk-delete-btn {
   flex-shrink: 0;
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   font-size: 0.775rem;
   font-weight: 650;
   padding: 0.45rem 1.1rem;
@@ -17004,7 +17019,7 @@ body.is-mobile-sm .date-range-picker {
 }
 
 .saved-views-bar .btn {
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   font-weight: var(--crm-weight-medium);
   font-size: var(--crm-text-base);
 }
@@ -17021,7 +17036,7 @@ body.is-mobile-sm .date-range-picker {
 .saved-views-bar .dropdown-item {
   font-size: var(--crm-text-base);
   padding: 0.5rem 0.75rem;
-  border-radius: 0.375rem;
+  border-radius: var(--crm-radius-md);
 }
 
 .saved-views-bar .dropdown-item .badge {
@@ -17151,7 +17166,7 @@ body.is-mobile-sm .date-range-picker {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--crm-border);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   overflow: hidden;
 }
 .kb-suggestion-item {
@@ -17213,7 +17228,7 @@ body.is-mobile-sm .date-range-picker {
   background: var(--crm-surface);
   border: 1px solid var(--crm-border);
   color: var(--crm-text);
-  border-radius: 0.375rem;
+  border-radius: var(--crm-radius-md);
   font-size: var(--crm-text-base);
 }
 .kb-search-input:focus {
@@ -17265,7 +17280,7 @@ body.is-mobile-sm .date-range-picker {
   background: var(--crm-bg);
   border: 1px solid var(--crm-border);
   color: var(--crm-text);
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   font-size: var(--crm-text-md);
 }
 
@@ -17292,7 +17307,7 @@ body.is-mobile-sm .date-range-picker {
   display: inline-flex;
   align-items: center;
   padding: 0.375rem 0.75rem;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   border: 1px solid var(--crm-border);
   background: var(--crm-surface);
   color: var(--crm-text-secondary);
@@ -17363,7 +17378,7 @@ body.is-mobile-sm .date-range-picker {
   background: var(--crm-surface);
   border: 1px solid var(--crm-border);
   border-left: 3px solid var(--crm-primary);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   text-decoration: none;
   color: var(--crm-text);
   transition: background-color var(--crm-duration-fast) var(--crm-ease-out), color var(--crm-duration-fast) var(--crm-ease-out), border-color var(--crm-duration-fast) var(--crm-ease-out), box-shadow var(--crm-duration-fast) var(--crm-ease-out), opacity var(--crm-duration-fast) var(--crm-ease-out);
@@ -17437,7 +17452,7 @@ body.is-mobile-sm .date-range-picker {
   gap: 1px;
   background: var(--crm-border-light);
   border: 1px solid var(--crm-border);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   overflow: hidden;
 }
 
@@ -17461,7 +17476,7 @@ body.is-mobile-sm .date-range-picker {
 .kb-row-icon {
   width: 2rem;
   height: 2rem;
-  border-radius: 0.375rem;
+  border-radius: var(--crm-radius-md);
   background: var(--crm-primary-subtle);
   color: var(--crm-primary);
   display: flex;
@@ -17599,7 +17614,7 @@ body.is-mobile-sm .date-range-picker {
   align-items: center;
   gap: 0.25rem;
   padding: 0.375rem 0.75rem;
-  border-radius: 0.375rem;
+  border-radius: var(--crm-radius-md);
   border: 1px solid var(--crm-border);
   background: var(--crm-surface);
   color: var(--crm-text);
@@ -17699,7 +17714,7 @@ body.is-mobile-sm .date-range-picker {
   display: flex;
   flex-direction: column;
   border: 1px solid var(--crm-border);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   overflow: hidden;
 }
 
@@ -17723,7 +17738,7 @@ body.is-mobile-sm .date-range-picker {
 .kb-admin-row-icon {
   width: 2.5rem;
   height: 2.5rem;
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   background: var(--crm-primary-subtle);
   color: var(--crm-primary);
   display: flex;
@@ -17788,7 +17803,7 @@ body.is-mobile-sm .date-range-picker {
   display: inline-flex;
   align-items: center;
   padding: 0.125rem 0.4375rem;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   font-size: var(--crm-text-2xs);
   font-weight: var(--crm-weight-semibold);
   letter-spacing: 0.02em;
@@ -17823,7 +17838,7 @@ body.is-mobile-sm .date-range-picker {
   padding: 0.875rem 1.25rem;
   background: rgba(var(--crm-primary-rgb), 0.06);
   border: 1px solid rgba(var(--crm-primary-rgb), 0.15);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   margin-bottom: 1rem;
   cursor: pointer;
   transition: background var(--crm-duration-fast) ease;
@@ -17831,7 +17846,7 @@ body.is-mobile-sm .date-range-picker {
 .kb-review-queue:hover { background: rgba(var(--crm-primary-rgb), 0.1); }
 .kb-review-queue-icon {
   display: flex; align-items: center; justify-content: center;
-  width: 36px; height: 36px; border-radius: 0.5rem;
+  width: 36px; height: 36px; border-radius: var(--crm-radius-sm);
   background: rgba(var(--crm-primary-rgb), 0.15); color: var(--crm-primary); font-size: var(--crm-text-xl);
 }
 .kb-review-queue-text { flex: 1; }
@@ -17858,7 +17873,7 @@ body.is-mobile-sm .date-range-picker {
 /* Review info on article detail */
 .kb-review-info {
   display: flex; align-items: center; gap: 0.5rem;
-  padding: 0.625rem 1rem; border-radius: 0.375rem;
+  padding: 0.625rem 1rem; border-radius: var(--crm-radius-md);
   font-size: var(--crm-text-base); margin-top: 0.75rem;
 }
 .kb-review-info--pending { background: rgba(var(--crm-primary-rgb), 0.06); border: 1px solid rgba(var(--crm-primary-rgb), 0.15); color: var(--crm-primary); }
@@ -17893,7 +17908,7 @@ body.is-mobile-sm .date-range-picker {
   justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: 0.25rem;
+  border-radius: var(--crm-radius-xs);
   border: none;
   background: transparent;
   color: var(--crm-text-muted);
@@ -17920,7 +17935,7 @@ body.is-mobile-sm .date-range-picker {
   padding: 0.625rem 1rem;
   background: var(--crm-primary-subtle);
   border: 1px solid var(--crm-primary);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   margin-top: 0.75rem;
 }
 
@@ -17942,7 +17957,7 @@ body.is-mobile-sm .date-range-picker {
   flex-direction: column;
   gap: 1px;
   border: 1px solid var(--crm-border);
-  border-radius: 0.375rem;
+  border-radius: var(--crm-radius-md);
   overflow: hidden;
 }
 
@@ -17971,7 +17986,7 @@ body.is-mobile-sm .date-range-picker {
   color: var(--crm-text);
   outline: none;
   padding: 0.125rem 0.25rem;
-  border-radius: 0.25rem;
+  border-radius: var(--crm-radius-xs);
   transition: background 0.12s;
 }
 
@@ -18034,7 +18049,7 @@ body.is-mobile-sm .date-range-picker {
   display: inline-flex;
   align-items: center;
   padding: 0.25rem 0.625rem;
-  border-radius: 999px;
+  border-radius: var(--crm-radius-pill);
   background: var(--crm-primary-subtle);
   color: var(--crm-primary);
   font-size: var(--crm-text-sm);
@@ -18089,7 +18104,7 @@ body.is-mobile-sm .date-range-picker {
 .kb-tag {
   display: inline-block;
   padding: 0.1875rem 0.5rem;
-  border-radius: 0.25rem;
+  border-radius: var(--crm-radius-xs);
   background: var(--crm-primary-subtle);
   color: var(--crm-primary);
   font-size: var(--crm-text-xs);
@@ -18102,7 +18117,7 @@ body.is-mobile-sm .date-range-picker {
   padding: 0.75rem 1rem;
   background: var(--crm-hover-bg);
   border: 1px solid var(--crm-border);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   display: inline-block;
 }
 .kb-article-file-link {
@@ -18128,7 +18143,7 @@ body.is-mobile-sm .date-range-picker {
   padding: 0.75rem 1rem;
   background: var(--crm-hover-bg);
   border: 1px solid var(--crm-border);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   text-decoration: none;
   color: var(--crm-text);
   transition: border-color var(--crm-duration-fast), background var(--crm-duration-fast);
@@ -18196,7 +18211,7 @@ body.is-mobile-sm .date-range-picker {
 
 .kb-article-body code {
   padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
+  border-radius: var(--crm-radius-xs);
   background: var(--crm-hover-bg);
   font-size: var(--crm-text-base);
   color: var(--crm-primary);
@@ -18205,7 +18220,7 @@ body.is-mobile-sm .date-range-picker {
 .kb-article-body pre {
   background: var(--crm-hover-bg);
   border: 1px solid var(--crm-border);
-  border-radius: 0.5rem;
+  border-radius: var(--crm-radius-sm);
   padding: 1rem;
   overflow-x: auto;
   margin-bottom: 1rem;
@@ -18221,7 +18236,7 @@ body.is-mobile-sm .date-range-picker {
   font-style: italic;
 }
 
-.kb-article-body img { max-width: 100%; border-radius: 0.5rem; margin: 1rem 0; }
+.kb-article-body img { max-width: 100%; border-radius: var(--crm-radius-sm); margin: 1rem 0; }
 .kb-article-body a { color: var(--crm-primary); text-decoration: underline; }
 .kb-article-body a:hover { color: var(--crm-primary-hover); }
 
@@ -20417,7 +20432,7 @@ body.is-mobile-sm .date-range-picker {
   font-size: var(--crm-text-base);
   font-weight: var(--crm-weight-medium);
   padding: 5px 14px;
-  border-radius: 100px;
+  border-radius: var(--crm-radius-pill);
   border: 1px solid var(--crm-border);
   background: var(--crm-surface);
   color: var(--crm-text-secondary);
@@ -20445,7 +20460,7 @@ body.is-mobile-sm .date-range-picker {
   font-size: var(--crm-text-base);
   font-weight: var(--crm-weight-medium);
   padding: 5px 12px;
-  border-radius: 100px;
+  border-radius: var(--crm-radius-pill);
   border: 1px solid transparent;
   background: transparent;
   color: var(--crm-text-muted);
@@ -20462,7 +20477,7 @@ body.is-mobile-sm .date-range-picker {
   justify-content: center;
   background: var(--crm-primary);
   color: var(--crm-text-on-primary);
-  border-radius: 100px;
+  border-radius: var(--crm-radius-pill);
   padding: 0 6px;
   font-size: var(--crm-text-xs);
   margin-left: 4px;
@@ -20876,7 +20891,13 @@ body.is-mobile-sm .date-range-picker {
 }
 .nf-carousel__track {
   display: flex;
-  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  /* Slides take their natural height instead of all stretching to the tallest
+     page. Without this, a partial last page (e.g. 1 post) is forced as tall as
+     a full page (4 stacked posts on mobile), leaving a large empty gap. JS sets
+     an explicit track height to the active slide (syncCarouselHeight). */
+  align-items: flex-start;
+  transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+              height 0.3s ease;
 }
 .nf-carousel__slide {
   min-width: 100%;
@@ -22610,6 +22631,17 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: v
   100% { opacity: 1; transform: scale(1); }
 }
 
+/* --- Whole-app page entrance ---
+   The .crm-page-content.fade-in hook lives on every authenticated page
+   (templates/base.html). Pure opacity (NOT fade-up) so it composes with the
+   per-component kz-fade-up that headers/cards/panels already run below — a
+   parent translateY would double-translate child cards. 280ms finishes just
+   before the child stagger so it reads as one motion. Reduced-motion is
+   auto-handled by the global block near line 914. */
+.crm-page-content.fade-in {
+  animation: kz-fade-in var(--crm-duration-moderate) var(--crm-ease-out) both;
+}
+
 /* --- Page header / dashboard header ---
    Covers every per-page header used across the app. */
 .page-header,
@@ -22716,6 +22748,58 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: v
 .stat-card,
 .td-card {
   animation: kz-fade-up 0.32s var(--crm-ease-out) both;
+}
+
+/* Per-page body shells — completes entrance coverage so EVERY page animates
+   like the rest, not just those built from the swept component classes above.
+   Each selector is a page's OUTER body container (the block under its header),
+   picked so it doesn't nest a separately-swept descendant — one clean rise per
+   page, no double-translate. JS-rebuilt rows inside are intentionally NOT
+   animated, so debounced live refetches repaint silently inside a settled box.
+     .error-page = 403      .api-quickstart = API quickstart
+     .ae-tabs-wrap = personal Inbox   .kb-article-container = KB article
+     .chat-wrapper = messaging        .pf2-shell = profile
+     .rm-hero / .rm-list = reminders  .ih-shell = email triage cockpit
+     #createTicketForm = new-ticket form */
+.error-page,
+.api-quickstart,
+.ae-tabs-wrap,
+.kb-article-container,
+.chat-wrapper,
+.pf2-shell,
+.rm-hero,
+.rm-list,
+.ih-shell,
+#createTicketForm {
+  animation: kz-fade-up var(--crm-duration-moderate) var(--crm-ease-out) both;
+}
+
+/* Round-2 coverage — pages whose REAL primary body uses a class/id that is NOT
+   in the sweep above (JS-rendered lists, tab panes, detail sidebars). Each is
+   page-scoped (id) or verified not to nest a separately-swept descendant, so
+   every page animates once and nothing double-rises. NB: .tl-ticket-list is
+   deliberately NOT swept globally — on tickets/list its card-mode .tl-card
+   children already rise, so the two email lists are targeted by id instead.
+     .tl-toolbar / .tl-stat-tabs / .tl-table-header = tickets + email/audit shells
+     .td-sb-section = ticket-detail right sidebar   #kbAdminContent = KB list (admin)
+     #emailList = inbound-email log   #inboundEmailsList = personal Inbox
+     #pane-activity = audit-log default tab */
+.tl-toolbar,
+.tl-stat-tabs,
+.tl-table-header,
+.td-sb-section,
+#kbAdminContent,
+#emailList,
+#inboundEmailsList,
+#pane-activity {
+  animation: kz-fade-up var(--crm-duration-moderate) var(--crm-ease-out) both;
+}
+
+/* Styled <select> dropdowns (KanzenSelect portal) currently snap open. The
+   menu is re-appended to <body> on each open, so this entrance runs every
+   time it opens — no JS needed. Reuses the existing popoverFadeIn keyframe. */
+.td-cselect-menu.td-cselect-portal {
+  animation: popoverFadeIn var(--crm-duration-fast) var(--crm-ease-out);
 }
 
 /* Hover lift on prominent panel containers */
@@ -25165,6 +25249,10 @@ textarea {
 }
 
 /* ---------- Responsive ---------- */
+/* Mobile back-to-list button in the detail action bar. Hidden on desktop,
+   where the list is always visible beside the detail. */
+.ih-detail-back { display: none; }
+
 @media (max-width: 1199.98px) {
   .ih-shell { grid-template-columns: 210px minmax(0, 1fr) minmax(0, 1.4fr); }
   .ih-search-input { width: 180px; }
@@ -25175,12 +25263,82 @@ textarea {
     height: auto;
     min-height: 0;
   }
-  .ih-nav { display: none; }
+  /* The lens rail becomes a horizontal, swipeable chip bar. It used to be
+     display:none here, which stranded phone/tablet users on the active lens
+     — every workload lens must stay reachable at every width. */
+  .ih-nav {
+    flex-direction: row;
+    align-items: center;
+    padding: 10px 12px;
+    border-right: none;
+    border-bottom: 1px solid var(--crm-border-subtle);
+    overflow-y: visible;
+  }
+  .ih-nav-section {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .ih-nav-section::-webkit-scrollbar { display: none; }
+  .ih-nav-label { display: none; }
+  .ih-nav-link {
+    width: auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    gap: 6px;
+    padding: 8px 14px;
+    min-height: 40px;   /* finger-sized target (WCAG-ok, near-HIG) */
+    border: 1px solid var(--crm-border-subtle);
+    border-radius: var(--crm-radius-pill);
+    background: var(--crm-card-bg);
+  }
+  .ih-nav-link.active { border-color: var(--crm-primary); }
+  .ih-nav-foot { display: none; }
+
   .ih-list, .ih-detail { border-right: none; }
-  .ih-list { border-bottom: 1px solid var(--crm-border-subtle); }
   .ih-search-input { width: 100%; }
   .ih-context-card { margin-left: 16px; margin-right: 16px; }
   .ih-context-stats { flex-wrap: wrap; gap: 12px 18px; }
+
+  /* One pane at a time: the list is the default screen; selecting a row
+     swaps in the detail (inbox-hub.js toggles ih-shell--detail-open; Back /
+     Esc / completing a triage action clears it, and crossing back over the
+     breakpoint always clears it — no stale mobile state on widen). */
+  .ih-detail { display: none; }
+  .ih-shell--detail-open .ih-nav,
+  .ih-shell--detail-open .ih-list { display: none; }
+  .ih-shell--detail-open .ih-detail { display: flex; }
+  /* The shell's overflow:hidden (corner clipping) would defeat the sticky
+     action bar below — in one-pane mode nothing pokes past the corners
+     anyway (the pane shares the shell's card background). */
+  .ih-shell--detail-open { overflow: visible; }
+  /* Keep Back + Convert/Assign/Dismiss reachable while reading a long email:
+     on mobile the DOCUMENT scrolls (the shell is height:auto), so the action
+     bar sticks just below the app's own sticky content header. */
+  .ih-shell--detail-open .ih-actionbar {
+    position: sticky;
+    top: var(--crm-content-header-height);
+    z-index: 2;
+  }
+  .ih-detail-back {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;   /* primary mobile navigation control */
+    min-width: 44px;
+  }
+  /* The empty/in-flight pane's escape hatch (top-left, mirroring where the
+     action bar's Back sits in the loaded state). */
+  .ih-shell--detail-open .ih-detail { position: relative; }
+  .ih-detail-back--empty {
+    position: absolute;
+    top: 10px;
+    left: 12px;
+  }
 }
 
 /* ============================================================

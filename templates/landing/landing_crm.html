@@ -848,7 +848,7 @@
           <li class="nav-item"><a class="nav-link" href="#features">Features</a></li>
           <li class="nav-item"><a class="nav-link" href="#product">Product</a></li>
           <li class="nav-item"><a class="nav-link" href="#testimonials">Customers</a></li>
-          <li class="nav-item"><a class="nav-link" href="#pricing">Pricing</a></li>
+          {% comment %}<li class="nav-item"><a class="nav-link" href="#pricing">Pricing</a></li>{% endcomment %}
         </ul>
         <a href="{{ BASE_URL }}/login/" class="btn btn-primary rounded-pill px-3 py-2">Login</a>
       </div>
@@ -1181,6 +1181,8 @@
     </div>
   </section>
 
+  {% comment %} Pricing section temporarily hidden for now — unwrap this comment block to restore. {% endcomment %}
+  {% comment %}
   <!-- ============================================================
        PRICING
        ============================================================ -->
@@ -1257,6 +1259,7 @@
       </div>
     </div>
   </section>
+  {% endcomment %}
 
   <!-- ============================================================
        FINAL CTA BANNER
@@ -1299,7 +1302,7 @@
         <div class="col-lg-2 col-6">
           <h6>Product</h6>
           <a href="#features">Features</a>
-          <a href="#pricing">Pricing</a>
+          {% comment %}<a href="#pricing">Pricing</a>{% endcomment %}
           <a href="/changelog/">Changelog</a>
           <a href="/integrations/">Integrations</a>
         </div>

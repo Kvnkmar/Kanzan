@@ -171,20 +171,9 @@
   var profileData = null;
   var currentValues = { user: {}, profile: {} };
 
-  var AVATAR_COLORS = [
-    'var(--crm-primary)',
-    'var(--crm-primary-active)',
-    'var(--crm-accent)',
-    'var(--status-info-dot)',
-    'var(--status-success-dot)',
-    'var(--status-warning-dot)',
-    'var(--status-neutral-dot)'
-  ];
-  function avatarColor(name) {
-    if (!name) return AVATAR_COLORS[0];
-    for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-    return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-  }
+  // Single red identity avatar (--crm-avatar-bg); app-wide single-red
+  // convention (matches contacts/users/groups/etc.). name now ignored.
+  function avatarColor(name) { return 'var(--crm-avatar-bg)'; }
   function getInitials(n) {
     if (!n) return '?';
     return n.split(' ').filter(Boolean).map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();

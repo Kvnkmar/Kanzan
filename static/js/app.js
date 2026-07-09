@@ -214,17 +214,32 @@ document.addEventListener('DOMContentLoaded', () => {
   const backdrop = document.getElementById('sidebarBackdrop');
 
   if (sidebarToggle && sidebar && backdrop) {
-    sidebarToggle.addEventListener('click', () => {
-      sidebar.classList.toggle('show');
-      backdrop.classList.toggle('show');
-      document.body.style.overflow = sidebar.classList.contains('show') ? 'hidden' : '';
-    });
-
-    backdrop.addEventListener('click', () => {
+    const closeMobileSidebar = () => {
       sidebar.classList.remove('show');
       backdrop.classList.remove('show');
       document.body.style.overflow = '';
+    };
+
+    sidebarToggle.addEventListener('click', () => {
+      const open = sidebar.classList.toggle('show');
+      backdrop.classList.toggle('show', open);
+      document.body.style.overflow = open ? 'hidden' : '';
     });
+
+    backdrop.addEventListener('click', closeMobileSidebar);
+
+    // Widening past the mobile breakpoint (e.g. exiting Chrome DevTools'
+    // device toolbar, which removes body.is-mobile) does NOT close an open
+    // off-canvas sidebar — the backdrop scrim + body scroll-lock would stay
+    // stuck over the desktop layout with the toggle button now hidden. Close
+    // it whenever the viewport is no longer mobile width.
+    const closeSidebarIfDesktop = () => {
+      if (window.innerWidth >= 992 && sidebar.classList.contains('show')) {
+        closeMobileSidebar();
+      }
+    };
+    window.addEventListener('resize', closeSidebarIfDesktop);
+    window.addEventListener('orientationchange', closeSidebarIfDesktop);
   }
 
   // Desktop sidebar collapse toggle

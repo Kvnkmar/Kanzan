@@ -670,8 +670,8 @@
   updateAutoColumnsVisibility();
 
   var PRIORITY_COLORS = {urgent:'var(--crm-accent)',high:'var(--crm-primary)',medium:'var(--crm-accent)',low:'var(--status-neutral-dot)'};
-  var AVATAR_COLORS = ['var(--crm-primary)','var(--crm-primary-active)','var(--crm-primary)','var(--crm-primary-active)','var(--status-neutral-dot)','var(--crm-primary)','var(--crm-accent)','var(--crm-accent)','var(--crm-primary-300)','var(--status-neutral-dot)'];
-  function avatarColor(name) { if (!name) return AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
+  // Single red identity avatar (--crm-avatar-bg); app-wide single-red convention.
+  function avatarColor(name) { return 'var(--crm-avatar-bg)'; }
 
   function escapeHtml(str) {
     if (!str) return '';

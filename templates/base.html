@@ -15,15 +15,31 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
   <link href="{% static 'css/custom-v15.css' %}" rel="stylesheet">
   <script>
-    // Detect real mobile devices (not desktop zoom) using screen size + touch
+    // Switch to the mobile (off-canvas sidebar) layout based on the VIEWPORT
+    // width, matching a standard responsive breakpoint. Uses window.innerWidth
+    // (the rendered CSS viewport) — NOT window.screen.width (the physical device
+    // screen), which stays at the host monitor's width under DevTools device
+    // emulation and at any narrowed desktop window, so the < 992 check never
+    // fired and the desktop layout (fixed 260px sidebar + margin-left content)
+    // leaked through, clipping the page. Re-evaluated on every resize /
+    // orientation change with toggle(), so it engages and releases cleanly as
+    // the viewport crosses 992px — resize self-corrects, so no touch heuristic
+    // is needed to guard against a "stuck" class.
     (function() {
-      var isMobile = ('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.screen.width < 992;
-      var isMobileSm = isMobile && window.screen.width < 576;
-      if (isMobile) document.documentElement.classList.add('is-mobile-html');
-      document.addEventListener('DOMContentLoaded', function() {
-        if (isMobile) document.body.classList.add('is-mobile');
-        if (isMobileSm) document.body.classList.add('is-mobile-sm');
-      });
+      function applyMobileClasses() {
+        var w = window.innerWidth;
+        var isMobile = w < 992;
+        var isMobileSm = w < 576;
+        document.documentElement.classList.toggle('is-mobile-html', isMobile);
+        if (document.body) {
+          document.body.classList.toggle('is-mobile', isMobile);
+          document.body.classList.toggle('is-mobile-sm', isMobileSm);
+        }
+      }
+      applyMobileClasses(); // sets is-mobile-html early; <body> handled on ready
+      document.addEventListener('DOMContentLoaded', applyMobileClasses);
+      window.addEventListener('resize', applyMobileClasses);
+      window.addEventListener('orientationchange', applyMobileClasses);
     })();
   </script>
   <script src="{% static 'js/theme.js' %}"></script>
@@ -172,6 +188,16 @@
     </div>
   </div>
   {% endif %}
+
+  {% comment %}
+    Page-level overlays (modals / offcanvas) render here as direct children of
+    <body>, NOT inside the page content block. Bootstrap appends an offcanvas
+    backdrop to the panel's PARENT node, so a panel nested in the animated
+    .crm-page-content subtree gets trapped in that subtree's stacking context and
+    renders under the sticky top bar with a content-area-only backdrop. Body-level
+    placement attaches the backdrop to <body> so the overlay covers the viewport.
+  {% endcomment %}
+  {% block overlays %}{% endblock %}
 
   <!-- Toast container (top-right) -->
   <div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>

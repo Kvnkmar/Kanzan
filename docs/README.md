@@ -9,12 +9,19 @@ Long-form reference docs for the Kanzen multi-tenant CRM/Ticketing/KB/VoIP platf
 ```
 docs/
 ├── README.md                       (this file — index)
-├── architecture.md                 (v1.0 design rationale, 2026-02 baseline)
-└── reference/
-    ├── codebase-inventory.md       (verified inventory: apps, models, routes, tasks)
-    ├── api-surface.md              (every REST endpoint + WebSocket consumer)
-    ├── frontend-surface.md         (templates, JS modules, CSS, frontend URLs)
-    └── infra-surface.md            (settings, Celery, PM2, env, requirements)
+├── architecture.md                 (v1.0 design rationale, 2026-02 baseline — STALE)
+├── ui-consistency-audit.md         (14-auditor UI-consistency sweep, 2026-06-23)
+├── deploy/
+│   └── protected-media.md          (prod media auth — X-Accel-Redirect)
+├── reference/                       (verified 2026-05-11 — STALE; predate inbox_hub & 2026-06 features)
+│   ├── codebase-inventory.md       (verified inventory: apps, models, routes, tasks)
+│   ├── api-surface.md              (every REST endpoint + WebSocket consumer)
+│   ├── frontend-surface.md         (templates, JS modules, CSS, frontend URLs)
+│   └── infra-surface.md            (settings, Celery, PM2, env, requirements)
+├── qa-audit-2026-06-14/            (end-to-end QA/security/perf audit, 38/100 pre-fix — drove Sprint 0; 11 files)
+└── testing/
+    ├── manual-testing-checklist.md (evergreen first-time-user playbook, Phases 0–9)
+    └── qa-run-report-2026-06-29.md (headless HTTP/API QA run: 38 pass / 6 defects)
 ```
 
 ## When to use which
@@ -27,6 +34,8 @@ docs/
 | "What endpoints exist?"                 | `reference/api-surface.md`             |
 | "What pages/JS/CSS exist?"              | `reference/frontend-surface.md`        |
 | "How is this deployed and configured?"  | `reference/infra-surface.md`           |
+| "How do I manually test the app?"       | `testing/manual-testing-checklist.md`  |
+| "What's broken / known defects?"        | `testing/qa-run-report-2026-06-29.md`  |
 
 ## Freshness markers
 

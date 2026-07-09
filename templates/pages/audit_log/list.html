@@ -259,7 +259,7 @@
           <div class="stat-card-label">Total</div>
           <div class="stat-card-value" id="ibeStatTotal">--</div>
         </div>
-        <div class="stat-card-accent" style="background: var(--bs-primary);"></div>
+        <div class="stat-card-accent" style="background: var(--crm-primary);"></div>
       </div>
     </div>
     <div class="col-6 col-md-2">
@@ -447,11 +447,7 @@
   var PRIMARY_CHIPS = ['created', 'updated', 'status_changed', 'assigned', 'commented', 'closed', 'deleted'];
   var SECONDARY_CHIPS = ['field_changed', 'reopened', 'attachment_added', 'attachment_removed', 'sla_updated', 'pipeline_stage_changed', 'email_linked', 'email_actioned'];
 
-  var AVATAR_COLORS = [
-    'var(--crm-accent)', 'var(--status-neutral-dot)', 'var(--crm-primary)',
-    'var(--status-info-dot)', 'var(--status-success-dot)', 'var(--status-warning-dot)',
-    'var(--crm-primary-dark)', 'var(--crm-accent-hover)'
-  ];
+  // Avatar colours unified to a single red (--crm-avatar-bg) — see hashColor().
 
   // Back-compat shim so code that still expects ACTION_STYLES keeps working
   var ACTION_STYLES = (function() {
@@ -561,11 +557,8 @@
     return parts[0][0].toUpperCase();
   }
 
-  function hashColor(str) {
-    var hash = 0;
-    for (var i = 0; i < str.length; i++) hash = str.charCodeAt(i) + ((hash << 5) - hash);
-    return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
-  }
+  // Single red identity avatar (--crm-avatar-bg); app-wide single-red convention.
+  function hashColor(str) { return 'var(--crm-avatar-bg)'; }
 
   function isComplexValue(val) {
     return val !== null && typeof val === 'object';

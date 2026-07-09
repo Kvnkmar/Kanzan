@@ -29,17 +29,13 @@ def check_hub_sla_breaches():
 
     now = timezone.now()
     warning_window = timedelta(minutes=getattr(settings, "HUB_SLA_WARNING_MINUTES", 15))
-    active_states = [
-        HubEmail.State.NEW,
-        HubEmail.State.ASSIGNED,
-        HubEmail.State.IN_PROGRESS,
-        HubEmail.State.PENDING_AGENT,
-        HubEmail.State.ESCALATED,
-    ]
 
     qs = (
         HubEmail.unscoped
-        .filter(state__in=active_states, sla_response_due_at__isnull=False)
+        .filter(
+            state__in=HubEmail.ACTIVE_SLA_STATES,
+            sla_response_due_at__isnull=False,
+        )
         .select_related("tenant", "assignee", "department")
     )
 

@@ -135,13 +135,17 @@ class HubEmailViewSet(
         department = self.request.query_params.get("department")
         if department:
             qs = qs.filter(department_id=department)
-        # "SLA at risk" lens: rows with a live (un-breached) response deadline.
+        # "SLA at risk" lens: ACTIVE rows with a live (un-breached, un-met)
+        # response deadline — mirrors the sweep's semantics exactly, so a row
+        # the sweep will never breach (responded, terminal) never shows here.
         # The client pairs this with ?ordering=sla_response_due_at (soonest
         # first); OrderingFilter applies the sort so we only filter here.
         if self.request.query_params.get("sla_risk") == "true":
             qs = qs.filter(
+                state__in=HubEmail.ACTIVE_SLA_STATES,
                 sla_response_due_at__isnull=False,
                 response_breached=False,
+                first_responded_at__isnull=True,
             )
         return qs
 
@@ -162,7 +166,13 @@ class HubEmailViewSet(
 
         hub_email = self.get_object()
         overrides = build_ticket_overrides(request.data, request.tenant)
-        ticket = convert_to_ticket(hub_email, actor=request.user, **overrides)
+        try:
+            ticket = convert_to_ticket(hub_email, actor=request.user, **overrides)
+        except ValueError as exc:
+            # Terminal-state guard (e.g. dismissed) — also surfaces other
+            # service validation errors (e.g. a tenant with no ticket
+            # statuses) as a 400 rather than a 500.
+            raise ValidationError({"detail": str(exc)})
         return Response(
             {
                 "ticket": TicketDetailSerializer(ticket).data,
@@ -177,10 +187,13 @@ class HubEmailViewSet(
         hub_email = self.get_object()
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        dismiss_hub_email(
-            hub_email, actor=request.user,
-            reason=serializer.validated_data.get("reason", ""),
-        )
+        try:
+            dismiss_hub_email(
+                hub_email, actor=request.user,
+                reason=serializer.validated_data.get("reason", ""),
+            )
+        except ValueError as exc:  # terminal-state guard (e.g. converted)
+            raise ValidationError({"detail": str(exc)})
         return Response(self._detail(hub_email), status=status.HTTP_200_OK)
 
     # -- assignment ----------------------------------------------------------
@@ -229,6 +242,15 @@ class HubEmailViewSet(
         hub_email = self.get_object()
         serializer = EscalateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+        # The service silently no-ops on an illegal escalation (the SLA sweep
+        # relies on that); surface it to API callers as a 400 instead, for
+        # parity with convert/dismiss/transition.
+        from apps.inbox_hub.state_machine import can_transition
+
+        if not can_transition(hub_email.state, HubEmail.State.ESCALATED):
+            raise ValidationError(
+                {"detail": f"Cannot escalate an email in state '{hub_email.state}'."}
+            )
         escalate_hub_email(
             hub_email, actor=request.user,
             reason=serializer.validated_data.get("reason", ""),

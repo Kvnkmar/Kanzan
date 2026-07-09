@@ -268,10 +268,11 @@
 (function() {
   'use strict';
   var PAGE_SIZE = 25, currentPage = 1, totalCount = 0;
-  // Neutral-first avatar palette: grayscale lifts with a single red slot (1 in 8).
-  // Keeps the table calm — red reserved for intent (CTAs, active states), not identity.
-  var AVATAR_COLORS = ['#2A2A2E','var(--crm-scrollbar-thumb-hover)','#48484D','#5A5A60','#6B7280','var(--crm-scrollbar-thumb-hover)','#2A2A2E','var(--crm-primary)'];
-  function avatarColor(name) { if (!name) return AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
+  // Single red identity avatar. Resolves to --crm-avatar-bg, which is the
+  // brand red in light mode and lifts to the brighter red in dark mode
+  // (see custom-v15.css :root / [data-bs-theme="dark"]). Same call signature
+  // so callers don't change; name is ignored now that colour is uniform.
+  function avatarColor(name) { return 'var(--crm-avatar-bg)'; }
   function formatDate(d) { return Kanzan.formatDate(d); }
   function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
@@ -298,7 +299,7 @@
         var comp = c.company ? (typeof c.company === 'object' ? (c.company.name || '') : (c.company_name || '')) : '';
         var bgColor = avatarColor(fn);
         row.innerHTML = '<td class="ps-3"><input type="checkbox" class="contact-checkbox" data-contact-id="' + c.id + '"></td>' +
-          '<td><div class="d-flex align-items-center gap-3"><div class="avatar avatar-sm" style="background:' + bgColor + ';color:var(--crm-text-on-primary);">' + ini + '</div><span class="fw-medium">' + escapeHtml(fn || 'Unnamed') + '</span></div></td>' +
+          '<td><div class="d-flex align-items-center gap-3"><div class="avatar avatar-sm" style="background:' + bgColor + ';color:var(--crm-avatar-fg);">' + ini + '</div><span class="fw-medium">' + escapeHtml(fn || 'Unnamed') + '</span></div></td>' +
           '<td>' + (c.email ? '<a href="mailto:' + escapeHtml(c.email) + '" class="email-link">' + escapeHtml(c.email) + '</a>' : '<span class="text-muted">--</span>') + '</td>' +
           '<td>' + (c.phone ? escapeHtml(c.phone) : '<span class="text-muted">--</span>') + '</td>' +
           '<td>' + (comp ? escapeHtml(comp) : '<span class="text-muted">--</span>') + '</td>' +
@@ -581,8 +582,8 @@
       document.getElementById('panelContactName').textContent = fn;
       document.getElementById('panelFullName').textContent = fn;
       document.getElementById('panelAvatar').textContent = ini;
-      // bgColor may resolve to 'var(--crm-primary)'; appending 'cc' (hex alpha)
-      // only works on literal hex strings, so just use the solid value.
+      // bgColor is the 'var(--crm-avatar-bg)' token (theme-reactive red), not a
+      // literal hex, so use the solid value as-is — no hex-alpha suffixing.
       document.getElementById('panelAvatar').style.background = bgColor;
 
       var jobTitle = c.job_title || '';

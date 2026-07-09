@@ -226,8 +226,8 @@
   let userGroups = [];
   let selectedGroupId = '';
 
-  var AVATAR_COLORS = ['var(--crm-primary)','var(--crm-primary-active)','var(--crm-primary)','var(--crm-primary-active)','var(--status-neutral-dot)','var(--crm-primary)','var(--crm-accent)','var(--crm-accent)','var(--crm-primary-300)','var(--status-neutral-dot)'];
-  function avatarColor(name) { if (!name) return AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length]; }
+  // Single red identity avatar (--crm-avatar-bg); app-wide single-red convention.
+  function avatarColor(name) { return 'var(--crm-avatar-bg)'; }
   function getInitials(name) { if (!name) return '?'; return name.split(' ').map(function(n) { return n.charAt(0); }).join('').substring(0, 2).toUpperCase(); }
 
   // -- Initialization --
@@ -1066,6 +1066,19 @@
       document.getElementById('chatSidebar').classList.remove('chat-sidebar-hidden');
       document.getElementById('chatArea').classList.remove('chat-main-active');
     });
+
+    // The single-pane classes above are added on every conversation select and
+    // only cleared by the (d-lg-none) Back button. Widening past the mobile
+    // breakpoint — e.g. exiting Chrome DevTools' device toolbar — must clear
+    // them, or they re-hide the conversation list the next time it narrows.
+    var syncChatPanes = function() {
+      if (window.innerWidth >= 768) {
+        document.getElementById('chatSidebar').classList.remove('chat-sidebar-hidden');
+        document.getElementById('chatArea').classList.remove('chat-main-active');
+      }
+    };
+    window.addEventListener('resize', syncChatPanes);
+    window.addEventListener('orientationchange', syncChatPanes);
 
     // Dropdown menu actions
     document.getElementById('menuDetails').addEventListener('click', function(e) { e.preventDefault(); viewConversationDetails(); });

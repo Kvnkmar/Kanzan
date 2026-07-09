@@ -822,7 +822,7 @@
               <p class="st-section-desc">Suppress notifications during set hours</p>
             </div>
             <div class="form-check form-switch ms-auto">
-              <input class="form-check-input" type="checkbox" id="dndEnabled">
+              <input class="form-check-input" type="checkbox" role="switch" id="dndEnabled">
             </div>
           </div>
           <div id="dndTimesWrap" class="d-none">
@@ -877,7 +877,7 @@
                 <span class="st-toggle-label">Sidebar default collapsed</span>
                 <span class="st-toggle-desc">Start with the sidebar minimized on page load.</span>
               </div>
-              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" id="sidebarCollapsedToggle"></div>
+              <div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" id="sidebarCollapsedToggle"></div>
             </div>
           </div>
           <div class="st-form-group mt-3">
@@ -1213,7 +1213,7 @@
                     <div class="form-text">Optional. If set with auto-assign on, new tickets in this queue route here.</div>
                   </div>
                   <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="queueAutoAssign">
+                    <input class="form-check-input" type="checkbox" role="switch" id="queueAutoAssign">
                     <label class="form-check-label" for="queueAutoAssign">Auto-assign new tickets to default assignee</label>
                   </div>
                 </form>
@@ -1280,7 +1280,7 @@
                     </div>
                   </div>
                   <div class="form-check form-switch mt-3">
-                    <input class="form-check-input" type="checkbox" id="customStatusActive" checked>
+                    <input class="form-check-input" type="checkbox" role="switch" id="customStatusActive" checked>
                     <label class="form-check-label" for="customStatusActive">Active — agents can pick this status</label>
                   </div>
                 </form>
@@ -4392,6 +4392,7 @@ function switchSettingsTab(targetId) {
     var inAppInput = document.createElement('input');
     inAppInput.className = 'form-check-input st-notif-toggle';
     inAppInput.type = 'checkbox';
+    inAppInput.setAttribute('role', 'switch');
     inAppInput.dataset.type = p.notification_type;
     inAppInput.dataset.channel = 'in_app';
     inAppInput.checked = !!p.in_app;
@@ -4406,6 +4407,7 @@ function switchSettingsTab(targetId) {
     var emailInput = document.createElement('input');
     emailInput.className = 'form-check-input st-notif-toggle';
     emailInput.type = 'checkbox';
+    emailInput.setAttribute('role', 'switch');
     emailInput.dataset.type = p.notification_type;
     emailInput.dataset.channel = 'email';
     emailInput.checked = !!p.email;

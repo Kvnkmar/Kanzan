@@ -2904,6 +2904,20 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
     }
   }
 
+  // The 'is-mobile-open' overlay class above is added only at selection time
+  // when innerWidth <= 991 and is otherwise never recomputed. Widening past the
+  // breakpoint (e.g. exiting Chrome DevTools' device toolbar) must drop it, or
+  // it re-covers the reminder list as a full-screen overlay the next time the
+  // viewport narrows. Mirror the base.html mobile re-evaluation.
+  function syncDetailPaneViewport() {
+    if (window.innerWidth > 991) {
+      var dp = document.getElementById('detailPane');
+      if (dp) dp.classList.remove('is-mobile-open');
+    }
+  }
+  window.addEventListener('resize', syncDetailPaneViewport);
+  window.addEventListener('orientationchange', syncDetailPaneViewport);
+
   // ── Form (create + edit) ───────────────────────────────────────────
   function resetForm() {
     document.getElementById('reminderId').value = '';

@@ -29,11 +29,8 @@
         <span>Unassigned</span>
         <span class="ih-nav-count" id="ihCountUnassigned">0</span>
       </button>
-      <button type="button" class="ih-nav-link" data-lens="mine">
-        <i class="ti ti-user-check"></i>
-        <span>Assigned to me</span>
-        <span class="ih-nav-count" id="ihCountMine">0</span>
-      </button>
+      {# No "Assigned to me" lens — assigned mail leaves this desk and is #}
+      {# worked from the personal Inbox (/inbox/), which owns that view.  #}
       <button type="button" class="ih-nav-link" data-lens="oldest">
         <i class="ti ti-clock-hour-4"></i>
         <span>Oldest waiting</span>
@@ -105,6 +102,13 @@
   <section class="ih-detail" aria-label="Email detail">
     <!-- Empty state -->
     <div class="ih-detail-empty" id="ihDetailEmpty">
+      <!-- Mobile-only: the pane swaps in before the detail loads, so even the
+           empty/in-flight state needs a way back (a hung fetch must never
+           strand the user on a dead pane). Wired by class with #ihDetailBack. -->
+      <button type="button" class="btn btn-outline-secondary btn-sm ih-detail-back ih-detail-back--empty"
+              aria-label="Back to list">
+        <i class="ti ti-arrow-left" aria-hidden="true"></i>
+      </button>
       <div class="ih-detail-empty-inner">
         <i class="ti ti-mail-opened ih-empty-icon"></i>
         <h2 class="ih-empty-title">Select an email to triage</h2>
@@ -126,6 +130,12 @@
     <article class="ih-detail-view" id="ihDetailView" hidden>
       <!-- Sticky triage action bar -->
       <div class="ih-actionbar" id="ihDetailActions">
+        <!-- Mobile-only: the stacked layout shows one pane at a time, so the
+             detail needs a way back to the list (hidden ≥992px via CSS). -->
+        <button type="button" class="btn btn-outline-secondary btn-sm ih-detail-back"
+                id="ihDetailBack" aria-label="Back to list">
+          <i class="ti ti-arrow-left" aria-hidden="true"></i>
+        </button>
         <button type="button" class="btn btn-primary btn-sm" id="ihActionConvert">
           <i class="ti ti-ticket me-1"></i> Convert to ticket
         </button>
@@ -176,7 +186,14 @@
     </article>
   </section>
 </div>
+{% endblock %}
 
+{% comment %}
+  Overlays render at <body> level (see base.html) so the offcanvas/modal
+  backdrops attach to <body> and cover the whole viewport instead of getting
+  trapped under the sticky top bar.
+{% endcomment %}
+{% block overlays %}
 <!-- Convert-to-Ticket panel — a full ticket form as a right-side slide-over.
      Posts the whole override set to /convert-to-ticket/ (validated by the
      shared build_ticket_overrides), so SLA/provenance/attachment-copy/idempotency
@@ -308,5 +325,5 @@ window.tiptap = { Editor, StarterKit, Link, Placeholder };
 window.dispatchEvent(new Event('tiptap-ready'));
 </script>
 <script src="{% static 'js/rich-editor.js' %}"></script>
-<script src="{% static 'js/inbox-hub.js' %}?v=13"></script>
+<script src="{% static 'js/inbox-hub.js' %}?v=16"></script>
 {% endblock %}

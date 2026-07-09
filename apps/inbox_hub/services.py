@@ -22,6 +22,7 @@ import logging
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+from django.utils import timezone
 
 from apps.comments.models import ActivityLog
 from apps.inbound_email.models import InboundEmail
@@ -118,13 +119,11 @@ def convert_to_ticket(hub_email, actor, *, queue=None, status=None,
 
     Idempotent: re-running on an already-converted HubEmail returns the
     existing ``converted_ticket`` without creating a new one.
+
+    Raises ``ValueError`` when the email is in a terminal state the state
+    machine forbids converting from (i.e. DISMISSED).
     """
-    if hub_email.state == HubEmail.State.CONVERTED_TO_TICKET and hub_email.converted_ticket_id:
-        logger.info(
-            "HubEmail %s already converted to ticket %s; returning existing",
-            hub_email.pk, hub_email.converted_ticket_id,
-        )
-        return hub_email.converted_ticket
+    from apps.inbox_hub.state_machine import assert_transition
 
     # Late import to avoid the inbox_hub ↔ inbound_email circular at module
     # load time (inbound_email imports inbox_hub services from the seam).
@@ -150,14 +149,48 @@ def convert_to_ticket(hub_email, actor, *, queue=None, status=None,
     overrides = {key: value for key, value in overrides.items() if value is not None}
 
     with transaction.atomic():
+        # Re-read the lifecycle fields under a row lock so concurrent
+        # convert/dismiss requests serialize — asserting on the caller's
+        # unlocked in-memory state would let two racing terminal actions
+        # both pass the guard (reassign_hub_email locks the same way).
+        locked = (
+            HubEmail.unscoped.select_for_update()
+            .values("state", "converted_ticket_id", "first_responded_at")
+            .get(pk=hub_email.pk)
+        )
+        hub_email.state = locked["state"]
+        hub_email.converted_ticket_id = locked["converted_ticket_id"]
+        hub_email.first_responded_at = locked["first_responded_at"]
+
+        if hub_email.state == HubEmail.State.CONVERTED_TO_TICKET and hub_email.converted_ticket_id:
+            logger.info(
+                "HubEmail %s already converted to ticket %s; returning existing",
+                hub_email.pk, hub_email.converted_ticket_id,
+            )
+            return hub_email.converted_ticket
+
+        # The state machine is authoritative for terminal states: converting a
+        # DISMISSED email is illegal (ALLOWED_TRANSITIONS[DISMISSED] is empty).
+        # A CONVERTED row whose ticket has since been deleted (converted_ticket
+        # is SET_NULL) is deliberately allowed back through as a recovery path,
+        # so only assert when the row isn't already CONVERTED.
+        if hub_email.state != HubEmail.State.CONVERTED_TO_TICKET:
+            assert_transition(hub_email.state, HubEmail.State.CONVERTED_TO_TICKET)
+
         ticket = _create_ticket_from_email(
             inbound, tenant, contact, actor, overrides=overrides,
         )
 
-        # Transition HubEmail.
+        # Transition HubEmail. Converting IS the triage response — stamp
+        # first_responded_at (when unset) so the response SLA reads as met
+        # and reporting can measure time-to-triage on converted mail.
         hub_email.state = HubEmail.State.CONVERTED_TO_TICKET
         hub_email.converted_ticket = ticket
-        hub_email.save(update_fields=["state", "converted_ticket", "updated_at"])
+        update_fields = ["state", "converted_ticket", "updated_at"]
+        if hub_email.first_responded_at is None:
+            hub_email.first_responded_at = timezone.now()
+            update_fields.append("first_responded_at")
+        hub_email.save(update_fields=update_fields)
 
         _write_activity_log(
             hub_email=hub_email,
@@ -191,14 +224,30 @@ def dismiss_hub_email(hub_email, actor, reason=""):
     it drops out of triage lists.
 
     Idempotent: re-dismissing a dismissed HubEmail is a no-op.
-    """
-    if hub_email.state == HubEmail.State.DISMISSED:
-        logger.info("HubEmail %s already dismissed; no-op", hub_email.pk)
-        return hub_email
 
-    from django.utils import timezone
+    Raises ``ValueError`` when the email is in a terminal state the state
+    machine forbids dismissing from (i.e. CONVERTED_TO_TICKET).
+    """
+    from apps.inbox_hub.state_machine import assert_transition
 
     with transaction.atomic():
+        # Row-lock + re-read so a concurrent convert can't slip past the
+        # terminal guard (see convert_to_ticket for the race this closes).
+        locked_state = (
+            HubEmail.unscoped.select_for_update()
+            .values_list("state", flat=True)
+            .get(pk=hub_email.pk)
+        )
+        hub_email.state = locked_state
+
+        if locked_state == HubEmail.State.DISMISSED:
+            logger.info("HubEmail %s already dismissed; no-op", hub_email.pk)
+            return hub_email
+
+        # Terminal guard: a CONVERTED email is done — the state machine has no
+        # outgoing edges from a terminal state, so dismissing it is illegal.
+        assert_transition(locked_state, HubEmail.State.DISMISSED)
+
         hub_email.state = HubEmail.State.DISMISSED
         hub_email.dismissed_at = timezone.now()
         hub_email.dismissed_by = actor
@@ -279,9 +328,13 @@ def transition_hub_email(hub_email, new_state, actor=None, *, note=""):
 def escalate_hub_email(hub_email, actor=None, *, reason=""):
     """Escalate to the department lead.
 
-    Increments ``escalation_count``, sets ``escalated_to`` (department lead),
-    moves to ESCALATED when legal, writes EMAIL_ESCALATED, broadcasts
-    ``hub_email.escalated`` and notifies the lead.
+    Only acts on a genuine lifecycle transition into ESCALATED: increments
+    ``escalation_count``, sets ``escalated_to`` (department lead), moves the
+    state, writes EMAIL_ESCALATED, broadcasts ``hub_email.escalated`` and
+    notifies the lead. Anything else — terminal/resolved rows AND rows that
+    are already ESCALATED — is a silent no-op, so neither the 120s SLA sweep
+    nor a repeated manual escalate can inflate the counter or re-nudge the
+    lead without an actual state change.
     """
     from apps.inbox_hub.state_machine import can_transition
 
@@ -290,22 +343,15 @@ def escalate_hub_email(hub_email, actor=None, *, reason=""):
 
     with transaction.atomic():
         old_state = hub_email.state
-        can_escalate = can_transition(old_state, HubEmail.State.ESCALATED)
-        # Escalation is meaningless from a terminal/non-escalatable state
-        # (resolved/converted/dismissed). Don't bump the counter, set
-        # escalated_to, or nudge the lead for a no-op -- only re-escalation of
-        # an already-ESCALATED email is allowed to bump the count.
-        if not can_escalate and old_state != HubEmail.State.ESCALATED:
+        if not can_transition(old_state, HubEmail.State.ESCALATED):
             return hub_email
 
         hub_email.escalation_count = (hub_email.escalation_count or 0) + 1
-        update_fields = ["escalation_count", "updated_at"]
+        hub_email.state = HubEmail.State.ESCALATED
+        update_fields = ["escalation_count", "state", "updated_at"]
         if target is not None:
             hub_email.escalated_to = target
             update_fields.append("escalated_to")
-        if can_escalate:
-            hub_email.state = HubEmail.State.ESCALATED
-            update_fields.append("state")
         hub_email.save(update_fields=update_fields)
 
         _write_activity_log(
@@ -333,7 +379,6 @@ def escalate_hub_email(hub_email, actor=None, *, reason=""):
 def reassign_hub_email(hub_email, new_user, actor=None, *, reason=""):
     """Manually move an email to ``new_user`` (override; online not required)."""
     from django.db.models import F
-    from django.utils import timezone
 
     from apps.agents.models import AgentAvailability
     from apps.inbox_hub.models import HubEmailAssignment
@@ -357,11 +402,28 @@ def reassign_hub_email(hub_email, new_user, actor=None, *, reason=""):
         old_user_id = he.assignee_id
         same_user = old_user_id == new_user.pk
         he.assignee = new_user
+        update_fields = ["assignee", "first_assigned_at", "state", "updated_at"]
         if he.first_assigned_at is None:
             he.first_assigned_at = now
         if he.state == HubEmail.State.NEW:
             he.state = HubEmail.State.ASSIGNED
-        he.save(update_fields=["assignee", "first_assigned_at", "state", "updated_at"])
+        # The RESPONDER acting counts as the first response: claim/self-assign
+        # is the agent saying "I've picked this up" (the cockpit never calls
+        # ``transition``), so without this stamp every self-triaged email
+        # false-breaches its response SLA and auto-escalates. A manager merely
+        # ROUTING mail to someone else must NOT stamp — that would disarm the
+        # sat-on-mail breach + lead escalation for manually-routed mail while
+        # identical auto-assigned mail (no actor) still breaches. Engine
+        # auto-assignment (AssignmentEngine.assign_to) is a separate code path
+        # and never reaches this function.
+        if (
+            actor is not None
+            and actor.pk == new_user.pk
+            and he.first_responded_at is None
+        ):
+            he.first_responded_at = now
+            update_fields.append("first_responded_at")
+        he.save(update_fields=update_fields)
 
         # Hand the ORIGINAL customer email to the agent's personal email
         # inbox so they can read it and act on it (create ticket / reply)

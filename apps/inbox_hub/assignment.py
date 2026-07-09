@@ -12,7 +12,8 @@ Behaviour:
 - :func:`drain_department_backlog` — called when an agent comes online; assigns
   the oldest held emails in their department(s) to them, up to their capacity.
 - :func:`assign_to` — targeted assignment of a NEW/held email to a specific
-  user (used by drain and the manual assign/claim API).
+  user (engine-only: used by ``try_assign`` and drain; the manual
+  assign/reassign/claim API goes through ``services.reassign_hub_email``).
 
 Strategy chain comes from ``QueueRouting.strategy_code`` (pipe-delimited),
 default ``availability_aware|least_loaded|round_robin``. Each token contributes
@@ -118,6 +119,23 @@ def assign_to(hub_email, user, *, reason, actor=None, require_online=False):
             he.first_assigned_at = now
         he.state = HubEmail.State.ASSIGNED  # NEW -> ASSIGNED (always valid)
         he.save(update_fields=["assignee", "first_assigned_at", "state", "updated_at"])
+
+        # Hand the ORIGINAL customer email to the agent's personal Inbox
+        # (/inbox/ filters on InboundEmail.assignee), mirroring
+        # services.reassign_hub_email. The triage cockpit only lists
+        # untriaged mail, so without this stamp auto-assigned email would be
+        # visible to no one until it breached SLA. Deliberately does NOT
+        # stamp first_responded_at — engine assignment is not a response.
+        from apps.inbound_email.models import InboundEmail
+
+        inbound = he.inbound
+        if inbound is not None:
+            inbound.assignee = user
+            inbound.inbox_status = InboundEmail.InboxStatus.PENDING
+            inbound.is_read = False
+            inbound.save(update_fields=[
+                "assignee", "inbox_status", "is_read", "updated_at",
+            ])
 
         HubEmailAssignment.unscoped.create(
             tenant=tenant,
@@ -312,7 +330,9 @@ def _notify_assignment(tenant, hub_email, user, actor):
             notification_type=NotificationType.HUB_EMAIL_ASSIGNED,
             title="New email assigned to you",
             body=subject or "(no subject)",
-            data={"hub_email_id": str(hub_email.pk), "url": "/emails/"},
+            # Assigned mail is handed to the agent's personal Inbox; the
+            # triage cockpit (/emails/) has no assigned-mail lens to show it.
+            data={"hub_email_id": str(hub_email.pk), "url": "/inbox/"},
         )
     except Exception:
         logger.exception("Failed to send HUB_EMAIL_ASSIGNED notification for %s", hub_email.pk)

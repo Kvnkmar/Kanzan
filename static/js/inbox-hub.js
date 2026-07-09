@@ -2,7 +2,10 @@
  * Emails (triage) front-end controller — triage cockpit.
  *
  * The Hub lists emails for the active triage LENS (all-new / unassigned /
- * assigned-to-me / oldest-waiting / sla-at-risk — workload, not severity).
+ * oldest-waiting / sla-at-risk — workload, not severity). There is no
+ * assigned-to-me lens: once an email is assigned it leaves this desk and
+ * lives in the agent's personal Inbox (/inbox/), which filters on
+ * InboundEmail.assignee — the handoff every assignment path stamps.
  * Selecting an email shows a read-only mail view PLUS a customer-context
  * card (who is writing + our ticket history with them) so the three triage
  * actions — convert / assign / dismiss — become a one-glance decision. Each
@@ -30,11 +33,11 @@
 
   var state = {
     items: [],
-    counts: { all: 0, unassigned: 0, mine: 0, sla: 0 },
+    counts: { all: 0, unassigned: 0, sla: 0 },
     page: 1,
     next: null,
     prev: null,
-    activeLens: 'all',           // all | unassigned | mine | oldest | sla
+    activeLens: 'all',           // all | unassigned | oldest | sla
     search: '',
     selectedId: null,
     selectedDetail: null,
@@ -67,6 +70,7 @@
     detailEmpty: document.getElementById('ihDetailEmpty'),
     detailView: document.getElementById('ihDetailView'),
     detailActions: document.getElementById('ihDetailActions'),
+    detailBack: document.getElementById('ihDetailBack'),
     detailAvatar: document.getElementById('ihDetailAvatar'),
     detailSubject: document.getElementById('ihDetailSubject'),
     detailSenderName: document.getElementById('ihDetailSenderName'),
@@ -85,7 +89,6 @@
 
     countAll: document.getElementById('ihCountAll'),
     countUnassigned: document.getElementById('ihCountUnassigned'),
-    countMine: document.getElementById('ihCountMine'),
     countSla: document.getElementById('ihCountSla'),
     lensSla: document.getElementById('ihLensSla'),
 
@@ -135,7 +138,6 @@
   var LENS_LABELS = {
     all: 'Untriaged email',
     unassigned: 'Unassigned email',
-    mine: 'Assigned to me',
     oldest: 'Oldest waiting first',
     sla: 'SLA at risk',
   };
@@ -259,7 +261,6 @@
   // ---------- Rendering: list ----------
   var EMPTY_LENS_MSG = {
     unassigned: 'No unassigned email — every new message has an owner.',
-    mine: 'Nothing assigned to you right now.',
     sla: 'No email is at risk of breaching SLA.',
   };
 
@@ -359,7 +360,6 @@
   function renderCounts() {
     if (els.countAll) els.countAll.textContent = state.counts.all || 0;
     if (els.countUnassigned) els.countUnassigned.textContent = state.counts.unassigned || 0;
-    if (els.countMine) els.countMine.textContent = state.counts.mine || 0;
     if (els.countSla) els.countSla.textContent = state.counts.sla || 0;
 
     // Self-hiding "SLA at risk" lens — only meaningful when SLA policies
@@ -399,15 +399,59 @@
     if (match) match.classList.add('active');
   }
 
+  // ---------- Mobile one-pane-at-a-time (<992px) ----------
+  // The stacked mobile layout shows either the list or the detail, never
+  // both. Selecting a row opens the detail pane; Back / Esc / completing a
+  // triage action returns to the list. Widening past the breakpoint must
+  // always restore the desktop grid — a stale "detail-open" class may never
+  // survive a breakpoint crossing (see the responsive passes takeaway).
+  function isMobileViewport() {
+    return window.innerWidth < 992;
+  }
+  function openMobileDetail() {
+    if (!els.shell || !isMobileViewport()) return;
+    els.shell.classList.add('ih-shell--detail-open');
+    window.scrollTo(0, 0);   // land on the action bar + subject
+  }
+  function closeMobileDetail() {
+    if (!els.shell || !els.shell.classList.contains('ih-shell--detail-open')) return;
+    els.shell.classList.remove('ih-shell--detail-open');
+    // Restore the user's place: the hidden list loses its scroll offset
+    // (display:none resets scrollTop), so re-anchor the selected row, and —
+    // since this swap is page-like navigation — hand focus back to the
+    // listbox so keyboard/screen-reader users land where they left off.
+    var row = state.selectedId && els.listBody
+      ? els.listBody.querySelector('.ih-row[data-row-id="' + state.selectedId + '"]')
+      : null;
+    if (row && row.scrollIntoView) row.scrollIntoView({ block: 'nearest' });
+    if (isMobileViewport() && els.listBody && els.listBody.focus) {
+      els.listBody.focus({ preventScroll: true });
+    }
+  }
+  function syncMobileDetailViewport() {
+    if (!isMobileViewport()) closeMobileDetail();
+  }
+
   // ---------- Rendering: detail ----------
   function showDetailEmpty() {
     els.detailView.setAttribute('hidden', '');
     els.detailEmpty.removeAttribute('hidden');
+    // An emptied pane has nothing to look at — return mobile users to the
+    // list (fires after dismiss/convert via afterTriage, Esc, and the
+    // "selected row left the lens" refresh cleanup).
+    closeMobileDetail();
   }
 
   function showDetailView() {
     els.detailEmpty.setAttribute('hidden', '');
     els.detailView.removeAttribute('hidden');
+    // On the mobile one-pane swap this is a page-like navigation — move
+    // focus into the pane so the change is announced to screen readers
+    // (the Back button is first in tab order and self-describing).
+    if (els.shell && els.shell.classList.contains('ih-shell--detail-open') &&
+        els.detailBack && els.detailBack.focus) {
+      els.detailBack.focus({ preventScroll: true });
+    }
   }
 
   function renderDetail(row) {
@@ -499,6 +543,15 @@
     badge.className = 'ih-sla-badge';
     var due = row.sla_response_due_at;
     if (!due) { badge.hidden = true; badge.textContent = ''; return; }
+
+    // A stamped first response means the SLA sweep considers this row
+    // responded — never show deadline pressure ("overdue") on it.
+    if (row.first_responded_at) {
+      badge.classList.add('ih-sla-badge--info');
+      badge.textContent = 'responded';
+      badge.hidden = false;
+      return;
+    }
 
     if (row.response_breached) {
       badge.classList.add('ih-sla-badge--danger');
@@ -712,10 +765,6 @@
         params.set('state', 'new');
         params.set('assignee', 'unassigned');
         break;
-      case 'mine':
-        // Assigned mail has left `new`, so don't constrain state here.
-        params.set('assignee', 'me');
-        break;
       case 'oldest':
         params.set('state', 'new');
         params.set('ordering', 'created_at');   // oldest waiting first
@@ -744,12 +793,18 @@
         renderList();
         renderPagination();
         // If the selected email is no longer in the (untriaged) list, the
-        // detail pane is stale — reset it.
+        // detail pane is stale — reset it. On mobile this yanks a full-screen
+        // reader back to the list, so explain the navigation.
         if (state.selectedId &&
             !state.items.some(function (r) { return r.id === state.selectedId; })) {
+          var wasMobileReading = els.shell &&
+            els.shell.classList.contains('ih-shell--detail-open');
           state.selectedId = null;
           state.selectedDetail = null;
           showDetailEmpty();
+          if (wasMobileReading) {
+            toast('info', 'That email was triaged by someone else.');
+          }
         }
       })
       .catch(function (err) {
@@ -770,13 +825,11 @@
     return Promise.all([
       Api.get(base + '&state=new').catch(function () { return null; }),
       Api.get(base + '&state=new&assignee=unassigned').catch(function () { return null; }),
-      Api.get(base + '&assignee=me').catch(function () { return null; }),
       Api.get(base + '&sla_risk=true').catch(function () { return null; }),
     ]).then(function (results) {
       state.counts.all = results[0] ? (results[0].count || 0) : 0;
       state.counts.unassigned = results[1] ? (results[1].count || 0) : 0;
-      state.counts.mine = results[2] ? (results[2].count || 0) : 0;
-      state.counts.sla = results[3] ? (results[3].count || 0) : 0;
+      state.counts.sla = results[2] ? (results[2].count || 0) : 0;
       renderCounts();
     });
   }
@@ -787,6 +840,14 @@
       .catch(function (err) {
         toast('error', 'Could not load that email.');
         console.warn('[InboxHub] detail load failed:', err);
+        // Don't leave the NEW row highlighted while the pane still holds the
+        // PREVIOUS email — c/a/x and the action bar would hit the wrong row.
+        state.selectedId = null;
+        state.selectedDetail = null;
+        renderList();
+        // And on mobile the pane was swapped in optimistically — a failed
+        // load returns the user to the list rather than a stale/empty pane.
+        closeMobileDetail();
       });
   }
 
@@ -1312,6 +1373,16 @@
     });
     els.actionDismiss.addEventListener('click', openDismissModal);
 
+    // Mobile one-pane navigation: Back returns to the list (selection kept),
+    // and crossing the breakpoint always clears the detail-open state. Wired
+    // by class — a second Back lives in the empty/in-flight pane state so a
+    // slow or hung detail fetch can never strand the user.
+    document.querySelectorAll('.ih-detail-back').forEach(function (btn) {
+      btn.addEventListener('click', closeMobileDetail);
+    });
+    window.addEventListener('resize', syncMobileDetailViewport);
+    window.addEventListener('orientationchange', syncMobileDetailViewport);
+
     if (els.convertForm) els.convertForm.addEventListener('submit', submitConvert);
     if (els.dismissForm) els.dismissForm.addEventListener('submit', submitDismiss);
 
@@ -1372,6 +1443,7 @@
     var row = state.items.find(function (r) { return r.id === rowId; });
     loadDetail(rowId);
     loadContextFor(row);   // fires in parallel using contact_id on the row
+    openMobileDetail();    // <992px: swap the list out for the detail pane
   }
 
   function selectNextRow(delta) {

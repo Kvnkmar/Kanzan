@@ -183,7 +183,16 @@ class InboundEmailViewSet(ReadOnlyModelViewSet):
         if hub_email is not None:
             from apps.inbox_hub.services import convert_to_ticket
 
-            ticket = convert_to_ticket(hub_email, actor=request.user, **overrides)
+            try:
+                ticket = convert_to_ticket(hub_email, actor=request.user, **overrides)
+            except ValueError as exc:
+                # Terminal-state guard (e.g. the Hub side was dismissed after
+                # this email landed in the agent's personal inbox) — also
+                # surfaces other service validation errors (e.g. a tenant
+                # with no ticket statuses) as a 400 rather than a 500.
+                return Response(
+                    {"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST,
+                )
         else:
             from django.db import transaction
 

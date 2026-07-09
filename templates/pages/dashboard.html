@@ -132,92 +132,6 @@
   </div>
 </div>
 
-<!-- News Feed Create/Edit Modal -->
-{% if is_admin_or_manager %}
-<div class="modal fade" id="nfModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="nfModalTitle">New Post</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body">
-        <input type="hidden" id="nfEditId" value="">
-        <div class="mb-3">
-          <label class="form-label">Title</label>
-          <input type="text" class="form-control" id="nfTitle" maxlength="200" placeholder="Post title...">
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Content</label>
-          <textarea class="form-control" id="nfContent" rows="5" placeholder="What's the news?"></textarea>
-        </div>
-        <div class="row g-3">
-          <div class="col-4">
-            <label class="form-label">Category</label>
-            <select class="form-select" id="nfCategory">
-              <option value="general">General</option>
-              <option value="announcement">Announcement</option>
-              <option value="update">Update</option>
-              <option value="celebration">Celebration</option>
-              <option value="incident">Incident</option>
-            </select>
-          </div>
-          <div class="col-2">
-            <label class="form-label">Pinned</label>
-            <div class="form-check form-switch mt-1">
-              <input class="form-check-input" type="checkbox" id="nfPinned">
-            </div>
-          </div>
-          <div class="col-2">
-            <label class="form-label">Published</label>
-            <div class="form-check form-switch mt-1">
-              <input class="form-check-input" type="checkbox" id="nfPublished" checked>
-            </div>
-          </div>
-          <div class="col-2">
-            <label class="form-label">Urgent</label>
-            <div class="form-check form-switch mt-1">
-              <input class="form-check-input" type="checkbox" id="nfUrgent">
-            </div>
-          </div>
-        </div>
-        <div class="mt-3">
-          <label class="form-label">Expires at <small class="text-muted">(optional — defaults to 24 hours)</small></label>
-          <input type="datetime-local" class="form-control form-control-sm" id="nfExpiresAt">
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-primary" id="nfSaveBtn">Publish</button>
-      </div>
-    </div>
-  </div>
-</div>
-{% endif %}
-
-<!-- News Feed Detail Modal (read full post) -->
-<div class="modal fade" id="nfDetailModal" tabindex="-1">
-  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
-    <div class="modal-content">
-      <div class="modal-header" id="nfDetailHeader">
-        <div class="d-flex align-items-center gap-3" style="min-width:0;flex:1;">
-          <div id="nfDetailIcon" class="nf-post__icon"></div>
-          <div style="min-width:0;flex:1;">
-            <h5 class="modal-title mb-0" id="nfDetailTitle" style="font-weight:700;"></h5>
-            <div class="d-flex align-items-center gap-2 mt-1" id="nfDetailMeta"></div>
-          </div>
-        </div>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-      <div class="modal-body" id="nfDetailBody">
-        <div id="nfDetailContent" style="font-size:0.875rem;line-height:1.7;color:var(--crm-text);white-space:pre-wrap;margin-bottom:16px;"></div>
-        <div id="nfDetailReactions" class="nf-reactions"></div>
-        <div id="nfDetailComments" class="nf-comments"></div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <!-- Today's Trends -->
 <div class="card mb-3">
   <div class="card-body p-0">
@@ -419,6 +333,102 @@
   </div>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block overlays %}
+{% comment %}
+  Newsfeed modals render at <body> level (NOT inside .crm-page-content).
+  A modal nested in the content subtree gets trapped in that subtree's
+  stacking context, so the body-level .modal-backdrop paints OVER the modal
+  and swallows clicks (the whole page reads as uninteractable). Rendering them
+  through the body-level overlays block keeps each modal above its backdrop.
+  Same fix as the Inbox Hub #ihConvertPanel.
+{% endcomment %}
+<!-- News Feed Create/Edit Modal -->
+{% if is_admin_or_manager %}
+<div class="modal fade" id="nfModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="nfModalTitle">New Post</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="nfEditId" value="">
+        <div class="mb-3">
+          <label class="form-label">Title</label>
+          <input type="text" class="form-control" id="nfTitle" maxlength="200" placeholder="Post title...">
+        </div>
+        <div class="mb-3">
+          <label class="form-label">Content</label>
+          <textarea class="form-control" id="nfContent" rows="5" placeholder="What's the news?"></textarea>
+        </div>
+        <div class="row g-3">
+          <div class="col-4">
+            <label class="form-label">Category</label>
+            <select class="form-select" id="nfCategory">
+              <option value="general">General</option>
+              <option value="announcement">Announcement</option>
+              <option value="update">Update</option>
+              <option value="celebration">Celebration</option>
+              <option value="incident">Incident</option>
+            </select>
+          </div>
+          <div class="col-2">
+            <label class="form-label">Pinned</label>
+            <div class="form-check form-switch mt-1">
+              <input class="form-check-input" type="checkbox" id="nfPinned">
+            </div>
+          </div>
+          <div class="col-2">
+            <label class="form-label">Published</label>
+            <div class="form-check form-switch mt-1">
+              <input class="form-check-input" type="checkbox" id="nfPublished" checked>
+            </div>
+          </div>
+          <div class="col-2">
+            <label class="form-label">Urgent</label>
+            <div class="form-check form-switch mt-1">
+              <input class="form-check-input" type="checkbox" id="nfUrgent">
+            </div>
+          </div>
+        </div>
+        <div class="mt-3">
+          <label class="form-label">Expires at <small class="text-muted">(optional — defaults to 24 hours)</small></label>
+          <input type="datetime-local" class="form-control form-control-sm" id="nfExpiresAt">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-ghost" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="nfSaveBtn">Publish</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- News Feed Detail Modal (read full post) -->
+<div class="modal fade" id="nfDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" id="nfDetailHeader">
+        <div class="d-flex align-items-center gap-3" style="min-width:0;flex:1;">
+          <div id="nfDetailIcon" class="nf-post__icon"></div>
+          <div style="min-width:0;flex:1;">
+            <h5 class="modal-title mb-0" id="nfDetailTitle" style="font-weight:700;"></h5>
+            <div class="d-flex align-items-center gap-2 mt-1" id="nfDetailMeta"></div>
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="nfDetailBody">
+        <div id="nfDetailContent" style="font-size:0.875rem;line-height:1.7;color:var(--crm-text);white-space:pre-wrap;margin-bottom:16px;"></div>
+        <div id="nfDetailReactions" class="nf-reactions"></div>
+        <div id="nfDetailComments" class="nf-comments"></div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -1368,15 +1378,20 @@
     if (!container) return;
     while (container.firstChild) container.removeChild(container.firstChild);
 
-    if (!tickets || tickets.length === 0) {
+    // The tickets list endpoint ignores ?page_size (no page_size_query_param),
+    // so it returns up to PAGE_SIZE (50) rows. Cap the rendered set to keep the
+    // DOM light; the card shows ~5 rows and scrolls for the rest (the viewport
+    // is sized to a whole number of rows in CSS, so no partial row is clipped).
+    var items = (tickets || []).slice(0, 15);
+    if (items.length === 0) {
       showEmpty(container, 'activity', 'No recent activity.');
       return;
     }
 
     var fragment = document.createDocumentFragment();
-    tickets.forEach(function(t, idx) {
+    items.forEach(function(t, idx) {
       var dotColor = t.status_color || 'var(--status-neutral-dot)';
-      var isLast = idx === tickets.length - 1;
+      var isLast = idx === items.length - 1;
 
       var link = document.createElement('a');
       link.href = '/tickets/' + (t.number || t.id) + '/';
@@ -1674,12 +1689,25 @@
   function getPageCount() {
     return Math.max(1, Math.ceil(filteredPosts.length / PAGE_SIZE));
   }
+  // Size the carousel to the ACTIVE slide, not the tallest one. Because the
+  // track is a flex row, its natural height would be the tallest page — so a
+  // short last page (fewer posts, especially in the single-column mobile
+  // layout) would render with a large empty gap below the card. Measuring the
+  // active slide and pinning the track height collapses that gap.
+  function syncCarouselHeight() {
+    var track = document.querySelector('.nf-carousel__track');
+    if (!track) return;
+    var active = track.querySelectorAll('.nf-carousel__slide')[currentSlide];
+    if (active) track.style.height = active.offsetHeight + 'px';
+  }
+
   function goToSlide(index) {
     var pageCount = getPageCount();
     if (index < 0 || index >= pageCount) return;
     currentSlide = index;
     var track = document.querySelector('.nf-carousel__track');
     if (track) track.style.transform = 'translateX(-' + (currentSlide * 100) + '%)';
+    syncCarouselHeight();
     updateDots();
     updateArrows();
     updateCounter();
@@ -2173,7 +2201,15 @@
 
     // Render summaries for every post (across all pages)
     filteredPosts.forEach(function(post) { renderPostSummary(post.id); });
+
+    // Summaries can change card height, so re-measure the active slide.
+    syncCarouselHeight();
   }
+
+  // The single/two/four-column layout switches at breakpoints, so slide
+  // heights change with viewport width — re-pin the active slide's height.
+  window.addEventListener('resize', syncCarouselHeight);
+  window.addEventListener('orientationchange', syncCarouselHeight);
 
   // Keyboard navigation
   document.addEventListener('keydown', function(e) {

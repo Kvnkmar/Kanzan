@@ -226,6 +226,47 @@ class TestAssignmentEngine:
         assert he.state == HubEmail.State.ASSIGNED
         assert he.first_assigned_at is not None
 
+    def test_auto_assign_hands_off_to_personal_inbox(self):
+        """Engine assignment must stamp the InboundEmail handoff fields.
+
+        The cockpit has no assigned-mail lens (assigned mail leaves the
+        desk), so /inbox/ — which filters on ``InboundEmail.assignee`` — is
+        the only surface where the agent can find an auto-assigned email.
+        """
+        from apps.inbound_email.models import InboundEmail
+        from apps.inbox_hub.assignment import AssignmentEngine
+
+        tenant = TenantFactory()
+        lead = UserFactory()
+        dept = _department(tenant, lead)
+        agent = _online_dept_agent(tenant, dept)
+        he = _hub_email(tenant, department=dept)
+        # Pre-set the opposite values so the stamp (not a default) is proven.
+        InboundEmail.objects.filter(pk=he.inbound_id).update(is_read=True)
+
+        result = AssignmentEngine.try_assign(he)
+        assert result == agent
+
+        inbound = InboundEmail.objects.get(pk=he.inbound_id)
+        assert inbound.assignee_id == agent.id
+        assert inbound.inbox_status == InboundEmail.InboxStatus.PENDING
+        assert inbound.is_read is False
+
+    def test_auto_assign_does_not_stamp_first_responded(self):
+        """The inbox handoff must not weaken the SLA durability layer —
+        engine assignment is not a response (see §SLA-Response Fix)."""
+        from apps.inbox_hub.assignment import AssignmentEngine
+
+        tenant = TenantFactory()
+        lead = UserFactory()
+        dept = _department(tenant, lead)
+        _online_dept_agent(tenant, dept)
+        he = _hub_email(tenant, department=dept)
+
+        assert AssignmentEngine.try_assign(he) is not None
+        he.refresh_from_db()
+        assert he.first_responded_at is None
+
     def test_holds_when_no_agent_online(self):
         from apps.inbox_hub.assignment import AssignmentEngine
         from apps.inbox_hub.models import HubEmail

@@ -121,6 +121,17 @@ class HubEmail(TenantScopedModel):
         HIGH = "high", "High"
         URGENT = "urgent", "Urgent"
 
+    # States the SLA sweep (check_hub_sla_breaches) and the "SLA at risk"
+    # lens treat as active. MUST stay in lockstep with the
+    # ih_email_active_sla_due partial-index condition in Meta below.
+    ACTIVE_SLA_STATES = (
+        State.NEW,
+        State.ASSIGNED,
+        State.IN_PROGRESS,
+        State.PENDING_AGENT,
+        State.ESCALATED,
+    )
+
     # Relationships
     inbound = models.OneToOneField(
         "inbound_email.InboundEmail",
@@ -236,10 +247,14 @@ class HubEmail(TenantScopedModel):
                 name="ih_email_t_dept_state",
             ),
             # Partial index for the active-SLA hot path used by
-            # check_hub_email_sla_breaches and the SLA-risk saved view.
+            # check_hub_sla_breaches and the SLA-risk saved view. Must cover
+            # every state the sweep queries — including "escalated", which the
+            # sweep keeps watching for resolution breaches.
             models.Index(
                 fields=["tenant", "sla_response_due_at"],
-                condition=Q(state__in=["new", "assigned", "in_progress", "pending_agent"]),
+                condition=Q(state__in=[
+                    "new", "assigned", "in_progress", "pending_agent", "escalated",
+                ]),
                 name="ih_email_active_sla_due",
             ),
         ]

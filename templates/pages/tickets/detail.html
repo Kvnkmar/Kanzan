@@ -421,7 +421,7 @@ span.flatpickr-weekday {
           <!-- Presence Bar -->
           <div id="presenceBar" class="d-none px-3 py-2 border-bottom" style="background:var(--bs-body-bg);">
             <div class="d-flex align-items-center gap-2">
-              <div id="presenceAvatars" class="d-flex align-items-center" style="gap:-.25rem;"></div>
+              <div id="presenceAvatars" class="d-flex align-items-center"></div>
               <span id="presenceWarning" class="small text-warning d-none">
                 <i class="ti ti-alert-triangle me-1"></i><span id="presenceWarningText"></span>
               </span>
@@ -992,7 +992,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
   var AUTOSAVE_DEBOUNCE_MS = 600;
   var CONTACT_SEARCH_DEBOUNCE_MS = 300;
   var MAX_FILE_SIZE = 25 * 1024 * 1024; // 25 MB
-  var AVATAR_COLORS = ['var(--crm-primary)','var(--crm-primary)','var(--crm-primary)','var(--crm-primary-active)','var(--status-neutral-dot)','var(--crm-primary)','var(--crm-accent)','var(--crm-accent)','var(--crm-primary-300)','var(--status-neutral-dot)'];
+  // Avatar colours unified to a single red (--crm-avatar-bg) — see avatarColor().
   var SLA_ICON_FONT_SIZE = '0.625rem';
 
   /* ── State ── */
@@ -1086,11 +1086,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
   }
 
   /* ── Utility Functions ── */
-  function avatarColor(name) {
-    var h = 0;
-    for (var i = 0; i < (name || '').length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-    return AVATAR_COLORS[Math.abs(h) % AVATAR_COLORS.length];
-  }
+  function avatarColor(name) { return 'var(--crm-avatar-bg)'; }
 
   function formatDateTime(dateStr) {
     return Kanzan.formatDateTime(dateStr);
@@ -3487,8 +3483,8 @@ window.dispatchEvent(new Event('tiptap-ready'));
   /* ============================================================
      Contact Detail Slide Panel
      ============================================================ */
-  var CPANEL_AVATAR_COLORS = ['var(--crm-primary)','var(--crm-primary-active)','var(--crm-primary)','var(--crm-primary-active)','var(--status-neutral-dot)','var(--crm-primary)','var(--crm-accent)','var(--crm-accent)','var(--crm-primary-300)','var(--status-neutral-dot)'];
-  function cpAvatarColor(name) { if (!name) return CPANEL_AVATAR_COLORS[0]; for (var i = 0, h = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h); return CPANEL_AVATAR_COLORS[Math.abs(h) % CPANEL_AVATAR_COLORS.length]; }
+  // Single red identity avatar (--crm-avatar-bg); app-wide single-red convention.
+  function cpAvatarColor(name) { return 'var(--crm-avatar-bg)'; }
 
   window.TicketContactPanel = {
     panel: document.getElementById('contactDetailPanel'),
