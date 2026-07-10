@@ -170,15 +170,33 @@ class HasTenantPermission(BasePermission):
 
         effective_role = membership.effective_role
 
-        # Check explicit permissions first. When a temporary role is active
-        # with a curated `temporary_permissions` allow-list, this returns the
-        # intersection of role perms and the allow-list — the admin-restricted
-        # subset.
-        effective_perms = membership.get_effective_permissions_qs()
-        if effective_perms.exists():
+        # A curated `temporary_permissions` allow-list is a HARD restriction:
+        # an admin deliberately narrowed an active temporary role to a subset,
+        # so enforce it strictly with NO hierarchy fall-through. (Outside this
+        # case, get_effective_permissions_qs() == the effective role's perms.)
+        if (
+            membership.has_active_temporary_role
+            and membership.temporary_permissions.exists()
+        ):
             return membership.has_effective_permission(codename)
 
-        # Fallback: hierarchy-based defaults when no permissions are assigned
+        # Otherwise, explicit role permissions are ADDITIVE over the hierarchy
+        # floor: an explicit grant allows, and anything NOT explicitly granted
+        # falls through to the hierarchy default below.
+        #
+        # This deliberately replaces the old all-or-nothing branch (which, the
+        # moment a role held ANY explicit perm, hard-DENIED every codename the
+        # role lacked — including resources with no codename in the catalogue at
+        # all). With the catalogue now fully seeded and roles carrying their
+        # blueprint perms, that all-or-nothing form would 403 legitimate actions
+        # (e.g. Admin on custom-fields/kanban, which have no codename). Treating
+        # grants as additive makes fine-grained perms meaningful — Team Lead's
+        # delete/export, an Agent's ticket.assign — while the hierarchy floor
+        # guarantees a catalogue gap never silently locks anyone out.
+        if membership.has_effective_permission(codename):
+            return True
+
+        # Hierarchy floor: sensible defaults keyed on role seniority.
         level = effective_role.hierarchy_level
         if action_verb == "view":
             return level <= 40          # Everyone can view

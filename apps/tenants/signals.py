@@ -92,7 +92,14 @@ def _assign_default_role_permissions(tenant):
 
     for defn in ROLE_DEFINITIONS:
         try:
-            role = Role.objects.get(tenant=tenant, slug=defn["slug"])
+            # Resolve via the UNSCOPED manager. This signal fires from
+            # Tenant.post_save, which frequently runs with NO tenant bound in
+            # context (the provision_tenant command, Django admin on the bare
+            # domain, the self-service setup_company page, a shell, or any test
+            # factory). Under the tenant-scoped `Role.objects` that fails closed
+            # to `.none()` -> DoesNotExist -> every role would be seeded with 0
+            # permissions, leaving the tenant on the coarse hierarchy fallback.
+            role = Role.unscoped.get(tenant=tenant, slug=defn["slug"])
         except Role.DoesNotExist:
             continue
         perm_objects = [all_perms[c] for c in defn["codenames"] if c in all_perms]
