@@ -305,14 +305,36 @@ def login_page(request):
 
     error = None
     if request.method == "POST":
+        from apps.accounts import ratelimit
+
         email = request.POST.get("email", "").strip()
         password = request.POST.get("password", "")
+        ip = ratelimit.client_ip(request)
+        email_key = email.lower()
+
+        # Brute-force guard: block once too many recent failures pile up on
+        # this IP or this account (this view bypasses DRF's throttles).
+        if ratelimit.is_blocked("login-ip", ip, ratelimit.LOGIN_IP) or (
+            email_key and ratelimit.is_blocked("login-email", email_key, ratelimit.LOGIN_EMAIL)
+        ):
+            error = "Too many sign-in attempts. Please wait a few minutes and try again."
+            return render(request, "pages/login.html", {"error": error})
+
         user = authenticate(request, email=email, password=password)
         if user is not None:
+            ratelimit.reset("login-ip", ip)
+            if email_key:
+                ratelimit.reset("login-email", email_key)
             login(request, user)
             _stamp_session_auth_version(request, user)
             return _post_auth_redirect(user, request.GET.get("next"))
-        # authenticate() returns None for inactive users too (unverified email).
+
+        # Failed attempt -- count it toward the limit. authenticate() returns
+        # None for inactive users too (unverified email).
+        ratelimit.record_hit("login-ip", ip, ratelimit.LOGIN_IP)
+        if email_key:
+            ratelimit.record_hit("login-email", email_key, ratelimit.LOGIN_EMAIL)
+
         from django.contrib.auth import get_user_model
 
         User = get_user_model()
@@ -342,7 +364,17 @@ def register_page(request):
     if request.method == "POST":
         from django.contrib.auth import get_user_model
 
+        from apps.accounts import ratelimit
+
         User = get_user_model()
+        ip = ratelimit.client_ip(request)
+
+        # Flood guard: each successful sign-up sends a verification email, so
+        # cap sign-ups per IP to stop mailbox bombing (this view bypasses DRF).
+        if ratelimit.is_blocked("register-ip", ip, ratelimit.REGISTER_IP):
+            error = "Too many sign-up attempts from this location. Please try again later."
+            return render(request, "pages/register.html", {"error": error})
+
         email = request.POST.get("email", "").strip().lower()
         password = request.POST.get("password", "")
         password2 = request.POST.get("password2", "")
@@ -369,6 +401,7 @@ def register_page(request):
                     is_active=False,
                 )
                 _send_email_verification(user)
+                ratelimit.record_hit("register-ip", ip, ratelimit.REGISTER_IP)
                 return redirect(
                     f"{reverse('frontend:verify-email-sent')}?{urlencode({'email': user.email})}"
                 )
@@ -494,6 +527,12 @@ def setup_company_page(request):
                     TenantMembership.objects.create(
                         user=request.user, tenant=tenant, role=admin_role,
                     )
+                    # Seed default ticket statuses/queues/categories so the
+                    # workspace can create its first ticket immediately -- a
+                    # fresh tenant otherwise 400s on "No default status".
+                    from apps.tickets.defaults import seed_default_ticket_config
+
+                    seed_default_ticket_config(tenant)
             except IntegrityError:
                 error = "That workspace URL is already taken. Please choose another."
             else:

@@ -1389,7 +1389,10 @@ class TicketViewSet(ModelViewSet):
                         status=status.HTTP_403_FORBIDDEN,
                     )
 
-        tickets = Ticket.objects.filter(id__in=ticket_ids)
+        # Scope to the caller's visible queryset (NOT Ticket.objects) so an
+        # agent cannot bulk-act on tickets outside their row-level visibility
+        # (get_queryset applies agent_visible_tickets_q for hierarchy > 20).
+        tickets = self.get_queryset().filter(id__in=ticket_ids)
         if tickets.count() != len(ticket_ids):
             return Response(
                 {"error": "Some tickets not found or access denied."},
@@ -2362,12 +2365,32 @@ class TicketViewSet(ModelViewSet):
     # ------------------------------------------------------------------
 
     def perform_destroy(self, instance):
-        """Soft-delete instead of hard-delete."""
+        """Soft-delete instead of hard-delete, writing a DELETED audit row for
+        parity with the bulk-delete path (services.bulk_update_tickets). Both
+        the soft-delete and its audit row commit together (both-or-neither)."""
+        from django.db import transaction
         from django.utils import timezone as tz
-        instance.is_deleted = True
-        instance.deleted_at = tz.now()
-        instance.deleted_by = self.request.user
-        instance.save(update_fields=["is_deleted", "deleted_at", "deleted_by", "updated_at"])
+
+        from apps.comments.models import ActivityLog
+        from apps.comments.services import log_activity
+
+        ticket_number = instance.number
+        with transaction.atomic():
+            instance.is_deleted = True
+            instance.deleted_at = tz.now()
+            instance.deleted_by = self.request.user
+            instance._skip_signal_logging = True
+            instance.save(
+                update_fields=["is_deleted", "deleted_at", "deleted_by", "updated_at"]
+            )
+            log_activity(
+                tenant=instance.tenant,
+                actor=self.request.user,
+                content_object=instance,
+                action=ActivityLog.Action.DELETED,
+                description=f"Deleted ticket #{ticket_number}",
+                request=self.request,
+            )
 
     @extend_schema(
         summary="Restore a soft-deleted ticket",

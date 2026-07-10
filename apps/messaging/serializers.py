@@ -415,6 +415,26 @@ class ConversationCreateSerializer(serializers.Serializer):
                 raise serializers.ValidationError(
                     {"ticket_id": "Required for ticket conversations."}
                 )
+            # SECURITY: any additional participants must be active members of
+            # this tenant. The DIRECT/GROUP paths were hardened in Sprint 0 but
+            # the TICKET path was missed — without this a member could inject a
+            # cross-tenant user, and a posted message would then push a preview
+            # to that non-member over their notifications socket.
+            if tenant and attrs.get("user_ids"):
+                valid_ids = set(
+                    TenantMembership.objects.filter(
+                        user_id__in=attrs["user_ids"],
+                        tenant=tenant,
+                        is_active=True,
+                    ).values_list("user_id", flat=True)
+                )
+                invalid = {str(u) for u in attrs["user_ids"]} - {
+                    str(u) for u in valid_ids
+                }
+                if invalid:
+                    raise serializers.ValidationError(
+                        {"user_ids": "One or more users are not members of this tenant."}
+                    )
 
         return attrs
 
@@ -451,6 +471,18 @@ class ConversationCreateSerializer(serializers.Serializer):
         )
         if existing:
             return existing
+
+        # Defence-in-depth: the other party must be an active member of this
+        # tenant (validate() enforces this too when a tenant is bound). Mirrors
+        # the fail-closed re-filter on the TICKET write path.
+        from apps.accounts.models import TenantMembership
+
+        if not TenantMembership.objects.filter(
+            user_id=other_user_id, tenant=tenant, is_active=True
+        ).exists():
+            raise serializers.ValidationError(
+                {"user_id": "User is not a member of this tenant."}
+            )
 
         conversation = Conversation(
             tenant=tenant,
@@ -512,8 +544,16 @@ class ConversationCreateSerializer(serializers.Serializer):
                 current_user_ids = set(
                     existing.participant_details.values_list("user_id", flat=True)
                 )
+                # Re-filter to active tenant members (a member removed from the
+                # tenant after joining the group must not be re-added here).
+                from apps.accounts.models import TenantMembership
+
                 group_member_ids = set(
-                    source_group.members.values_list("id", flat=True)
+                    TenantMembership.objects.filter(
+                        user_id__in=source_group.members.values_list("id", flat=True),
+                        tenant=tenant,
+                        is_active=True,
+                    ).values_list("user_id", flat=True)
                 )
                 group_member_ids.add(current_user.pk)
                 to_add = group_member_ids - current_user_ids
@@ -540,6 +580,20 @@ class ConversationCreateSerializer(serializers.Serializer):
             source_group=source_group,
         )
         conversation.save()
+
+        # Defence-in-depth: only add active tenant members (mirrors the TICKET
+        # path). Covers both the manual ``user_ids`` and the UserGroup-seeded
+        # roster, and fails closed if a tenant is somehow not bound.
+        if participant_ids:
+            from apps.accounts.models import TenantMembership
+
+            participant_ids = set(
+                TenantMembership.objects.filter(
+                    user_id__in=participant_ids,
+                    tenant=tenant,
+                    is_active=True,
+                ).values_list("user_id", flat=True)
+            )
 
         # Always include the creator as a participant
         participant_ids.add(current_user.pk)
@@ -594,8 +648,22 @@ class ConversationCreateSerializer(serializers.Serializer):
         )
         conversation.save()
 
-        # Include the creator and any additional specified participants
+        # Include the creator and any additional specified participants.
+        # Defence-in-depth: only add participants who are active members of this
+        # tenant (validate() rejects cross-tenant ids up front, but keep the
+        # write path safe for the existing-conversation reuse above and any
+        # internal caller).
         participant_ids = set(data.get("user_ids", []))
+        if participant_ids:
+            from apps.accounts.models import TenantMembership
+
+            participant_ids = set(
+                TenantMembership.objects.filter(
+                    user_id__in=participant_ids,
+                    tenant=tenant,
+                    is_active=True,
+                ).values_list("user_id", flat=True)
+            )
         participant_ids.add(current_user.pk)
 
         ConversationParticipant.objects.bulk_create([

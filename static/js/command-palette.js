@@ -25,7 +25,7 @@
 
   var ACTIONS = [
     { title: 'New Ticket',  icon: 'ti ti-plus', url: '/tickets/new/', desc: 'Create a support ticket' },
-    { title: 'New Contact', icon: 'ti ti-plus', url: '/contacts/new/', desc: 'Add a new contact' },
+    { title: 'New Contact', icon: 'ti ti-plus', url: '/contacts/create/', desc: 'Add a new contact' },
   ];
 
   function escapeHtml(s) {

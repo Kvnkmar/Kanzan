@@ -16,27 +16,8 @@ Creates the following queues (idempotent -- skips existing names):
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.tenants.models import Tenant
+from apps.tickets.defaults import DEFAULT_QUEUES
 from apps.tickets.models import Queue
-
-
-DEFAULT_QUEUES = [
-    {
-        "name": "Support",
-        "description": "General support requests and customer inquiries.",
-    },
-    {
-        "name": "Billing",
-        "description": "Billing, payment, and subscription issues.",
-    },
-    {
-        "name": "Technical",
-        "description": "Technical issues, bugs, and feature requests.",
-    },
-    {
-        "name": "General",
-        "description": "General inquiries and miscellaneous requests.",
-    },
-]
 
 
 class Command(BaseCommand):

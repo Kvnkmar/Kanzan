@@ -231,6 +231,11 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.ScopedRateThrottle",
         "apps.api_keys.throttling.APIKeyRateThrottle",
+        # Baseline per-user and per-anon caps so no authenticated session/JWT
+        # user (or anonymous client) can hammer the API unbounded. Views that
+        # need a tighter cap set ``throttle_scope`` (auth / api_heavy).
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.AnonRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "auth": "10/min",
@@ -238,6 +243,10 @@ REST_FRAMEWORK = {
         "api_heavy": "30/min",
         "webhook": "60/min",
         "api_key": "1000/hour",
+        # Generous baselines (tune down for prod); the point is to bound abuse,
+        # not to constrain normal use. Heavy endpoints add api_heavy on top.
+        "user": "1000/min",
+        "anon": "60/min",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,

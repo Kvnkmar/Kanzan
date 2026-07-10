@@ -102,6 +102,31 @@ def send_notification(
     if notification_type in INTERNAL_ONLY_TYPES:
         deliver_email = False
 
+    # Defence-in-depth: never DELIVER a tenant's notification to a user who is
+    # not an active member of that tenant. Participant/recipient lists are
+    # validated at add-time elsewhere, but a user who later loses membership
+    # (or was added via any unguarded path) must not keep receiving this
+    # tenant's real-time previews on their per-user WebSocket group -- that
+    # group is NOT tenant-scoped. The row is still persisted (it is
+    # tenant-scoped and unreadable by a non-member); only live delivery is
+    # suppressed. Skip the lookup entirely when nothing would be delivered.
+    if deliver_in_app or deliver_email:
+        from apps.accounts.models import TenantMembership
+
+        recipient_is_member = TenantMembership.objects.filter(
+            user=recipient, tenant=tenant, is_active=True
+        ).exists()
+        if not recipient_is_member:
+            logger.warning(
+                "send_notification: recipient %s is not an active member of "
+                "tenant %s; suppressing delivery (type=%s).",
+                getattr(recipient, "id", recipient),
+                getattr(tenant, "id", tenant),
+                notification_type,
+            )
+            deliver_in_app = False
+            deliver_email = False
+
     # 3. In-app push via Channels ----------------------------------------
     # 4. Email via Celery ------------------------------------------------
     # Both are deferred to transaction.on_commit() so they only fire after

@@ -551,6 +551,9 @@ class KBSearchView(APIView):
     """Full-text search across published knowledge base articles."""
 
     permission_classes = [IsAuthenticated]
+    # Search is comparatively expensive (a full-text query per call); cap it
+    # tighter than the per-user baseline.
+    throttle_scope = "api_heavy"
 
     def get(self, request):
         from apps.knowledge.search import AGENT_VISIBILITY, kb_search

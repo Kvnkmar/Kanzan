@@ -297,7 +297,25 @@ class ContactViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        contacts = Contact.objects.filter(id__in=contact_ids)
+        # Bulk delete permanently removes contacts and is irreversible, so
+        # restrict it to Manager+ (hierarchy_level <= 20). The bulk_action
+        # permission maps to "update" (which agents hold), but a mass delete
+        # is a higher-privilege operation — mirrors TicketViewSet.bulk_action.
+        if action_name == "delete":
+            from apps.accounts.permissions import _get_membership
+
+            tenant = getattr(request, "tenant", None)
+            membership = _get_membership(request, tenant) if tenant else None
+            if not request.user.is_superuser:
+                if membership is None or membership.effective_role.hierarchy_level > 20:
+                    return Response(
+                        {"error": "You do not have permission to delete contacts."},
+                        status=status.HTTP_403_FORBIDDEN,
+                    )
+
+        # Scope to the caller's visible queryset (NOT Contact.objects) so an
+        # agent cannot act on contacts outside their row-level visibility.
+        contacts = self.get_queryset().filter(id__in=contact_ids)
         if contacts.count() != len(contact_ids):
             return Response(
                 {"error": "Some contacts not found or access denied."},

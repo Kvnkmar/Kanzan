@@ -17,51 +17,8 @@ Creates the following statuses (idempotent -- skips existing slugs):
 from django.core.management.base import BaseCommand, CommandError
 
 from apps.tenants.models import Tenant
+from apps.tickets.defaults import DEFAULT_STATUSES
 from apps.tickets.models import TicketStatus
-
-
-DEFAULT_STATUSES = [
-    {
-        "name": "Open",
-        "slug": "open",
-        "color": "#0d6efd",
-        "order": 10,
-        "is_closed": False,
-        "is_default": True,
-    },
-    {
-        "name": "In Progress",
-        "slug": "in-progress",
-        "color": "#ffc107",
-        "order": 20,
-        "is_closed": False,
-        "is_default": False,
-    },
-    {
-        "name": "Waiting",
-        "slug": "waiting",
-        "color": "#6c757d",
-        "order": 30,
-        "is_closed": False,
-        "is_default": False,
-    },
-    {
-        "name": "Resolved",
-        "slug": "resolved",
-        "color": "#198754",
-        "order": 40,
-        "is_closed": False,
-        "is_default": False,
-    },
-    {
-        "name": "Closed",
-        "slug": "closed",
-        "color": "#dc3545",
-        "order": 50,
-        "is_closed": True,
-        "is_default": False,
-    },
-]
 
 
 class Command(BaseCommand):

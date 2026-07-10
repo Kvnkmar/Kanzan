@@ -2634,7 +2634,7 @@ function switchSettingsTab(targetId) {
       var btn = this; var sp = document.getElementById('exportSpinner');
       btn.disabled = true; sp.classList.remove('d-none');
       try {
-        await Api.post('/api/v1/analytics/export-jobs/', {
+        await Api.post('/api/v1/analytics/exports/', {
           resource_type: document.getElementById('exportResourceType').value,
           export_type: document.getElementById('exportFormat').value
         });
@@ -4535,7 +4535,7 @@ function switchSettingsTab(targetId) {
   var NO_RELOAD_PREFIXES = [
     '/api/v1/tenants/settings/test-email',
     '/api/v1/notifications/notifications/cleanup',
-    '/api/v1/analytics/export-jobs',
+    '/api/v1/analytics/exports',
   ];
   function shouldSuppress(url) {
     if (typeof url !== 'string') return true;

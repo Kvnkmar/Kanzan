@@ -15,18 +15,26 @@ logger = logging.getLogger(__name__)
 
 # Paths that bypass subscription enforcement entirely.
 EXEMPT_PATH_PREFIXES = (
+    "/healthz",
+    "/readyz",
     "/admin/",
     "/static/",
     "/media/",
     "/api/v1/accounts/auth/",
-    "/api/v1/billing/plans/",
-    "/api/v1/billing/webhook/",
+    # The ENTIRE billing API must stay reachable while lapsed -- otherwise the
+    # very endpoints needed to re-subscribe (checkout / subscription) sit behind
+    # the 402 wall and the tenant can never pay, a self-inflicted lockout.
+    "/api/v1/billing/",
     "/api/docs/",
     "/api/schema/",
     "/accounts/",
     "/login/",
     "/register/",
     "/logout/",
+    # The cross-host session handoff runs on the tenant subdomain; without this
+    # a lapsed tenant's user 402s before a session can be established, so they
+    # can never even reach the (exempt) /billing/ page to fix payment.
+    "/auth/handoff/",
     "/billing/",
     "/favicon",
 )
