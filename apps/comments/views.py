@@ -19,6 +19,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.accounts.permissions import IsTenantMember
 from apps.comments.models import ActivityLog, Comment, CommentRead
 from apps.comments.serializers import (
     ActivityLogSerializer,
@@ -184,7 +185,12 @@ class CommentViewSet(viewsets.ModelViewSet):
     UI rendering without N+1 queries.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    # IsTenantMember is load-bearing: get_queryset scopes by the Host-derived
+    # tenant, and the row filter below deny-restricts only members above level
+    # 20. Without it, a non-member OR an offboarded member (is_active=False,
+    # _get_membership -> None) reached get_queryset, skipped the restriction,
+    # and read the tenant's comments including internal-note bodies.
+    permission_classes = [permissions.IsAuthenticated, IsTenantMember]
     filterset_class = CommentFilter
     search_fields = ["body"]
     ordering_fields = ["created_at"]
@@ -211,7 +217,9 @@ class CommentViewSet(viewsets.ModelViewSet):
                 from apps.accounts.permissions import _get_membership
 
                 membership = _get_membership(self.request, tenant)
-                if membership and membership.effective_role.hierarchy_level > 20:
+                # Deny-first: membership is None means non-member or offboarded
+                # (the most hostile caller) -> apply the restriction, never skip it.
+                if membership is None or membership.effective_role.hierarchy_level > 20:
                     from django.db.models import Q
                     from apps.tickets.models import Ticket
 
@@ -358,7 +366,9 @@ class ActivityLogViewSet(viewsets.ReadOnlyModelViewSet):
                 from apps.accounts.permissions import _get_membership
 
                 membership = _get_membership(self.request, tenant)
-                if membership and membership.effective_role.hierarchy_level > 20:
+                # Deny-first: membership is None means non-member or offboarded
+                # (the most hostile caller) -> apply the restriction, never skip it.
+                if membership is None or membership.effective_role.hierarchy_level > 20:
                     from django.db.models import Q
                     from apps.tickets.models import Ticket
 

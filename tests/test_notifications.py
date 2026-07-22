@@ -89,3 +89,68 @@ class TestCleanupTask:
 
         # Recent one should still exist
         assert Notification.unscoped.filter(pk=recent_notif.pk).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+class TestSendNotificationMembershipGuard:
+    """send_notification must not DELIVER a tenant's notification to a user who
+    is not an active member of that tenant. The per-user WebSocket group is not
+    tenant-scoped, so a stale/cross-tenant recipient would otherwise keep
+    receiving live previews. Row is persisted; only delivery is suppressed."""
+
+    def _patch_delivery(self, monkeypatch):
+        from apps.notifications import services
+        pushes, emails = [], []
+        monkeypatch.setattr(services, "_push_to_websocket", lambda n: pushes.append(n))
+        monkeypatch.setattr(services, "_queue_email", lambda n: emails.append(n))
+        return pushes, emails
+
+    def test_delivery_suppressed_for_non_member(self, monkeypatch):
+        from apps.notifications import services
+        from apps.notifications.models import Notification, NotificationType
+        from conftest import MembershipFactory, TenantFactory
+
+        tenant = TenantFactory(slug="notif-guard-a")
+        other = TenantFactory(slug="notif-guard-b")
+        foreign = MembershipFactory(tenant=other).user  # not a member of `tenant`
+
+        pushes, emails = self._patch_delivery(monkeypatch)
+        notif = services.send_notification(
+            tenant, foreign, NotificationType.MESSAGE, "hi",
+        )
+        assert pushes == []          # no live preview to a non-member
+        assert emails == []
+        # The row is still persisted (tenant-scoped, unreadable by a non-member).
+        assert Notification.unscoped.filter(pk=notif.pk).exists()
+
+    def test_delivery_reaches_member(self, monkeypatch):
+        from apps.notifications import services
+        from apps.notifications.models import NotificationType
+        from conftest import MembershipFactory, TenantFactory
+
+        tenant = TenantFactory(slug="notif-guard-c")
+        member = MembershipFactory(tenant=tenant).user
+
+        pushes, _ = self._patch_delivery(monkeypatch)
+        services.send_notification(
+            tenant, member, NotificationType.MESSAGE, "hi",
+        )
+        assert len(pushes) == 1      # active member still gets the live push
+
+    def test_delivery_suppressed_for_deactivated_member(self, monkeypatch):
+        """The exact 'lost membership' case the fix targets: a user who WAS an
+        active member but whose membership was set is_active=False must stop
+        receiving live pushes (the is_active clause of the guard)."""
+        from apps.notifications import services
+        from apps.notifications.models import NotificationType
+        from conftest import MembershipFactory, TenantFactory
+
+        tenant = TenantFactory(slug="notif-guard-deact")
+        member = MembershipFactory(tenant=tenant, is_active=False).user  # deactivated
+
+        pushes, emails = self._patch_delivery(monkeypatch)
+        services.send_notification(
+            tenant, member, NotificationType.MESSAGE, "hi",
+        )
+        assert pushes == []
+        assert emails == []

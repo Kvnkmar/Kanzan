@@ -198,8 +198,44 @@ class AttachmentViewSet(
         return AttachmentSerializer
 
     def get_queryset(self):
-        return Attachment.objects.select_related(
-            "uploaded_by", "content_type"
+        qs = Attachment.objects.select_related("uploaded_by", "content_type")
+
+        # Detail routes (retrieve / download / destroy) are gated per-object by
+        # CanAccessAttachmentObject, so the queryset stays broad there. The LIST
+        # action has no object-level hook — without this, an Agent could
+        # enumerate every attachment (and its raw /media/ URL) in the tenant,
+        # including files on tickets they can't see. Restrict list results:
+        # Manager+ see all; others see their own uploads + files on tickets
+        # visible to them.
+        if self.action != "list":
+            return qs
+
+        from apps.accounts.permissions import _get_membership
+
+        tenant = getattr(self.request, "tenant", None)
+        if tenant is None:
+            return qs.none()
+        membership = _get_membership(self.request, tenant)
+        if membership is None:
+            return qs.none()
+        if membership.effective_role.hierarchy_level <= 20:
+            return qs
+
+        from django.contrib.contenttypes.models import ContentType
+        from django.db.models import Q
+
+        from apps.tickets.access import agent_visible_tickets_q
+        from apps.tickets.models import Ticket
+
+        ticket_ct = ContentType.objects.get_for_model(Ticket)
+        visible_ticket_ids = list(
+            Ticket.objects.filter(
+                agent_visible_tickets_q(self.request.user)
+            ).values_list("id", flat=True)
+        )
+        return qs.filter(
+            Q(uploaded_by=self.request.user)
+            | Q(content_type=ticket_ct, object_id__in=visible_ticket_ids)
         )
 
     @action(detail=True, methods=["get"])

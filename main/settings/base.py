@@ -231,6 +231,11 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.ScopedRateThrottle",
         "apps.api_keys.throttling.APIKeyRateThrottle",
+        # Baseline per-user and per-anon caps so no authenticated session/JWT
+        # user (or anonymous client) can hammer the API unbounded. Views that
+        # need a tighter cap set ``throttle_scope`` (auth / api_heavy).
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.AnonRateThrottle",
     ],
     "DEFAULT_THROTTLE_RATES": {
         "auth": "10/min",
@@ -238,6 +243,10 @@ REST_FRAMEWORK = {
         "api_heavy": "30/min",
         "webhook": "60/min",
         "api_key": "1000/hour",
+        # Generous baselines (tune down for prod); the point is to bound abuse,
+        # not to constrain normal use. Heavy endpoints add api_heavy on top.
+        "user": "1000/min",
+        "anon": "60/min",
     },
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,
@@ -410,6 +419,13 @@ ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_EMAIL_VERIFICATION = "optional"
 SOCIALACCOUNT_AUTO_SIGNUP = True
+# Local email/password signup is handled exclusively by the app's own
+# verified-signup flow (register_page / AuthViewSet.register, which create the
+# account inactive until the email is confirmed). This adapter disables
+# allauth's built-in /accounts/signup/ so it can't mint immediately-active,
+# unverified accounts. Social (SSO) signup is governed by the social adapter and
+# is unaffected.
+ACCOUNT_ADAPTER = "apps.accounts.adapters.NoLocalSignupAccountAdapter"
 
 # File upload limits
 FILE_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024  # 25MB

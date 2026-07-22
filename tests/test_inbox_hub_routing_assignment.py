@@ -659,3 +659,45 @@ class TestInboxHubDepartmentGate:
         resp = admin_client.get("/api/v1/nav/badge-counts/")
         assert resp.status_code == 200
         assert resp.data["inbox_hub"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# reassign_hub_email membership guard (defense-in-depth)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestReassignMembershipGuard:
+    """reassign_hub_email must reject a target who is not an active member of
+    the email's tenant. The API views already call _require_member, but the
+    service is the last line of defence for internal/future callers (the
+    AssignSerializer.assignee_id queryset is globally unscoped)."""
+
+    def test_reassign_to_non_member_raises(self):
+        from conftest import MembershipFactory
+        from apps.inbox_hub.services import reassign_hub_email
+
+        tenant = TenantFactory()
+        other = TenantFactory(slug="other-tenant-guard")
+        foreign = MembershipFactory(tenant=other).user  # not a member of `tenant`
+        he = _hub_email(tenant)
+
+        with pytest.raises(ValueError):
+            reassign_hub_email(he, foreign, actor=None)
+
+    def test_reassign_to_member_succeeds(self):
+        from conftest import MembershipFactory
+        from apps.inbox_hub.models import HubEmail
+        from apps.inbox_hub.services import reassign_hub_email
+
+        tenant = TenantFactory()
+        member = MembershipFactory(tenant=tenant).user
+        he = _hub_email(tenant)
+
+        set_current_tenant(tenant)
+        try:
+            reassign_hub_email(he, member, actor=None)
+        finally:
+            clear_current_tenant()
+
+        assert HubEmail.unscoped.get(pk=he.pk).assignee_id == member.id

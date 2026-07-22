@@ -842,3 +842,206 @@ class TestFireDueReminders:
         # A later tick must NOT retry the already-claimed reminder.
         fire_due_reminders()
         assert calls["n"] == 1
+
+
+# ---------------------------------------------------------------------------
+# 8. bulk-action security (horizontal priv-esc / IDOR)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+class TestReminderBulkActionSecurity:
+    """Regression tests for the bulk-action horizontal privilege escalation.
+
+    ``bulk_action`` previously built its target set from ``Reminder.objects``
+    (tenant-scoped only), skipping the agent row restriction that
+    ``get_object()`` applies for single-item actions — so an agent could
+    complete/cancel/reschedule/reassign ANY reminder in the tenant, and reassign
+    them to a user outside the tenant (global ``User.objects`` lookup).
+    """
+
+    def test_agent_cannot_bulk_complete_others_reminder(
+        self, tenant, admin_user, agent_user, agent_client
+    ):
+        # Owned entirely by the admin — the agent is neither creator nor assignee.
+        other = _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(hours=1),
+            assigned_to=admin_user,
+        )
+        resp = agent_client.post(
+            "/api/v1/crm/reminders/bulk-action/",
+            {"action": "complete", "reminder_ids": [str(other.id)]},
+            format="json",
+        )
+        assert resp.status_code == 404
+        other.refresh_from_db()
+        assert other.completed_at is None
+
+    def test_agent_cannot_bulk_reassign_others_reminder(
+        self, tenant, admin_user, agent_user, agent_client
+    ):
+        other = _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(hours=1),
+            assigned_to=admin_user,
+        )
+        resp = agent_client.post(
+            "/api/v1/crm/reminders/bulk-action/",
+            {
+                "action": "reassign",
+                "reminder_ids": [str(other.id)],
+                "assigned_to": str(agent_user.id),
+            },
+            format="json",
+        )
+        assert resp.status_code == 404
+        other.refresh_from_db()
+        assert other.assigned_to_id == admin_user.id
+
+    def test_agent_can_bulk_complete_own_reminder(
+        self, tenant, admin_user, agent_user, agent_client
+    ):
+        mine = _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(hours=1),
+            assigned_to=agent_user,
+        )
+        resp = agent_client.post(
+            "/api/v1/crm/reminders/bulk-action/",
+            {"action": "complete", "reminder_ids": [str(mine.id)]},
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert resp.data["updated"] == 1
+
+    def test_bulk_reassign_to_non_member_rejected(
+        self, tenant, tenant_b, admin_user, admin_client
+    ):
+        mine = _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(hours=1),
+            assigned_to=admin_user,
+        )
+        foreign = MembershipFactory(tenant=tenant_b).user  # member of B only
+        resp = admin_client.post(
+            "/api/v1/crm/reminders/bulk-action/",
+            {
+                "action": "reassign",
+                "reminder_ids": [str(mine.id)],
+                "assigned_to": str(foreign.id),
+            },
+            format="json",
+        )
+        assert resp.status_code == 400
+        mine.refresh_from_db()
+        assert mine.assigned_to_id == admin_user.id
+
+    def test_manager_can_bulk_reassign_to_member(
+        self, tenant, admin_user, agent_user, manager_client
+    ):
+        r = _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(hours=1),
+            assigned_to=admin_user,
+        )
+        resp = manager_client.post(
+            "/api/v1/crm/reminders/bulk-action/",
+            {
+                "action": "reassign",
+                "reminder_ids": [str(r.id)],
+                "assigned_to": str(agent_user.id),
+            },
+            format="json",
+        )
+        assert resp.status_code == 200
+        assert resp.data["updated"] == 1
+        r.refresh_from_db()
+        assert r.assigned_to_id == agent_user.id
+
+    def test_agent_cannot_bulk_cancel_others_reminder(
+        self, tenant, admin_user, agent_user, agent_client
+    ):
+        other = _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(hours=1),
+            assigned_to=admin_user,
+        )
+        resp = agent_client.post(
+            "/api/v1/crm/reminders/bulk-action/",
+            {"action": "cancel", "reminder_ids": [str(other.id)]},
+            format="json",
+        )
+        assert resp.status_code == 404
+        other.refresh_from_db()
+        assert other.cancelled_at is None
+
+    def test_agent_cannot_bulk_reschedule_others_reminder(
+        self, tenant, admin_user, agent_user, agent_client
+    ):
+        original = timezone.now() - timedelta(hours=1)
+        other = _create_reminder(
+            tenant, admin_user, scheduled_at=original, assigned_to=admin_user,
+        )
+        resp = agent_client.post(
+            "/api/v1/crm/reminders/bulk-action/",
+            {
+                "action": "reschedule",
+                "reminder_ids": [str(other.id)],
+                "scheduled_at": (timezone.now() + timedelta(days=3)).isoformat(),
+            },
+            format="json",
+        )
+        assert resp.status_code == 404
+        other.refresh_from_db()
+        assert abs((other.scheduled_at - original).total_seconds()) < 1
+
+    def test_bulk_reassign_to_inactive_member_rejected(
+        self, tenant, admin_user, admin_client
+    ):
+        """The is_active=True clause: a deactivated membership is not a valid
+        reassign target even though the user was once in the tenant."""
+        from apps.accounts.models import TenantMembership
+
+        r = _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(hours=1),
+            assigned_to=admin_user,
+        )
+        deactivated = MembershipFactory(tenant=tenant, is_active=False).user
+        resp = admin_client.post(
+            "/api/v1/crm/reminders/bulk-action/",
+            {
+                "action": "reassign",
+                "reminder_ids": [str(r.id)],
+                "assigned_to": str(deactivated.id),
+            },
+            format="json",
+        )
+        assert resp.status_code == 400
+        r.refresh_from_db()
+        assert r.assigned_to_id == admin_user.id
+
+    def test_agent_mixed_ownership_batch_all_or_nothing(
+        self, tenant, admin_user, agent_user, agent_client
+    ):
+        """A batch mixing an owned + a not-owned reminder is rejected wholesale
+        (found_count guard), so nothing is mutated."""
+        mine = _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(hours=1),
+            assigned_to=agent_user,
+        )
+        other = _create_reminder(
+            tenant, admin_user,
+            scheduled_at=timezone.now() - timedelta(hours=1),
+            assigned_to=admin_user,
+        )
+        resp = agent_client.post(
+            "/api/v1/crm/reminders/bulk-action/",
+            {"action": "complete", "reminder_ids": [str(mine.id), str(other.id)]},
+            format="json",
+        )
+        assert resp.status_code == 404
+        mine.refresh_from_db()
+        assert mine.completed_at is None  # own reminder untouched too

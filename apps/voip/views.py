@@ -17,7 +17,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.accounts.permissions import HasTenantPermission, IsTenantMember
+from apps.accounts.permissions import (
+    HasTenantPermission,
+    IsAgentOrAbove,
+    IsTenantAdminOrManager,
+    IsTenantMember,
+)
 from apps.voip.models import (
     CallLog,
     CallQueue,
@@ -96,13 +101,17 @@ class VoIPSettingsViewSet(viewsets.ModelViewSet):
 )
 class ExtensionViewSet(viewsets.ModelViewSet):
     """
-    CRUD for SIP extensions.
+    CRUD for SIP extensions — Admin/Manager only.
 
-    Admins can manage all extensions. Agents can view their own.
+    The ``voip`` resources carry no RBAC codename, so ``HasTenantPermission``
+    fell through to the level-<=30 hierarchy floor and an Agent could PATCH any
+    extension's ``user`` to point it at themselves, then read the victim's
+    ``sip_password`` via /sip-credentials/. Extensions are tenant VoIP config;
+    gate the whole viewset to Admin/Manager. Agents obtain their own credentials
+    through ``SIPCredentialsView`` (scoped to ``user=request.user``).
     """
 
-    permission_classes = [IsAuthenticated, HasTenantPermission]
-    permission_resource = "voip_extension"
+    permission_classes = [IsAuthenticated, IsTenantAdminOrManager]
     search_fields = ["user__email", "user__first_name", "extension_number"]
     ordering_fields = ["extension_number", "created_at"]
     ordering = ["extension_number"]
@@ -141,6 +150,8 @@ class SIPCredentialsView(APIView):
     GET /api/v1/voip/sip-credentials/
     """
 
+    # Self-scoped (user=request.user), so any member may fetch only their own
+    # credentials — no need to raise the floor here.
     permission_classes = [IsAuthenticated, IsTenantMember]
 
     def get(self, request):
@@ -216,7 +227,7 @@ class CallLogViewSet(viewsets.ModelViewSet):
     Supports linking calls to contacts and tickets, and updating notes.
     """
 
-    permission_classes = [IsAuthenticated, IsTenantMember]
+    permission_classes = [IsAuthenticated, IsAgentOrAbove]
     search_fields = ["caller_number", "callee_number", "notes"]
     filterset_fields = ["direction", "status", "contact", "ticket"]
     ordering_fields = ["started_at", "duration_seconds"]
@@ -299,7 +310,7 @@ class InitiateCallView(APIView):
     {"callee_number": "+1234567890", "contact_id": "...", "ticket_id": "..."}
     """
 
-    permission_classes = [IsAuthenticated, IsTenantMember]
+    permission_classes = [IsAuthenticated, IsAgentOrAbove]
 
     def post(self, request):
         serializer = InitiateCallSerializer(data=request.data)
@@ -395,7 +406,7 @@ class CallHoldView(APIView):
     POST /api/v1/voip/calls/<id>/hold/
     """
 
-    permission_classes = [IsAuthenticated, IsTenantMember]
+    permission_classes = [IsAuthenticated, IsAgentOrAbove]
 
     def post(self, request, pk):
         try:
@@ -433,7 +444,7 @@ class CallTransferView(APIView):
     {"target_number": "1002"}
     """
 
-    permission_classes = [IsAuthenticated, IsTenantMember]
+    permission_classes = [IsAuthenticated, IsAgentOrAbove]
 
     def post(self, request, pk):
         serializer = CallActionSerializer(data=request.data)
@@ -480,7 +491,7 @@ class CallHangupView(APIView):
     POST /api/v1/voip/calls/<id>/hangup/
     """
 
-    permission_classes = [IsAuthenticated, IsTenantMember]
+    permission_classes = [IsAuthenticated, IsAgentOrAbove]
 
     def post(self, request, pk):
         try:
@@ -526,7 +537,7 @@ class CallRecordingDownloadView(APIView):
     GET /api/v1/voip/recordings/<id>/
     """
 
-    permission_classes = [IsAuthenticated, IsTenantMember]
+    permission_classes = [IsAuthenticated, IsAgentOrAbove]
 
     def get(self, request, pk):
         try:

@@ -1111,7 +1111,10 @@ window.dispatchEvent(new Event('tiptap-ready'));
     if (!str) return '';
     var div = document.createElement('div');
     div.textContent = str;
-    return div.innerHTML;
+    // textContent->innerHTML escapes & < > but NOT quotes; this helper is used
+    // inside attribute values (alt="...", aria-label="..."), so escape quotes
+    // too or an attacker-controlled filename breaks out of the attribute.
+    return div.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function getInitials(name) {
@@ -1592,7 +1595,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
               '<button type="button" class="btn btn-link btn-sm p-0 ms-2 text-danger comment-delete-btn td-comment-delete-btn" data-comment-id="' + c.id + '" title="Delete comment" aria-label="Delete comment"><i class="ti ti-trash" aria-hidden="true"></i></button>' +
             '</span>' +
           '</div>' +
-          '<div class="td-comment-text">' + (c.body || '') + '</div>' +
+          '<div class="td-comment-text">' + DOMPurify.sanitize(c.body || '') + '</div>' +
           attachHtml +
         '</div>';
       fragment.appendChild(div);

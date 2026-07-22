@@ -229,22 +229,9 @@
   </div>
 </nav>
 
-<!-- Side Drawer (Offcanvas) -->
-<div class="offcanvas offcanvas-end audit-drawer" tabindex="-1" id="auditDetailDrawer" aria-labelledby="auditDrawerTitle">
-  <div class="offcanvas-header audit-drawer-header">
-    <h5 class="offcanvas-title" id="auditDrawerTitle">Activity Detail</h5>
-    <div class="audit-drawer-nav">
-      <button class="audit-drawer-nav-btn" id="drawerPrev" title="Previous entry" disabled>
-        <i class="ti ti-chevron-up"></i>
-      </button>
-      <button class="audit-drawer-nav-btn" id="drawerNext" title="Next entry" disabled>
-        <i class="ti ti-chevron-down"></i>
-      </button>
-      <button type="button" class="btn-close ms-2" data-bs-dismiss="offcanvas" aria-label="Close"></button>
-    </div>
-  </div>
-  <div class="offcanvas-body" id="auditDetailBody"></div>
-</div>
+<!-- Activity detail drawer + inbound-email modal render at body level via the
+     overlays block at the bottom of this template. Keeping them inside
+     #pane-activity trapped the offcanvas in the pane's transform containing block. -->
 
 </div><!-- /#pane-activity -->
 
@@ -372,25 +359,55 @@
     </div>
   </nav>
 
-  <!-- Detail Modal -->
-  <div class="modal fade" id="ibeDetailModal" tabindex="-1" aria-labelledby="ibeDetailTitle" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title" id="ibeDetailTitle">Email Details</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body" id="ibeDetailBody">
-          <div class="text-center py-4">
-            <div class="spinner-border spinner-border-sm" role="status"></div>
-          </div>
+  <!-- Detail Modal renders at body level via the overlays block below. -->
+
+</div><!-- /#pane-inbound-email -->
+</div><!-- /#auditSectionTabContent -->
+{% endblock %}
+
+{% comment %}
+  Page-level overlays render at <body> level (base.html {% block overlays %}),
+  NOT inside .crm-page-content. #pane-activity carries a persistent transform
+  (kz-fade-up entrance, animation-fill-mode: both), which makes it the
+  containing block for any position:fixed descendant — that trapped the
+  offcanvas drawer against the pane's right edge and shrank its backdrop to the
+  content column. Body-level placement attaches the offcanvas backdrop to <body>
+  so it covers the full viewport, and keeps the modal in the root stacking context.
+{% endcomment %}
+{% block overlays %}
+<!-- Activity detail drawer (Offcanvas) -->
+<div class="offcanvas offcanvas-end audit-drawer" tabindex="-1" id="auditDetailDrawer" aria-labelledby="auditDrawerTitle">
+  <div class="offcanvas-header audit-drawer-header">
+    <h5 class="offcanvas-title" id="auditDrawerTitle">Activity Detail</h5>
+    <div class="audit-drawer-nav">
+      <button class="audit-drawer-nav-btn" id="drawerPrev" title="Previous entry" disabled>
+        <i class="ti ti-chevron-up"></i>
+      </button>
+      <button class="audit-drawer-nav-btn" id="drawerNext" title="Next entry" disabled>
+        <i class="ti ti-chevron-down"></i>
+      </button>
+      <button type="button" class="btn-close ms-2" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+    </div>
+  </div>
+  <div class="offcanvas-body" id="auditDetailBody"></div>
+</div>
+
+<!-- Inbound-email detail modal -->
+<div class="modal fade" id="ibeDetailModal" tabindex="-1" aria-labelledby="ibeDetailTitle" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="ibeDetailTitle">Email Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="ibeDetailBody">
+        <div class="text-center py-4">
+          <div class="spinner-border spinner-border-sm" role="status"></div>
         </div>
       </div>
     </div>
   </div>
-
-</div><!-- /#pane-inbound-email -->
-</div><!-- /#auditSectionTabContent -->
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -2086,7 +2103,10 @@
   }
 
   function showDetail(emailId) {
-    var modal = new bootstrap.Modal(document.getElementById('ibeDetailModal'));
+    // getOrCreateInstance (not `new`) — reuse the single instance so repeated
+    // clicks don't spawn duplicate Modals whose backdrops orphan and stick as a
+    // black overlay.
+    var modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('ibeDetailModal'));
     var body = document.getElementById('ibeDetailBody');
     body.textContent = '';
     var loadSpinner = document.createElement('div');

@@ -14,7 +14,7 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsTenantMember
+from apps.accounts.permissions import IsAgentOrAbove, IsTenantMember
 from apps.kanban.models import Board, CardPosition, Column
 from apps.kanban.serializers import (
     BoardDetailSerializer,
@@ -65,6 +65,17 @@ class BoardViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsTenantMember]
     permission_resource = "kanban"
     lookup_field = "pk"
+
+    def get_permissions(self):
+        # NB: HasTenantPermission is intentionally NOT used here (kanban has no
+        # codenames), so permission_resource above is inert. Gate writes
+        # explicitly instead, or a Viewer (level 40) creates/deletes team
+        # boards and `populate` mutates ticket state. Reads stay member-open.
+        if self.action in (
+            "create", "update", "partial_update", "destroy", "populate",
+        ):
+            return [permissions.IsAuthenticated(), IsTenantMember(), IsAgentOrAbove()]
+        return [permissions.IsAuthenticated(), IsTenantMember()]
 
     def get_queryset(self):
         # Order: team boards before personal, default within each group first,
@@ -159,6 +170,11 @@ class ColumnViewSet(viewsets.ModelViewSet):
     serializer_class = ColumnSerializer
     permission_classes = [permissions.IsAuthenticated, IsTenantMember]
 
+    def get_permissions(self):
+        if self.action in ("create", "update", "partial_update", "destroy"):
+            return [permissions.IsAuthenticated(), IsTenantMember(), IsAgentOrAbove()]
+        return [permissions.IsAuthenticated(), IsTenantMember()]
+
     def get_queryset(self):
         from django.db.models import Count
 
@@ -250,6 +266,16 @@ class CardPositionViewSet(viewsets.ModelViewSet):
 
     serializer_class = CardPositionSerializer
     permission_classes = [permissions.IsAuthenticated, IsTenantMember]
+
+    def get_permissions(self):
+        # add_ticket / move / reorder change ticket status (they route through
+        # the tickets service), so a Viewer must not reach them.
+        if self.action in (
+            "create", "update", "partial_update", "destroy",
+            "add_ticket", "move", "reorder",
+        ):
+            return [permissions.IsAuthenticated(), IsTenantMember(), IsAgentOrAbove()]
+        return [permissions.IsAuthenticated(), IsTenantMember()]
 
     def get_queryset(self):
         board_pk = self.kwargs.get("board_pk")

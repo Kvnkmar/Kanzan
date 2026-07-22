@@ -170,15 +170,33 @@ class HasTenantPermission(BasePermission):
 
         effective_role = membership.effective_role
 
-        # Check explicit permissions first. When a temporary role is active
-        # with a curated `temporary_permissions` allow-list, this returns the
-        # intersection of role perms and the allow-list — the admin-restricted
-        # subset.
-        effective_perms = membership.get_effective_permissions_qs()
-        if effective_perms.exists():
+        # A curated `temporary_permissions` allow-list is a HARD restriction:
+        # an admin deliberately narrowed an active temporary role to a subset,
+        # so enforce it strictly with NO hierarchy fall-through. (Outside this
+        # case, get_effective_permissions_qs() == the effective role's perms.)
+        if (
+            membership.has_active_temporary_role
+            and membership.temporary_permissions.exists()
+        ):
             return membership.has_effective_permission(codename)
 
-        # Fallback: hierarchy-based defaults when no permissions are assigned
+        # Otherwise, explicit role permissions are ADDITIVE over the hierarchy
+        # floor: an explicit grant allows, and anything NOT explicitly granted
+        # falls through to the hierarchy default below.
+        #
+        # This deliberately replaces the old all-or-nothing branch (which, the
+        # moment a role held ANY explicit perm, hard-DENIED every codename the
+        # role lacked — including resources with no codename in the catalogue at
+        # all). With the catalogue now fully seeded and roles carrying their
+        # blueprint perms, that all-or-nothing form would 403 legitimate actions
+        # (e.g. Admin on custom-fields/kanban, which have no codename). Treating
+        # grants as additive makes fine-grained perms meaningful — Team Lead's
+        # delete/export, an Agent's ticket.assign — while the hierarchy floor
+        # guarantees a catalogue gap never silently locks anyone out.
+        if membership.has_effective_permission(codename):
+            return True
+
+        # Hierarchy floor: sensible defaults keyed on role seniority.
         level = effective_role.hierarchy_level
         if action_verb == "view":
             return level <= 40          # Everyone can view
@@ -288,3 +306,63 @@ class IsTenantAdminOrManager(BasePermission):
             return False
 
         return membership.effective_role.hierarchy_level <= 20
+
+
+class IsSelfOrTenantManager(BasePermission):
+    """
+    Object-level permission: allow Admin/Manager (effective hierarchy <= 20)
+    to act on any member, and allow any member to act on *their own* record.
+
+    Used for ``UserViewSet`` writes so an Agent can edit their own profile but
+    cannot modify (or, with ``is_active`` read-only, disable) another member —
+    closing the hierarchy-floor gap where ``user.update`` fell through to the
+    ``<=30`` create/update default.
+    """
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        # Must be an active member of the current tenant to reach the object
+        # check at all (blocks a JWT from tenant A used against tenant B).
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            return False
+        return _get_membership(request, tenant) is not None
+
+    def has_object_permission(self, request, view, obj):
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            return False
+        membership = _get_membership(request, tenant)
+        if membership is None:
+            return False
+        if membership.effective_role.hierarchy_level <= 20:
+            return True
+        return obj == request.user
+
+
+class IsAgentOrAbove(BasePermission):
+    """Active member whose effective role is Agent-tier or higher (hierarchy
+    ``<= 30``) — i.e. everyone except Viewer (level 40).
+
+    Use this to gate WRITE actions on viewsets that would otherwise rely on the
+    RBAC hierarchy floor, WITHOUT routing custom ``@action`` method names through
+    ``ACTION_MAP`` (an unmapped action falls through ``HasTenantPermission`` and
+    is denied, silently breaking the feature). Fails closed when the user is not
+    an active member of the Host-resolved tenant, so it also blocks a foreign
+    JWT and an offboarded member.
+    """
+
+    def has_permission(self, request, view):
+        user = request.user
+        if not user or not user.is_authenticated:
+            return False
+        tenant = getattr(request, "tenant", None)
+        if tenant is None:
+            return False
+        membership = _get_membership(request, tenant)
+        return (
+            membership is not None
+            and membership.effective_role.hierarchy_level <= 30
+        )

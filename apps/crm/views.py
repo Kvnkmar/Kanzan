@@ -20,7 +20,11 @@ from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsTenantAdminOrManager, IsTenantMember
+from apps.accounts.permissions import (
+    IsAgentOrAbove,
+    IsTenantAdminOrManager,
+    IsTenantMember,
+)
 from apps.comments.models import ActivityLog
 from apps.comments.services import log_activity
 from apps.crm.models import Activity, Reminder
@@ -73,6 +77,16 @@ class ActivityViewSet(viewsets.ModelViewSet):
 
     serializer_class = ActivitySerializer
     permission_classes = [IsAuthenticated, IsTenantMember]
+
+    def get_permissions(self):
+        # No permission_resource -> HasTenantPermission is not used, so without
+        # this a Viewer (level 40) could create/update/delete CRM activities.
+        # Block writes below Agent tier; deletes require Admin/Manager.
+        if self.action in ("create", "update", "partial_update"):
+            return [IsAuthenticated(), IsTenantMember(), IsAgentOrAbove()]
+        if self.action == "destroy":
+            return [IsAuthenticated(), IsTenantMember(), IsTenantAdminOrManager()]
+        return [IsAuthenticated(), IsTenantMember()]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
@@ -367,10 +381,28 @@ class ReminderViewSet(viewsets.ModelViewSet):
     ordering_fields = ["scheduled_at", "priority", "created_at"]
     ordering = ["scheduled_at"]
 
-    def get_queryset(self):
-        if getattr(self, "swagger_fake_view", False):
-            return Reminder.objects.none()
+    def get_permissions(self):
+        # No permission_resource -> HasTenantPermission is unused. Block a
+        # Viewer (level 40) from mutating reminders, including via the custom
+        # write actions. Deletes require Admin/Manager.
+        if self.action in (
+            "create", "update", "partial_update",
+            "complete", "cancel", "reschedule", "bulk_action",
+        ):
+            return [IsAuthenticated(), IsTenantMember(), IsAgentOrAbove()]
+        if self.action == "destroy":
+            return [IsAuthenticated(), IsTenantMember(), IsTenantAdminOrManager()]
+        return [IsAuthenticated(), IsTenantMember()]
 
+    def _base_reminder_queryset(self):
+        """Tenant-scoped reminders with the agent row-level restriction applied.
+
+        Agents (``hierarchy_level > 20``) may only see or act on reminders they
+        created or are assigned to. Shared by ``get_queryset`` and
+        ``bulk_action`` so bulk operations enforce the same ownership rule that
+        ``get_object`` applies to single-item actions — otherwise an agent could
+        complete/cancel/reschedule/reassign *any* reminder in the tenant.
+        """
         qs = Reminder.objects.select_related(
             "created_by", "assigned_to",
         ).prefetch_related("contacts", "tickets")
@@ -391,6 +423,13 @@ class ReminderViewSet(viewsets.ModelViewSet):
                     qs = qs.filter(
                         Q(assigned_to=user) | Q(created_by=user)
                     )
+        return qs
+
+    def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Reminder.objects.none()
+
+        qs = self._base_reminder_queryset()
 
         params = self.request.query_params
 
@@ -662,7 +701,11 @@ class ReminderViewSet(viewsets.ModelViewSet):
         reminder_ids = data["reminder_ids"]
         now = timezone.now()
 
-        reminders = Reminder.objects.filter(id__in=reminder_ids)
+        # SECURITY: scope to reminders this user is actually allowed to act on
+        # (tenant + agent row restriction), mirroring get_object() for the
+        # single-item actions. Using Reminder.objects here would let an agent
+        # bulk-mutate any reminder in the tenant (horizontal priv-esc / IDOR).
+        reminders = self._base_reminder_queryset().filter(id__in=reminder_ids)
         found_count = reminders.count()
         if found_count != len(reminder_ids):
             return Response(
@@ -691,10 +734,21 @@ class ReminderViewSet(viewsets.ModelViewSet):
             ).update(scheduled_at=new_time, updated_at=now)
 
         elif action_name == "reassign":
-            new_user = User.objects.filter(pk=data["assigned_to"]).first()
+            # SECURITY: only allow reassigning to an active member of THIS
+            # tenant. User.objects is global, so an unscoped pk lookup would let
+            # a manager reassign reminders to a user outside the tenant.
+            tenant = getattr(request, "tenant", None)
+            new_user = None
+            if tenant:
+                from apps.accounts.models import TenantMembership
+
+                if TenantMembership.objects.filter(
+                    user_id=data["assigned_to"], tenant=tenant, is_active=True
+                ).exists():
+                    new_user = User.objects.filter(pk=data["assigned_to"]).first()
             if not new_user:
                 return Response(
-                    {"detail": "Target user not found."},
+                    {"detail": "Target user is not an active member of this tenant."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
             updated = reminders.update(assigned_to=new_user, updated_at=now)

@@ -386,6 +386,19 @@ def reassign_hub_email(hub_email, new_user, actor=None, *, reason=""):
     tenant = hub_email.tenant
     now = timezone.now()
 
+    # Defence-in-depth: the target must be an active member of THIS tenant.
+    # The API views already call ``_require_member`` before reaching here, but
+    # this service is otherwise the last line of defence for any internal /
+    # future caller (the AssignSerializer.assignee_id queryset is unscoped).
+    from apps.accounts.models import TenantMembership
+
+    if not TenantMembership.objects.filter(
+        user=new_user, tenant=tenant, is_active=True
+    ).exists():
+        raise ValueError(
+            "Cannot assign to a user who is not an active member of this tenant."
+        )
+
     with transaction.atomic():
         he = HubEmail.unscoped.select_for_update().get(pk=hub_email.pk)
 

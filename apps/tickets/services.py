@@ -1363,7 +1363,29 @@ def bulk_update_tickets(tickets, action, params, user, request=None):
 
             elif action == "delete":
                 ticket_number = ticket.number
-                ticket.delete()
+                # Soft-delete, consistent with the single-ticket DELETE path
+                # (views.py perform_destroy). Bulk "delete" used to call
+                # ticket.delete() -- a HARD delete with no ActivityLog and no
+                # deleted_by, so bulk-deleted tickets were irreversibly gone
+                # with zero record of who removed them. Wrap the soft-delete and
+                # its audit row in one atomic block so we never leave a ticket
+                # deleted with no audit trail (both-or-neither).
+                with transaction.atomic():
+                    ticket.is_deleted = True
+                    ticket.deleted_at = timezone.now()
+                    ticket.deleted_by = user
+                    ticket._skip_signal_logging = True
+                    ticket.save(update_fields=[
+                        "is_deleted", "deleted_at", "deleted_by", "updated_at",
+                    ])
+                    log_activity(
+                        tenant=ticket.tenant,
+                        actor=user,
+                        content_object=ticket,
+                        action=ActivityLog.Action.DELETED,
+                        description=f"Deleted ticket #{ticket_number} (bulk action)",
+                        request=request,
+                    )
                 details.append(f"Deleted ticket #{ticket_number}")
                 count += 1
                 continue

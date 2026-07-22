@@ -429,6 +429,44 @@
     </div>
   </div>
 </div>
+
+{% comment %}
+  Returning-user greeting. Rendered here (body-level overlays block, NOT inside
+  .crm-page-content) on purpose: the page-content wrapper animates via a CSS
+  transform, and a position:fixed child of a transformed ancestor is positioned
+  relative to that ancestor instead of the viewport. Keeping the popup at <body>
+  level lets it pin to the viewport. Shown once per sign-in — dashboard_page
+  pops the session flag so it does not reappear on later Overview visits.
+{% endcomment %}
+{% if show_welcome_back %}
+<div id="welcomeBackPopup" class="welcome-pop" role="status" aria-live="polite">
+  <div class="welcome-pop__icon" aria-hidden="true"><i class="ti ti-sparkles"></i></div>
+  <div class="welcome-pop__body">
+    <div class="welcome-pop__title">Welcome back{% if user.first_name %}, {{ user.first_name }}{% endif %} 👋</div>
+    <div class="welcome-pop__msg">Here's what's happening{% if tenant %} at {{ tenant.name }}{% endif %} today.</div>
+  </div>
+  <button type="button" class="welcome-pop__close" aria-label="Dismiss welcome message">&times;</button>
+</div>
+<script>
+(function () {
+  "use strict";
+  var el = document.getElementById('welcomeBackPopup');
+  if (!el) return;
+  var timer;
+  function dismiss() {
+    clearTimeout(timer);
+    el.classList.remove('is-visible');
+    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 450);
+  }
+  // Reveal on the next frame so the entrance transition actually runs.
+  requestAnimationFrame(function () {
+    requestAnimationFrame(function () { el.classList.add('is-visible'); });
+  });
+  el.querySelector('.welcome-pop__close').addEventListener('click', dismiss);
+  timer = setTimeout(dismiss, 6000);
+}());
+</script>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

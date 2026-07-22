@@ -3,8 +3,13 @@ from django.urls import include, path
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from apps.attachments.media_views import serve_protected_media
+from main.health import liveness, readiness
 
 urlpatterns = [
+    # Load-balancer / orchestrator probes (tenant-agnostic, unauthenticated).
+    path("healthz/", liveness, name="healthz"),
+    path("readyz/", readiness, name="readyz"),
+
     path("admin/", admin.site.urls),
 
     # API v1 endpoints

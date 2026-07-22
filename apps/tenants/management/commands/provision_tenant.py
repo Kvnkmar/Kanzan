@@ -49,6 +49,13 @@ class Command(BaseCommand):
             domain=domain,
         )
 
+        # The post_save signal auto-creates TenantSettings + default roles;
+        # seed the default ticket config so the tenant can create tickets out
+        # of the box (fresh tenants otherwise have 0 statuses/queues).
+        from apps.tickets.defaults import seed_default_ticket_config
+
+        seeded = seed_default_ticket_config(tenant)
+
         self.stdout.write(
             self.style.SUCCESS(
                 f"Successfully provisioned tenant '{tenant.name}' "
@@ -59,6 +66,10 @@ class Command(BaseCommand):
         # The post_save signal auto-creates TenantSettings and default roles.
         if hasattr(tenant, "settings"):
             self.stdout.write(f"  - TenantSettings created (auth={tenant.settings.auth_method})")
+        self.stdout.write(
+            f"  - Seeded {seeded['statuses']} statuses, {seeded['queues']} "
+            f"queues, {seeded['categories']} categories"
+        )
 
         self.stdout.write(
             self.style.NOTICE(

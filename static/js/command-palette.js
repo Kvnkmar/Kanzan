@@ -25,14 +25,18 @@
 
   var ACTIONS = [
     { title: 'New Ticket',  icon: 'ti ti-plus', url: '/tickets/new/', desc: 'Create a support ticket' },
-    { title: 'New Contact', icon: 'ti ti-plus', url: '/contacts/new/', desc: 'Add a new contact' },
+    { title: 'New Contact', icon: 'ti ti-plus', url: '/contacts/create/', desc: 'Add a new contact' },
   ];
 
   function escapeHtml(s) {
     if (!s) return '';
     var d = document.createElement('div');
     d.textContent = s;
-    return d.innerHTML;
+    // Escape quotes too: this output is interpolated into attribute values
+    // (href="...", data-title="..."), and ticket subjects reaching here can be
+    // attacker-controlled (inbound email), so unescaped quotes = attribute
+    // breakout -> stored XSS.
+    return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function createPaletteHTML() {

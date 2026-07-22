@@ -17,6 +17,21 @@ def celery_eager(settings):
     settings.CELERY_TASK_EAGER_PROPAGATES = True
 
 
+@pytest.fixture(autouse=True)
+def clear_cache():
+    """Start every test with a clean cache.
+
+    The cache backend is shared (Redis) across tests, so DRF throttle counters
+    and the auth-view rate-limit counters would otherwise leak between tests
+    (and across runs), making anything that touches them flaky.
+    """
+    from django.core.cache import cache
+
+    cache.clear()
+    yield
+    cache.clear()
+
+
 # ── Factories ────────────────────────────────────────────────────────
 
 class TenantFactory(factory.django.DjangoModelFactory):

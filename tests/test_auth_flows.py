@@ -379,3 +379,69 @@ class TestLogoutPage:
         resp = c.get(reverse("frontend:logout"))
         assert resp.status_code in (302, 303)
         assert "/login/" in resp["Location"]
+
+
+# ---------------------------------------------------------------------------
+# "Welcome back" returning-user greeting
+#   * token carries the `wb` marker only when welcome_back=True
+#   * auth_handoff sets a one-shot session flag from `wb`
+#   * dashboard_page renders the popup once, then pops the flag
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestWelcomeBackGreeting:
+    def _authed_client(self, tenant, user):
+        c = Client(HTTP_HOST=_tenant_host(tenant))
+        c.force_login(user)
+        session = c.session
+        session[SESSION_AUTH_VERSION_KEY] = user.auth_version
+        session.save()
+        return c
+
+    def test_token_omits_wb_by_default(self, agent_user):
+        payload = _read_handoff_token(_make_handoff_token(agent_user.id))
+        assert "wb" not in payload
+
+    def test_token_carries_wb_when_requested(self, agent_user):
+        payload = _read_handoff_token(
+            _make_handoff_token(agent_user.id, welcome_back=True)
+        )
+        assert payload["wb"] is True
+
+    def test_handoff_sets_flag_for_returning_user(self, tenant, agent_user):
+        token = _make_handoff_token(agent_user.id, welcome_back=True)
+        c = Client(HTTP_HOST=_tenant_host(tenant))
+        resp = c.get(reverse("frontend:auth-handoff"), {"t": token})
+        assert resp.status_code in (302, 303)
+        assert c.session.get("show_welcome_back") is True
+
+    def test_handoff_does_not_set_flag_without_wb(self, tenant, agent_user):
+        token = _make_handoff_token(agent_user.id)
+        c = Client(HTTP_HOST=_tenant_host(tenant))
+        resp = c.get(reverse("frontend:auth-handoff"), {"t": token})
+        assert resp.status_code in (302, 303)
+        assert c.session.get("show_welcome_back") is None
+
+    def test_dashboard_shows_popup_once_then_pops(self, tenant, agent_user):
+        c = self._authed_client(tenant, agent_user)
+        session = c.session
+        session["show_welcome_back"] = True
+        session.save()
+
+        # First load: popup rendered, flag consumed.
+        resp = c.get(reverse("frontend:dashboard"))
+        assert resp.status_code == 200
+        assert b"welcomeBackPopup" in resp.content
+        assert b"Welcome back" in resp.content
+        assert c.session.get("show_welcome_back") is None
+
+        # Second load: no popup (show-once).
+        resp2 = c.get(reverse("frontend:dashboard"))
+        assert resp2.status_code == 200
+        assert b"welcomeBackPopup" not in resp2.content
+
+    def test_dashboard_no_popup_without_flag(self, tenant, agent_user):
+        c = self._authed_client(tenant, agent_user)
+        resp = c.get(reverse("frontend:dashboard"))
+        assert resp.status_code == 200
+        assert b"welcomeBackPopup" not in resp.content

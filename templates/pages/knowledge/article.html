@@ -365,8 +365,10 @@
           bodyEl.appendChild(p);
         });
       } else {
-        // Trusted HTML content from team-authored articles
-        bodyEl.innerHTML = a.content;
+        // Article HTML is authored by agents, but an agent is not trusted to
+        // XSS every reader (incl. Admins). Sanitize before injecting. DOMPurify
+        // is loaded globally in base.html.
+        bodyEl.innerHTML = DOMPurify.sanitize(a.content);
       }
     }
 

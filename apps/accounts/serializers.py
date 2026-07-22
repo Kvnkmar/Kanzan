@@ -82,7 +82,12 @@ class UserSerializer(serializers.ModelSerializer):
             "is_active",
             "date_joined",
         ]
-        read_only_fields = ["id", "email", "date_joined"]
+        # ``is_active`` is deliberately read-only here: account activation /
+        # deactivation is an admin/manager operation that goes through
+        # ``UserViewSet.perform_destroy`` (which disables the *membership*), never
+        # a plain PATCH of the User row. Leaving it writable let any member who
+        # could reach ``UserViewSet.update`` toggle another member's login on/off.
+        read_only_fields = ["id", "email", "date_joined", "is_active"]
 
     def get_full_name(self, obj):
         return obj.get_full_name()

@@ -23,6 +23,8 @@ logger = logging.getLogger(__name__)
 
 # Paths that are always served regardless of tenant resolution.
 EXEMPT_PATH_PREFIXES = (
+    "/healthz",
+    "/readyz",
     "/static/",
     "/media/",
     "/api/v1/accounts/auth/",
