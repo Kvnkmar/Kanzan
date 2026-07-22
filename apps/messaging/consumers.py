@@ -72,11 +72,22 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         # Verify the conversation belongs to the tenant resolved from
         # the WebSocket Host header (prevents cross-tenant access).
         tenant = self.scope.get("tenant")
-        if tenant is not None:
-            conversation_tenant_match = await self._check_conversation_tenant(tenant)
-            if not conversation_tenant_match:
-                await self.close(code=4004)
-                return
+        if tenant is None:
+            # No Host-resolved tenant -> cannot verify membership; reject.
+            await self.close(code=4001)
+            return
+        conversation_tenant_match = await self._check_conversation_tenant(tenant)
+        if not conversation_tenant_match:
+            await self.close(code=4004)
+            return
+
+        # Verify the user is still an ACTIVE member of the tenant. A stale
+        # ConversationParticipant row otherwise lets an offboarded user
+        # (is_active=False) keep reading and posting over the socket, since
+        # offboarding never deletes participant rows.
+        if not await self._is_tenant_member(tenant):
+            await self.close(code=4003)
+            return
 
         # Join the channel-layer group and accept the connection
         await self.channel_layer.group_add(self.group_name, self.channel_name)
@@ -235,6 +246,16 @@ class ChatConsumer(AsyncJsonWebsocketConsumer):
         return Conversation.unscoped.filter(
             pk=self.conversation_id,
             tenant_id=tenant.pk,
+        ).exists()
+
+    @database_sync_to_async
+    def _is_tenant_member(self, tenant) -> bool:
+        from apps.accounts.models import TenantMembership
+
+        return TenantMembership.objects.filter(
+            user=self.user,
+            tenant_id=tenant.pk,
+            is_active=True,
         ).exists()
 
     @database_sync_to_async

@@ -21,8 +21,10 @@ from apps.accounts.models import (
 )
 from apps.accounts.permissions import (
     HasTenantPermission,
+    IsSelfOrTenantManager,
     IsTenantAdmin,
     IsTenantAdminOrManager,
+    IsTenantMember,
 )
 from apps.accounts.serializers import (
     InvitationSerializer,
@@ -69,6 +71,15 @@ class UserViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
             return [IsAuthenticated()]
+        # Writes are NOT left to HasTenantPermission's hierarchy floor: the
+        # ``user`` resource has no ``user.update`` codename, so an Agent (level
+        # 30) fell through to the ``<=30`` create/update default and could PATCH
+        # any member (e.g. deactivate the Admin). Gate explicitly instead.
+        if self.action in ("update", "partial_update"):
+            # Manager+ may edit anyone; a member may edit only their own record.
+            return [IsAuthenticated(), IsSelfOrTenantManager()]
+        if self.action in ("create", "destroy"):
+            return [IsAuthenticated(), IsTenantAdminOrManager()]
         return super().get_permissions()
 
     def get_queryset(self):
@@ -122,6 +133,17 @@ class UserViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # A Manager must not mint a user at a role above their own (e.g. a puppet
+        # Admin), mirroring InvitationViewSet's hierarchy guard.
+        from apps.accounts.permissions import _get_membership
+
+        actor = _get_membership(request, tenant)
+        if actor and role.hierarchy_level < actor.effective_role.hierarchy_level:
+            return Response(
+                {"detail": "You cannot assign a role higher than your own."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
         # Check if user already exists
         existing_user = User.objects.filter(email=email).first()
         if existing_user:
@@ -173,6 +195,40 @@ class TenantMembershipViewSet(
         return TenantMembership.objects.filter(
             tenant=tenant
         ).select_related("user", "role")
+
+    def perform_update(self, serializer):
+        """Prevent a Manager from escalating via the membership endpoint.
+
+        ``IsTenantAdminOrManager`` admits any Manager (level 20), and both
+        ``role`` and ``is_active`` are writable, so without this guard a Manager
+        could promote self to Admin, demote the Admin, or deactivate the Admin
+        (tenant lockout). Mirrors the hierarchy check InvitationViewSet already
+        enforces on invites.
+        """
+        from rest_framework.exceptions import PermissionDenied
+
+        from apps.accounts.permissions import _get_membership
+
+        actor = _get_membership(self.request, self.request.tenant)
+        actor_level = (
+            actor.effective_role.hierarchy_level if actor else 999
+        )
+
+        target = serializer.instance
+        # Cannot modify a membership that outranks you (protects the Admin's
+        # role AND is_active from a Manager).
+        if target.effective_role.hierarchy_level < actor_level:
+            raise PermissionDenied(
+                "You cannot modify a membership that outranks your own."
+            )
+        # Cannot assign a role higher than your own (blocks self-promotion to
+        # Admin, where the target — yourself — does not outrank you).
+        new_role = serializer.validated_data.get("role")
+        if new_role is not None and new_role.hierarchy_level < actor_level:
+            raise PermissionDenied(
+                "You cannot assign a role higher than your own."
+            )
+        serializer.save()
 
 
 # ---------------------------------------------------------------------------
@@ -458,7 +514,11 @@ class UserGroupViewSet(viewsets.ModelViewSet):
 
     def get_permissions(self):
         if self.action in ("list", "retrieve"):
-            return [IsAuthenticated()]
+            # IsTenantMember is load-bearing: get_queryset scopes only by the
+            # Host-derived request.tenant, so a bare IsAuthenticated here let
+            # any user read a foreign tenant's groups -- including each
+            # member's email and full name via the nested serializer.
+            return [IsAuthenticated(), IsTenantMember()]
         return [IsAuthenticated(), IsTenantAdminOrManager()]
 
     def get_queryset(self):

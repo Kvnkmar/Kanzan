@@ -110,14 +110,17 @@ class TestViewerRestrictions:
         resp = viewer_client.delete(f"/api/v1/contacts/contacts/{contact.pk}/")
         assert resp.status_code == 403
 
-    def test_viewer_can_create_board_missing_rbac(self, viewer_client):
-        """SECURITY FINDING: Kanban boards lack role-based permission checks.
-        Viewers can create boards — only IsAuthenticated is enforced."""
+    def test_viewer_cannot_create_board(self, viewer_client):
+        """Kanban board creation is gated to Agent-tier and above.
+
+        Previously a SECURITY GAP: kanban viewsets had no role check, so a
+        Viewer could create/delete team boards (only IsAuthenticated was
+        enforced). Now BoardViewSet.get_permissions requires IsAgentOrAbove for
+        writes, so a Viewer (level 40) is rejected."""
         resp = viewer_client.post("/api/v1/kanban/boards/", {
             "name": "Viewer Board", "resource_type": "ticket",
         }, format="json")
-        # Currently 201 — this is a SECURITY GAP (no HasTenantPermission on kanban views)
-        assert resp.status_code == 201
+        assert resp.status_code == 403
 
 
 # ── Mass Assignment ──────────────────────────────────────────────────

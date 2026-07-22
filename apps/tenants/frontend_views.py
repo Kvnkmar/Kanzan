@@ -93,15 +93,20 @@ def _redirect_to_root_login(request) -> HttpResponseRedirect:
     return redirect(_root_url("/login/", {"next": next_url}))
 
 
-def _make_handoff_token(user_id, next_path: str = "/dashboard/") -> str:
+def _make_handoff_token(
+    user_id, next_path: str = "/dashboard/", welcome_back: bool = False
+) -> str:
     """
     Mint a short-lived signed token authorising a tenant subdomain to
     establish a session for *user_id* and redirect to *next_path*.
+
+    ``welcome_back`` rides along so the tenant host can flag a one-shot
+    "welcome back" greeting for a returning user's first dashboard load.
     """
-    return signing.dumps(
-        {"uid": str(user_id), "next": next_path},
-        salt=HANDOFF_TOKEN_SALT,
-    )
+    payload = {"uid": str(user_id), "next": next_path}
+    if welcome_back:
+        payload["wb"] = True
+    return signing.dumps(payload, salt=HANDOFF_TOKEN_SALT)
 
 
 def _read_handoff_token(token: str):
@@ -111,7 +116,9 @@ def _read_handoff_token(token: str):
     )
 
 
-def _tenant_handoff_url(user, slug: str, next_path: str = "/dashboard/") -> str:
+def _tenant_handoff_url(
+    user, slug: str, next_path: str = "/dashboard/", welcome_back: bool = False
+) -> str:
     """
     Build the /auth/handoff/ URL on a tenant subdomain that will log *user*
     in on that host (host-only cookie) and then redirect to *next_path*.
@@ -119,7 +126,7 @@ def _tenant_handoff_url(user, slug: str, next_path: str = "/dashboard/") -> str:
     code running on the bare domain — direct redirects wouldn't carry a
     session cookie because we don't share cookies across hosts.
     """
-    token = _make_handoff_token(user.id, next_path)
+    token = _make_handoff_token(user.id, next_path, welcome_back=welcome_back)
     return f"{django_settings.TENANT_URL(slug)}/auth/handoff/?{urlencode({'t': token})}"
 
 
@@ -146,7 +153,9 @@ def _safe_next_url(next_url: str) -> str | None:
     return None
 
 
-def _post_auth_redirect(user, next_url: str | None = None) -> HttpResponseRedirect:
+def _post_auth_redirect(
+    user, next_url: str | None = None, welcome_back: bool = False
+) -> HttpResponseRedirect:
     """
     Decide where a freshly authenticated user should land.
 
@@ -183,11 +192,17 @@ def _post_auth_redirect(user, next_url: str | None = None) -> HttpResponseRedire
             next_path = parsed.path or "/dashboard/"
             if parsed.query:
                 next_path = f"{next_path}?{parsed.query}"
-            return redirect(_tenant_handoff_url(user, slug, next_path))
+            return redirect(
+                _tenant_handoff_url(user, slug, next_path, welcome_back=welcome_back)
+            )
         # Otherwise fall through to membership-based routing below.
 
     if len(memberships) == 1:
-        return redirect(_tenant_handoff_url(user, memberships[0].tenant.slug))
+        return redirect(
+            _tenant_handoff_url(
+                user, memberships[0].tenant.slug, welcome_back=welcome_back
+            )
+        )
     if len(memberships) > 1:
         return redirect(_root_url("/workspaces/"))
     # No active memberships. A superuser has no company to set up — send them
@@ -322,12 +337,19 @@ def login_page(request):
 
         user = authenticate(request, email=email, password=password)
         if user is not None:
+            # Anyone typing their password into the sign-in form already has
+            # an account; a prior login marks them as a returning user, which
+            # arms the dashboard "welcome back" greeting. Read last_login now,
+            # before login() below overwrites it with the current timestamp.
+            is_returning = user.last_login is not None
             ratelimit.reset("login-ip", ip)
             if email_key:
                 ratelimit.reset("login-email", email_key)
             login(request, user)
             _stamp_session_auth_version(request, user)
-            return _post_auth_redirect(user, request.GET.get("next"))
+            return _post_auth_redirect(
+                user, request.GET.get("next"), welcome_back=is_returning
+            )
 
         # Failed attempt -- count it toward the limit. authenticate() returns
         # None for inactive users too (unverified email).
@@ -565,7 +587,7 @@ def workspaces_page(request):
             "name": m.tenant.name,
             "slug": m.tenant.slug,
             "role": m.role.name,
-            "url": _tenant_handoff_url(request.user, m.tenant.slug),
+            "url": _tenant_handoff_url(request.user, m.tenant.slug, welcome_back=True),
         }
         for m in memberships
     ]
@@ -621,6 +643,12 @@ def auth_handoff(request):
 
     login(request, user)
     _stamp_session_auth_version(request, user)
+
+    if payload.get("wb"):
+        # Returning-user marker minted on the bare domain. This session lives
+        # on the tenant host (same host as the dashboard), so the flag set here
+        # survives to the first dashboard load, where dashboard_page pops it.
+        request.session["show_welcome_back"] = True
 
     next_path = payload.get("next") or "/dashboard/"
     # Guard against open redirects: only accept relative paths on this host.
@@ -725,7 +753,15 @@ def api_quickstart_page(request):
 
 @_membership_required
 def dashboard_page(request):
-    return render(request, "pages/dashboard.html")
+    # Pop (show-once) the returning-user greeting flag set during sign-in, so
+    # the "welcome back" popup fires on the first dashboard load only — not on
+    # every subsequent visit to Overview.
+    show_welcome_back = request.session.pop("show_welcome_back", False)
+    return render(
+        request,
+        "pages/dashboard.html",
+        {"show_welcome_back": show_welcome_back},
+    )
 
 
 @_membership_required

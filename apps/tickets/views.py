@@ -23,7 +23,11 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 
-from apps.accounts.permissions import HasTenantPermission, IsTicketAccessible
+from apps.accounts.permissions import (
+    HasTenantPermission,
+    IsTenantMember,
+    IsTicketAccessible,
+)
 
 from apps.comments.models import ActivityLog, Comment
 from apps.comments.serializers import (
@@ -2443,7 +2447,10 @@ class CannedResponseViewSet(ModelViewSet):
     """
 
     serializer_class = CannedResponseSerializer
-    permission_classes = [IsAuthenticated]
+    # IsTenantMember is load-bearing: the queryset below scopes only by the
+    # Host-derived tenant contextvar, so without it a non-member reads and
+    # writes another tenant's canned responses.
+    permission_classes = [IsAuthenticated, IsTenantMember]
     search_fields = ["title", "content", "shortcut"]
     ordering_fields = ["title", "category", "usage_count", "created_at"]
     ordering = ["category", "title"]
@@ -2544,7 +2551,11 @@ class MacroViewSet(ModelViewSet):
     Agents see shared macros plus their own personal ones.
     """
 
-    permission_classes = [IsAuthenticated]
+    # IsTenantMember is load-bearing: the queryset below scopes only by the
+    # Host-derived tenant contextvar. Without it a non-member both reads the
+    # victim's shared macros and plants one -- and a Macro carries `actions`,
+    # so a planted macro executes on a victim ticket when an agent applies it.
+    permission_classes = [IsAuthenticated, IsTenantMember]
     search_fields = ["name", "description"]
     ordering_fields = ["name", "created_at"]
     ordering = ["name"]
@@ -2613,7 +2624,10 @@ class SavedViewViewSet(ModelViewSet):
     """
 
     serializer_class = SavedViewSerializer
-    permission_classes = [IsAuthenticated]
+    # IsTenantMember is load-bearing: the queryset below scopes only by the
+    # Host-derived tenant contextvar, so without it a non-member reads another
+    # tenant's shared views (and their filter JSON, which leaks object UUIDs).
+    permission_classes = [IsAuthenticated, IsTenantMember]
     search_fields = ["name"]
     ordering = ["-is_pinned", "name"]
 

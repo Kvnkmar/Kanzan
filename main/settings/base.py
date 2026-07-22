@@ -419,6 +419,13 @@ ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*", "password2*"]
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 ACCOUNT_EMAIL_VERIFICATION = "optional"
 SOCIALACCOUNT_AUTO_SIGNUP = True
+# Local email/password signup is handled exclusively by the app's own
+# verified-signup flow (register_page / AuthViewSet.register, which create the
+# account inactive until the email is confirmed). This adapter disables
+# allauth's built-in /accounts/signup/ so it can't mint immediately-active,
+# unverified accounts. Social (SSO) signup is governed by the social adapter and
+# is unaffected.
+ACCOUNT_ADAPTER = "apps.accounts.adapters.NoLocalSignupAccountAdapter"
 
 # File upload limits
 FILE_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024  # 25MB

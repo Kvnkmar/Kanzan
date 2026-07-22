@@ -20,7 +20,11 @@ from rest_framework.generics import RetrieveAPIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
-from apps.accounts.permissions import IsTenantAdminOrManager, IsTenantMember
+from apps.accounts.permissions import (
+    IsAgentOrAbove,
+    IsTenantAdminOrManager,
+    IsTenantMember,
+)
 from apps.comments.models import ActivityLog
 from apps.comments.services import log_activity
 from apps.crm.models import Activity, Reminder
@@ -73,6 +77,16 @@ class ActivityViewSet(viewsets.ModelViewSet):
 
     serializer_class = ActivitySerializer
     permission_classes = [IsAuthenticated, IsTenantMember]
+
+    def get_permissions(self):
+        # No permission_resource -> HasTenantPermission is not used, so without
+        # this a Viewer (level 40) could create/update/delete CRM activities.
+        # Block writes below Agent tier; deletes require Admin/Manager.
+        if self.action in ("create", "update", "partial_update"):
+            return [IsAuthenticated(), IsTenantMember(), IsAgentOrAbove()]
+        if self.action == "destroy":
+            return [IsAuthenticated(), IsTenantMember(), IsTenantAdminOrManager()]
+        return [IsAuthenticated(), IsTenantMember()]
 
     def get_queryset(self):
         if getattr(self, "swagger_fake_view", False):
@@ -366,6 +380,19 @@ class ReminderViewSet(viewsets.ModelViewSet):
     search_fields = ["subject", "notes", "contacts__first_name", "contacts__last_name"]
     ordering_fields = ["scheduled_at", "priority", "created_at"]
     ordering = ["scheduled_at"]
+
+    def get_permissions(self):
+        # No permission_resource -> HasTenantPermission is unused. Block a
+        # Viewer (level 40) from mutating reminders, including via the custom
+        # write actions. Deletes require Admin/Manager.
+        if self.action in (
+            "create", "update", "partial_update",
+            "complete", "cancel", "reschedule", "bulk_action",
+        ):
+            return [IsAuthenticated(), IsTenantMember(), IsAgentOrAbove()]
+        if self.action == "destroy":
+            return [IsAuthenticated(), IsTenantMember(), IsTenantAdminOrManager()]
+        return [IsAuthenticated(), IsTenantMember()]
 
     def _base_reminder_queryset(self):
         """Tenant-scoped reminders with the agent row-level restriction applied.

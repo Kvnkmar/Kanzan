@@ -151,6 +151,34 @@ class CustomFieldValueViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         qs = CustomFieldValue.objects.select_related("field").all()
 
+        # Row-level visibility: an agent-tier member (level > 20) must not read
+        # custom-field VALUES for tickets they cannot see. Without this, any
+        # member could page the tenant's entire EAV table and pull field values
+        # for tickets/contacts they are otherwise denied. Admin/Manager bypass.
+        user = self.request.user
+        if not user.is_superuser:
+            from django.contrib.contenttypes.models import ContentType
+
+            from apps.accounts.permissions import _get_membership
+            from apps.tickets.access import agent_visible_tickets_q
+            from apps.tickets.models import Ticket
+
+            tenant = getattr(self.request, "tenant", None)
+            membership = _get_membership(self.request, tenant) if tenant else None
+            if membership is None or membership.effective_role.hierarchy_level > 20:
+                from django.db.models import Q
+
+                ticket_ct = ContentType.objects.get_for_model(Ticket)
+                visible_ticket_ids = Ticket.unscoped.filter(
+                    tenant=tenant
+                ).filter(agent_visible_tickets_q(user)).values_list("pk", flat=True)
+                # Keep every non-ticket value (contact/company modules are not
+                # per-agent scoped) and only ticket values on a visible ticket.
+                qs = qs.filter(
+                    ~Q(content_type=ticket_ct)
+                    | Q(content_type=ticket_ct, object_id__in=visible_ticket_ids)
+                )
+
         # Filter by module.
         module = self.request.query_params.get("module")
         if module:

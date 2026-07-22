@@ -25,7 +25,11 @@ from apps.analytics.serializers import (
     ExportJobSerializer,
     ReportDefinitionSerializer,
 )
-from apps.accounts.permissions import HasTenantPermission, IsTenantAdminOrManager
+from apps.accounts.permissions import (
+    HasTenantPermission,
+    IsTenantAdminOrManager,
+    _get_membership,
+)
 from apps.analytics.services import (
     clear_closed_status_cache,
     get_agent_performance,
@@ -126,8 +130,31 @@ class ExportJobViewSet(viewsets.ModelViewSet):
     ordering = ["-created_at"]
     http_method_names = ["get", "post", "head", "options"]
 
+    def get_permissions(self):
+        # An export dumps the FULL tenant dataset (all contacts' PII, every
+        # ticket) — the async fetchers use ``.unscoped.filter(tenant=)`` with no
+        # row-level scoping. The ``export`` resource has no ``export.create``
+        # codename, so creation fell to the ``<=30`` create floor, letting any
+        # Agent exfiltrate the whole tenant past their row visibility. Restrict
+        # creation to Manager+ (who can already see all tenant data by design).
+        if self.action == "create":
+            return [IsAuthenticated(), IsTenantAdminOrManager()]
+        return super().get_permissions()
+
     def get_queryset(self):
-        return ExportJob.objects.select_related("report", "requested_by").all()
+        qs = ExportJob.objects.select_related("report", "requested_by").all()
+        # Non-managers only ever see their OWN export jobs (defense-in-depth on
+        # top of the Manager+ creation gate) so the list endpoint can't leak
+        # other members' export download URLs. Manager+ see all tenant jobs.
+        tenant = getattr(self.request, "tenant", None)
+        if tenant is None:
+            return qs.none()
+        membership = _get_membership(self.request, tenant)
+        if membership is None:
+            return qs.none()
+        if membership.effective_role.hierarchy_level <= 20:
+            return qs
+        return qs.filter(requested_by=self.request.user)
 
     def get_serializer_class(self):
         if self.action == "create":

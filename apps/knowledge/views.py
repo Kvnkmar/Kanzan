@@ -14,7 +14,11 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import TenantMembership
-from apps.accounts.permissions import HasTenantPermission, _get_membership
+from apps.accounts.permissions import (
+    HasTenantPermission,
+    IsTenantMember,
+    _get_membership,
+)
 from drf_spectacular.utils import (
     OpenApiExample,
     extend_schema,
@@ -550,7 +554,11 @@ body{{font-family:Inter,system-ui,-apple-system,sans-serif;background:#09090b;co
 class KBSearchView(APIView):
     """Full-text search across published knowledge base articles."""
 
-    permission_classes = [IsAuthenticated]
+    # IsTenantMember is load-bearing: kb_search scopes by the Host-derived
+    # request.tenant, so a bare IsAuthenticated here let any user read another
+    # tenant's KB index and write rows into its KBSearchGap table -- which is
+    # then mailed to that tenant's admins in the weekly digest.
+    permission_classes = [IsAuthenticated, IsTenantMember]
     # Search is comparatively expensive (a full-text query per call); cap it
     # tighter than the per-user baseline.
     throttle_scope = "api_heavy"

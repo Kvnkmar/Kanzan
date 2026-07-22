@@ -32,7 +32,11 @@
     if (!s) return '';
     var d = document.createElement('div');
     d.textContent = s;
-    return d.innerHTML;
+    // Escape quotes too: this output is interpolated into attribute values
+    // (href="...", data-title="..."), and ticket subjects reaching here can be
+    // attacker-controlled (inbound email), so unescaped quotes = attribute
+    // breakout -> stored XSS.
+    return d.innerHTML.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   function createPaletteHTML() {

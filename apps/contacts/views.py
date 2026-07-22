@@ -476,13 +476,21 @@ class ContactGroupViewSet(viewsets.ModelViewSet):
     remove_contacts:  POST   /contact-groups/{id}/remove_contacts/
     """
 
-    queryset = ContactGroup.objects.prefetch_related("contacts").all()
     serializer_class = ContactGroupSerializer
     permission_classes = [IsAuthenticated, HasTenantPermission]
     search_fields = ["name"]
     ordering_fields = ["name", "created_at"]
     ordering = ["-created_at"]
     permission_resource = "contact_group"
+
+    def get_queryset(self):
+        # MUST be a method, never a class attribute. TenantAwareManager reads
+        # the tenant contextvar when the queryset is CONSTRUCTED, and DRF's
+        # default get_queryset only calls .all(), which clones without
+        # re-entering the manager. A class-body queryset therefore freezes
+        # whichever tenant was bound when this module was first imported --
+        # i.e. the worker's first request -- for the whole process lifetime.
+        return ContactGroup.objects.prefetch_related("contacts")
 
     def perform_create(self, serializer):
         serializer.save(tenant=self.request.tenant)
