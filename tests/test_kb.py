@@ -16,10 +16,10 @@ from django.utils import timezone
 from apps.knowledge.models import Article, Category as KBCategory
 from apps.tickets.models import Ticket
 
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class TestKBArticleCreation(KanzenBaseTestCase):
+class TestKBArticleCreation(CRMBaseTestCase):
     """17.1 - 17.2: Role-based KB article creation permissions."""
 
     def setUp(self):
@@ -56,7 +56,7 @@ class TestKBArticleCreation(KanzenBaseTestCase):
                          f"Viewer should not be able to create KB articles. Got {resp.status_code}: {resp.data}")
 
 
-class TestKBArticleAccess(KanzenBaseTestCase):
+class TestKBArticleAccess(CRMBaseTestCase):
     """17.3 - 17.4: Published and draft article visibility."""
 
     def setUp(self):
@@ -113,7 +113,7 @@ class TestKBArticleAccess(KanzenBaseTestCase):
         )
 
 
-class TestKBArticleCategoryLink(KanzenBaseTestCase):
+class TestKBArticleCategoryLink(CRMBaseTestCase):
     """17.5: KB article linked to a category."""
 
     def setUp(self):
@@ -145,7 +145,7 @@ class TestKBArticleCategoryLink(KanzenBaseTestCase):
         self.assertEqual(article.category_id, self.kb_category.pk)
 
 
-class TestKBCoverageOnClosure(KanzenBaseTestCase):
+class TestKBCoverageOnClosure(CRMBaseTestCase):
     """17.6: KB coverage flag set on ticket closure when category has <3 published articles."""
 
     def setUp(self):
@@ -189,7 +189,7 @@ class TestKBCoverageOnClosure(KanzenBaseTestCase):
         )
 
 
-class TestKBTenantIsolation(KanzenBaseTestCase):
+class TestKBTenantIsolation(CRMBaseTestCase):
     """17.7: Cross-tenant KB article access is prevented."""
 
     def setUp(self):

@@ -34,7 +34,7 @@ window.LiveBus = (function () {
 
   var DEBUG = false;          // set window.LiveBus._debug = true at runtime
   var WILDCARD = '*';
-  var BROADCAST_CHANNEL_NAME = 'kanzan-live';
+  var BROADCAST_CHANNEL_NAME = 'crm-live';
 
   // type -> Set<handler>
   var handlers = Object.create(null);

@@ -53,7 +53,7 @@ class ARIClient:
         extension=None,
         context=None,
         caller_id=None,
-        app="kanzan-voip",
+        app="crm-voip",
         app_args=None,
         variables=None,
     ):
@@ -277,7 +277,7 @@ class ARIEventListener:
     to registered handlers. Implements reconnection with exponential backoff.
     """
 
-    def __init__(self, host, port, username, password, app="kanzan-voip", use_ssl=False):
+    def __init__(self, host, port, username, password, app="crm-voip", use_ssl=False):
         auth_str = b64encode(f"{username}:{password}".encode()).decode()
         scheme = "wss" if use_ssl else "ws"
         self.ws_url = (

@@ -12,10 +12,10 @@ from django.contrib.contenttypes.models import ContentType
 
 from apps.comments.models import ActivityLog
 from apps.tickets.models import Ticket, TicketActivity
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class TestAuditDualWrite(KanzenBaseTestCase):
+class TestAuditDualWrite(CRMBaseTestCase):
     """Dual-write audit logging tests."""
 
     def setUp(self):

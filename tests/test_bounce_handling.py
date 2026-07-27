@@ -50,7 +50,7 @@ class TestHardBounceNoConcatCreated:
 
         inbound = InboundEmailFactory(
             sender_email="mailer-daemon@mail.example.com",
-            recipient_email=f"support+bounce-test@kanzan.io",
+            recipient_email=f"support+bounce-test@crm.io",
             subject="Mail delivery failed: returning message to sender",
             body_text="Delivery to the following recipients failed permanently.",
             raw_headers="X-Failed-Recipients: customer@example.com\n",
@@ -79,7 +79,7 @@ class TestHardBounceNoConcatCreated:
 
         inbound = InboundEmailFactory(
             sender_email="postmaster@example.com",
-            recipient_email=f"support+bounce-test@kanzan.io",
+            recipient_email=f"support+bounce-test@crm.io",
             subject="Undeliverable: Re: [#1] Your ticket update",
             body_text="Your message could not be delivered.",
         )
@@ -102,7 +102,7 @@ class TestAutoReplyNoBounceLog:
 
         inbound = InboundEmailFactory(
             sender_email="person@example.com",
-            recipient_email=f"support+bounce-test@kanzan.io",
+            recipient_email=f"support+bounce-test@crm.io",
             subject="Out of Office: Re: Your request",
             body_text="I am currently out of the office.",
         )
@@ -125,7 +125,7 @@ class TestAutoReplyNoBounceLog:
 
         inbound = InboundEmailFactory(
             sender_email="colleague@example.com",
-            recipient_email=f"support+bounce-test@kanzan.io",
+            recipient_email=f"support+bounce-test@crm.io",
             subject="Re: Meeting tomorrow",
             body_text="Auto-reply: I'll get back to you.",
             raw_headers="Auto-Submitted: auto-replied\n",
@@ -160,7 +160,7 @@ class TestBounceLinkedToTicket:
         # Simulate a bounce reply to ticket #42
         inbound = InboundEmailFactory(
             sender_email="mailer-daemon@example.com",
-            recipient_email=f"support+bounce-test@kanzan.io",
+            recipient_email=f"support+bounce-test@crm.io",
             subject="Mail delivery failed: Re: [#42] Original subject",
             body_text="Delivery failed permanently.",
             raw_headers="X-Failed-Recipients: someone@bad.com\n",
@@ -201,7 +201,7 @@ class TestBounceContactFlagged:
 
         inbound = InboundEmailFactory(
             sender_email="mailer-daemon@mail.example.com",
-            recipient_email=f"support+bounce-test@kanzan.io",
+            recipient_email=f"support+bounce-test@crm.io",
             subject="Returned mail: see transcript for details",
             body_text="550 User not found",
             raw_headers="X-Failed-Recipients: customer@example.com\n",
@@ -224,7 +224,7 @@ class TestLegitimateEmailAfterBounce:
         # First: a bounce for this address
         bounce_email = InboundEmailFactory(
             sender_email="mailer-daemon@mail.example.com",
-            recipient_email=f"support+bounce-test@kanzan.io",
+            recipient_email=f"support+bounce-test@crm.io",
             subject="Mail delivery failed",
             body_text="Delivery failed.",
             raw_headers="X-Failed-Recipients: newuser@example.com\n",
@@ -238,7 +238,7 @@ class TestLegitimateEmailAfterBounce:
         legit_email = InboundEmailFactory(
             sender_email="newuser@example.com",
             sender_name="New User",
-            recipient_email=f"support+bounce-test@kanzan.io",
+            recipient_email=f"support+bounce-test@crm.io",
             subject="Help with my account",
             body_text="I need help resetting my password.",
         )

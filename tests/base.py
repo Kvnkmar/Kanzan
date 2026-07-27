@@ -1,7 +1,7 @@
 """
-Shared test infrastructure for Kanzen Suites.
+Shared test infrastructure for CRM Suites.
 
-Provides KanzenBaseTestCase which sets up two isolated tenants with users,
+Provides CRMBaseTestCase which sets up two isolated tenants with users,
 roles, and memberships — the minimum scaffolding needed to test
 multi-tenancy, RBAC, and plan limits.
 """
@@ -178,7 +178,7 @@ class TenantTestCase(TestCase):
         return sub, usage
 
 
-class KanzenBaseTestCase(TenantTestCase):
+class CRMBaseTestCase(TenantTestCase):
     """
     Extended base test case for the comprehensive QA suite.
 

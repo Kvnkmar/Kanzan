@@ -1,4 +1,4 @@
-# Kanzen — UI/UX & Accessibility Audit
+# CRM — UI/UX & Accessibility Audit
 **Date:** 2026-06-14 · Frontend = Bootstrap 5.3.3 + vanilla JS (no framework), TipTap editor, DOMPurify, design-system "Crimson Black v9.0"
 
 > **Caveat:** This is a code-level UI audit (templates + JS). It was **not** validated in a live browser across viewports or with a real screen reader. Treat layout/responsive observations as code-derived; confirm with manual device testing before launch.
@@ -17,7 +17,7 @@ The design system is mature and consistent: tokenized colors/spacing/z-index/wei
 | `templates-uiux-9` | Med | 4.1.2 | Reminder modal `aria-hidden` handling may suppress SR announcement of the alert | `templates/base.html:151-152` | Use `aria-live`/`role="alertdialog"`; manage `aria-hidden` via Bootstrap |
 
 **Systemic a11y recommendations:**
-- Audit all `KanzenSelect` portal-rendered selects (`static/js/custom-select.js`) and `command-palette.js`/`keyboard-shortcuts.js` runtime widgets for `role`, `aria-expanded`, `aria-activedescendant`, focus trapping, and ESC handling.
+- Audit all `CRMSelect` portal-rendered selects (`static/js/custom-select.js`) and `command-palette.js`/`keyboard-shortcuts.js` runtime widgets for `role`, `aria-expanded`, `aria-activedescendant`, focus trapping, and ESC handling.
 - Verify color contrast of the palette's `text_on_primary`/`text_on_accent` picks (the palette logs an AA warning when primary contrast < 4.5 — ensure tenants with poor brand colors still meet AA for body text, not just the primary swatch).
 - Ensure all form inputs have associated `<label>`s and that error states are programmatically associated (`aria-describedby`).
 

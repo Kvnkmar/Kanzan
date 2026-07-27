@@ -26,7 +26,7 @@ def debug_must_be_off(app_configs, **kwargs):
                     "Unset DJANGO_DEBUG (it fails safe to prod) or set it to "
                     "False. Never serve production traffic with DEBUG=True."
                 ),
-                id="kanzen.E001",
+                id="crm.E001",
             )
         )
     return errors
@@ -48,7 +48,7 @@ def media_is_not_served_unauthenticated(app_configs, **kwargs):
                     "In production set USE_X_ACCEL_REDIRECT=True and configure "
                     "nginx X-Accel-Redirect -- see docs/deploy/protected-media.md."
                 ),
-                id="kanzen.W001",
+                id="crm.W001",
             )
         ]
     return []

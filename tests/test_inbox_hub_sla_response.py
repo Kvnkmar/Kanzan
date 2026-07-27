@@ -39,7 +39,7 @@ def _hub(tenant, *, state, assignee=None, contact=None,
 
     inbound = InboundEmailFactory(
         tenant=tenant,
-        recipient_email=f"support+{tenant.slug}@kanzan.io",
+        recipient_email=f"support+{tenant.slug}@crm.io",
         sender_email="customer@example.com",
     )
     return HubEmail.unscoped.create(

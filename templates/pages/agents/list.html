@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Agents - Kanzen Suite{% endblock %}
+{% block title %}Agents - CRM Suite{% endblock %}
 
 {% block content %}
 {% include "includes/page_back_button.html" %}
@@ -188,7 +188,7 @@
   /* ── Helpers ── */
 
   function formatDate(d) {
-    return Kanzan.timeAgo(d);
+    return CRM.timeAgo(d);
   }
 
   function extractErrorMessage(err) {
@@ -1048,7 +1048,7 @@
   setInterval(loadAgents, REFRESH_INTERVAL);
 
   // Real-time: reload immediately when any agent changes status
-  document.addEventListener('kanzan:notification', function(e) {
+  document.addEventListener('crm:notification', function(e) {
     if (e.detail && e.detail.type === 'agent_status_change') {
       loadAgents();
     }

@@ -2,7 +2,7 @@
 Celery tasks for the API-keys app.
 
 The only task here is the "API key created" notification email, sent to the
-admin who minted the key. Routed to the ``kanzan_email`` queue via the
+admin who minted the key. Routed to the ``crm_email`` queue via the
 ``apps.api_keys.tasks.send_email_*`` route added in ``main/celery.py``.
 """
 
@@ -52,7 +52,7 @@ def send_api_key_created_email_task(self, api_key_id, recipient_email):
 
     subject = f"New API key created: {key.name}"
     body_lines = [
-        f"A new Kanzen API key was just minted for tenant '{tenant.name}'.",
+        f"A new CRM API key was just minted for tenant '{tenant.name}'.",
         "",
         f"  Name:      {key.name}",
         f"  Prefix:    {key.prefix}…",
@@ -65,7 +65,7 @@ def send_api_key_created_email_task(self, api_key_id, recipient_email):
         "",
         "  /settings/#apiKeysPane",
         "",
-        "— Kanzen",
+        "— CRM",
     ]
     body = "\n".join(body_lines)
 

@@ -224,9 +224,9 @@ class TenantSettingsViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        subject = f"[{tenant.name}] Test email from Kanzen Suite"
+        subject = f"[{tenant.name}] Test email from CRM Suite"
         body_text = (
-            "This is a test email sent from your Kanzen Suite instance.\n\n"
+            "This is a test email sent from your CRM Suite instance.\n\n"
             f"Tenant: {tenant.name} ({tenant.slug})\n"
             f"Triggered by: {request.user.email}\n"
             f"Backend: {getattr(dj_settings, 'EMAIL_BACKEND', 'unknown')}\n"

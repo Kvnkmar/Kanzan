@@ -1,4 +1,4 @@
-# Kanzen — End-to-End QA & Production-Readiness Audit
+# CRM — End-to-End QA & Production-Readiness Audit
 ## Executive Summary
 
 **Date:** 2026-06-14

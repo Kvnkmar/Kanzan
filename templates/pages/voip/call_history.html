@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Calls - Kanzen Suite{% endblock %}
+{% block title %}Calls - CRM Suite{% endblock %}
 
 {% block content %}
 {% include "includes/page_back_button.html" %}
@@ -314,7 +314,7 @@
 
       // Date
       var dateCell = document.createElement('td');
-      dateCell.textContent = Kanzan.formatDateTime(call.started_at);
+      dateCell.textContent = CRM.formatDateTime(call.started_at);
       row.appendChild(dateCell);
 
       // Recording

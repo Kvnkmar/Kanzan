@@ -17,13 +17,13 @@ from apps.inbound_email.models import InboundEmail
 from apps.tickets.models import Ticket, TicketStatus
 from main.context import set_current_tenant
 
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
 BADGE_URL = "/api/v1/nav/badge-counts/"
 
 
-class BadgeCountBaseTests(KanzenBaseTestCase):
+class BadgeCountBaseTests(CRMBaseTestCase):
     """Tests for the sidebar badge-count endpoint."""
 
     def setUp(self):
@@ -268,7 +268,7 @@ class BadgeCountBaseTests(KanzenBaseTestCase):
         self.assertEqual(resp.data["calendar"], initial_cal - 1)
 
 
-class BadgeTenantIsolationTests(KanzenBaseTestCase):
+class BadgeTenantIsolationTests(CRMBaseTestCase):
     """Tests for tenant scoping and role-based badge counts."""
 
     def setUp(self):

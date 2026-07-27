@@ -288,7 +288,7 @@ def _build_hub_email(tenant, *, state, assignee=None, sla_response_due_at=None,
     inbound = InboundEmail.objects.create(
         tenant=tenant,
         sender_email="customer@example.com",
-        recipient_email=f"support+{tenant.slug}@kanzan.io",
+        recipient_email=f"support+{tenant.slug}@crm.io",
         subject="Hello",
         body_text="Body",
         message_id=f"{uuid.uuid4()}@test.com",

@@ -17,10 +17,10 @@ from rest_framework import status
 from apps.comments.models import ActivityLog
 from apps.tickets.models import Ticket, TicketActivity
 from main.context import clear_current_tenant, set_current_tenant
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class TestTicketCreation(KanzenBaseTestCase):
+class TestTicketCreation(CRMBaseTestCase):
     """Ticket creation via API: numbering, validation, signals, and side effects."""
 
     def setUp(self):

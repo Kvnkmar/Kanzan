@@ -1,11 +1,11 @@
 
 ## Medium — 92
-- [tenant-isolation-7] (Reliability) Celery Tasks Missing Defensive tenant_context() Wrapping — /home/kavin/Kanzen/apps/crm/tasks.py:68-157 (fire_due_reminders, check_overdue_reminders)
-- [tenant-isolation-8] (Data Integrity) InboundEmail.tenant Field Is Nullable, Allowing Ambiguous Data State — /home/kavin/Kanzen/apps/inbound_email/models.py:69-75
-- [tenant-isolation-9] (Security) InboundEmail Assignee Lookup Missing Defense-in-Depth Tenant Validation — /home/kavin/Kanzen/apps/inbound_email/api_views.py:121-134 (_build_ticket_overrides)
-- [authn-4] (Security) TenantMiddleware context set on /admin/ without explicit permission guard — /home/kavin/Kanzen/main/settings/base.py:102, main/admin.py
-- [authn-5] (Security) SessionVersionMiddleware can fail to revoke sessions on global logout — /home/kavin/Kanzen/apps/accounts/middleware.py:34-45
-- [authn-6] (Data Integrity) Missing row-level locking in inbox hub manual email assignment — /home/kavin/Kanzen/apps/inbox_hub/services.py
+- [tenant-isolation-7] (Reliability) Celery Tasks Missing Defensive tenant_context() Wrapping — /home/kavin/CRM/apps/crm/tasks.py:68-157 (fire_due_reminders, check_overdue_reminders)
+- [tenant-isolation-8] (Data Integrity) InboundEmail.tenant Field Is Nullable, Allowing Ambiguous Data State — /home/kavin/CRM/apps/inbound_email/models.py:69-75
+- [tenant-isolation-9] (Security) InboundEmail Assignee Lookup Missing Defense-in-Depth Tenant Validation — /home/kavin/CRM/apps/inbound_email/api_views.py:121-134 (_build_ticket_overrides)
+- [authn-4] (Security) TenantMiddleware context set on /admin/ without explicit permission guard — /home/kavin/CRM/main/settings/base.py:102, main/admin.py
+- [authn-5] (Security) SessionVersionMiddleware can fail to revoke sessions on global logout — /home/kavin/CRM/apps/accounts/middleware.py:34-45
+- [authn-6] (Data Integrity) Missing row-level locking in inbox hub manual email assignment — /home/kavin/CRM/apps/inbox_hub/services.py
 - [authz-rbac-6] (Business Logic) pick_email_agent and inbox_hub._candidate_user_ids filter on raw role, excluding temp-promoted agents from auto-assign — apps/agents/services.py:226, apps/inbox_hub/assignment.py:226-230
 - [authz-rbac-7] (Security) ACTION_MAP unmapped actions default to deny, but many viewsets lack HasTenantPermission entirely — apps/accounts/permissions.py:156-165, multiple viewsets
 - [inbox-hub-access-1] (Business Logic) Escalation Counter Increments Even on Illegal State Transition — apps/inbox_hub/services.py:261-283 (escalate_hub_email function)
@@ -69,9 +69,9 @@
 - [custom-fields-agents-7] (Reliability) Presence reaper has no select_for_update; concurrent Beat workers cause redundant updates — apps/agents/tasks.py:44-48 (reap_stale_presence task)
 - [custom-fields-agents-8] (Business Logic) Inbox Hub no-department fallback uses raw role, not effective_role (inconsistent RBAC) — apps/inbox_hub/assignment.py:222-231 (_candidate_user_ids function, no-department fallback) [DUP-OF authz-rbac-2]
 - [settings-secrets-5] (Security) SECURE_HSTS_PRELOAD not enabled in prod settings — main/settings/prod.py (missing)
-- [settings-secrets-6] (Reliability) Kanzan_webhooks queue routed but empty (no actual billing task consumers) — main/celery.py:21, apps/billing/tasks.py (does not exist)
+- [settings-secrets-6] (Reliability) CRM_webhooks queue routed but empty (no actual billing task consumers) — main/celery.py:21, apps/billing/tasks.py (does not exist)
 - [settings-secrets-7] (Business Logic) CELERY_TIMEZONE UTC vs TIME_ZONE Asia/KL timezone mismatch causes Beat crontab entries to fire at wrong local time — main/settings/base.py:149 (TIME_ZONE), 282 (CELERY_TIMEZONE), 312-317 (crontab entries)
-- [settings-secrets-8] (Reliability) Makefile 'stop' and 'restart' targets omit kanzan-smtp process — Makefile:56, 60
+- [settings-secrets-8] (Reliability) Makefile 'stop' and 'restart' targets omit crm-smtp process — Makefile:56, 60
 - [settings-secrets-9] (Security) dev.py overrides ALLOWED_HOSTS=* which bypasses Host header validation — main/settings/dev.py:4
 - [settings-secrets-10] (Security) JWT_SECRET_KEY defaults to SECRET_KEY, creating shared signing material — main/settings/base.py:253
 - [settings-secrets-11] (Business Logic) Feature B (create-ticket-from-email overrides) widened service but not Hub serializer, creating unreachable feature — apps/inbound_email/services.py:383, apps/inbox_hub/views.py (serializer not widened)
@@ -94,10 +94,10 @@
 - [data-model-integrity-9] (Data Integrity) Soft-delete inconsistency across models — apps/tickets/models.py:562
 
 ## Low — 48
-- [tenant-isolation-10] (Code Quality) TenantAwareManager Returns .none() Silently Without Prominent Error — /home/kavin/Kanzen/main/managers.py:35-46
-- [authn-7] (Code Quality) Invitation and EmailVerificationToken entropy levels inconsistent — /home/kavin/Kanzen/apps/accounts/views.py:378, 424; apps/tenants/frontend_views.py:645
-- [authn-8] (Code Quality) Email verification TTL is hardcoded and not configurable — /home/kavin/Kanzen/apps/tenants/frontend_views.py:30
-- [authn-9] (Code Quality) Temporary role expiry boundary uses exclusive comparison — /home/kavin/Kanzen/apps/accounts/models.py:281
+- [tenant-isolation-10] (Code Quality) TenantAwareManager Returns .none() Silently Without Prominent Error — /home/kavin/CRM/main/managers.py:35-46
+- [authn-7] (Code Quality) Invitation and EmailVerificationToken entropy levels inconsistent — /home/kavin/CRM/apps/accounts/views.py:378, 424; apps/tenants/frontend_views.py:645
+- [authn-8] (Code Quality) Email verification TTL is hardcoded and not configurable — /home/kavin/CRM/apps/tenants/frontend_views.py:30
+- [authn-9] (Code Quality) Temporary role expiry boundary uses exclusive comparison — /home/kavin/CRM/apps/accounts/models.py:281
 - [inbox-hub-access-2] (Code Quality) HubEmailAssignment.Reason.ESCALATION Never Emitted — apps/inbox_hub/models.py:258-262 (HubEmailAssignment.Reason enum) and apps/inbox_hub/services.py:307-383 (reassign_hub_email)
 - [inbox-hub-access-7] (Business Logic) Claim Endpoint May Return Success for No-Op Reassignment — apps/inbox_hub/views.py:194-199 (claim action) and apps/inbox_hub/assignment.py:101-114 (assign_to function)
 - [inbox-hub-access-9] (Code Quality) Dead-but-Public API Endpoints — apps/inbox_hub/views.py:195-252 (claim, escalate, transition, note actions) and inbox-hub.js

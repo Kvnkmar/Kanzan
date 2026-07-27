@@ -1,5 +1,5 @@
 /**
- * API client wrapper for the Kanzen Suite platform.
+ * API client wrapper for the CRM Suite platform.
  * Handles CSRF tokens, session authentication, and JSON responses.
  */
 const Api = {

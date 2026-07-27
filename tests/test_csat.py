@@ -14,10 +14,10 @@ from freezegun import freeze_time
 from apps.tickets.models import Ticket, TicketActivity
 from main.context import set_current_tenant
 
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class CSATSurveyTests(KanzenBaseTestCase):
+class CSATSurveyTests(CRMBaseTestCase):
     """Tests 8.1 – 8.9: CSAT survey lifecycle."""
 
     def setUp(self):

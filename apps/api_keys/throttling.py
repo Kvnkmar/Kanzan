@@ -57,9 +57,9 @@ class APIKeyRateThrottle(SimpleRateThrottle):
             duration = getattr(self, "duration", 0) or 0
             reset_epoch = int(self.now + duration)
             info = (num_requests, remaining, reset_epoch)
-            request._kanzan_throttle_info = info
+            request._crm_throttle_info = info
             underlying = getattr(request, "_request", None)
             if underlying is not None:
-                underlying._kanzan_throttle_info = info
+                underlying._crm_throttle_info = info
 
         return allowed

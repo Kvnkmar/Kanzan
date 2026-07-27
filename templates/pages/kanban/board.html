@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Boards - Kanzen Suite{% endblock %}
+{% block title %}Boards - CRM Suite{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -35,7 +35,7 @@
     padding-left: 0 !important;
     padding-right: 0 !important;
   }
-  /* Align the KanzenSelect-upgraded board picker with toolbar button height
+  /* Align the CRMSelect-upgraded board picker with toolbar button height
      and stop the wrapper from stretching to 100% of the wrapped row. */
   .kanban-toolbar .td-cselect {
     width: auto;
@@ -120,7 +120,7 @@
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.10);
     border-radius: 12px;
     /* 1085: above kanban cards (confined to their kanban-board stacking
-       context) and Bootstrap tooltip (1080), but below the KanzenSelect
+       context) and Bootstrap tooltip (1080), but below the CRMSelect
        portal (1090) so dropdowns opened inside the panel render on top. */
     z-index: 1085;
     display: none;
@@ -1091,14 +1091,14 @@
   var inDateFrom      = document.getElementById('filterDateFrom');
   var inDateTo        = document.getElementById('filterDateTo');
 
-  // Replace native <select>s with KanzenSelect — portalled menu (z 1090)
+  // Replace native <select>s with CRMSelect — portalled menu (z 1090)
   // renders above the panel (z 1085), and the trigger gets the same chrome
   // as the rest of the app instead of the raw OS dropdown.
   // Date inputs (filterDateFrom/To) are <input type="date">, so they stay
-  // native (KanzenSelect is only for <select>).
-  if (window.KanzenSelect) {
+  // native (CRMSelect is only for <select>).
+  if (window.CRMSelect) {
     [inAssignee, inPriority, inStatus, inDate].forEach(function(sel) {
-      if (sel) KanzenSelect.upgrade(sel);
+      if (sel) CRMSelect.upgrade(sel);
     });
   }
 

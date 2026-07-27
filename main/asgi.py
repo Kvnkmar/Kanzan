@@ -1,5 +1,5 @@
 """
-ASGI config for Kanzen Suite.
+ASGI config for CRM Suite.
 
 Handles both HTTP and WebSocket protocols via Django Channels.
 """

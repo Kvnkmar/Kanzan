@@ -9,7 +9,7 @@ Usage:
     python manage.py run_smtp_server
     python manage.py run_smtp_server --host 0.0.0.0 --port 2525
 
-Run as a dedicated PM2 process (see ecosystem.config.js:kanzan-smtp).
+Run as a dedicated PM2 process (see ecosystem.config.js:crm-smtp).
 """
 
 import logging
@@ -34,7 +34,7 @@ class Command(BaseCommand):
         from aiosmtpd.controller import Controller
 
         from apps.inbound_email.smtp_server import (
-            KanzanSMTPHandler,
+            CRMSMTPHandler,
             StaticAuthenticator,
         )
 
@@ -56,7 +56,7 @@ class Command(BaseCommand):
             smtp_params["auth_require_tls"] = ssl_context is not None
 
         controller = Controller(
-            handler=KanzanSMTPHandler(),
+            handler=CRMSMTPHandler(),
             hostname=host,
             port=port,
             server_hostname=server_hostname,
@@ -66,11 +66,11 @@ class Command(BaseCommand):
 
         controller.start()
         self.stdout.write(self.style.SUCCESS(
-            f"Kanzen SMTP server listening on {host}:{port} "
+            f"CRM SMTP server listening on {host}:{port} "
             f"(hostname={server_hostname}, tls={bool(ssl_context)}, "
             f"auth={'required' if require_auth else 'optional' if auth_users else 'disabled'})"
         ))
-        logger.info("Kanzen SMTP server started on %s:%d", host, port)
+        logger.info("CRM SMTP server started on %s:%d", host, port)
 
         stop = {"flag": False}
 
@@ -85,8 +85,8 @@ class Command(BaseCommand):
                 time.sleep(1)
         finally:
             controller.stop()
-            self.stdout.write(self.style.WARNING("Kanzen SMTP server stopped"))
-            logger.info("Kanzen SMTP server stopped")
+            self.stdout.write(self.style.WARNING("CRM SMTP server stopped"))
+            logger.info("CRM SMTP server stopped")
 
     def _build_ssl_context(self):
         cert = getattr(settings, "SMTP_SERVER_TLS_CERT_FILE", "")

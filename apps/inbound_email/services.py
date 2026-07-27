@@ -146,14 +146,14 @@ def resolve_tenant_from_address(recipient_email):
 
     local_part, _, domain = recipient_email.partition("@")
 
-    # Strategy 1: plus-addressing (support+acme@kanzen.io)
+    # Strategy 1: plus-addressing (support+acme@crm.io)
     if "+" in local_part:
         slug = local_part.split("+", 1)[1]
         tenant = Tenant.objects.filter(slug=slug, is_active=True).first()
         if tenant:
             return tenant
 
-    # Strategy 2: slug as local part (acme@inbound.kanzen.io)
+    # Strategy 2: slug as local part (acme@inbound.crm.io)
     tenant = Tenant.objects.filter(slug=local_part, is_active=True).first()
     if tenant:
         return tenant

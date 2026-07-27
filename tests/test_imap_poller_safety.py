@@ -174,7 +174,7 @@ class _FetchIMAP(_FakeIMAP):
 def _raw_message(slug, message_id):
     return (
         f"From: Customer <cust@example.com>\r\n"
-        f"To: support+{slug}@kanzen.io\r\n"
+        f"To: support+{slug}@crm.io\r\n"
         f"Subject: Shared mailing-list mail\r\n"
         f"Message-ID: <{message_id}>\r\n"
         f"\r\n"
@@ -206,7 +206,7 @@ class TestCrossTenantDedup:
         InboundEmail.objects.create(
             tenant=tenant_a,
             message_id=mid,
-            recipient_email="support+alpha@kanzen.io",
+            recipient_email="support+alpha@crm.io",
             sender_email="cust@example.com",
             direction=InboundEmail.Direction.INBOUND,
             sender_type=InboundEmail.SenderType.CUSTOMER,
@@ -229,7 +229,7 @@ class TestCrossTenantDedup:
         InboundEmail.objects.create(
             tenant=tenant_b,
             message_id=mid,
-            recipient_email="support+beta@kanzen.io",
+            recipient_email="support+beta@crm.io",
             sender_email="cust@example.com",
             direction=InboundEmail.Direction.INBOUND,
             sender_type=InboundEmail.SenderType.CUSTOMER,

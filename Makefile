@@ -1,9 +1,9 @@
-# Kanzen — Development Workflow
+# CRM — Development Workflow
 # Usage: make <target>
 # Run `make help` to see all available targets.
 
 SHELL := /bin/bash
-PROJECT := /home/kavin/Kanzen
+PROJECT := /home/kavin/CRM
 VENV := $(PROJECT)/.venv/bin
 PYTHON := $(VENV)/python
 PIP := $(VENV)/pip
@@ -27,7 +27,7 @@ NC := \033[0m
 
 help: ## Show this help
 	@echo ""
-	@echo "Kanzen — Development Commands"
+	@echo "CRM — Development Commands"
 	@echo "────────────────────────────────────"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-22s$(NC) %s\n", $$1, $$2}'
@@ -36,11 +36,11 @@ help: ## Show this help
 # ─── Development Mode (auto-reload) ────────────────────────────────────────────
 
 dev: ## Start all services in dev mode (Django runserver + Celery with autoreload)
-	@echo -e "$(GREEN)Starting Kanzen in development mode...$(NC)"
+	@echo -e "$(GREEN)Starting CRM in development mode...$(NC)"
 	@pm2 start $(PM2_DEV_CONF) --env development
 	@echo -e "$(GREEN)All services started. Use 'make logs' to watch output.$(NC)"
 	@echo -e "$(YELLOW)Django: http://localhost:8001  |  Flower: http://localhost:5556$(NC)"
-	@pm2 list --sort name | grep kanzan
+	@pm2 list --sort name | grep crm
 
 dev-stop: ## Stop all dev-mode services
 	@pm2 delete $(PM2_DEV_CONF) 2>/dev/null || true
@@ -50,27 +50,27 @@ dev-stop: ## Stop all dev-mode services
 
 start: ## Start all services via PM2 (production config)
 	@pm2 start $(PM2_CONF)
-	@pm2 list --sort name | grep kanzan
+	@pm2 list --sort name | grep crm
 
 stop: ## Stop all PM2 services
-	@pm2 stop kanzan-django kanzan-celery-worker kanzan-celery-beat kanzan-flower 2>/dev/null || true
+	@pm2 stop crm-django crm-celery-worker crm-celery-beat crm-flower 2>/dev/null || true
 	@echo -e "$(GREEN)All services stopped.$(NC)"
 
 restart: ## Restart all PM2 services
-	@pm2 restart kanzan-django kanzan-celery-worker kanzan-celery-beat kanzan-flower
+	@pm2 restart crm-django crm-celery-worker crm-celery-beat crm-flower
 	@echo -e "$(GREEN)All services restarted.$(NC)"
 
 status: ## Show PM2 process status
-	@pm2 list --sort name | grep kanzan
+	@pm2 list --sort name | grep crm
 
 # ─── Targeted Restarts ─────────────────────────────────────────────────────────
 
 restart-django: ## Restart only Django (after Python/view/template changes)
-	@pm2 restart kanzan-django
+	@pm2 restart crm-django
 	@echo -e "$(GREEN)Django restarted.$(NC)"
 
 restart-workers: ## Restart Celery worker + beat (after task changes)
-	@pm2 restart kanzan-celery-worker kanzan-celery-beat
+	@pm2 restart crm-celery-worker crm-celery-beat
 	@echo -e "$(GREEN)Celery worker + beat restarted.$(NC)"
 
 restart-celery: restart-workers ## Alias for restart-workers
@@ -79,15 +79,15 @@ restart-celery: restart-workers ## Alias for restart-workers
 
 restart-backend: ## Backend change: restart Django only
 	@echo -e "$(YELLOW)Backend change detected workflow:$(NC)"
-	@pm2 restart kanzan-django
+	@pm2 restart crm-django
 	@echo -e "$(GREEN)Django restarted. Templates auto-reload in DEBUG mode.$(NC)"
 
 migrate: ## Run pending migrations + restart Django
 	@echo -e "$(YELLOW)Running migrations...$(NC)"
 	$(MANAGE) migrate --run-syncdb
 	@echo -e "$(GREEN)Migrations applied.$(NC)"
-	@if pm2 pid kanzan-django > /dev/null 2>&1; then \
-		pm2 restart kanzan-django; \
+	@if pm2 pid crm-django > /dev/null 2>&1; then \
+		pm2 restart crm-django; \
 		echo -e "$(GREEN)Django restarted after migration.$(NC)"; \
 	fi
 
@@ -101,8 +101,8 @@ migrate-full: ## Generate + apply migrations + restart
 	@echo -e "$(YELLOW)Full migration workflow...$(NC)"
 	$(MANAGE) makemigrations
 	$(MANAGE) migrate --run-syncdb
-	@if pm2 pid kanzan-django > /dev/null 2>&1; then \
-		pm2 restart kanzan-django; \
+	@if pm2 pid crm-django > /dev/null 2>&1; then \
+		pm2 restart crm-django; \
 		echo -e "$(GREEN)Django restarted after migration.$(NC)"; \
 	fi
 
@@ -156,10 +156,10 @@ theme-baseline: ## Refresh the theme-leakage baseline after intentional changes
 # ─── Logs ───────────────────────────────────────────────────────────────────────
 
 logs: ## Tail Django logs
-	@pm2 logs kanzan-django --lines 50
+	@pm2 logs crm-django --lines 50
 
 logs-celery: ## Tail Celery worker logs
-	@pm2 logs kanzan-celery-worker --lines 50
+	@pm2 logs crm-celery-worker --lines 50
 
 logs-all: ## Tail all service logs
 	@pm2 logs --lines 30
@@ -176,10 +176,10 @@ smoke: ## Quick smoke test: check Django responds + migrations OK
 		echo -e "$(YELLOW)PENDING$(NC)" || echo -e "$(GREEN)OK$(NC)"
 	@echo -n "  PM2 services... "
 	@pm2 jlist 2>/dev/null | python3 -c "import sys,json; ps=json.load(sys.stdin); \
-		kanzan=[p for p in ps if p['name'].startswith('kanzan')]; \
-		online=[p for p in kanzan if p['pm2_env']['status']=='online']; \
-		print(f'\033[0;32m{len(online)}/{len(kanzan)} online\033[0m') if len(online)==len(kanzan) \
-		else print(f'\033[0;31m{len(online)}/{len(kanzan)} online\033[0m')" 2>/dev/null || echo "check manually"
+		crm=[p for p in ps if p['name'].startswith('crm')]; \
+		online=[p for p in crm if p['pm2_env']['status']=='online']; \
+		print(f'\033[0;32m{len(online)}/{len(crm)} online\033[0m') if len(online)==len(crm) \
+		else print(f'\033[0;31m{len(online)}/{len(crm)} online\033[0m')" 2>/dev/null || echo "check manually"
 	@echo -e "$(GREEN)Smoke test complete.$(NC)"
 
 check: ## Full pre-commit check: lint + test + migration check

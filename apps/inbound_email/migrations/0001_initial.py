@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
                 ('references', models.TextField(blank=True, default='', help_text='References header (space-separated Message-IDs).')),
                 ('sender_email', models.EmailField(db_index=True, max_length=254)),
                 ('sender_name', models.CharField(blank=True, default='', max_length=255)),
-                ('recipient_email', models.EmailField(help_text='The address this email was sent to (e.g. support@tenant.kanzan.io).', max_length=254)),
+                ('recipient_email', models.EmailField(help_text='The address this email was sent to (e.g. support@tenant.crm.io).', max_length=254)),
                 ('subject', models.CharField(blank=True, default='', max_length=998)),
                 ('body_text', models.TextField(blank=True, default='')),
                 ('body_html', models.TextField(blank=True, default='')),

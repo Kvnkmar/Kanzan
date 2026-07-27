@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Billing - Kanzen Suite{% endblock %}
+{% block title %}Billing - CRM Suite{% endblock %}
 
 {% block content %}
 {% include "includes/page_back_button.html" %}
@@ -219,7 +219,7 @@
   let plans = [], subscription = null, pendingPlanSlug = null;
   function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
   function capitalize(s) { if (!s) return ''; return s.charAt(0).toUpperCase() + s.slice(1); }
-  function formatDate(d) { return Kanzan.formatDate(d); }
+  function formatDate(d) { return CRM.formatDate(d); }
 
   async function init() {
     try {

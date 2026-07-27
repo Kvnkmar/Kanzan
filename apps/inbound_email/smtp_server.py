@@ -47,7 +47,7 @@ MAX_MESSAGE_BYTES = 25 * 1024 * 1024  # 25MB, matches DATA_UPLOAD_MAX_MEMORY_SIZ
 # ---------------------------------------------------------------------------
 
 
-class KanzanSMTPHandler:
+class CRMSMTPHandler:
     """
     aiosmtpd handler that validates recipients against known tenants
     and feeds accepted messages into the InboundEmail pipeline.

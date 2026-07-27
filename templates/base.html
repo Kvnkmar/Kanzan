@@ -5,7 +5,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="csrf-token" content="{{ csrf_token }}">
-  <title>{% block title %}Kanzen Suites{% endblock %}</title>
+  <title>{% block title %}CRM Suites{% endblock %}</title>
   <link rel="icon" type="image/png" href="{% static 'images/DP.png' %}?v=2">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -109,7 +109,7 @@
     // a flash of the expanded sidebar on page load / tab switch.
     (function(){
       try {
-        if (localStorage.getItem('kanzan_sidebar_collapsed') === '1') {
+        if (localStorage.getItem('crm_sidebar_collapsed') === '1') {
           document.body.classList.add('sidebar-collapsed');
         }
       } catch (e) {}
@@ -244,16 +244,16 @@
       idx = idx || 0;
       if (window.flatpickr) return;
       if (idx >= FP_SOURCES.length) {
-        console.warn('[Kanzen] flatpickr: all CDN sources failed; native browser picker will be used.');
+        console.warn('[CRM] flatpickr: all CDN sources failed; native browser picker will be used.');
         return;
       }
       loadScript(FP_SOURCES[idx],
-        function() { console.log('[Kanzen] flatpickr loaded from', FP_SOURCES[idx]); initAll(); },
-        function() { console.warn('[Kanzen] flatpickr: failed', FP_SOURCES[idx]); loadFlatpickr(idx + 1); }
+        function() { console.log('[CRM] flatpickr loaded from', FP_SOURCES[idx]); initAll(); },
+        function() { console.warn('[CRM] flatpickr: failed', FP_SOURCES[idx]); loadFlatpickr(idx + 1); }
       );
     }
 
-    function initKanzenFlatpickr(root) {
+    function initCRMFlatpickr(root) {
       if (!window.flatpickr) return 0;
       var scope = root || document;
       var sel = 'input[type="datetime-local"]:not([data-no-flatpickr]):not(.flatpickr-input),'
@@ -266,7 +266,7 @@
           enableTime: !dateOnly,
           dateFormat: dateOnly ? 'Y-m-d' : 'Y-m-d\\TH:i',
           altInput: true,
-          altInputClass: 'form-control kanzen-fp-alt',
+          altInputClass: 'form-control crm-fp-alt',
           altFormat: dateOnly ? 'M j, Y' : 'M j, Y · h:i K',
           time_24hr: false,
           allowInput: true,
@@ -278,26 +278,26 @@
         // span and stamp a Tabler calendar icon at the right edge. Skip if
         // already wrapped (idempotent re-runs).
         var alt = el.previousSibling;
-        if (alt && alt.classList && alt.classList.contains('kanzen-fp-alt')
-            && !(alt.parentNode && alt.parentNode.classList.contains('kanzen-fp-wrap'))) {
+        if (alt && alt.classList && alt.classList.contains('crm-fp-alt')
+            && !(alt.parentNode && alt.parentNode.classList.contains('crm-fp-wrap'))) {
           var wrap = document.createElement('span');
-          wrap.className = 'kanzen-fp-wrap';
+          wrap.className = 'crm-fp-wrap';
           alt.parentNode.insertBefore(wrap, alt);
           wrap.appendChild(alt);
           wrap.appendChild(el);
           var icon = document.createElement('i');
-          icon.className = 'ti ti-calendar kanzen-fp-icon';
+          icon.className = 'ti ti-calendar crm-fp-icon';
           icon.setAttribute('aria-hidden', 'true');
           wrap.appendChild(icon);
         }
         attached++;
       });
-      if (attached) console.log('[Kanzen] flatpickr attached to', attached, 'input(s)');
+      if (attached) console.log('[CRM] flatpickr attached to', attached, 'input(s)');
       return attached;
     }
-    window.initKanzenFlatpickr = initKanzenFlatpickr;
+    window.initCRMFlatpickr = initCRMFlatpickr;
 
-    function initAll() { initKanzenFlatpickr(document); }
+    function initAll() { initCRMFlatpickr(document); }
 
     // Kick off CDN loading immediately. Multiple fallback CDNs handle the case
     // where one is blocked by an extension or unreachable.
@@ -305,13 +305,13 @@
 
     // Re-scan after Bootstrap modal open — catches inputs whose values
     // are populated programmatically right before the modal is shown.
-    document.addEventListener('shown.bs.modal', function(e) { initKanzenFlatpickr(e.target); });
+    document.addEventListener('shown.bs.modal', function(e) { initCRMFlatpickr(e.target); });
   })();
   </script>
   {% block extra_js %}{% endblock %}
   <script>
   document.addEventListener('DOMContentLoaded', function() {
-    if (window.KanzenSelect) KanzenSelect.upgradeAll('select.form-select:not([data-native])');
+    if (window.CRMSelect) CRMSelect.upgradeAll('select.form-select:not([data-native])');
   });
   </script>
 </body>

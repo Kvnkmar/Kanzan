@@ -22,8 +22,8 @@ from tests.base import TenantTestCase
 
 @override_settings(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-    DEFAULT_FROM_EMAIL="noreply@kanzan.test",
-    BASE_DOMAIN="kanzan.test",
+    DEFAULT_FROM_EMAIL="noreply@crm.test",
+    BASE_DOMAIN="crm.test",
     BASE_PORT="8001",
     DEBUG=True,
 )
@@ -67,7 +67,7 @@ class TicketReplyEmailTest(TenantTestCase):
         email = mail.outbox[0]
         self.assertEqual(
             email.reply_to,
-            [f"support+{self.tenant_a.slug}@kanzan.test"],
+            [f"support+{self.tenant_a.slug}@crm.test"],
         )
 
     def test_custom_inbound_address_as_reply_to(self):
@@ -89,7 +89,7 @@ class TicketReplyEmailTest(TenantTestCase):
         # Should create an InboundEmail record with the outbound message_id
         records = InboundEmail.objects.filter(
             ticket=self.ticket,
-            sender_email="noreply@kanzan.test",
+            sender_email="noreply@crm.test",
         )
         self.assertEqual(records.count(), 1)
         self.assertEqual(records.first().status, InboundEmail.Status.SENT)
@@ -133,13 +133,13 @@ class TicketReplyEmailTest(TenantTestCase):
         )
         email = mail.outbox[0]
         self.assertIn("Admin A", email.from_email)
-        self.assertIn("noreply@kanzan.test", email.from_email)
+        self.assertIn("noreply@crm.test", email.from_email)
 
 
 @override_settings(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-    DEFAULT_FROM_EMAIL="noreply@kanzan.test",
-    BASE_DOMAIN="kanzan.test",
+    DEFAULT_FROM_EMAIL="noreply@crm.test",
+    BASE_DOMAIN="crm.test",
     BASE_PORT="8001",
     DEBUG=True,
 )
@@ -183,11 +183,11 @@ class TicketCreatedEmailTest(TenantTestCase):
 class ReplyToAddressTest(TenantTestCase):
     """Test reply-to address resolution."""
 
-    @override_settings(BASE_DOMAIN="kanzan.test")
+    @override_settings(BASE_DOMAIN="crm.test")
     def test_default_plus_addressing(self):
         """Without custom address, uses support+slug@domain."""
         address = _get_reply_to_address(self.tenant_a)
-        self.assertEqual(address, f"support+{self.tenant_a.slug}@kanzan.test")
+        self.assertEqual(address, f"support+{self.tenant_a.slug}@crm.test")
 
     def test_custom_inbound_address(self):
         """Custom inbound_email_address takes priority."""
@@ -198,7 +198,7 @@ class ReplyToAddressTest(TenantTestCase):
 
 
 @override_settings(
-    BASE_DOMAIN="kanzan.test",
+    BASE_DOMAIN="crm.test",
     BASE_PORT="8001",
     DEBUG=True,
 )

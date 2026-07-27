@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='inboundemail',
             name='recipient_email',
-            field=models.EmailField(help_text='The address this email was sent to (e.g. support@tenant.kanzen.io).', max_length=254),
+            field=models.EmailField(help_text='The address this email was sent to (e.g. support@tenant.crm.io).', max_length=254),
         ),
         migrations.CreateModel(
             name='IMAPPollState',

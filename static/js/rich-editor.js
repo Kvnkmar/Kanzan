@@ -1,5 +1,5 @@
 /**
- * Rich Text Editor wrapper for Kanzen Suite.
+ * Rich Text Editor wrapper for CRM Suite.
  * Uses TipTap editor via CDN for rich text editing in ticket
  * descriptions and comments.
  *
