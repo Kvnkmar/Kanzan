@@ -1,4 +1,4 @@
-# Kanzen — Remediation Plan (Phase 2)
+# CRM — Remediation Plan (Phase 2)
 **Date:** 2026-06-14 · Prioritized fix plan. **No code changes yet** — Phase 3 implementation awaits approval.
 
 Effort key: **S** ≤1h · **M** ≤½ day · **L** 1–2 days. Each item lists the fix and a verification step.
@@ -54,7 +54,7 @@ Effort key: **S** ≤1h · **M** ≤½ day · **L** 1–2 days. Each item lists 
 - **Notification email link safety:** `notifications-9` — validate/sanitize `data.url` (relative or allowlisted) before rendering in email templates.
 - **Performance:** add `select_related`/`prefetch` to `InboxViewSet` and `DashboardWidget`; fix the `prefetch + iterator` anti-pattern in `fire_due_reminders`; reconsider `InboundEmail.save()` per-update SELECT.
 - **Data model:** `data-model-integrity-2` — change `NewsPost.author` CASCADE → SET_NULL/PROTECT (prevent silent post loss).
-- **Ops:** add log rotation (95 MB unrotated); add a worker for `kanzan_voip` (or remove the queue/tasks); wrap `process_export_job.delay` in `on_commit`; confirm `CELERY_TIMEZONE` intent; fix export PDF/XLSX filename↔content mismatch.
+- **Ops:** add log rotation (95 MB unrotated); add a worker for `crm_voip` (or remove the queue/tasks); wrap `process_export_job.delay` in `on_commit`; confirm `CELERY_TIMEZONE` intent; fix export PDF/XLSX filename↔content mismatch.
 - **Dead code:** fix command-palette `/contacts/new/`; delete `kb_sidebar_widget.html`; remove dead macro JS in `tickets/detail.html`; decide on `require_feature`, `KBRevision`/`KBTicketLink`, `PARKED_IN_HUB`.
 - **Coverage:** add direct tests for `create_ticket` action + `_build_ticket_overrides`, billing webhooks, WebSocket auth, attachment authz/MIME.
 
@@ -62,7 +62,7 @@ Effort key: **S** ≤1h · **M** ≤½ day · **L** 1–2 days. Each item lists 
 - Resolve the 196 ruff issues (`ruff --fix` for the 155 auto-fixable; manually review `F601` repeated key, `F841` in app code, `F811`).
 - Add `pytest-timeout` to `dev.txt`; set `asyncio_mode` in `pytest.ini`.
 - Doc drift: activity dedup "5s"→"2s"; KB vote endpoint schema; stale `docs/reference/*`.
-- Tidy `make logs-django` (`.PHONY` w/o body), `make stop/restart` omitting `kanzan-smtp`.
+- Tidy `make logs-django` (`.PHONY` w/o body), `make stop/restart` omitting `crm-smtp`.
 
 ---
 

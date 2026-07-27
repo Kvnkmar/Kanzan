@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Ticket #{{ ticket_number }} - Kanzen Suite{% endblock %}
+{% block title %}Ticket #{{ ticket_number }} - CRM Suite{% endblock %}
 
 {% block extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" rel="stylesheet">
@@ -1089,11 +1089,11 @@ window.dispatchEvent(new Event('tiptap-ready'));
   function avatarColor(name) { return 'var(--crm-avatar-bg)'; }
 
   function formatDateTime(dateStr) {
-    return Kanzan.formatDateTime(dateStr);
+    return CRM.formatDateTime(dateStr);
   }
 
   function formatDate(dateStr) {
-    return Kanzan.formatDate(dateStr);
+    return CRM.formatDate(dateStr);
   }
 
   function formatRelativeTime(dateStr) {
@@ -2128,7 +2128,7 @@ window.dispatchEvent(new Event('tiptap-ready'));
   /* ── Upgrade Custom Selects ── */
   function upgradeAllSelects() {
     document.querySelectorAll('.td-prop-select').forEach(function(el) {
-      KanzenSelect.upgrade(el, { searchable: false });
+      CRMSelect.upgrade(el, { searchable: false });
     });
   }
 
@@ -3551,8 +3551,8 @@ window.dispatchEvent(new Event('tiptap-ready'));
         groups.forEach(function(g) { var t = document.createElement('span'); t.className = 'cpanel-group-tag'; t.textContent = g.name; gc.appendChild(t); });
       } else { groupsSection.style.display = 'none'; }
 
-      document.getElementById('cpCreated').textContent = c.created_at ? Kanzan.formatDateTime(c.created_at) : '--';
-      document.getElementById('cpUpdated').textContent = c.updated_at ? Kanzan.formatDateTime(c.updated_at) : '--';
+      document.getElementById('cpCreated').textContent = c.created_at ? CRM.formatDateTime(c.created_at) : '--';
+      document.getElementById('cpUpdated').textContent = c.updated_at ? CRM.formatDateTime(c.updated_at) : '--';
       document.getElementById('cpViewBtn').href = '/contacts/' + c.id + '/';
 
       document.getElementById('contactPanelLoading').classList.add('d-none');

@@ -25,7 +25,7 @@ from apps.tickets.models import (
 )
 from main.context import set_current_tenant
 
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
 # =====================================================================
@@ -33,7 +33,7 @@ from tests.base import KanzenBaseTestCase
 # =====================================================================
 
 
-class AccountAndContactTests(KanzenBaseTestCase):
+class AccountAndContactTests(CRMBaseTestCase):
     """Tests for CRM Account model and its relationship with Contacts/Tickets."""
 
     def setUp(self):
@@ -100,7 +100,7 @@ class AccountAndContactTests(KanzenBaseTestCase):
 # =====================================================================
 
 
-class PipelineTests(KanzenBaseTestCase):
+class PipelineTests(CRMBaseTestCase):
     """Tests for Pipeline, PipelineStage, and stage transitions."""
 
     def setUp(self):
@@ -295,7 +295,7 @@ class PipelineTests(KanzenBaseTestCase):
 # =====================================================================
 
 
-class ActivityTests(KanzenBaseTestCase):
+class ActivityTests(CRMBaseTestCase):
     """Tests for CRM Activities linked to tickets and contacts."""
 
     def setUp(self):
@@ -446,7 +446,7 @@ class ActivityTests(KanzenBaseTestCase):
 # =====================================================================
 
 
-class ContactTimelineTests(KanzenBaseTestCase):
+class ContactTimelineTests(CRMBaseTestCase):
     """Tests for the unified ContactEvent timeline."""
 
     def setUp(self):
@@ -556,7 +556,7 @@ class ContactTimelineTests(KanzenBaseTestCase):
 # =====================================================================
 
 
-class ScoringTests(KanzenBaseTestCase):
+class ScoringTests(CRMBaseTestCase):
     """Tests for the nightly lead/account scoring Celery tasks."""
 
     def setUp(self):
@@ -697,7 +697,7 @@ class ScoringTests(KanzenBaseTestCase):
 # =====================================================================
 
 
-class ForecastTests(KanzenBaseTestCase):
+class ForecastTests(CRMBaseTestCase):
     """Tests for the pipeline forecast endpoint."""
 
     def setUp(self):

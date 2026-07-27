@@ -1,5 +1,5 @@
 /* ============================================================
-   Kanzen Suite — Design System v9.0 "Crimson Black"
+   CRM Suite — Design System v9.0 "Crimson Black"
    Aggressive · Modern · Controlled · Premium
    Deep red on layered near-black. Restraint over saturation.
    ============================================================ */
@@ -14544,7 +14544,7 @@ body.is-mobile-sm .date-range-picker {
   background-color: var(--crm-surface);
 }
 
-/* KanzenSelect upgrades the type/country selects; clamp the wrappers so all
+/* CRMSelect upgrades the type/country selects; clamp the wrappers so all
    rows render with identical proportions across initial and "Add Phone" rows. */
 .contact-input-with-actions .td-cselect {
   width: 110px;
@@ -22487,17 +22487,17 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: v
 [data-bs-theme="dark"] .numInputWrapper span:hover { background: rgba(255,255,255,0.08) !important; }
 
 /* Trailing calendar icon on flatpickr-wrapped inputs. The init script wraps
-   each alt-input in .kanzen-fp-wrap so we can absolutely position a Tabler
+   each alt-input in .crm-fp-wrap so we can absolutely position a Tabler
    icon over the right edge without fighting Bootstrap's input backgrounds. */
-.kanzen-fp-wrap {
+.crm-fp-wrap {
   position: relative;
   display: block;
 }
-.kanzen-fp-wrap .kanzen-fp-alt {
+.crm-fp-wrap .crm-fp-alt {
   padding-right: 2.25rem !important;
   cursor: pointer;
 }
-.kanzen-fp-wrap .kanzen-fp-icon {
+.crm-fp-wrap .crm-fp-icon {
   position: absolute;
   right: 0.75rem;
   top: 50%;
@@ -22507,7 +22507,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: v
   font-size: var(--crm-text-lg);
   line-height: 1;
 }
-[data-bs-theme="dark"] .kanzen-fp-wrap .kanzen-fp-icon {
+[data-bs-theme="dark"] .crm-fp-wrap .crm-fp-icon {
   color: var(--crm-text-muted);
 }
 
@@ -22534,7 +22534,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: v
 .nf-pill[data-cat="incident"]:hover     { color: var(--kz-cat-incident); border-color: var(--kz-cat-incident); }
 .nf-pill[data-cat="incident"].active    { background: var(--kz-cat-incident); border-color: var(--kz-cat-incident); color: var(--crm-text-on-primary); }
 
-/* --- Color dots in the KanzenSelect dropdown options ---
+/* --- Color dots in the CRMSelect dropdown options ---
    These data-value tokens are used only by the news feed category select,
    so global scoping is safe. */
 .td-cselect-option[data-value="general"],
@@ -22795,7 +22795,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: v
   animation: kz-fade-up var(--crm-duration-moderate) var(--crm-ease-out) both;
 }
 
-/* Styled <select> dropdowns (KanzenSelect portal) currently snap open. The
+/* Styled <select> dropdowns (CRMSelect portal) currently snap open. The
    menu is re-appended to <body> on each open, so this entrance runs every
    time it opens — no JS needed. Reuses the existing popoverFadeIn keyframe. */
 .td-cselect-menu.td-cselect-portal {
@@ -22939,7 +22939,7 @@ table tbody tr {
 /* --- Form controls: focus ring smoothness --- */
 .form-control,
 .form-select,
-.kanzen-select,
+.crm-select,
 input[type="text"],
 input[type="email"],
 input[type="search"],
@@ -24971,7 +24971,7 @@ textarea {
 /* ---------- Customer-sent attachments (shared component) ----------
    Used by both the Inbox Hub detail pane (.ih-attachments wrapper) and the
    Emails-page preview (.ep-attachments wrapper). Rendered by
-   Kanzan.renderMailAttachments in app.js — keep the markup in sync. */
+   CRM.renderMailAttachments in app.js — keep the markup in sync. */
 .ih-attachments { padding: 0 24px 24px; }
 .mail-att-title {
   display: flex;

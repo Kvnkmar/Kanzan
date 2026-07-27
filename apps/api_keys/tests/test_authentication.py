@@ -129,9 +129,9 @@ def test_malformed_authorization_header_too_many_parts_returns_401(tenant):
 
 
 def test_key_without_kz_live_prefix_returns_401(tenant):
-    """A non-Kanzen-format token (no ``kz_live_`` prefix) → 401."""
+    """A non-CRM-format token (no ``kz_live_`` prefix) → 401."""
     client = _key_client(tenant)
-    client.credentials(HTTP_AUTHORIZATION="Api-Key not-kanzan-format")
+    client.credentials(HTTP_AUTHORIZATION="Api-Key not-crm-format")
 
     resp = client.get(TICKETS_URL)
     assert resp.status_code == status.HTTP_401_UNAUTHORIZED

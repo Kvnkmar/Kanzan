@@ -1,4 +1,4 @@
-# UI Consistency Audit & Remediation — Kanzen Suite
+# UI Consistency Audit & Remediation — CRM Suite
 
 > **Refreshed 2026-06-23.** Supersedes the 2026-05-22 survey. This pass ran a 14-auditor
 > sweep (every page group + every design-system dimension + JS-injected styles) against

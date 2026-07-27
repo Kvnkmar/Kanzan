@@ -129,7 +129,7 @@
 | crm           | `check_overdue_reminders` (NOT in Beat), `calculate_lead_scores`, `calculate_account_health_scores` |
 | voip          | `process_call_recording`, `cleanup_stale_calls`, `sync_call_state`                               |
 | analytics     | `process_export_job`                                                                             |
-| **api_keys**  | `send_api_key_created_email_task` (bound, retries=3, default_retry_delay=60s, acks_late, queue `kanzan_email`; cleartext NOT included in email) |
+| **api_keys**  | `send_api_key_created_email_task` (bound, retries=3, default_retry_delay=60s, acks_late, queue `crm_email`; cleartext NOT included in email) |
 
 ### Beat schedule (`main/settings/base.py CELERY_BEAT_SCHEDULE`, 9 entries)
 
@@ -150,17 +150,17 @@
 ### Queue routing (`main/celery.py` task_routes — 6 globs + default)
 
 ```
-apps.billing.tasks.*                              → kanzan_webhooks    (dormant — apps/billing/tasks.py does not exist)
-apps.notifications.tasks.send_email_*             → kanzan_email
-apps.notifications.tasks.send_notification_email  → kanzan_email
-apps.inbound_email.tasks.*                        → kanzan_email
-apps.tickets.tasks.send_ticket_*                  → kanzan_email
-apps.api_keys.tasks.send_api_key_*                → kanzan_email
-apps.voip.tasks.*                                 → kanzan_voip
-*                                                 → kanzan_default
+apps.billing.tasks.*                              → crm_webhooks    (dormant — apps/billing/tasks.py does not exist)
+apps.notifications.tasks.send_email_*             → crm_email
+apps.notifications.tasks.send_notification_email  → crm_email
+apps.inbound_email.tasks.*                        → crm_email
+apps.tickets.tasks.send_ticket_*                  → crm_email
+apps.api_keys.tasks.send_api_key_*                → crm_email
+apps.voip.tasks.*                                 → crm_voip
+*                                                 → crm_default
 ```
 
-> **Caveat:** PM2 worker `-Q` list is `kanzan_default,kanzan_email,kanzan_webhooks` — `kanzan_voip` is NOT included. Add `kanzan_voip` to the worker args (or run a dedicated VoIP worker) when enabling VoIP tasks. `run_ari_listener` is NOT in PM2 by default.
+> **Caveat:** PM2 worker `-Q` list is `crm_default,crm_email,crm_webhooks` — `crm_voip` is NOT included. Add `crm_voip` to the worker args (or run a dedicated VoIP worker) when enabling VoIP tasks. `run_ari_listener` is NOT in PM2 by default.
 
 ## Management commands (7)
 
@@ -171,7 +171,7 @@ apps.voip.tasks.*                                 → kanzan_voip
 | setup_queues             | Seed 4 default queues per tenant                                     |
 | setup_ticket_statuses    | Seed 5 default statuses per tenant                                   |
 | backfill_sla_audit       | Baseline SLA audit rows for in-flight tickets (`--dry-run` supported) |
-| run_smtp_server          | Long-running aiosmtpd server (kanzan-smtp PM2 process)               |
+| run_smtp_server          | Long-running aiosmtpd server (crm-smtp PM2 process)               |
 | run_ari_listener         | Long-running Asterisk ARI Stasis loop (NOT in PM2 by default)        |
 
 ## Key facts often missed

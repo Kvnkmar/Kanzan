@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Calendar - Kanzen Suite{% endblock %}
+{% block title %}Calendar - CRM Suite{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
@@ -646,7 +646,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   /* ------------------------------------------------------------------ */
   /*  Filters — persisted in localStorage                                */
   /* ------------------------------------------------------------------ */
-  var FILTER_STORAGE_KEY = 'kanzan_calendar_filters_v1';
+  var FILTER_STORAGE_KEY = 'crm_calendar_filters_v1';
   var FILTER_TYPES = ['ticket_created', 'ticket_due', 'meeting', 'call', 'task', 'reminder', 'other'];
   var filters = loadFilters();
 

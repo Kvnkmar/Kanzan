@@ -14,10 +14,10 @@ from rest_framework import status
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class TestAuthAndTenantIsolation(KanzenBaseTestCase):
+class TestAuthAndTenantIsolation(CRMBaseTestCase):
     """Authentication, JWT token lifecycle, and tenant isolation tests."""
 
     def setUp(self):

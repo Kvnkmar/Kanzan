@@ -33,7 +33,7 @@ EMAIL_VERIFICATION_TOKEN_TTL = timedelta(hours=24)
 # from the bare domain to a tenant subdomain. 30 seconds is enough for
 # the browser's redirect + handoff round trip and short enough to be
 # useless if captured.
-HANDOFF_TOKEN_SALT = "kanzen.auth.handoff.v1"
+HANDOFF_TOKEN_SALT = "crm.auth.handoff.v1"
 HANDOFF_TOKEN_TTL_SECONDS = 30
 
 SESSION_AUTH_VERSION_KEY = "auth_version"
@@ -698,7 +698,7 @@ _RESERVED_SLUGS = frozenset({
     "www", "api", "admin", "mail", "smtp", "imap", "ftp",
     "login", "register", "signup", "logout", "auth", "account", "accounts",
     "dashboard", "app", "static", "media", "assets", "docs", "help", "support",
-    "billing", "status", "health", "about", "pricing", "demo", "kanzen",
+    "billing", "status", "health", "about", "pricing", "demo", "crm",
     "verify-email", "setup-company", "workspaces",
 })
 
@@ -722,7 +722,7 @@ def _send_email_verification(user) -> None:
         "verify_url": verify_url,
         "ttl_hours": int(EMAIL_VERIFICATION_TOKEN_TTL.total_seconds() // 3600),
     }
-    subject = "Verify your Kanzen Suite email"
+    subject = "Verify your CRM Suite email"
     text_body = render_to_string("auth/email/verify_email.txt", context)
     html_body = render_to_string("auth/email/verify_email.html", context)
 

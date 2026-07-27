@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Audit Log - Kanzen Suite{% endblock %}
+{% block title %}Audit Log - CRM Suite{% endblock %}
 
 {% block content %}
 <div id="auditPageData" data-current-user="{{ request.user.pk }}" class="d-none"></div>
@@ -547,7 +547,7 @@
     return el;
   }
 
-  function formatDate(dateStr) { return Kanzan.timeAgo(dateStr); }
+  function formatDate(dateStr) { return CRM.timeAgo(dateStr); }
 
   function formatFullDate(dateStr) {
     if (!dateStr) return '--';
@@ -1863,7 +1863,7 @@
     statFailed: document.getElementById('ibeStatFailed')
   };
 
-  function formatDate(dateStr) { return Kanzan.timeAgo(dateStr); }
+  function formatDate(dateStr) { return CRM.timeAgo(dateStr); }
 
   function buildParams() {
     var params = new URLSearchParams();

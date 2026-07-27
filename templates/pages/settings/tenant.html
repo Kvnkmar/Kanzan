@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Settings - Kanzen Suite{% endblock %}
+{% block title %}Settings - CRM Suite{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -1075,7 +1075,7 @@
             <div class="d-flex align-items-center justify-content-between py-2">
               <div>
                 <span class="st-toggle-label">Auto-send ticket confirmation email</span>
-                <span class="st-toggle-desc d-block text-muted small">When enabled, Kanzen emails the contact automatically as soon as a ticket is created from an inbound email. When disabled, agents trigger the confirmation manually from the ticket page.</span>
+                <span class="st-toggle-desc d-block text-muted small">When enabled, CRM emails the contact automatically as soon as a ticket is created from an inbound email. When disabled, agents trigger the confirmation manually from the ticket page.</span>
               </div>
               <div class="form-check form-switch mb-0">
                 <input class="form-check-input" type="checkbox" role="switch" id="autoSendCreatedEmailToggle">
@@ -1677,7 +1677,7 @@
               <i class="ti ti-key-off"></i>
             </div>
             <h5 class="mb-2">No API keys yet</h5>
-            <p class="text-muted mb-3">Generate your first key to start integrating Kanzen with external services.</p>
+            <p class="text-muted mb-3">Generate your first key to start integrating CRM with external services.</p>
             <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#apiKeyGenerateModal">
               <i class="ti ti-plus me-1"></i>Generate new key
             </button>
@@ -1717,11 +1717,11 @@
             <div class="st-section-icon"><i class="ti ti-code"></i></div>
             <div>
               <h3 class="st-section-title">API Documentation</h3>
-              <p class="st-section-desc">Build integrations against Kanzen's OpenAPI 3.0 API.</p>
+              <p class="st-section-desc">Build integrations against CRM's OpenAPI 3.0 API.</p>
             </div>
           </div>
           <p class="text-muted small mb-4">
-            Kanzen's API uses OpenAPI 3.0. The full reference is available in an interactive Swagger UI
+            CRM's API uses OpenAPI 3.0. The full reference is available in an interactive Swagger UI
             where you can authenticate with your API key and make live calls right from the browser.
           </p>
 
@@ -1731,7 +1731,7 @@
                 <div class="st-hub-card-icon"><i class="ti ti-book-2"></i></div>
                 <div class="st-hub-card-body">
                   <div class="st-hub-card-title">Open API Docs</div>
-                  <div class="st-hub-card-desc">Interactive Swagger UI with every endpoint Kanzen exposes. Click "Authorize" and paste an API key to make live calls.</div>
+                  <div class="st-hub-card-desc">Interactive Swagger UI with every endpoint CRM exposes. Click "Authorize" and paste an API key to make live calls.</div>
                 </div>
                 <i class="ti ti-external-link st-hub-card-ext"></i>
               </a>
@@ -1931,7 +1931,7 @@ var _settingsPaneIds = [
 
 /* ── Settings Hub Navigation ── */
 var settingsHub = (function() {
-  var RECENT_KEY = 'kanzan_recent_settings';
+  var RECENT_KEY = 'crm_recent_settings';
   var MAX_RECENT = 5;
 
   var paneLabels = {
@@ -4084,9 +4084,9 @@ function switchSettingsTab(targetId) {
       document.getElementById('sidebarCollapsedToggle').checked = !!data.sidebar_collapsed;
       setSegmentedValue('densitySegmented', data.density || 'comfortable');
       // Sync localStorage with server values (use correct keys)
-      localStorage.setItem('kanzan_theme', data.theme || 'system');
-      localStorage.setItem('kanzan_sidebar_collapsed', data.sidebar_collapsed ? '1' : '0');
-      localStorage.setItem('kanzan_density', data.density || 'comfortable');
+      localStorage.setItem('crm_theme', data.theme || 'system');
+      localStorage.setItem('crm_sidebar_collapsed', data.sidebar_collapsed ? '1' : '0');
+      localStorage.setItem('crm_density', data.density || 'comfortable');
       // Apply immediately
       applyThemeSetting(data.theme || 'system');
       applySidebarSetting(!!data.sidebar_collapsed);
@@ -4138,9 +4138,9 @@ function switchSettingsTab(targetId) {
         density: density
       });
       // Store with correct keys (matching theme.js / app.js)
-      localStorage.setItem('kanzan_theme', theme);
-      localStorage.setItem('kanzan_sidebar_collapsed', collapsed ? '1' : '0');
-      localStorage.setItem('kanzan_density', density);
+      localStorage.setItem('crm_theme', theme);
+      localStorage.setItem('crm_sidebar_collapsed', collapsed ? '1' : '0');
+      localStorage.setItem('crm_density', density);
       // Apply changes immediately — no page reload needed
       applyThemeSetting(theme);
       applySidebarSetting(collapsed);
@@ -4198,10 +4198,10 @@ function switchSettingsTab(targetId) {
         tzSelect.value = tz;
       }
       // Sync localStorage
-      localStorage.setItem('kanzan_language', data.language || 'en');
-      localStorage.setItem('kanzan_timezone', data.timezone || '');
-      localStorage.setItem('kanzan_date_format', data.date_format || 'YYYY-MM-DD');
-      localStorage.setItem('kanzan_time_format', data.time_format || '24h');
+      localStorage.setItem('crm_language', data.language || 'en');
+      localStorage.setItem('crm_timezone', data.timezone || '');
+      localStorage.setItem('crm_date_format', data.date_format || 'YYYY-MM-DD');
+      localStorage.setItem('crm_time_format', data.time_format || '24h');
     } catch(e) { console.error('Failed to load language prefs:', e); }
   }
 
@@ -4220,12 +4220,12 @@ function switchSettingsTab(targetId) {
         date_format: dateFmt,
         time_format: timeFmt
       });
-      localStorage.setItem('kanzan_language', lang);
-      localStorage.setItem('kanzan_timezone', tz);
-      localStorage.setItem('kanzan_date_format', dateFmt);
-      localStorage.setItem('kanzan_time_format', timeFmt);
-      try { sessionStorage.setItem('kanzan_toast', JSON.stringify({ type: 'success', message: 'Regional settings saved' })); } catch(_) {}
-      // Reload so Kanzan.formatDate / formatDateTime pick up the new prefs across the page.
+      localStorage.setItem('crm_language', lang);
+      localStorage.setItem('crm_timezone', tz);
+      localStorage.setItem('crm_date_format', dateFmt);
+      localStorage.setItem('crm_time_format', timeFmt);
+      try { sessionStorage.setItem('crm_toast', JSON.stringify({ type: 'success', message: 'Regional settings saved' })); } catch(_) {}
+      // Reload so CRM.formatDate / formatDateTime pick up the new prefs across the page.
       window.location.reload();
     } catch(err) {
       var msg = err && (err.detail || err.timezone || err.language || err.date_format || err.time_format);

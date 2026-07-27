@@ -121,7 +121,7 @@ def originate_call(call_log, caller_extension):
         return False, error
 
     caller_id = (
-        caller_extension.caller_id_name or "Kanzen Suites"
+        caller_extension.caller_id_name or "CRM Suites"
     )
     if caller_extension.caller_id_number:
         caller_id = f'"{caller_id}" <{caller_extension.caller_id_number}>'
@@ -131,13 +131,13 @@ def originate_call(call_log, caller_extension):
             result, err = await client.originate(
                 endpoint=f"PJSIP/{caller_extension.sip_username}",
                 caller_id=caller_id,
-                app="kanzan-voip",
+                app="crm-voip",
                 app_args=f"outbound,{call_log.callee_number},{call_log.id}",
                 variables={
-                    "KANZAN_CALL_ID": str(call_log.id),
-                    "KANZAN_TENANT_ID": str(call_log.tenant_id),
-                    "KANZAN_DIRECTION": "outbound",
-                    "KANZAN_CALLEE": call_log.callee_number,
+                    "CRM_CALL_ID": str(call_log.id),
+                    "CRM_TENANT_ID": str(call_log.tenant_id),
+                    "CRM_DIRECTION": "outbound",
+                    "CRM_CALLEE": call_log.callee_number,
                 },
             )
             return result, err

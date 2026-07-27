@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Contacts - Kanzen Suite{% endblock %}
+{% block title %}Contacts - CRM Suite{% endblock %}
 
 {% block content %}
 {% include "includes/page_back_button.html" %}
@@ -273,7 +273,7 @@
   // (see custom-v15.css :root / [data-bs-theme="dark"]). Same call signature
   // so callers don't change; name is ignored now that colour is uniform.
   function avatarColor(name) { return 'var(--crm-avatar-bg)'; }
-  function formatDate(d) { return Kanzan.formatDate(d); }
+  function formatDate(d) { return CRM.formatDate(d); }
   function escapeHtml(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
   function loadContacts() {
@@ -626,7 +626,7 @@
       var birthdaySection = document.getElementById('panelBirthdaySection');
       if (cd.birthday) {
         birthdaySection.style.display = '';
-        document.getElementById('panelBirthday').textContent = Kanzan.formatDate(cd.birthday);
+        document.getElementById('panelBirthday').textContent = CRM.formatDate(cd.birthday);
       } else { birthdaySection.style.display = 'none'; }
 
       // Notes
@@ -652,8 +652,8 @@
       } else { groupsSection.style.display = 'none'; }
 
       // Meta
-      document.getElementById('panelCreated').textContent = c.created_at ? Kanzan.formatDateTime(c.created_at) : '--';
-      document.getElementById('panelUpdated').textContent = c.updated_at ? Kanzan.formatDateTime(c.updated_at) : '--';
+      document.getElementById('panelCreated').textContent = c.created_at ? CRM.formatDateTime(c.created_at) : '--';
+      document.getElementById('panelUpdated').textContent = c.updated_at ? CRM.formatDateTime(c.updated_at) : '--';
 
       // Actions
       document.getElementById('panelViewBtn').href = '/contacts/' + c.id + '/';

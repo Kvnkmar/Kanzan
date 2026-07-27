@@ -33,7 +33,7 @@ Order: `daphne` (must be first) → `jazzmin` (must be before `django.contrib.ad
 9. **`SessionVersionMiddleware`** (custom — global logout via `User.auth_version`)
 10. **`TenantMiddleware`** (resolves tenant from subdomain or `TenantSettings.domain`; sets `request.tenant`; binds to async-safe `contextvars` context. `/admin/` has a dedicated branch — NOT in `EXEMPT_PATH_PREFIXES` — that resolves the tenant from the subdomain when present, so subdomain-scoped admin gets `request.tenant` set.)
 11. **`SubscriptionMiddleware`** (returns HTTP 402 when subscription is neither `is_active` nor `in_grace_period`)
-12. **`apps.api_keys.middleware.RateLimitHeadersMiddleware`** ← NEW (emits `X-RateLimit-Limit/Remaining/Reset` from `request._kanzan_throttle_info`; zero overhead for non-API-key traffic)
+12. **`apps.api_keys.middleware.RateLimitHeadersMiddleware`** ← NEW (emits `X-RateLimit-Limit/Remaining/Reset` from `request._crm_throttle_info`; zero overhead for non-API-key traffic)
 13. `MessageMiddleware`
 14. `XFrameOptionsMiddleware`
 
@@ -46,9 +46,9 @@ Order: `daphne` (must be first) → `jazzmin` (must be before `django.contrib.ad
 ### Database / cache / sessions
 
 - **Database:** `env.db("DATABASE_URL", default=sqlite)` — `db.sqlite3` in dev; PostgreSQL via `psycopg[binary]` in prod
-- **Cache:** Redis db3 (`KEY_PREFIX="kanzan"`) via `django-redis`
+- **Cache:** Redis db3 (`KEY_PREFIX="crm"`) via `django-redis`
 - **Sessions:** `cached_db` backend, host-only cookie (`SESSION_COOKIE_HTTPONLY=True`, SameSite=Lax)
-- **Channels layer:** Redis db5 (prefix `kanzan:channels`) via `channels-redis`
+- **Channels layer:** Redis db5 (prefix `crm:channels`) via `channels-redis`
 - **Celery broker:** Redis db4; result backend `django-db` (django-celery-results)
 - **TIME_ZONE:** `Asia/Kuala_Lumpur`; `USE_TZ=True`. Celery uses UTC.
 
@@ -60,7 +60,7 @@ Order: `daphne` (must be first) → `jazzmin` (must be before `django.contrib.ad
 - Filters: `DjangoFilterBackend`, `SearchFilter`, `OrderingFilter`
 - **Default throttle classes** (applied to every viewset): `ScopedRateThrottle`, **`apps.api_keys.throttling.APIKeyRateThrottle`**
 - **Throttle rates:** `auth=10/min`, `api_default=200/min`, `api_heavy=30/min`, `webhook=60/min` (ScopedRateThrottle — only `AuthViewSet` opts in via `throttle_scope`), **`api_key=1000/hour`** (`APIKeyRateThrottle` — `SimpleRateThrottle`-based, auto-engages when `request.auth` is an `APIKey`)
-- Schema: drf-spectacular (`SPECTACULAR_SETTINGS.TITLE="Kanzen Suite API"`). The `apps.api_keys.extensions.APIKeyAuthScheme` is registered by `apps/api_keys/apps.py::ready()` so Swagger UI's "Authorize" dialog shows an `ApiKeyAuth` option alongside the JWT bearer.
+- Schema: drf-spectacular (`SPECTACULAR_SETTINGS.TITLE="CRM Suite API"`). The `apps.api_keys.extensions.APIKeyAuthScheme` is registered by `apps/api_keys/apps.py::ready()` so Swagger UI's "Authorize" dialog shows an `ApiKeyAuth` option alongside the JWT bearer.
 
 ### Auth/SSO
 
@@ -84,16 +84,16 @@ Six WebSocket endpoints (full breakdown in `api-surface.md`). `WebSocketTenantMi
 - App init reads `DJANGO_SETTINGS_MODULE`, then `app = Celery("main")`, `app.config_from_object("django.conf:settings", namespace="CELERY")`, `app.autodiscover_tasks()`
 - **Queue routing** (`task_routes` — 6 globs + default):
   ```
-  apps.billing.tasks.*                              → kanzan_webhooks    (dormant — apps/billing/tasks.py does not exist)
-  apps.notifications.tasks.send_email_*             → kanzan_email
-  apps.notifications.tasks.send_notification_email  → kanzan_email
-  apps.inbound_email.tasks.*                        → kanzan_email
-  apps.tickets.tasks.send_ticket_*                  → kanzan_email
-  apps.api_keys.tasks.send_api_key_*                → kanzan_email
-  apps.voip.tasks.*                                 → kanzan_voip
-  *                                                 → kanzan_default
+  apps.billing.tasks.*                              → crm_webhooks    (dormant — apps/billing/tasks.py does not exist)
+  apps.notifications.tasks.send_email_*             → crm_email
+  apps.notifications.tasks.send_notification_email  → crm_email
+  apps.inbound_email.tasks.*                        → crm_email
+  apps.tickets.tasks.send_ticket_*                  → crm_email
+  apps.api_keys.tasks.send_api_key_*                → crm_email
+  apps.voip.tasks.*                                 → crm_voip
+  *                                                 → crm_default
   ```
-- **Default queue:** `kanzan_default`
+- **Default queue:** `crm_default`
 - **Beat schedule:** 9 entries (full table in `codebase-inventory.md`)
 - **Beat scheduler:** built-in shelve scheduler (file `celerybeat-schedule` at repo root). `django-celery-beat` was removed for Django 6 compatibility.
 - Time limits: 300s hard, 240s soft. `worker_max_tasks_per_child=200`. JSON serialization. UTC timezone.
@@ -104,20 +104,20 @@ Six WebSocket endpoints (full breakdown in `api-surface.md`). `WebSocketTenantMi
 
 | Name                  | Script   | Args                                                                                                                                                | Memory | Kill timeout |
 |-----------------------|----------|-----------------------------------------------------------------------------------------------------------------------------------------------------|--------|--------------|
-| `kanzan-django`       | gunicorn | `main.asgi:application -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001 --timeout 120 --graceful-timeout 30`                              | 2G     | 8000ms       |
-| `kanzan-celery-worker`| celery   | `-A main worker -Q kanzan_default,kanzan_email,kanzan_webhooks -c 4 -l info --pool prefork -n kanzan-worker@%h --max-tasks-per-child=200`          | 2G     | 15000ms      |
-| `kanzan-celery-beat`  | celery   | `-A main beat -l info`                                                                                                                              | 512M   | (default)    |
-| `kanzan-flower`       | celery   | `-A main flower --port=5556 --url_prefix=flower --basic_auth=$KANZAN_FLOWER_AUTH`                                                                   | 512M   | (default)    |
-| `kanzan-smtp`         | python   | `manage.py run_smtp_server`                                                                                                                         | 512M   | 8000ms       |
+| `crm-django`       | gunicorn | `main.asgi:application -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8001 --timeout 120 --graceful-timeout 30`                              | 2G     | 8000ms       |
+| `crm-celery-worker`| celery   | `-A main worker -Q crm_default,crm_email,crm_webhooks -c 4 -l info --pool prefork -n crm-worker@%h --max-tasks-per-child=200`          | 2G     | 15000ms      |
+| `crm-celery-beat`  | celery   | `-A main beat -l info`                                                                                                                              | 512M   | (default)    |
+| `crm-flower`       | celery   | `-A main flower --port=5556 --url_prefix=flower --basic_auth=$CRM_FLOWER_AUTH`                                                                   | 512M   | (default)    |
+| `crm-smtp`         | python   | `manage.py run_smtp_server`                                                                                                                         | 512M   | 8000ms       |
 
-Common: `cwd=/home/kavin/Kanzen`, `exec_mode=fork`, `watch=false`, `autorestart=true (max 10 restarts, min 10s uptime)`, `merge_logs=true`.
+Common: `cwd=/home/kavin/CRM`, `exec_mode=fork`, `watch=false`, `autorestart=true (max 10 restarts, min 10s uptime)`, `merge_logs=true`.
 
-> **Caveat:** `kanzan_voip` queue is in Celery routes but **not in worker `-Q`** — VoIP Celery tasks won't run unless the queue is added or a dedicated VoIP worker is started. `run_ari_listener` is **not in PM2** by default — start separately if VoIP is live. Makefile `stop` and `restart` targets omit `kanzan-smtp` — manage that one independently.
+> **Caveat:** `crm_voip` queue is in Celery routes but **not in worker `-Q`** — VoIP Celery tasks won't run unless the queue is added or a dedicated VoIP worker is started. `run_ari_listener` is **not in PM2** by default — start separately if VoIP is live. Makefile `stop` and `restart` targets omit `crm-smtp` — manage that one independently.
 
 ### Development (`ecosystem.dev.config.js`) — 4 processes (no SMTP)
 
-- `kanzan-django` uses `python manage.py runserver 0.0.0.0:8001` for autoreload
-- `kanzan-celery-worker` watches `apps/*/tasks.py`, `apps/*/services.py`, `main/celery.py` (watch_delay 2s); concurrency `-c 2 --max-tasks-per-child=50`
+- `crm-django` uses `python manage.py runserver 0.0.0.0:8001` for autoreload
+- `crm-celery-worker` watches `apps/*/tasks.py`, `apps/*/services.py`, `main/celery.py` (watch_delay 2s); concurrency `-c 2 --max-tasks-per-child=50`
 - Lower memory caps; `max_restarts=50`, `min_uptime="3s"`
 - **VENV-path discrepancy:** dev config references `env/` while prod uses `.venv/`. The repo has a symlink `env -> .venv` so both paths resolve to the same venv on this machine.
 
@@ -148,7 +148,7 @@ Byte-identical duplicate of `requirements/base.txt` (convenience for tools that 
 
 ## Environment variables
 
-`.env.example` (16 keys): `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DATABASE_URL`, `REDIS_URL`, `BASE_DOMAIN`, `BASE_SCHEME`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `JWT_SECRET_KEY`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `KANZAN_FLOWER_AUTH`.
+`.env.example` (16 keys): `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DATABASE_URL`, `REDIS_URL`, `BASE_DOMAIN`, `BASE_SCHEME`, `STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET`, `JWT_SECRET_KEY`, `EMAIL_HOST`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_PORT`, `EMAIL_USE_TLS`, `CRM_FLOWER_AUTH`.
 
 `base.py` also reads (NOT in `.env.example`): `BASE_PORT`, `EMAIL_BACKEND`, `DEFAULT_FROM_EMAIL`, `EMAIL_TIMEOUT`, `EMAIL_USE_SSL`, `IMAP_HOST` / `_PORT` / `_USER` / `_PASSWORD` / `_MAILBOX` / `_USE_SSL` / `_DEFAULT_TENANT_SLUG`, `SMTP_SERVER_HOST` / `_PORT` / `_HOSTNAME` / `_REQUIRE_AUTH` / `_AUTH_USERS` (JSON dict) / `_TLS_CERT_FILE` / `_TLS_KEY_FILE`, `INBOUND_EMAIL_WEBHOOK_SECRET`.
 
@@ -170,7 +170,7 @@ Byte-identical duplicate of `requirements/base.txt` (convenience for tools that 
   - `apps/tickets/tests/test_creation.py`, `test_escalation.py`
   - `apps/api_keys/tests/test_authentication.py`, `test_documentation.py`, `test_throttling.py`, `test_viewset.py` (**43 tests across 4 files**)
 - `conftest.py` defines **16 factories** + **20 fixtures** (3 autouse: `celery_eager`, `free_plan`, `clear_tenant_context`). `RoleFactory` declares 4 traits (admin/manager/agent/viewer); the new `team-lead`/`it`/`hr` roles are picked up via `Role.unscoped.get(slug=…)` from the signal-seeded set.
-- `tests/base.py` (legacy) provides `TenantTestCase` (tenant_a/tenant_b + admin/agent/viewer per tenant) and extended `KanzenBaseTestCase`
+- `tests/base.py` (legacy) provides `TenantTestCase` (tenant_a/tenant_b + admin/agent/viewer per tenant) and extended `CRMBaseTestCase`
 - **API-keys test pattern:** `apps/api_keys/tests/test_viewset.py::test_email_task_queued_on_create` wraps the POST in `django_capture_on_commit_callbacks(execute=True)` because `transaction.on_commit` callbacks are otherwise discarded by `pytest.mark.django_db`'s atomic-rollback teardown. Canonical pattern for exercising post-commit Celery dispatch under pytest-django.
 - `pytest.ini` has no `asyncio_mode` set — defaults to `strict` (explicit `@pytest.mark.asyncio` required).
 
@@ -187,13 +187,13 @@ Byte-identical duplicate of `requirements/base.txt` (convenience for tools that 
 ## Quick reference
 
 ```
-Superuser:      admin@kanzen.local / Pl@nC-ICT_2024
+Superuser:      admin@crm.local / Pl@nC-ICT_2024
 Django Admin:   http://localhost:8001/admin/   (locked to is_superuser — see main/admin.py)
 
 Tenants:
   Straat-X:     http://straat-x.localhost:8001
 
-Flower:         http://localhost:5556 (admin:changeme — KANZAN_FLOWER_AUTH)
+Flower:         http://localhost:5556 (admin:changeme — CRM_FLOWER_AUTH)
 API Docs:       http://straat-x.localhost:8001/api/docs/   (Authorize dialog shows both JWT Bearer and ApiKeyAuth)
-SMTP (in-process): port 2525 — `kanzan-smtp` PM2 process
+SMTP (in-process): port 2525 — `crm-smtp` PM2 process
 ```

@@ -17,10 +17,10 @@ from apps.tickets.models import Ticket, TicketActivity, TicketAssignment
 from apps.tickets.services import assign_ticket
 from main.context import set_current_tenant
 
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class TicketAssignmentTests(KanzenBaseTestCase):
+class TicketAssignmentTests(CRMBaseTestCase):
     """Tests for ticket assignment, auto-transition, and audit trail."""
 
     def setUp(self):

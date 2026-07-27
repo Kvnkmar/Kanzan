@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Kanzen Suite{% endblock %}
+{% block title %}Dashboard - CRM Suite{% endblock %}
 
 {% block content %}
 <!-- Page Header -->
@@ -1592,7 +1592,7 @@
   loadAgentStats();
 
   // Real-time: refresh agent stats when any agent changes status
-  document.addEventListener('kanzan:notification', function(e) {
+  document.addEventListener('crm:notification', function(e) {
     if (e.detail && e.detail.type === 'agent_status_change') {
       loadAgentStats();
     }

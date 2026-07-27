@@ -23,7 +23,7 @@ def alert_stale_articles():
     for article in stale:
         if article.author and article.author.email:
             send_mail(
-                subject=f"[Kanzen] Review needed: {article.title}",
+                subject=f"[CRM] Review needed: {article.title}",
                 message=(
                     f'The article "{article.title}" on '
                     f"{article.tenant.name} is past its review date "
@@ -60,7 +60,7 @@ def send_gap_digest():
         for m in admins:
             if m.user.email:
                 send_mail(
-                    subject=f"[Kanzen] KB gap digest -- {tenant.name}",
+                    subject=f"[CRM] KB gap digest -- {tenant.name}",
                     message=body,
                     from_email=settings.DEFAULT_FROM_EMAIL,
                     recipient_list=[m.user.email],

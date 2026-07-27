@@ -96,27 +96,27 @@ Key directives:
 - Google Fonts (Inter), Bootstrap 5.3.3, Tabler Icons 3.31.0, Flatpickr CSS — all CDN
 - `<link href="{% static 'css/custom-v15.css' %}" rel="stylesheet">` — **custom-v15.css is the live CSS**
 - **Lines 30–86: per-tenant `primary_color`/`accent_color` override IS ENABLED** — emits ~35 CSS variables (palette + Bootstrap overrides + semantic-red retheme + focus glows + `--crm-gradient`). Selector `:root, [data-bs-theme="light"], [data-bs-theme="dark"]` so it wins over `custom-v15.css` defaults.
-- **Synchronous `kanzan_sidebar_collapsed` localStorage check at body open** to apply `.sidebar-collapsed` pre-paint (FOUC fix)
+- **Synchronous `crm_sidebar_collapsed` localStorage check at body open** to apply `.sidebar-collapsed` pre-paint (FOUC fix)
 - Mobile detection IIFE adds `is-mobile-html`/`is-mobile`/`is-mobile-sm` body classes
 - Script load order: Bootstrap → DOMPurify → **`live-bus.js`** (always) → `api.js` → `app.js` → `command-palette.js` → `custom-select.js` → **conditional on `tenant and user.is_authenticated`**: **`live-connection.js`** → `agent-availability.js` → `notes-panel.js` → `keyboard-shortcuts.js` → `ticket-feed.js` → (if `voip_enabled`) SIP.js CDN + `voip-softphone.js`.
 - Flatpickr loader with three CDN fallbacks (jsdelivr → cdnjs → unpkg)
-- `KanzenSelect.upgradeAll()` to swap native `<select>`s for the custom dropdown
+- `CRMSelect.upgradeAll()` to swap native `<select>`s for the custom dropdown
 
 ## Static JS (`static/js/`) — 13 modules, ~4,031 LOC
 
 | File                        | LOC  | Purpose                                                                                  |
 |-----------------------------|-----:|------------------------------------------------------------------------------------------|
-| **`live-bus.js`**           | 175  | Global pub/sub `window.LiveBus`. API: `on/onMany/publish/debounce/rafBatch/isConnected/setChannelState`. Wildcard `"*"` subscriber receives every event. Cross-tab fan-out via optional `BroadcastChannel('kanzan-live')`. |
+| **`live-bus.js`**           | 175  | Global pub/sub `window.LiveBus`. API: `on/onMany/publish/debounce/rafBatch/isConnected/setChannelState`. Wildcard `"*"` subscriber receives every event. Cross-tab fan-out via optional `BroadcastChannel('crm-live')`. |
 | **`live-connection.js`**    | 206  | Single shared `wss?:/ws/live/`. 25s heartbeat / 8s pong timeout. Exponential backoff 1s→30s + ±20% jitter, **infinite retries**. Tab-visibility hook for instant reconnect. Publishes `live.reconnected` after recovery. |
 | `api.js`                    | 90   | Central API client (CSRF cookie + meta fallback, session creds, JSON+multipart)          |
-| `app.js`                    | 843  | Global init: alerts, sidebar collapse, density, notification WS, Toast (uses `var()` colours), `Kanzan.formatDate/formatDateTime/timeAgo`, sidebar badge polling, `initLiveStatusPill()`, `initSidebarUserLive()`, `initSidebarBadges()`. New-notification WS handler calls `ringBell()` (~950ms swing + radial halo) + `showFlyout(data)` displays bell-anchored peek-preview for **3s** with progress bar; `updateBadge(count, {bump:true})` triggers `.is-bumping` scale animation. |
+| `app.js`                    | 843  | Global init: alerts, sidebar collapse, density, notification WS, Toast (uses `var()` colours), `CRM.formatDate/formatDateTime/timeAgo`, sidebar badge polling, `initLiveStatusPill()`, `initSidebarUserLive()`, `initSidebarBadges()`. New-notification WS handler calls `ringBell()` (~950ms swing + radial halo) + `showFlyout(data)` displays bell-anchored peek-preview for **3s** with progress bar; `updateBadge(count, {bump:true})` triggers `.is-bumping` scale animation. |
 | `ticket-feed.js`            | 247  | WebSocket `ws/tickets/feed/`. Auto-connects via `data-ticket-feed` or URL match. Banner + row pulse. Publishes into LiveBus (`ticket.<verb>` + aggregated `ticket.event`). **Tenant-wide `ticket_assigned` Toast removed** — assignee already gets bell flyout. |
 | `voip-softphone.js`         | 710  | SIP.js 0.21.2 (CDN) + `CallEventConsumer`. Dial pad, DTMF, mute/hold/transfer/hangup, incoming-call modal |
 | `notes-panel.js`            | 238  | Quick notes CRUD (6 colors, pinning, localStorage)                                       |
 | `theme.js`                  | 77   | light/dark/system theme switcher (default dark). Loaded **synchronously in `<head>`** to prevent FOUC. matchMedia listener. |
 | `agent-availability.js`     | 227  | Status toggle + persistence. Inline styles use `var(--status-info-dot)` etc.             |
 | `command-palette.js`        | 337  | Cmd+K/Ctrl+K modal: static pages + dynamic search (200ms debounce on tickets/contacts)   |
-| `custom-select.js`          | 371  | `KanzenSelect` portal-rendered dropdown (searchable when >8 options)                     |
+| `custom-select.js`          | 371  | `CRMSelect` portal-rendered dropdown (searchable when >8 options)                     |
 | `rich-editor.js`            | 191  | TipTap wrapper. Page-specific (NOT in base.html). TipTap loaded via importmap from `esm.sh` (inline in `tickets/detail.html`). |
 | `keyboard-shortcuts.js`     | 318  | Hotkeys: j/k navigate · Enter open · Esc deselect · a/s/x row actions · Ctrl+K palette · c new · ? help · g d/t/c/b go-to. Disabled inside inputs. Injects runtime `<style>` using `var(--crm-primary)` etc. |
 

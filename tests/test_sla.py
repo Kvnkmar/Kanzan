@@ -41,10 +41,10 @@ from apps.tickets.tasks import (
     check_sla_breaches,
     propagate_sla_policy_change_task,
 )
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class TestSLADeadlines(KanzenBaseTestCase):
+class TestSLADeadlines(CRMBaseTestCase):
     """5.1 — SLA deadlines computed correctly on ticket create."""
 
     def setUp(self):
@@ -77,7 +77,7 @@ class TestSLADeadlines(KanzenBaseTestCase):
         self.assertLess(ticket.sla_first_response_due, ticket.sla_resolution_due)
 
 
-class TestSLABusinessHours(KanzenBaseTestCase):
+class TestSLABusinessHours(CRMBaseTestCase):
     """5.2 — Business hours only: deadline skips nights and weekends."""
 
     def setUp(self):
@@ -131,7 +131,7 @@ class TestSLABusinessHours(KanzenBaseTestCase):
         self.assertEqual(deadline, expected)
 
 
-class TestSLAPublicHolidays(KanzenBaseTestCase):
+class TestSLAPublicHolidays(CRMBaseTestCase):
     """5.3 — Public holidays skipped in deadline calculation."""
 
     def setUp(self):
@@ -181,7 +181,7 @@ class TestSLAPublicHolidays(KanzenBaseTestCase):
         self.assertEqual(deadline, expected)
 
 
-class TestSLABreachDetection(KanzenBaseTestCase):
+class TestSLABreachDetection(CRMBaseTestCase):
     """5.4–5.6 — Breach detection flags and notification ordering."""
 
     def setUp(self):
@@ -269,7 +269,7 @@ class TestSLABreachDetection(KanzenBaseTestCase):
             self.assertEqual(first_run_count, second_run_count)
 
 
-class TestSLAPauseResume(KanzenBaseTestCase):
+class TestSLAPauseResume(CRMBaseTestCase):
     """5.7–5.8 — SLA pause during waiting status and resume behavior."""
 
     def setUp(self):
@@ -333,7 +333,7 @@ class TestSLAPauseResume(KanzenBaseTestCase):
         self.assertIsNotNone(pause.resumed_at)
 
 
-class TestSLAPolicyPropagation(KanzenBaseTestCase):
+class TestSLAPolicyPropagation(CRMBaseTestCase):
     """5.9–5.11 — SLA policy changes propagate to open tickets."""
 
     def setUp(self):
@@ -445,7 +445,7 @@ class TestSLAPolicyPropagation(KanzenBaseTestCase):
         self.sla_policy_a.save()
 
 
-class TestSLABreachDedup(KanzenBaseTestCase):
+class TestSLABreachDedup(CRMBaseTestCase):
     """5.12–5.13 — Deduplication of breach and overdue notifications."""
 
     def setUp(self):
@@ -504,7 +504,7 @@ class TestSLABreachDedup(KanzenBaseTestCase):
             self.assertEqual(first_count, second_count)
 
 
-class TestEscalationRules(KanzenBaseTestCase):
+class TestEscalationRules(CRMBaseTestCase):
     """5.14–5.16 — Escalation rule execution and deduplication."""
 
     def setUp(self):
@@ -614,7 +614,7 @@ class TestEscalationRules(KanzenBaseTestCase):
             self.assertEqual(ticket.priority, "urgent")
 
 
-class TestFirstResponse(KanzenBaseTestCase):
+class TestFirstResponse(CRMBaseTestCase):
     """5.17–5.18 — First response tracking via comments and email."""
 
     def setUp(self):

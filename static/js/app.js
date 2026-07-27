@@ -1,10 +1,10 @@
 /**
- * Kanzen — Global formatting utilities.
+ * CRM — Global formatting utilities.
  * Reads user preferences from localStorage (set by Settings page).
  * Used across all pages for consistent date/time display.
  */
-var Kanzan = (function() {
-  function _pref(key, fallback) { return localStorage.getItem('kanzan_' + key) || fallback; }
+var CRM = (function() {
+  function _pref(key, fallback) { return localStorage.getItem('crm_' + key) || fallback; }
 
   function _locale() {
     var lang = _pref('language', 'en');
@@ -197,7 +197,7 @@ var Kanzan = (function() {
 })();
 
 /**
- * Common application initialization for Kanzen Suite.
+ * Common application initialization for CRM Suite.
  */
 document.addEventListener('DOMContentLoaded', () => {
   // Auto-dismiss alerts after 5 seconds
@@ -287,7 +287,7 @@ function initSidebarCollapse() {
   var collapseBtn = document.getElementById('sidebarCollapseBtn');
   if (!collapseBtn) return;
 
-  var STORAGE_KEY = 'kanzan_sidebar_collapsed';
+  var STORAGE_KEY = 'crm_sidebar_collapsed';
 
   if (localStorage.getItem(STORAGE_KEY) === '1') {
     document.body.classList.add('sidebar-collapsed');
@@ -308,7 +308,7 @@ function initSidebarCollapse() {
  * Sets data-density attribute on <html> so CSS can respond.
  */
 function initDensity() {
-  var density = localStorage.getItem('kanzan_density') || 'comfortable';
+  var density = localStorage.getItem('crm_density') || 'comfortable';
   document.documentElement.setAttribute('data-density', density);
 }
 
@@ -359,7 +359,7 @@ function getNotifConfig(type) {
 }
 
 function timeAgo(dateStr) {
-  return Kanzan.timeAgo(dateStr);
+  return CRM.timeAgo(dateStr);
 }
 
 function escapeHtmlGlobal(s) { if (!s) return ''; var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
@@ -394,7 +394,7 @@ function renderNotifItem(n) {
  * Fired when a ``reminder_due`` notification arrives over /ws/notifications/.
  * Surfaces a centered, can't-miss modal (#reminderDueModal in base.html) plus
  * an audio chime and a desktop/OS notification, so the agent is alerted even
- * with the Kanzen tab backgrounded. Works on every page because the
+ * with the CRM tab backgrounded. Works on every page because the
  * notifications WebSocket is connected app-wide from base.html.
  *
  * Chime uses the Web Audio API (no asset to ship). Audio playback and — on
@@ -562,7 +562,7 @@ var ReminderAlerts = (function () {
  * Reminder scheduler — fires the due-popup at the EXACT scheduled time.
  *
  * The server's fire_due_reminders task is a 30s poll: a reliable backstop (for
- * when no Kanzen tab is open, or for other devices) but up to ~30s late. To
+ * when no CRM tab is open, or for other devices) but up to ~30s late. To
  * make the popup feel instant while the user has the app open, we fetch their
  * upcoming reminders and set a precise setTimeout per reminder that calls
  * ReminderAlerts.show() right as scheduled_at passes. ReminderAlerts dedups by
@@ -926,7 +926,7 @@ function initNotifications() {
       LiveBus.publish('notification.received', data);
     }
     if (data.type) {
-      document.dispatchEvent(new CustomEvent('kanzan:notification', { detail: data }));
+      document.dispatchEvent(new CustomEvent('crm:notification', { detail: data }));
     }
   }
 
@@ -1163,7 +1163,7 @@ function initSidebarBadges() {
     hub_email_sla_breach_warning: 'sidebarBadgeInboxHub',
     hub_email_sla_breached: 'sidebarBadgeInboxHub',
   };
-  document.addEventListener('kanzan:notification', function(e) {
+  document.addEventListener('crm:notification', function(e) {
     var type = e && e.detail && e.detail.type;
     if (type && NOTIF_TO_BADGE[type]) {
       fetchAndApply();
@@ -1185,7 +1185,7 @@ function initSidebarBadges() {
   // Also refresh when the user opens the Messages page or sends one
   // (chat code dispatches this event after read/send actions so the
   // sidebar updates without waiting for the next notification.)
-  document.addEventListener('kanzan:messages-changed', fetchAndApply);
+  document.addEventListener('crm:messages-changed', fetchAndApply);
 }
 
 /**

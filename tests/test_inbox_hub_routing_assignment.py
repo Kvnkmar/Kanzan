@@ -63,7 +63,7 @@ def _online_dept_agent(tenant, department, *, capacity=10, load=0, status="onlin
 
 
 def _hub_email(tenant, *, department=None, queue=None, priority=None, sender="a@acme.com",
-               recipient="support+demo@kanzan.io", subject="Hello"):
+               recipient="support+demo@crm.io", subject="Hello"):
     from apps.inbox_hub.models import HubEmail
 
     inbound = InboundEmailFactory(
@@ -399,7 +399,7 @@ class TestParkPipelineEndToEnd:
             admin, dept, agent = self._setup(tenant)
             inbound = InboundEmailFactory(
                 tenant=tenant, sender_email="cust@acme.com",
-                recipient_email=f"support+{tenant.slug}@kanzan.io", subject="Help",
+                recipient_email=f"support+{tenant.slug}@crm.io", subject="Help",
             )
             # Capture so the on_commit(_post_park_hooks) chain actually runs.
             with django_capture_on_commit_callbacks(execute=True):
@@ -429,7 +429,7 @@ class TestParkPipelineEndToEnd:
             )
             inbound = InboundEmailFactory(
                 tenant=tenant, sender_email="cust@acme.com",
-                recipient_email=f"support+{tenant.slug}@kanzan.io", subject="Held",
+                recipient_email=f"support+{tenant.slug}@crm.io", subject="Held",
             )
             with django_capture_on_commit_callbacks(execute=True):
                 park_email_in_hub(inbound, tenant, None, admin)
@@ -451,7 +451,7 @@ def _api_hub_email(tenant):
     from apps.inbox_hub.models import HubEmail
 
     inbound = InboundEmailFactory(
-        tenant=tenant, recipient_email=f"support+{tenant.slug}@kanzan.io", subject="Act on me",
+        tenant=tenant, recipient_email=f"support+{tenant.slug}@crm.io", subject="Act on me",
     )
     return HubEmail.unscoped.create(
         tenant=tenant, inbound=inbound,

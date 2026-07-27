@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Profile - Kanzen Suite{% endblock %}
+{% block title %}Profile - CRM Suite{% endblock %}
 
 {% block content %}
 {% include "includes/page_back_button.html" %}
@@ -178,7 +178,7 @@
     if (!n) return '?';
     return n.split(' ').filter(Boolean).map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase();
   }
-  function formatDate(d) { return d ? Kanzan.formatDate(d) : '--'; }
+  function formatDate(d) { return d ? CRM.formatDate(d) : '--'; }
 
   function getRoleBadgeClass(roleName) {
     var rn = (roleName || '').toLowerCase();

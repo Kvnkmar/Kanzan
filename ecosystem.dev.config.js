@@ -1,5 +1,5 @@
 /**
- * Kanzen — Development PM2 Configuration
+ * CRM — Development PM2 Configuration
  *
  * Uses Django runserver (auto-reload on Python changes) and
  * Celery worker with watchdog-based autoreload.
@@ -9,7 +9,7 @@
  * Or use: make dev / make dev-stop
  */
 
-const PROJECT_ROOT = "/home/kavin/Kanzen";
+const PROJECT_ROOT = "/home/kavin/CRM";
 const VENV_BIN = `${PROJECT_ROOT}/env/bin`;
 
 const COMMON_CONFIG = {
@@ -34,7 +34,7 @@ module.exports = {
   apps: [
     {
       // Django runserver with auto-reload (restarts on .py changes automatically)
-      name: "kanzan-django",
+      name: "crm-django",
       script: `${VENV_BIN}/python`,
       args: "manage.py runserver 0.0.0.0:8001",
       interpreter: "none",
@@ -47,9 +47,9 @@ module.exports = {
 
     {
       // Celery worker — PM2 watches .py files and restarts on change
-      name: "kanzan-celery-worker",
+      name: "crm-celery-worker",
       script: `${VENV_BIN}/celery`,
-      args: "-A main worker -Q kanzan_default,kanzan_email,kanzan_webhooks -c 2 -l info --pool prefork -n kanzan-dev-worker@%h --max-tasks-per-child=50",
+      args: "-A main worker -Q crm_default,crm_email,crm_webhooks -c 2 -l info --pool prefork -n crm-dev-worker@%h --max-tasks-per-child=50",
       interpreter: "none",
       ...COMMON_CONFIG,
       max_memory_restart: "1G",
@@ -69,7 +69,7 @@ module.exports = {
 
     {
       // Celery beat — lightweight, rarely needs restart
-      name: "kanzan-celery-beat",
+      name: "crm-celery-beat",
       script: `${VENV_BIN}/celery`,
       args: "-A main beat -l info",
       interpreter: "none",
@@ -82,9 +82,9 @@ module.exports = {
 
     {
       // Flower — optional in dev, useful for debugging tasks
-      name: "kanzan-flower",
+      name: "crm-flower",
       script: `${VENV_BIN}/celery`,
-      args: `-A main flower --port=5556 --url_prefix=flower --basic_auth=${process.env.KANZAN_FLOWER_AUTH || "admin:changeme"}`,
+      args: `-A main flower --port=5556 --url_prefix=flower --basic_auth=${process.env.CRM_FLOWER_AUTH || "admin:changeme"}`,
       interpreter: "none",
       ...COMMON_CONFIG,
       max_memory_restart: "512M",

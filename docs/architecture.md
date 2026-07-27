@@ -1,4 +1,4 @@
-# Kanzen & Ticketing SaaS Platform — Architecture Document
+# CRM & Ticketing SaaS Platform — Architecture Document
 
 > **Version:** 1.0
 > **Date:** 2026-02-06
@@ -70,10 +70,10 @@
 
 | Process | Command | Purpose |
 |---------|---------|---------|
-| `kanzan-django` | `gunicorn main.asgi:application -k uvicorn.workers.UvicornWorker` | ASGI server (HTTP + WebSocket) |
-| `kanzan-celery-worker` | `celery -A main worker -Q kanzan_default,kanzan_email,kanzan_webhooks -c 4` | Background task processing |
-| `kanzan-celery-beat` | `celery -A main beat` | Periodic task scheduler |
-| `kanzan-flower` | `celery -A main flower --port=5556` | Celery monitoring dashboard |
+| `crm-django` | `gunicorn main.asgi:application -k uvicorn.workers.UvicornWorker` | ASGI server (HTTP + WebSocket) |
+| `crm-celery-worker` | `celery -A main worker -Q crm_default,crm_email,crm_webhooks -c 4` | Background task processing |
+| `crm-celery-beat` | `celery -A main beat` | Periodic task scheduler |
+| `crm-flower` | `celery -A main flower --port=5556` | Celery monitoring dashboard |
 
 ### 1.3 Request Lifecycle
 
@@ -97,13 +97,13 @@ Request → Nginx → Gunicorn/Uvicorn
 
 ### 1.4 Port & Resource Isolation
 
-| Resource | Kanzen Suite | Tempest (co-hosted) |
+| Resource | CRM Suite | Tempest (co-hosted) |
 |----------|---------|---------------------|
 | HTTP port | 8001 | 8000 |
 | Redis cache | db3 | separate |
 | Redis broker | db4 | separate |
 | Redis channels | db5 | separate |
-| Celery queues | `kanzan_*` | `tempest_*` |
+| Celery queues | `crm_*` | `tempest_*` |
 | Flower port | 5556 | 5555 |
 | OS user | kavin | ubuntu |
 
@@ -784,7 +784,7 @@ class SubscriptionMiddleware:
 
 **How other platforms fail:** Forgetting to filter by tenant in a query, allowing users to see other tenants' data through API endpoints or search results.
 
-**How Kanzen Suite prevents this:**
+**How CRM Suite prevents this:**
 - `TenantAwareManager` is the **default** manager on all tenant-scoped models — every `Model.objects.all()` call is automatically filtered
 - Thread-local tenant context is set by middleware on every request and cleared in a `finally` block
 - `TenantScopedModel.save()` auto-assigns tenant on write, with `ValueError` if no context exists
@@ -795,7 +795,7 @@ class SubscriptionMiddleware:
 
 **How other platforms fail:** Users continue using premium features after subscription lapses by bookmarking direct URLs or using cached sessions.
 
-**How Kanzen Suite prevents this:**
+**How CRM Suite prevents this:**
 - `SubscriptionMiddleware` runs on **every request** (after `TenantMiddleware`)
 - Checks subscription status on every page load / API call
 - 7-day grace period for `past_due` status before hard lockout
@@ -806,7 +806,7 @@ class SubscriptionMiddleware:
 
 **How other platforms fail:** Storing all tenant files in a flat directory, allowing path traversal or enumeration attacks.
 
-**How Kanzen Suite prevents this:**
+**How CRM Suite prevents this:**
 - Files stored in tenant-scoped paths: `tenants/<tenant_uuid>/attachments/YYYY/MM/<filename>`
 - UUID-based tenant IDs prevent enumeration
 - MIME type validated server-side via `python-magic` (not client-supplied `Content-Type`)
@@ -817,7 +817,7 @@ class SubscriptionMiddleware:
 
 **How other platforms fail:** One tenant's heavy usage (API calls, file uploads, ticket creation) degrades performance for all tenants.
 
-**How Kanzen Suite prevents this:**
+**How CRM Suite prevents this:**
 - Per-tenant `UsageTracker` monitors contacts, tickets, storage, API calls
 - Plan-level limits enforce ceilings: `max_users`, `max_contacts`, `max_tickets_per_month`, `max_storage_mb`
 - DRF rate limiting at the API layer (200/min default, 30/min heavy)
@@ -827,7 +827,7 @@ class SubscriptionMiddleware:
 
 **How other platforms fail:** Setting `SESSION_COOKIE_DOMAIN = ".example.com"` allows a session cookie set by `evil.example.com` to be read by `victim.example.com`.
 
-**How Kanzen Suite prevents this:**
+**How CRM Suite prevents this:**
 - In development: `SESSION_COOKIE_DOMAIN = None` (per-host cookies)
 - `SESSION_COOKIE_HTTPONLY = True` (no JavaScript access)
 - `SESSION_COOKIE_SAMESITE = "Lax"` (prevents CSRF via cross-site POST)
@@ -838,7 +838,7 @@ class SubscriptionMiddleware:
 
 **How other platforms fail:** A bug in the API allows creating a ticket in tenant A while authenticated in tenant B.
 
-**How Kanzen Suite prevents this:**
+**How CRM Suite prevents this:**
 - `TenantScopedModel.save()` reads tenant from thread-local context (set by middleware from the request URL)
 - The tenant on a new object is always the current request's tenant, regardless of what the API consumer sends
 - The `tenant` field is `editable=False`, so it cannot be set via serializer input
@@ -848,7 +848,7 @@ class SubscriptionMiddleware:
 
 **How other platforms fail:** Not verifying webhook signatures, allowing attackers to forge billing events and grant themselves premium subscriptions.
 
-**How Kanzen Suite prevents this:**
+**How CRM Suite prevents this:**
 - Stripe webhook endpoint verifies signature using `STRIPE_WEBHOOK_SECRET`
 - Webhook path (`/api/v1/billing/webhook/`) is exempt from tenant resolution (no tenant context needed)
 - Webhook path is exempt from CSRF protection (Stripe sends POST without session)
@@ -858,7 +858,7 @@ class SubscriptionMiddleware:
 
 **How other platforms fail:** Users can modify their own role or create roles with higher privileges than their own.
 
-**How Kanzen Suite prevents this:**
+**How CRM Suite prevents this:**
 - System roles (`is_system=True`) cannot be deleted or modified by tenants
 - Role `hierarchy_level` enforces ordering (Admin=10 > Manager=20 > Agent=30 > Viewer=40)
 - Lower hierarchy_level = higher authority
@@ -868,7 +868,7 @@ class SubscriptionMiddleware:
 
 **How other platforms fail:** Caching query results without including the tenant context in the cache key, serving tenant A's data to tenant B.
 
-**How Kanzen Suite prevents this:**
+**How CRM Suite prevents this:**
 - Redis cache key prefix: `epstein` (application-level)
 - Cache backend is used for sessions and general caching, not for model-level query caching
 - The `TenantAwareManager` runs a fresh query per request — no implicit queryset caching
@@ -878,7 +878,7 @@ class SubscriptionMiddleware:
 
 **How other platforms fail:** Schema-per-tenant architectures require running migrations on hundreds of schemas, with failures leaving some tenants on old schemas.
 
-**How Kanzen Suite prevents this:**
+**How CRM Suite prevents this:**
 - **Shared-schema architecture** means one migration applies to all tenants simultaneously
 - No per-tenant database schemas or databases to manage
 - Standard Django `migrate` command handles everything
@@ -917,9 +917,9 @@ class SubscriptionMiddleware:
 
 | Queue | Purpose |
 |-------|---------|
-| `kanzan_default` | General background tasks |
-| `kanzan_email` | Email delivery (notifications, invitations) |
-| `kanzan_webhooks` | Webhook processing (Stripe, external integrations) |
+| `crm_default` | General background tasks |
+| `crm_email` | Email delivery (notifications, invitations) |
+| `crm_webhooks` | Webhook processing (Stripe, external integrations) |
 
 ## Appendix D: Environment Variables
 
@@ -939,13 +939,13 @@ class SubscriptionMiddleware:
 | `EMAIL_HOST_PASSWORD` | SMTP password | (empty) |
 | `EMAIL_PORT` | SMTP port | `587` |
 | `EMAIL_USE_TLS` | Use TLS for SMTP | `True` |
-| `DEFAULT_FROM_EMAIL` | Default sender email | `noreply@kanzen.local` |
+| `DEFAULT_FROM_EMAIL` | Default sender email | `noreply@crm.local` |
 
 ## Appendix E: Default Credentials (Development Only)
 
 | Resource | Credential |
 |----------|-----------|
-| Superuser email | `admin@kanzen.local` |
+| Superuser email | `admin@crm.local` |
 | Superuser password | `Pl@nC-ICT_2024` |
 | Demo tenant slug | `demo` |
 | Demo tenant URL | `http://demo.localhost:8001/` |

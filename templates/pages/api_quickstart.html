@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}API Quickstart - Kanzen Suite{% endblock %}
+{% block title %}API Quickstart - CRM Suite{% endblock %}
 
 {% block content %}
 <article class="settings-content api-quickstart" style="max-width: 880px;">
@@ -9,17 +9,17 @@
   <header class="mb-4">
     <h1 class="h2 mb-2">API Quickstart</h1>
     <p class="text-secondary mb-0">
-      A guided tour of the Kanzen REST API for tenant admins, integrators, and curious developers.
+      A guided tour of the CRM REST API for tenant admins, integrators, and curious developers.
     </p>
   </header>
 
   <!-- ────────────────────────────────────────────────────────────────── -->
-  <!-- What is the Kanzen API?                                              -->
+  <!-- What is the CRM API?                                              -->
   <!-- ────────────────────────────────────────────────────────────────── -->
   <section class="mb-5" id="what-is-the-api">
-    <h2 class="h4 mb-3">What is the Kanzen API?</h2>
+    <h2 class="h4 mb-3">What is the CRM API?</h2>
     <p>
-      Kanzen exposes a versioned <strong>REST API</strong> under <code>/api/v1/</code> that mirrors
+      CRM exposes a versioned <strong>REST API</strong> under <code>/api/v1/</code> that mirrors
       everything you can do in the web UI: create and update tickets, manage contacts and companies,
       search the knowledge base, upload attachments, place VoIP calls, subscribe to webhooks, and
       more. Every endpoint is multi-tenant aware — your API key is scoped to a single tenant and
@@ -198,8 +198,8 @@ console.log(`Found ${data.results.length} articles`);</code></pre>
 
     <h3 class="h5 mt-4 mb-2">6. Subscribe to webhooks</h3>
     <p>
-      Register a webhook that Kanzen will POST to whenever the listed events fire. Pick a
-      <code>secret</code> known only to you and Kanzen — it's used to sign every payload.
+      Register a webhook that CRM will POST to whenever the listed events fire. Pick a
+      <code>secret</code> known only to you and CRM — it's used to sign every payload.
     </p>
 <pre><code class="language-python">import requests
 
@@ -214,7 +214,7 @@ resp = requests.post(
     },
     json={
         "name": "Zapier ticket sync",
-        "url": "https://hooks.example.com/kanzen/tickets",
+        "url": "https://hooks.example.com/crm/tickets",
         "events": ["ticket.created", "ticket.updated"],
         "secret": "a-long-random-string-known-only-to-you",
         "is_active": True,
@@ -224,7 +224,7 @@ resp.raise_for_status()
 print("Webhook id:", resp.json()["id"])</code></pre>
 
     <p class="mt-3">
-      <strong>Verify the HMAC signature</strong> on your receiver. Kanzen signs every payload
+      <strong>Verify the HMAC signature</strong> on your receiver. CRM signs every payload
       with HMAC-SHA256 of the raw body, sent in the <code>X-Webhook-Signature</code> header as
       <code>sha256=&lt;hex&gt;</code>:
     </p>
@@ -287,7 +287,7 @@ def verify_webhook(raw_body: bytes, signature_header: str, secret: str) -> bool:
     </div>
 
     <p>
-      When a request exceeds the per-key bucket, Kanzen returns HTTP
+      When a request exceeds the per-key bucket, CRM returns HTTP
       <code>429 Too Many Requests</code> with a <code>Retry-After</code> header. The recommended
       strategy is <strong>exponential backoff with jitter</strong>:
     </p>
@@ -385,7 +385,7 @@ def call_with_backoff(url, headers, max_retries=5):
   <section class="mb-5" id="postman-collection">
     <h2 class="h4 mb-3">Postman / Insomnia collection</h2>
     <p>
-      Kanzen publishes its OpenAPI 3.0 spec at <a href="/api/schema/"><code>/api/schema/</code></a>.
+      CRM publishes its OpenAPI 3.0 spec at <a href="/api/schema/"><code>/api/schema/</code></a>.
       Import the URL into Postman or Insomnia and you'll get a pre-built collection with every
       endpoint, ready to authorize with your API key.
     </p>

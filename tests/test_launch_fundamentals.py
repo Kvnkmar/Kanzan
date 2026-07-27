@@ -69,7 +69,7 @@ class TestProtectedMedia:
         inbound = InboundEmail.objects.create(
             tenant=tenant,
             sender_email="c@example.com",
-            recipient_email=f"support+{tenant.slug}@kanzan.io",
+            recipient_email=f"support+{tenant.slug}@crm.io",
             message_id=f"{uuid.uuid4()}@test.com",
         )
         path = self._store(f"inbound_emails/{inbound.pk}/{uuid.uuid4().hex}.bin")
@@ -145,7 +145,7 @@ class TestDebugDeployCheck:
 
         settings.DEBUG = True
         errors = debug_must_be_off(None)
-        assert any(e.id == "kanzen.E001" for e in errors)
+        assert any(e.id == "crm.E001" for e in errors)
 
     def test_check_passes_when_debug_off(self, settings):
         from main.checks import debug_must_be_off

@@ -213,10 +213,10 @@ Role-gated frontend routes use `_role_required(20)` (Admin + Manager): `/users/`
   - `api_default=200/min`, `api_heavy=30/min`, `webhook=60/min` (ScopedRateThrottle — defined but no current opt-in)
   - **`api_key=1000/hour`** — `APIKeyRateThrottle` is `SimpleRateThrottle`-based; auto-engages on any `request.auth = APIKey` request, returns `None` from `get_cache_key` for JWT/Session traffic
 - **Renderers:** JSON + BrowsableAPI
-- **Schema:** drf-spectacular (`SPECTACULAR_SETTINGS.TITLE="Kanzen Suite API"`). `apps.api_keys.extensions.APIKeyAuthScheme` is registered by `apps/api_keys/apps.py::ready()` so Swagger UI's "Authorize" dialog exposes an `ApiKeyAuth` option alongside the JWT bearer.
+- **Schema:** drf-spectacular (`SPECTACULAR_SETTINGS.TITLE="CRM Suite API"`). `apps.api_keys.extensions.APIKeyAuthScheme` is registered by `apps/api_keys/apps.py::ready()` so Swagger UI's "Authorize" dialog exposes an `ApiKeyAuth` option alongside the JWT bearer.
 
 ### Rate-limit headers
-`apps.api_keys.middleware.RateLimitHeadersMiddleware` (slot 12 in the middleware stack) emits `X-RateLimit-Limit/Remaining/Reset` on responses when `APIKeyRateThrottle` stashed `(limit, remaining, reset_epoch)` on `request._kanzan_throttle_info`. Zero overhead for non-API-key traffic.
+`apps.api_keys.middleware.RateLimitHeadersMiddleware` (slot 12 in the middleware stack) emits `X-RateLimit-Limit/Remaining/Reset` on responses when `APIKeyRateThrottle` stashed `(limit, remaining, reset_epoch)` on `request._crm_throttle_info`. Zero overhead for non-API-key traffic.
 
 ### Public / unauthenticated endpoints
 - `POST /api/v1/tickets/csat/` — `CSATSubmitView` (signed token validates caller)

@@ -62,7 +62,7 @@ def get_from_address(tenant, display_name=None):
     """
     from email.utils import formataddr
 
-    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@kanzen.local")
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@crm.local")
     name = (display_name or "").strip() or f"{tenant.name} Support"
     return formataddr((name, from_email))
 

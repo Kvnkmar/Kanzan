@@ -19,7 +19,7 @@ from apps.inbound_email.services import process_inbound_email, resolve_tenant_fr
 from apps.tickets.models import Ticket, TicketActivity
 from main.context import set_current_tenant
 
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
 # ---------------------------------------------------------------------------
@@ -33,7 +33,7 @@ def _make_inbound_email(**kwargs):
         "message_id": f"{uuid.uuid4().hex[:16]}@test.example.com",
         "sender_email": "customer@example.com",
         "sender_name": "Jane Customer",
-        "recipient_email": "support@kanzan.io",
+        "recipient_email": "support@crm.io",
         "subject": "Help needed",
         "body_text": "I have a problem with my order.",
         "direction": InboundEmail.Direction.INBOUND,
@@ -49,7 +49,7 @@ def _make_inbound_email(**kwargs):
 # ===========================================================================
 
 
-class InboundEmailProcessingTests(KanzenBaseTestCase):
+class InboundEmailProcessingTests(CRMBaseTestCase):
     """Tests 7.1 – 7.9: Inbound email processing pipeline."""
 
     def setUp(self):
@@ -61,7 +61,7 @@ class InboundEmailProcessingTests(KanzenBaseTestCase):
     def test_7_1_webhook_creates_inbound_email_record(self):
         """7.1 Webhook receives email -> InboundEmail record created."""
         email = _make_inbound_email(
-            recipient_email=f"support+{self.tenant_a.slug}@kanzan.io",
+            recipient_email=f"support+{self.tenant_a.slug}@crm.io",
         )
         self.assertEqual(email.status, InboundEmail.Status.PENDING)
         self.assertIsNotNone(email.pk)
@@ -78,7 +78,7 @@ class InboundEmailProcessingTests(KanzenBaseTestCase):
     @freeze_time("2026-04-05 10:00:00")
     def test_7_2_tenant_resolved_via_plus_addressing(self):
         """7.2 Tenant resolved via plus-addressing (support+slug@domain)."""
-        recipient = f"support+{self.tenant_a.slug}@kanzan.io"
+        recipient = f"support+{self.tenant_a.slug}@crm.io"
         tenant = resolve_tenant_from_address(recipient)
         self.assertEqual(tenant, self.tenant_a)
 
@@ -86,7 +86,7 @@ class InboundEmailProcessingTests(KanzenBaseTestCase):
     @freeze_time("2026-04-05 10:00:00")
     def test_7_3_tenant_resolved_via_subdomain_routing(self):
         """7.3 Tenant resolved via slug as local-part (subdomain routing)."""
-        recipient = f"{self.tenant_a.slug}@inbound.kanzan.io"
+        recipient = f"{self.tenant_a.slug}@inbound.crm.io"
         tenant = resolve_tenant_from_address(recipient)
         self.assertEqual(tenant, self.tenant_a)
 
@@ -113,7 +113,7 @@ class InboundEmailProcessingTests(KanzenBaseTestCase):
         ticket = self.create_ticket(self.tenant_a, self.admin_a)
 
         email = _make_inbound_email(
-            recipient_email=f"support+{self.tenant_a.slug}@kanzan.io",
+            recipient_email=f"support+{self.tenant_a.slug}@crm.io",
             subject=f"Re: Issue [#{ticket.number}] still happening",
             body_text="This is still broken, please fix.",
         )
@@ -129,13 +129,13 @@ class InboundEmailProcessingTests(KanzenBaseTestCase):
     def test_7_6_in_reply_to_header_threads_to_correct_ticket(self):
         """7.6 In-Reply-To header threads reply to correct ticket."""
         ticket = self.create_ticket(self.tenant_a, self.admin_a)
-        outbound_msg_id = f"ticket-{ticket.number}-abc123@tenant-a.kanzan.io"
+        outbound_msg_id = f"ticket-{ticket.number}-abc123@tenant-a.crm.io"
 
         # Create an outbound record so threading can find it
         InboundEmail.objects.create(
             tenant=self.tenant_a,
             message_id=outbound_msg_id,
-            sender_email="support@kanzan.io",
+            sender_email="support@crm.io",
             recipient_email="customer@example.com",
             subject=f"[#{ticket.number}] Your ticket",
             direction=InboundEmail.Direction.OUTBOUND,
@@ -146,7 +146,7 @@ class InboundEmailProcessingTests(KanzenBaseTestCase):
 
         # Inbound reply referencing the outbound message
         reply = _make_inbound_email(
-            recipient_email=f"support+{self.tenant_a.slug}@kanzan.io",
+            recipient_email=f"support+{self.tenant_a.slug}@crm.io",
             subject="Re: Your ticket",
             body_text="Thanks for the update.",
             in_reply_to=outbound_msg_id,
@@ -164,7 +164,7 @@ class InboundEmailProcessingTests(KanzenBaseTestCase):
     def test_7_7_no_match_creates_new_ticket(self, mock_task):
         """7.7 No match -> new ticket created."""
         email = _make_inbound_email(
-            recipient_email=f"support+{self.tenant_a.slug}@kanzan.io",
+            recipient_email=f"support+{self.tenant_a.slug}@crm.io",
             subject="Brand new issue",
             body_text="I need help with something new.",
         )
@@ -186,7 +186,7 @@ class InboundEmailProcessingTests(KanzenBaseTestCase):
         """7.8 New ticket from email -> send_ticket_created_email_task queued.
         Verifies a ticket is created from the inbound email."""
         email = _make_inbound_email(
-            recipient_email=f"support+{self.tenant_a.slug}@kanzan.io",
+            recipient_email=f"support+{self.tenant_a.slug}@crm.io",
             subject="New request",
             body_text="Please help.",
         )
@@ -207,7 +207,7 @@ class InboundEmailProcessingTests(KanzenBaseTestCase):
         (the default). The agent sends it manually from the ticket page."""
         self.assertFalse(self.tenant_a.settings.auto_send_ticket_created_email)
         email = _make_inbound_email(
-            recipient_email=f"support+{self.tenant_a.slug}@kanzan.io",
+            recipient_email=f"support+{self.tenant_a.slug}@crm.io",
             subject="No auto confirm",
             body_text="Please help.",
         )
@@ -230,7 +230,7 @@ class InboundEmailProcessingTests(KanzenBaseTestCase):
         settings_obj.save(update_fields=["auto_send_ticket_created_email"])
 
         email = _make_inbound_email(
-            recipient_email=f"support+{self.tenant_a.slug}@kanzan.io",
+            recipient_email=f"support+{self.tenant_a.slug}@crm.io",
             subject="Auto confirm on",
             body_text="Please help.",
         )
@@ -254,7 +254,7 @@ class InboundEmailProcessingTests(KanzenBaseTestCase):
 # ===========================================================================
 
 
-class InboxWorkflowTests(KanzenBaseTestCase):
+class InboxWorkflowTests(CRMBaseTestCase):
     """Tests 7.10 – 7.20: Agent inbox workflow via REST API."""
 
     def setUp(self):
@@ -269,7 +269,7 @@ class InboxWorkflowTests(KanzenBaseTestCase):
             "message_id": f"{uuid.uuid4().hex[:16]}@test.example.com",
             "sender_email": "customer@example.com",
             "sender_name": "Jane Customer",
-            "recipient_email": f"support+{self.tenant_a.slug}@kanzan.io",
+            "recipient_email": f"support+{self.tenant_a.slug}@crm.io",
             "subject": "Inbox test email",
             "body_text": "Some content.",
             "direction": InboundEmail.Direction.INBOUND,
@@ -545,7 +545,7 @@ class InboxWorkflowTests(KanzenBaseTestCase):
 # ===========================================================================
 
 
-class OutboundEmailTests(KanzenBaseTestCase):
+class OutboundEmailTests(CRMBaseTestCase):
     """Tests 7.21 – 7.24: Outbound email tasks and threading."""
 
     def setUp(self):
@@ -558,7 +558,7 @@ class OutboundEmailTests(KanzenBaseTestCase):
     @patch("apps.tickets.email_service.send_ticket_email")
     def test_7_21_agent_reply_queues_reply_email_task(self, mock_send):
         """7.21 Agent reply queues send_ticket_reply_email_task."""
-        mock_send.return_value = "test-msg-id@kanzan.io"
+        mock_send.return_value = "test-msg-id@crm.io"
 
         ticket = self.create_ticket(
             self.tenant_a, self.admin_a, contact=self.contact_a,
@@ -588,11 +588,11 @@ class OutboundEmailTests(KanzenBaseTestCase):
         )
 
         # Create a prior outbound record for threading
-        prior_msg_id = f"ticket-{ticket.number}-prior@tenant-a.kanzan.io"
+        prior_msg_id = f"ticket-{ticket.number}-prior@tenant-a.crm.io"
         InboundEmail.objects.create(
             tenant=self.tenant_a,
             message_id=prior_msg_id,
-            sender_email="noreply@kanzan.io",
+            sender_email="noreply@crm.io",
             recipient_email=self.contact_a.email,
             direction=InboundEmail.Direction.OUTBOUND,
             status=InboundEmail.Status.SENT,
@@ -633,7 +633,7 @@ class OutboundEmailTests(KanzenBaseTestCase):
     @patch("apps.tickets.email_service.send_ticket_email")
     def test_7_24_ticket_creation_confirmation_email_queued(self, mock_send):
         """7.24 Ticket creation confirmation email queued for new tickets."""
-        mock_send.return_value = "test-msg-id@kanzan.io"
+        mock_send.return_value = "test-msg-id@crm.io"
 
         ticket = self.create_ticket(
             self.tenant_a, self.admin_a, contact=self.contact_a,

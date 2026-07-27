@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Inbox - Kanzen Suite{% endblock %}
+{% block title %}Inbox - CRM Suite{% endblock %}
 
 {% block content %}
 {% include "includes/page_back_button.html" %}
@@ -446,11 +446,11 @@
   }
 
   function formatDate(d) {
-    return Kanzan.timeAgo(d);
+    return CRM.timeAgo(d);
   }
 
   function formatFullDate(d) {
-    return Kanzan.formatDateTime(d);
+    return CRM.formatDateTime(d);
   }
 
   var COLORS = ['var(--crm-primary)','var(--crm-primary-active)','var(--crm-primary)','var(--crm-primary-active)','var(--status-neutral-dot)','var(--crm-primary)','var(--crm-accent)','var(--crm-accent)','var(--crm-primary-300)','var(--status-neutral-dot)'];
@@ -750,8 +750,8 @@
       if (!currentPreviewEmail || currentPreviewEmail.id !== e.id) return;
       document.getElementById('previewBody').textContent = detail.body_text || '';
       currentPreviewEmail._fullBody = detail.body_text;
-      if (window.Kanzan && Kanzan.renderMailAttachments) {
-        Kanzan.renderMailAttachments(
+      if (window.CRM && CRM.renderMailAttachments) {
+        CRM.renderMailAttachments(
           document.getElementById('previewAttachments'), detail.attachments
         );
       }

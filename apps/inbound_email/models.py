@@ -95,7 +95,7 @@ class InboundEmail(TimestampedModel):
     sender_email = models.EmailField(db_index=True)
     sender_name = models.CharField(max_length=255, blank=True, default="")
     recipient_email = models.EmailField(
-        help_text="The address this email was sent to (e.g. support@tenant.kanzen.io).",
+        help_text="The address this email was sent to (e.g. support@tenant.crm.io).",
     )
     subject = models.CharField(max_length=998, blank=True, default="")
     body_text = models.TextField(blank=True, default="")
