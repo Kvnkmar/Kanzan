@@ -8,7 +8,7 @@
  *   Flower: port 5556 (Tempest uses 5555)
  */
 
-const PROJECT_ROOT = "/home/kavin/Kanzen";
+const PROJECT_ROOT = "/home/kavin/crm";
 const VENV_BIN = `${PROJECT_ROOT}/.venv/bin`;
 
 const COMMON_CONFIG = {
