@@ -22,10 +22,10 @@ from apps.kanban.models import Board, CardPosition, Column
 from apps.kanban.services import populate_board_from_tickets
 from apps.tickets.models import Ticket, TicketStatus
 from main.context import clear_current_tenant, set_current_tenant
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class KanbanSyncTests(KanzenBaseTestCase):
+class KanbanSyncTests(CRMBaseTestCase):
     """Tests for kanban board creation, card placement, and status sync (10.1-10.6)."""
 
     def setUp(self):
@@ -279,7 +279,7 @@ class KanbanSyncTests(KanzenBaseTestCase):
         clear_current_tenant()
 
 
-class KanbanTenantIsolationTests(KanzenBaseTestCase):
+class KanbanTenantIsolationTests(CRMBaseTestCase):
     """Tests for kanban board tenant isolation (10.7)."""
 
     def setUp(self):

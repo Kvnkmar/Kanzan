@@ -20,10 +20,10 @@ from apps.knowledge.models import Article, Category as KBCategory
 from apps.tickets.models import Ticket, TicketActivity
 from apps.tickets.tasks import auto_close_ticket
 
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class TestAutoCloseScheduling(KanzenBaseTestCase):
+class TestAutoCloseScheduling(CRMBaseTestCase):
     """15.1 - 15.2: Resolving a ticket schedules auto_close_ticket and saves the task ID."""
 
     def setUp(self):
@@ -69,7 +69,7 @@ class TestAutoCloseScheduling(KanzenBaseTestCase):
         self.assertEqual(self.ticket.auto_close_task_id, "fake-task-id-002")
 
 
-class TestAutoCloseExecution(KanzenBaseTestCase):
+class TestAutoCloseExecution(CRMBaseTestCase):
     """15.3 - 15.5: Auto-close task execution, reopen guard, and activity logging."""
 
     def setUp(self):
@@ -145,7 +145,7 @@ class TestAutoCloseExecution(KanzenBaseTestCase):
         self.assertTrue(activity.exists(), "Expected an AUTO_CLOSED TicketActivity entry.")
 
 
-class TestKBCoverageCheck(KanzenBaseTestCase):
+class TestKBCoverageCheck(CRMBaseTestCase):
     """15.6 - 15.7: KB coverage check sets needs_kb_article on ticket closure."""
 
     def setUp(self):
@@ -219,7 +219,7 @@ class TestKBCoverageCheck(KanzenBaseTestCase):
         )
 
 
-class TestTicketSearchClosed(KanzenBaseTestCase):
+class TestTicketSearchClosed(CRMBaseTestCase):
     """15.8 - 15.10: Ticket lookup returns closed tickets, with agent restrictions."""
 
     def setUp(self):

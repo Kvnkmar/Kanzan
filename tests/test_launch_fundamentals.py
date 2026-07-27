@@ -69,7 +69,7 @@ class TestProtectedMedia:
         inbound = InboundEmail.objects.create(
             tenant=tenant,
             sender_email="c@example.com",
-            recipient_email=f"support+{tenant.slug}@kanzan.io",
+            recipient_email=f"support+{tenant.slug}@crm.io",
             message_id=f"{uuid.uuid4()}@test.com",
         )
         path = self._store(f"inbound_emails/{inbound.pk}/{uuid.uuid4().hex}.bin")

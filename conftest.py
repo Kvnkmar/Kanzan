@@ -193,7 +193,7 @@ class InboundEmailFactory(factory.django.DjangoModelFactory):
 
     message_id = factory.LazyFunction(lambda: f"{uuid.uuid4()}@test.com")
     sender_email = factory.Sequence(lambda n: f"sender{n}@example.com")
-    recipient_email = "support+demo@kanzan.io"
+    recipient_email = "support+demo@crm.io"
     subject = factory.Faker("sentence", nb_words=5)
     body_text = factory.Faker("paragraph")
     status = "pending"

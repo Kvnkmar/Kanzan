@@ -57,7 +57,7 @@ class TestParkEmailInHub:
             TicketStatusFactory(tenant=tenant, is_default=True, name="Open", slug="open")
 
             inbound = InboundEmailFactory(
-                recipient_email=f"support+{tenant.slug}@kanzan.io",
+                recipient_email=f"support+{tenant.slug}@crm.io",
                 tenant=tenant, subject="Park me",
             )
 
@@ -93,7 +93,7 @@ class TestParkEmailInHub:
             TicketStatusFactory(tenant=tenant, is_default=True, name="Open", slug="open")
 
             inbound = InboundEmailFactory(
-                recipient_email=f"support+{tenant.slug}@kanzan.io",
+                recipient_email=f"support+{tenant.slug}@crm.io",
                 tenant=tenant, subject="Audit me",
             )
             from apps.inbound_email.services import process_inbound_email
@@ -143,7 +143,7 @@ class TestConvertToTicketParity:
         legacy_tenant.settings.inbox_hub_enabled = False
         legacy_tenant.settings.save(update_fields=["inbox_hub_enabled", "updated_at"])
         legacy_inbound = InboundEmailFactory(
-            recipient_email=f"support+{legacy_tenant.slug}@kanzan.io",
+            recipient_email=f"support+{legacy_tenant.slug}@crm.io",
             tenant=legacy_tenant, sender_email="customer@example.com",
             subject="Need help", body_text="Body content",
         )
@@ -157,7 +157,7 @@ class TestConvertToTicketParity:
         hub_tenant.settings.inbox_hub_enabled = True
         hub_tenant.settings.save(update_fields=["inbox_hub_enabled", "updated_at"])
         hub_inbound = InboundEmailFactory(
-            recipient_email=f"support+{hub_tenant.slug}@kanzan.io",
+            recipient_email=f"support+{hub_tenant.slug}@crm.io",
             tenant=hub_tenant, sender_email="customer@example.com",
             subject="Need help", body_text="Body content",
         )
@@ -192,7 +192,7 @@ class TestConvertToTicketParity:
         tenant.settings.inbox_hub_enabled = True
         tenant.settings.save(update_fields=["inbox_hub_enabled", "updated_at"])
         inbound = InboundEmailFactory(
-            recipient_email=f"support+{tenant.slug}@kanzan.io",
+            recipient_email=f"support+{tenant.slug}@crm.io",
             tenant=tenant,
         )
         process_inbound_email(inbound.pk)
@@ -212,7 +212,7 @@ class TestConvertToTicketParity:
         tenant.settings.inbox_hub_enabled = True
         tenant.settings.save(update_fields=["inbox_hub_enabled", "updated_at"])
         inbound = InboundEmailFactory(
-            recipient_email=f"support+{tenant.slug}@kanzan.io",
+            recipient_email=f"support+{tenant.slug}@crm.io",
             tenant=tenant,
         )
         process_inbound_email(inbound.pk)
@@ -233,7 +233,7 @@ class TestConvertToTicketParity:
         tenant.settings.inbox_hub_enabled = True
         tenant.settings.save(update_fields=["inbox_hub_enabled", "updated_at"])
         inbound = InboundEmailFactory(
-            recipient_email=f"support+{tenant.slug}@kanzan.io",
+            recipient_email=f"support+{tenant.slug}@crm.io",
             tenant=tenant, subject="raw subject", body_text="raw body",
         )
         process_inbound_email(inbound.pk)
@@ -275,7 +275,7 @@ class TestConvertToTicketParity:
             business_hours_only=False,
         )
         inbound = InboundEmailFactory(
-            recipient_email=f"support+{tenant.slug}@kanzan.io", tenant=tenant,
+            recipient_email=f"support+{tenant.slug}@crm.io", tenant=tenant,
         )
         process_inbound_email(inbound.pk)
         hub = HubEmail.unscoped.get(inbound=inbound)
@@ -305,7 +305,7 @@ class TestDismissHubEmail:
             tenant.settings.save(update_fields=["inbox_hub_enabled", "updated_at"])
             TicketStatusFactory(tenant=tenant, is_default=True, name="Open", slug="open")
             inbound = InboundEmailFactory(
-                recipient_email=f"support+{tenant.slug}@kanzan.io",
+                recipient_email=f"support+{tenant.slug}@crm.io",
                 tenant=tenant,
             )
             process_inbound_email(inbound.pk)
@@ -350,7 +350,7 @@ def parked_hub_email(tenant, default_status, admin_user):
         tenant.settings.inbox_hub_enabled = True
         tenant.settings.save(update_fields=["inbox_hub_enabled", "updated_at"])
         inbound = InboundEmailFactory(
-            recipient_email=f"support+{tenant.slug}@kanzan.io",
+            recipient_email=f"support+{tenant.slug}@crm.io",
             tenant=tenant, subject="Triage me", body_text="Body",
         )
         from apps.inbound_email.services import process_inbound_email
@@ -436,7 +436,7 @@ class TestHubEmailApiPermissions:
         other_inbound = InboundEmail.objects.create(
             tenant=tenant_b,
             sender_email="other@example.com",
-            recipient_email=f"support+{tenant_b.slug}@kanzan.io",
+            recipient_email=f"support+{tenant_b.slug}@crm.io",
             subject="Other tenant email",
             body_text="Other body",
             message_id=f"cross-tenant-test@{tenant_b.slug}",
@@ -747,7 +747,7 @@ def _build_hub_email(
     inbound = InboundEmail.objects.create(
         tenant=tenant,
         sender_email="customer@example.com",
-        recipient_email=f"support+{tenant.slug}@kanzan.io",
+        recipient_email=f"support+{tenant.slug}@crm.io",
         subject="Hello there",
         body_text=body_text,
         body_html=body_html,

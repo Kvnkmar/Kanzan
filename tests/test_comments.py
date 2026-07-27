@@ -14,10 +14,10 @@ from freezegun import freeze_time
 from apps.comments.models import ActivityLog, Comment, CommentRead
 from apps.tickets.models import Ticket, TicketActivity
 from apps.tickets.services import initialize_sla, record_first_response
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class TestPublicAndInternalComments(KanzenBaseTestCase):
+class TestPublicAndInternalComments(CRMBaseTestCase):
     """6.1–6.2 — Public comments and internal notes visibility."""
 
     def setUp(self):
@@ -73,7 +73,7 @@ class TestPublicAndInternalComments(KanzenBaseTestCase):
         self.assertEqual(len(internal_comments), 0)
 
 
-class TestFirstResponseTracking(KanzenBaseTestCase):
+class TestFirstResponseTracking(CRMBaseTestCase):
     """6.3–6.4 — First response stamp on ticket via comment."""
 
     def setUp(self):
@@ -132,7 +132,7 @@ class TestFirstResponseTracking(KanzenBaseTestCase):
             self.assertEqual(ticket.first_responded_at, first_ts)
 
 
-class TestCommentDualWrite(KanzenBaseTestCase):
+class TestCommentDualWrite(CRMBaseTestCase):
     """6.5 — Comment creates entries in both ActivityLog and TicketActivity."""
 
     def setUp(self):
@@ -183,7 +183,7 @@ class TestCommentDualWrite(KanzenBaseTestCase):
         self.assertEqual(ticket_activity_after, ticket_activity_before + 1)
 
 
-class TestThreadedReplies(KanzenBaseTestCase):
+class TestThreadedReplies(CRMBaseTestCase):
     """6.6 — Threaded reply with parent FK."""
 
     def setUp(self):
@@ -229,7 +229,7 @@ class TestThreadedReplies(KanzenBaseTestCase):
         self.assertEqual(str(reply_comment.parent_id), str(parent_id))
 
 
-class TestCommentPermissions(KanzenBaseTestCase):
+class TestCommentPermissions(CRMBaseTestCase):
     """6.7–6.8 — Permission checks for comments."""
 
     def setUp(self):
@@ -275,7 +275,7 @@ class TestCommentPermissions(KanzenBaseTestCase):
         self.assertIn(response.status_code, [403, 404])
 
 
-class TestCommentReadTracking(KanzenBaseTestCase):
+class TestCommentReadTracking(CRMBaseTestCase):
     """6.9–6.12 — Comment read tracking and unread counts."""
 
     def setUp(self):

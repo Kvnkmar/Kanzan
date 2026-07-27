@@ -24,10 +24,10 @@ from apps.tickets.services import (
 )
 from main.context import set_current_tenant
 
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class TicketLifecycleTests(KanzenBaseTestCase):
+class TicketLifecycleTests(CRMBaseTestCase):
     """Tests for ticket status transitions, SLA pause/resume, and lifecycle events."""
 
     def setUp(self):

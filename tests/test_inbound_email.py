@@ -27,13 +27,13 @@ class TestTenantResolution:
     def test_plus_addressing(self):
         from apps.inbound_email.services import resolve_tenant_from_address
         tenant = TenantFactory(slug="acme")
-        result = resolve_tenant_from_address("support+acme@kanzan.io")
+        result = resolve_tenant_from_address("support+acme@crm.io")
         assert result == tenant
 
     def test_slug_local_part(self):
         from apps.inbound_email.services import resolve_tenant_from_address
         tenant = TenantFactory(slug="demo")
-        result = resolve_tenant_from_address("demo@inbound.kanzan.io")
+        result = resolve_tenant_from_address("demo@inbound.crm.io")
         assert result == tenant
 
     def test_unknown_address_returns_none(self):
@@ -93,7 +93,7 @@ class TestProcessInboundEmail:
         clear_current_tenant()
 
         inbound = InboundEmailFactory(
-            recipient_email="support+inbound-test@kanzan.io",
+            recipient_email="support+inbound-test@crm.io",
             tenant=tenant,
             subject="Help me please",
             body_text="I need help with my account",
@@ -148,7 +148,7 @@ class TestEmailsInternalPersonalScope:
             sender_type=InboundEmail.SenderType.CUSTOMER,
             direction=InboundEmail.Direction.INBOUND,
             status=InboundEmail.Status.PARKED_IN_HUB,
-            recipient_email="support@kanzan.io",
+            recipient_email="support@crm.io",
             subject="Customer question",
         )
         # Auto-generated system notification addressed to me — excluded now
@@ -217,7 +217,7 @@ class TestEmailsInternalPersonalScope:
             sender_type=InboundEmail.SenderType.CUSTOMER,
             direction=InboundEmail.Direction.INBOUND,
             status=InboundEmail.Status.PARKED_IN_HUB,
-            recipient_email="support@kanzan.io",
+            recipient_email="support@crm.io",
             subject="Customer question",
         )
 
@@ -244,7 +244,7 @@ class TestInboundEmailAttachments:
             sender_type=InboundEmail.SenderType.CUSTOMER,
             direction=InboundEmail.Direction.INBOUND,
             status=InboundEmail.Status.PARKED_IN_HUB,
-            recipient_email="support@kanzan.io",
+            recipient_email="support@crm.io",
             subject="Photos attached",
         )
         img_path = default_storage.save(

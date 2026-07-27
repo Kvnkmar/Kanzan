@@ -20,10 +20,10 @@ from rest_framework import status as http_status
 
 from apps.tickets.models import CannedResponse, Macro
 from main.context import clear_current_tenant
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class MacroTests(KanzenBaseTestCase):
+class MacroTests(CRMBaseTestCase):
     """Tests for Macro CRUD and apply behaviour (9.1-9.7)."""
 
     def setUp(self):
@@ -203,7 +203,7 @@ class MacroTests(KanzenBaseTestCase):
         )
 
 
-class CannedResponseTests(KanzenBaseTestCase):
+class CannedResponseTests(CRMBaseTestCase):
     """Tests for CannedResponse CRUD and usage tracking (9.8-9.10)."""
 
     def setUp(self):

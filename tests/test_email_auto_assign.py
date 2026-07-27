@@ -337,7 +337,7 @@ class TestInboundPipelineHonoursToggle:
             clear_current_tenant()
         inbound = InboundEmailFactory(
             tenant=None,  # unresolved until pipeline runs
-            recipient_email=f"support+{tenant.slug}@kanzan.io",
+            recipient_email=f"support+{tenant.slug}@crm.io",
             sender_email="customer@example.com",
             subject="Printer is broken",
             body_text="Please help.",

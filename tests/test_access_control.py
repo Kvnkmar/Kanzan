@@ -10,10 +10,10 @@ import unittest
 
 from apps.accounts.models import Role, TenantMembership
 from apps.tickets.models import Ticket
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class TestAccessControl(KanzenBaseTestCase):
+class TestAccessControl(CRMBaseTestCase):
     """Access control and RBAC tests."""
 
     def setUp(self):

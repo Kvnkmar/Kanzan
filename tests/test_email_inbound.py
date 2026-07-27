@@ -121,10 +121,10 @@ class TestStripQuotedReply:
 class TestLoopDetection:
     @pytest.fixture(autouse=True)
     def _settings(self, settings):
-        settings.DEFAULT_FROM_EMAIL = "support@kanzan.test"
+        settings.DEFAULT_FROM_EMAIL = "support@crm.test"
 
     def test_rejects_own_outbound_address(self):
-        inbound = InboundEmailFactory.build(sender_email="support@kanzan.test")
+        inbound = InboundEmailFactory.build(sender_email="support@crm.test")
         should_reject, reason = check_loop(inbound)
         assert should_reject
         assert "system outbound" in reason
@@ -218,10 +218,10 @@ class TestSubjectAutoReplyFilter:
 class TestRunAllFilters:
     @pytest.fixture(autouse=True)
     def _settings(self, settings):
-        settings.DEFAULT_FROM_EMAIL = "support@kanzan.test"
+        settings.DEFAULT_FROM_EMAIL = "support@crm.test"
 
     def test_loop_rejected(self):
-        inbound = InboundEmailFactory.build(sender_email="support@kanzan.test")
+        inbound = InboundEmailFactory.build(sender_email="support@crm.test")
         should_reject, _ = run_all_filters(inbound)
         assert should_reject
 
@@ -267,8 +267,8 @@ class TestThreadingByInReplyTo:
         # Outbound record exists for this ticket
         InboundEmail.objects.create(
             tenant=tenant, ticket=ticket,
-            message_id="outbound-msg-001@thread-test.kanzan.test",
-            sender_email="support@kanzan.test",
+            message_id="outbound-msg-001@thread-test.crm.test",
+            sender_email="support@crm.test",
             recipient_email="customer@example.com",
             direction=InboundEmail.Direction.OUTBOUND,
             status=InboundEmail.Status.SENT,
@@ -277,7 +277,7 @@ class TestThreadingByInReplyTo:
         # Inbound reply references that outbound message
         inbound = InboundEmailFactory(
             tenant=tenant,
-            in_reply_to="outbound-msg-001@thread-test.kanzan.test",
+            in_reply_to="outbound-msg-001@thread-test.crm.test",
             subject="Re: something",
         )
 
@@ -294,8 +294,8 @@ class TestThreadingByReferences:
 
         InboundEmail.objects.create(
             tenant=tenant, ticket=ticket,
-            message_id="ref-msg-001@thread-test.kanzan.test",
-            sender_email="support@kanzan.test",
+            message_id="ref-msg-001@thread-test.crm.test",
+            sender_email="support@crm.test",
             recipient_email="customer@example.com",
             direction=InboundEmail.Direction.OUTBOUND,
             status=InboundEmail.Status.SENT,
@@ -303,7 +303,7 @@ class TestThreadingByReferences:
 
         inbound = InboundEmailFactory(
             tenant=tenant, in_reply_to="",
-            references="some-old@id ref-msg-001@thread-test.kanzan.test",
+            references="some-old@id ref-msg-001@thread-test.crm.test",
             subject="Something unrelated",
         )
 
@@ -342,7 +342,7 @@ class TestThreadingBySubjectFallback:
         InboundEmail.objects.create(
             tenant=tenant, ticket=ticket1,
             message_id="header-match@test",
-            sender_email="support@kanzan.test",
+            sender_email="support@crm.test",
             recipient_email="customer@example.com",
             direction=InboundEmail.Direction.OUTBOUND,
             status=InboundEmail.Status.SENT,
@@ -370,13 +370,13 @@ class TestThreadingBySubjectFallback:
 class TestInboundProcessingPipeline:
     @pytest.fixture(autouse=True)
     def _settings(self, settings):
-        settings.DEFAULT_FROM_EMAIL = "support@kanzan.test"
+        settings.DEFAULT_FROM_EMAIL = "support@crm.test"
 
     def test_creates_ticket_from_new_email(self):
         tenant, user, _ = _setup_tenant_with_ticket()
 
         inbound = InboundEmailFactory(
-            recipient_email="support+thread-test@kanzan.io",
+            recipient_email="support+thread-test@crm.io",
             tenant=tenant,
             subject="New issue",
             body_text="Please help.",
@@ -394,17 +394,17 @@ class TestInboundProcessingPipeline:
         # Create a prior outbound email for threading
         InboundEmail.objects.create(
             tenant=tenant, ticket=ticket,
-            message_id="prior-outbound@thread-test.kanzan.test",
-            sender_email="support@kanzan.test",
+            message_id="prior-outbound@thread-test.crm.test",
+            sender_email="support@crm.test",
             recipient_email="customer@example.com",
             direction=InboundEmail.Direction.OUTBOUND,
             status=InboundEmail.Status.SENT,
         )
 
         inbound = InboundEmailFactory(
-            recipient_email="support+thread-test@kanzan.io",
+            recipient_email="support+thread-test@crm.io",
             tenant=tenant,
-            in_reply_to="prior-outbound@thread-test.kanzan.test",
+            in_reply_to="prior-outbound@thread-test.crm.test",
             subject="Re: Something",
             body_text="Thanks for the update.",
         )
@@ -427,8 +427,8 @@ class TestInboundProcessingPipeline:
         tenant, user, _ = _setup_tenant_with_ticket()
 
         inbound = InboundEmailFactory(
-            recipient_email="support+thread-test@kanzan.io",
-            sender_email="support@kanzan.test",
+            recipient_email="support+thread-test@crm.io",
+            sender_email="support@crm.test",
             tenant=tenant,
             subject="Bounced confirmation",
             body_text="Auto-generated.",
@@ -443,7 +443,7 @@ class TestInboundProcessingPipeline:
         tenant, user, _ = _setup_tenant_with_ticket()
 
         inbound = InboundEmailFactory(
-            recipient_email="support+thread-test@kanzan.io",
+            recipient_email="support+thread-test@crm.io",
             tenant=tenant,
             subject="Out of Office: I'm on vacation",
             body_text="I will return on Monday.",
@@ -457,7 +457,7 @@ class TestInboundProcessingPipeline:
         tenant, user, _ = _setup_tenant_with_ticket()
 
         inbound = InboundEmailFactory(
-            recipient_email="support+thread-test@kanzan.io",
+            recipient_email="support+thread-test@crm.io",
             sender_email="mailer-daemon@mx.google.com",
             tenant=tenant,
             subject="Mail delivery failed",
@@ -475,7 +475,7 @@ class TestDuplicateWebhookDelivery:
         tenant, user, _ = _setup_tenant_with_ticket()
 
         inbound1 = InboundEmailFactory(
-            recipient_email="support+thread-test@kanzan.io",
+            recipient_email="support+thread-test@crm.io",
             tenant=tenant, message_id="dup-msg-123@example.com",
             subject="Help", body_text="First delivery",
         )
@@ -485,7 +485,7 @@ class TestDuplicateWebhookDelivery:
 
         # Second delivery of the same message_id
         inbound2 = InboundEmailFactory(
-            recipient_email="support+thread-test@kanzan.io",
+            recipient_email="support+thread-test@crm.io",
             tenant=tenant, message_id="dup-msg-123@example.com",
             subject="Help", body_text="Second delivery",
         )
@@ -499,7 +499,7 @@ class TestDuplicateWebhookDelivery:
         tenant, user, _ = _setup_tenant_with_ticket()
 
         inbound = InboundEmailFactory(
-            recipient_email="support+thread-test@kanzan.io",
+            recipient_email="support+thread-test@crm.io",
             tenant=tenant, subject="Retry me", body_text="Content",
             status="processing",
         )
@@ -531,7 +531,7 @@ class TestMultiTenantIsolation:
 
         # Email addressed to tenant_b but subject mentions [#1] (ticket_a's number)
         inbound = InboundEmailFactory(
-            recipient_email="support+tenant-iso-b@kanzan.io",
+            recipient_email="support+tenant-iso-b@crm.io",
             tenant=tenant_b,
             subject=f"Re: [#{ticket_a.number}] Old ticket",
             body_text="This is for tenant B",
@@ -552,7 +552,7 @@ class TestMultiTenantIsolation:
         InboundEmail.objects.create(
             tenant=tenant_a, ticket=ticket_a,
             message_id="shared-msg@example.com",
-            sender_email="support@kanzan.test",
+            sender_email="support@crm.test",
             recipient_email="customer@example.com",
             direction=InboundEmail.Direction.OUTBOUND,
             status=InboundEmail.Status.SENT,
@@ -570,7 +570,7 @@ class TestMultiTenantIsolation:
 
         # Email to tenant_b with In-Reply-To matching tenant_a's record
         inbound = InboundEmailFactory(
-            recipient_email="support+tenant-iso-c@kanzan.io",
+            recipient_email="support+tenant-iso-c@crm.io",
             tenant=tenant_b,
             in_reply_to="shared-msg@example.com",
             subject="Cross-tenant test",
@@ -586,7 +586,7 @@ class TestMultiTenantIsolation:
     def test_wrong_tenant_resolution_does_not_create_ticket(self):
         """Email addressed to a non-existent tenant is rejected."""
         inbound = InboundEmailFactory(
-            recipient_email="support+nonexistent@kanzan.io",
+            recipient_email="support+nonexistent@crm.io",
             tenant=None,
             subject="Lost email",
             body_text="Content",
@@ -612,14 +612,14 @@ class TestMalformedInput:
         InboundEmail.objects.create(
             tenant=tenant, ticket=ticket,
             message_id="prior@test",
-            sender_email="support@kanzan.test",
+            sender_email="support@crm.test",
             recipient_email="customer@example.com",
             direction=InboundEmail.Direction.OUTBOUND,
             status=InboundEmail.Status.SENT,
         )
 
         inbound = InboundEmailFactory(
-            recipient_email="support+thread-test@kanzan.io",
+            recipient_email="support+thread-test@crm.io",
             tenant=tenant,
             in_reply_to="prior@test",
             subject="Re: [#1] Something",
@@ -636,7 +636,7 @@ class TestMalformedInput:
         tenant, user, _ = _setup_tenant_with_ticket()
 
         inbound = InboundEmailFactory(
-            recipient_email="support+thread-test@kanzan.io",
+            recipient_email="support+thread-test@crm.io",
             tenant=tenant, subject="",
             body_text="I forgot the subject.",
         )
@@ -659,7 +659,7 @@ class TestSecurityHeaders:
         tenant, user, _ = _setup_tenant_with_ticket()
 
         inbound = InboundEmailFactory(
-            recipient_email="support+thread-test@kanzan.io",
+            recipient_email="support+thread-test@crm.io",
             tenant=tenant,
             subject="Normal subject\r\nBcc: evil@attacker.com",
             body_text="Content",
@@ -677,7 +677,7 @@ class TestSecurityHeaders:
 
         # Email claims to be for "evil-tenant" in headers but addressed to tenant_a
         inbound = InboundEmailFactory(
-            recipient_email="support+thread-test@kanzan.io",
+            recipient_email="support+thread-test@crm.io",
             tenant=tenant_a,
             raw_headers="X-Tenant-Slug: evil-tenant\nMessage-ID: <x@test>",
             subject="Spoofed",

@@ -17,10 +17,10 @@ from django.utils import timezone
 from apps.billing.models import Plan, Subscription, UsageTracker
 from apps.tickets.models import Ticket
 
-from tests.base import KanzenBaseTestCase
+from tests.base import CRMBaseTestCase
 
 
-class TestTicketLimitEnforcement(KanzenBaseTestCase):
+class TestTicketLimitEnforcement(CRMBaseTestCase):
     """16.1 - 16.4: Plan ticket limits are enforced when creating tickets via API."""
 
     def setUp(self):
@@ -103,7 +103,7 @@ class TestTicketLimitEnforcement(KanzenBaseTestCase):
                          "No ticket should be created when the limit is exceeded.")
 
 
-class TestStripeWebhookPlanUpdate(KanzenBaseTestCase):
+class TestStripeWebhookPlanUpdate(CRMBaseTestCase):
     """16.5: Stripe webhook updates tenant plan on subscription change."""
 
     def setUp(self):
@@ -116,7 +116,7 @@ class TestStripeWebhookPlanUpdate(KanzenBaseTestCase):
         pass
 
 
-class TestPlanDowngrade(KanzenBaseTestCase):
+class TestPlanDowngrade(CRMBaseTestCase):
     """16.6: Downgraded plan limit takes effect immediately."""
 
     def setUp(self):
@@ -155,7 +155,7 @@ class TestPlanDowngrade(KanzenBaseTestCase):
                          f"Downgraded plan limit should be enforced immediately. Got {resp.status_code}")
 
 
-class TestPlanGatedFeatures(KanzenBaseTestCase):
+class TestPlanGatedFeatures(CRMBaseTestCase):
     """16.7 - 16.8: Plan-gated features return 403 on Free, accessible on Pro/Enterprise."""
 
     def setUp(self):

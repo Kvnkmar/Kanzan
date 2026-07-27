@@ -1,4 +1,4 @@
-# Kanzen — Project Intelligence
+# CRM — Project Intelligence
 
 > **Last refreshed: 2026-07-27 (clean-room deep dive — docs detached).** A 10-agent background
 > workflow (8 subsystem readers + 2 adversarial verifiers, ~1.9M tokens) re-derived this file from
@@ -66,16 +66,16 @@ multi-tenancy via subdomain routing + **contextvars** tenant binding (async-safe
 superuser-locked. PM2 process management. CI exists.
 
 - **Port** 8001 (ASGI, gunicorn + uvicorn worker) · **Dev DB** SQLite · **Prod DB** PostgreSQL
-- **Redis:** db3 (cache + `cached_db` sessions, prefix `kanzan`), db4 (Celery broker; result backend `django-db`), db5 (Channels, prefix `kanzan:channels`)
-- **SMTP in-process server** 2525 (`kanzan-smtp`, prod only) · **Flower** 5556 · **TIME_ZONE** `Asia/Kuala_Lumpur` (⚠ `CELERY_TIMEZONE="UTC"` → crontab beats fire on UTC wall-clock; `USE_TZ=True`)
+- **Redis:** db3 (cache + `cached_db` sessions, prefix `crm`), db4 (Celery broker; result backend `django-db`), db5 (Channels, prefix `crm:channels`)
+- **SMTP in-process server** 2525 (`crm-smtp`, prod only) · **Flower** 5556 · **TIME_ZONE** `Asia/Kuala_Lumpur` (⚠ `CELERY_TIMEZONE="UTC"` → crontab beats fire on UTC wall-clock; `USE_TZ=True`)
 - Python 3.12; venv `.venv/` (`env` is a symlink → `.venv`).
 
 ### Quick Reference (dev / localhost — from prior docs, unverified this pass)
 ```
-Superuser:    admin@kanzen.local / Pl@nC-ICT_2024
+Superuser:    admin@crm.local / Pl@nC-ICT_2024
 Django Admin: http://localhost:8001/admin/   (jazzmin darkly; is_superuser-locked)
 Tenant:       http://straat-x.localhost:8001
-Flower:       http://localhost:5556 (admin:changeme — KANZAN_FLOWER_AUTH, read only by PM2 configs)
+Flower:       http://localhost:5556 (admin:changeme — CRM_FLOWER_AUTH, read only by PM2 configs)
 API Docs:     http://straat-x.localhost:8001/api/docs/
 ```
 
@@ -246,7 +246,7 @@ import). Confirmation email sent only if `auto_send_ticket_created_email` explic
   DEAD. Stripe webhook is a plain Django view (not DRF).
 - **attachments:** object-level authz sound; tenant-UUID media gated; hole is `PUBLIC_PREFIXES` (C2).
 - **api_keys:** SHA-512, fail-open only on absent header, cross-tenant guard; `prefix` not unique → 500 on collision.
-- **VoIP:** structurally non-functional by default (`run_ari_listener` not in PM2; `kanzan_voip` unconsumed →
+- **VoIP:** structurally non-functional by default (`run_ari_listener` not in PM2; `crm_voip` unconsumed →
   `cleanup_stale_calls` never runs). 🔴 `CallEventConsumer` cross-tenant (H2). `Plan.has_call_recording` zero readers.
 
 ## Live Broadcast Layer & WebSockets
@@ -261,18 +261,18 @@ import). Confirmation email sent only if `auto_send_ticket_created_email` explic
   (`ws/live/`, DOES membership-check).
 
 ## Celery / Beat / PM2
-- **8 route globs**; `kanzan_voip` **unconsumed** by every worker; `kanzan_webhooks` consumed but producerless
+- **8 route globs**; `crm_voip` **unconsumed** by every worker; `crm_webhooks` consumed but producerless
   (`apps/billing/tasks.py` doesn't exist). **12 Beat entries**; DEAD (not in Beat): `check_sla_breach_warnings`,
   `check_overdue_reminders`. UTC-vs-KL skew: `kb-stale-alert` (08:00 UTC → 16:00 local), `kb-gap-digest` (Mon 09:00
   UTC → 17:00 local). Built-in shelve scheduler (django-celery-beat removed for Django 6).
 - **PM2:** prod 5 procs (django/worker/beat/flower/smtp), dev 4 (no smtp). `C_FORCE_ROOT=true` on worker+beat+flower.
   Flower default `admin:changeme`. Dev worker watch misses consumers/signals/models/views. Makefile: `logs-django`
-  errors (no rule body); `stop`/`restart` skip `kanzan-smtp`.
+  errors (no rule body); `stop`/`restart` skip `crm-smtp`.
 
 ## Settings / Env
-- `settings/__init__.py`: `DJANGO_DEBUG` default False → prod.py; True → dev.py. `main/checks.py::kanzen.E001`
+- `settings/__init__.py`: `DJANGO_DEBUG` default False → prod.py; True → dev.py. `main/checks.py::crm.E001`
   hard-fails a `--deploy` check if DEBUG is True (but runtime never forces it). base.py reads ~39-40 env keys
-  (.env.example documents 16). `KANZAN_FLOWER_AUTH` NOT read by base.py (only PM2 configs).
+  (.env.example documents 16). `CRM_FLOWER_AUTH` NOT read by base.py (only PM2 configs).
 - 🔴 **The on-disk `.env`** sets `DJANGO_DEBUG=True` + `EMAIL_BACKEND=smtp` + real Gmail creds + Flower
   `admin:changeme` (C3) → dev mail is sent live via `smtp.gmail.com` (NOT captured to `tmp/emails/`); shipping this
   `.env` to prod boots dev.py.
@@ -337,6 +337,6 @@ import). Confirmation email sent only if `auto_send_ticket_created_email` explic
    anything at ≤30 regardless of codename.
 4. bulk_update_tickets HARD-deletes; change_ticket_status doesn't validate; reminder bulk_action IDOR.
 5. `.env` on disk = DEBUG + live Gmail + Flower admin:changeme.
-6. VoIP non-functional by default; `kanzan_voip`/`kanzan_webhooks` queue issues; UTC beat skew.
+6. VoIP non-functional by default; `crm_voip`/`crm_webhooks` queue issues; UTC beat skew.
 7. Always `effective_role` (raw-role drift at 10 sites). Always `tenant_context` off-request.
 8. `kb_search` raises on SQLite; `make test-fast`/`make logs-django` broken; `stop`/`restart` skip smtp.

@@ -32,8 +32,8 @@ from tests.base import TenantTestCase
 
 EMAIL_SETTINGS = dict(
     EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
-    DEFAULT_FROM_EMAIL="noreply@kanzan.test",
-    BASE_DOMAIN="kanzan.test",
+    DEFAULT_FROM_EMAIL="noreply@crm.test",
+    BASE_DOMAIN="crm.test",
     BASE_PORT="8001",
     DEBUG=True,
 )
@@ -79,7 +79,7 @@ class TestSendTicketEmail(TenantTestCase):
             tenant=self.tenant_a, ticket=self.ticket,
             message_id="prior-msg-123@clientmail.com",
             sender_email="customer@clientmail.com",
-            recipient_email="support+tenant-a@kanzan.test",
+            recipient_email="support+tenant-a@crm.test",
             direction=InboundEmail.Direction.INBOUND,
             status=InboundEmail.Status.REPLY_ADDED,
         )
