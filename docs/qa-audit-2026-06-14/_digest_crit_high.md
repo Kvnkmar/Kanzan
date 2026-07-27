@@ -5,18 +5,18 @@
 
 ### [tenant-isolation-1] Cross-Tenant Message-ID Deduplication Bypass in IMAP Poller  (DISMISSED(fp))
 - category: Data Integrity | confidence: high | dimension: Multi-tenancy & tenant isolation
-- location: /home/kavin/CRM/apps/inbound_email/imap_poller.py:337
+- location: /home/kavin/Kanzen/apps/inbound_email/imap_poller.py:337
 - description: The IMAP poller checks for duplicate message_ids using `InboundEmail.objects.filter(message_id=message_id).exists()` without including a `tenant=` filter. Since InboundEmail is NOT a TenantScopedModel, it uses a plain Django manager without automatic tenant scoping. This allows an attacker to craft an email with a message_id from one tenant and have it accepted by another tenant, bypassing deduplication and potentially creating multiple tickets from the same email across tenants.
 - expected: Deduplication should be scoped to the current tenant. The check should be `InboundEmail.objects.filter(tenant=tenant, message_id=message_id).exists()` where tenant is derived during the IMAP ingest process.
 - actual: The dedup check is cross-tenant: `InboundEmail.objects.filter(message_id=message_id).exists()` at line 337. The tenant is resolved AFTER InboundEmail creation in the async processing task, leaving a window where the check doesn't know which tenant owns the mailbox.
 - fix: Move tenant resolution to the IMAP ingestion layer (before creating InboundEmail), or embed the tenant in the IMAP poll state so each mailbox is bound to a specific tenant. Then update line 337 to: `if InboundEmail.objects.filter(tenant=tenant, message_id=message_id).exists():`
-- VERDICT: refuted (High) — The finding's severity claim and attack scenario are incorrect. Analysis of /home/kavin/CRM/apps/inbound_email/imap_poller.py:337 and services.py:307-331 reveals a real bug, but not the one described.
+- VERDICT: refuted (High) — The finding's severity claim and attack scenario are incorrect. Analysis of /home/kavin/Kanzen/apps/inbound_email/imap_poller.py:337 and services.py:307-331 reveals a real bug, but not the one described.
 
 **Actual behavior:** InboundEmail.objects.filter(message_id=message_id).exists() at line 337 checks GLOBALLY (no tenant filter) because InboundEmail is a TimestampedModel (plain Manager) not a Te
 
 ### [tenant-isolation-2] Missing Tenant Context in InboundEmail Creation (IMAP & SMTP)  (DISMISSED(fp))
 - category: Data Integrity | confidence: high | dimension: Multi-tenancy & tenant isolation
-- location: /home/kavin/CRM/apps/inbound_email/imap_poller.py:360, apps/inbound_email/smtp_server.py:113
+- location: /home/kavin/Kanzen/apps/inbound_email/imap_poller.py:360, apps/inbound_email/smtp_server.py:113
 - description: InboundEmail.objects.create() calls in both the IMAP poller and SMTP server do not set the tenant field at creation time. The tenant is resolved later in the async processing task (services.py line 307-318). Until that happens, the InboundEmail row has tenant=NULL, making it invisible to tenant-scoped queries. If a crash occurs during this window, or if concurrent access happens before tenant backfill, cross-tenant data could leak or be misattributed. Additionally, the nullable tenant field means some rows can permanently exist without a tenant.
 - expected: All InboundEmail rows should have tenant set immediately upon creation, before any async processing begins. The tenant should be resolved during IMAP/SMTP ingestion (synchronously) and passed to create().
 - actual: Rows are created with tenant=NULL and only backfilled later in process_inbound_email_task when tenant is resolved from the recipient address. This creates a window where tenant-unscoped queries can see the row.
@@ -55,7 +55,7 @@ Key findings:
 - expected: Response breach should only fire when: response deadline expires AND no actual agent response has been recorded (first_responded_at being set by reply/comment activity), OR the field should be documented as unused.
 - actual: Response breach always fires on deadline expiration because first_responded_at is always NULL and the condition is never satisfied to prevent firing.
 - fix: (1) Implement a mechanism to stamp first_responded_at when an agent replies (via reassign_hub_email or a reply action). (2) Update the breach check to only flag when first_responded_at is truly NULL after the deadline. (3) Alternatively, document the field as read-never-written and remove it from the check (only use response_breached flag as a one-shot). (4) Consider adding a reply/comment action to HubEmail to record agent activity.
-- VERDICT: confirmed (High) — The finding is confirmed. Reading /home/kavin/CRM/apps/inbox_hub/tasks.py lines 49-58, the condition `if not he.response_breached and he.first_responded_at is None:` checks a field that is never written anywhere in the codebase. Grep confirms zero write sites for `HubEmail.first_responded_at` (appears only in migrations, model definition, and the single read in tasks.py:49). The services.py fil
+- VERDICT: confirmed (High) — The finding is confirmed. Reading /home/kavin/Kanzen/apps/inbox_hub/tasks.py lines 49-58, the condition `if not he.response_breached and he.first_responded_at is None:` checks a field that is never written anywhere in the codebase. Grep confirms zero write sites for `HubEmail.first_responded_at` (appears only in migrations, model definition, and the single read in tasks.py:49). The services.py fil
 
 ### [messaging-1] Cross-tenant mention disclosure via global User query without tenant membership validation  (OK)
 - category: Security | confidence: high | dimension: Messaging / conversations
@@ -210,14 +210,14 @@ The CLAUDE.md project documentation explicitly acknowledges this at line 389: "`
 
 ### [tenant-isolation-3] InboundEmail Not TenantScopedModel—Requires Manual Tenant Filtering Everywhere  (OK)
 - category: Data Integrity | confidence: high | dimension: Multi-tenancy & tenant isolation
-- location: /home/kavin/CRM/apps/inbound_email/models.py:22-75 (model definition)
+- location: /home/kavin/Kanzen/apps/inbound_email/models.py:22-75 (model definition)
 - description: InboundEmail inherits from TimestampedModel, not TenantScopedModel, so it does not get the automatic tenant-aware `.objects` manager. Every query on InboundEmail.objects must include an explicit `tenant=` filter to avoid cross-tenant leakage. This design is error-prone—a developer unfamiliar with this exception could use `.objects` without filtering and unknowingly leak data across tenants. The imap_poller.py:337 critical finding above is direct evidence this design has already been violated in production code.
 - expected: InboundEmail should either (a) inherit from TenantScopedModel so filtering is automatic, or (b) have a custom manager that requires explicit tenant= filters and raises an error if omitted.
 - actual: InboundEmail uses a plain Django manager. The design relies entirely on developer discipline.
 - fix: Refactor InboundEmail to inherit from TenantScopedModel and make tenant required (non-nullable: null=False). This automatically secures all queries via the fail-closed TenantAwareManager. If nullable tenant is truly needed for some reason, create a custom manager that enforces `tenant=` in all queries or allows only `.unscoped` queries with explicit checking.
 - VERDICT: confirmed (Critical) — The finding is CONFIRMED via direct code inspection. I verified:
 
-1. **InboundEmail model inheritance** (/home/kavin/CRM/apps/inbound_email/models.py:22): Inherits from TimestampedModel, NOT TenantScopedModel. Uses plain Django Manager (verified via Python import check).
+1. **InboundEmail model inheritance** (/home/kavin/Kanzen/apps/inbound_email/models.py:22): Inherits from TimestampedModel, NOT TenantScopedModel. Uses plain Django Manager (verified via Python import check).
 
 2. **The specific bug at imap_poller.py:337**: 
    ```python
@@ -225,7 +225,7 @@ The CLAUDE.md project documentation explicitly acknowledges this at line 389: "`
 
 ### [tenant-isolation-4] Missing Tenant Context in convert_to_ticket Service  (OK)
 - category: Business Logic | confidence: high | dimension: Multi-tenancy & tenant isolation
-- location: /home/kavin/CRM/apps/inbox_hub/services.py:152-155
+- location: /home/kavin/Kanzen/apps/inbox_hub/services.py:152-155
 - description: The convert_to_ticket() function calls _create_ticket_from_email(...) at line 153 without wrapping in tenant_context(). While the function has access to the tenant variable (line 135), it does not set it in the context. This means if _create_ticket_from_email or any nested service internally uses TenantAwareManager without explicit tenant= filters, those queries could fail or return empty querysets. Since _create_ticket_from_email is also called from the direct API path (api_views.py), auditing both call sites is necessary.
 - expected: All service functions that perform TenantAwareManager queries should either (a) be wrapped in `with tenant_context(tenant):`, or (b) have explicit documentation stating they require a bound tenant context and accept it as a parameter.
 - actual: convert_to_ticket at lines 152-155 calls _create_ticket_from_email without tenant_context. While the DRF view that calls convert_to_ticket has request.tenant set, the service function itself does not ensure context.
@@ -238,7 +238,7 @@ CONFIRMED FACTS from code review:
 
 ### [tenant-isolation-5] Admin Tenant Scoping Broken for /admin/ Accessed via Bare Domain  (DISMISSED(fp))
 - category: Security | confidence: high | dimension: Multi-tenancy & tenant isolation
-- location: /home/kavin/CRM/apps/tenants/middleware.py:119-144
+- location: /home/kavin/Kanzen/apps/tenants/middleware.py:119-144
 - description: The TenantMiddleware special-cases /admin/ paths and sets request.tenant=None when the bare domain is used (no subdomain). This allows superuser-only access but breaks the TenantFilteredAdmin mixin: its get_queryset() uses request.tenant for filtering, but since it's None, all TenantScopedModel queries return empty results. A superuser trying to manage tenant data via /admin/ on the bare domain will see no data, potentially leading them to believe the database is empty and take destructive actions.
 - expected: The admin site should either (a) resolve tenant from subdomain when present and show that tenant's data, (b) use .unscoped in all admin querysets and show cross-tenant data (for superusers), or (c) require superusers to access admin via a subdomain.
 - actual: Admin site sets request.tenant=None when accessed at the bare domain. TenantFilteredAdmin.get_queryset() uses this None value to filter, resulting in empty queryset.
@@ -247,7 +247,7 @@ CONFIRMED FACTS from code review:
 
 ### [tenant-isolation-6] Feature B Missing Tenant Context in API create_ticket  (DISMISSED(fp))
 - category: Business Logic | confidence: high | dimension: Multi-tenancy & tenant isolation
-- location: /home/kavin/CRM/apps/inbound_email/api_views.py:308-314
+- location: /home/kavin/Kanzen/apps/inbound_email/api_views.py:308-314
 - description: Feature B's create_ticket action calls find_or_create_contact(tenant, ...) and _create_ticket_from_email(...) within transaction.atomic() but without wrapping in tenant_context(). While the DRF view has request.tenant set via middleware, the service functions themselves should have explicit context for defensive correctness. If any on_commit() handlers within _create_ticket_from_email spawn Celery tasks or use deferred execution that relies on implicit context, the context could be lost.
 - expected: Wrap the atomic block in tenant_context(tenant) to ensure all nested work, including on_commit handlers, runs with context.
 - actual: The API view at lines 308-314 calls services without tenant_context().
@@ -260,32 +260,32 @@ CONFIRMED FACTS from code review:
 
 ### [authn-1] Race condition in fire_due_reminders without select_for_update  (OK) [DUP-OF tenant-isolation-7]
 - category: Reliability | confidence: high | dimension: Authentication (JWT / API key / session / SSO)
-- location: /home/kavin/CRM/apps/crm/tasks.py:102-104
+- location: /home/kavin/Kanzen/apps/crm/tasks.py:102-104
 - description: The fire_due_reminders task stamps the due_notified_at watermark using filter().update() without select_for_update() locking. Two celery workers executing concurrently could both read the same reminder and both update the watermark independently, resulting in duplicate notifications.
 - expected: Each reminder fires exactly once when it comes due.
 - actual: Due reminders can fire multiple times if two workers process the same reminder before both watermark updates complete.
 - fix: Wrap the watermark check and update in select_for_update() block or move inside a transaction with row-level locking.
-- VERDICT: confirmed (Medium) — The race condition is CONFIRMED by direct code inspection. The code at `/home/kavin/CRM/apps/crm/tasks.py:70-104` shows: (1) `.iterator()` materializes all due reminders from the database query before any watermark updates occur (lines 70-84); (2) No `select_for_update()` locking is used on the Reminder model (line 102 uses plain `.filter().update()`); (3) The task runs on a prefork worker pool
+- VERDICT: confirmed (Medium) — The race condition is CONFIRMED by direct code inspection. The code at `/home/kavin/Kanzen/apps/crm/tasks.py:70-104` shows: (1) `.iterator()` materializes all due reminders from the database query before any watermark updates occur (lines 70-84); (2) No `select_for_update()` locking is used on the Reminder model (line 102 uses plain `.filter().update()`); (3) The task runs on a prefork worker pool
 
 ### [authn-2] DashboardView bypasses tenant RBAC with IsAuthenticated-only permission  (OK)
 - category: Security | confidence: high | dimension: Authentication (JWT / API key / session / SSO)
-- location: /home/kavin/CRM/apps/analytics/views.py
+- location: /home/kavin/Kanzen/apps/analytics/views.py
 - description: The DashboardView has only IsAuthenticated permission, no HasTenantPermission check. This bypasses role-based access control; admins cannot deny dashboard access via roles.
 - expected: Only authenticated members of the current tenant can access DashboardView via HasTenantPermission.
 - actual: DashboardView has only IsAuthenticated, relying entirely on queryset filtering for isolation.
 - fix: Add HasTenantPermission to DashboardView.permission_classes and define analytics.view codename gated by role.
-- VERDICT: confirmed (High) — The DashboardView at /home/kavin/CRM/apps/analytics/views.py:182-311 has only IsAuthenticated permission (line 196), with no HasTenantPermission or IsTenantMember check. This is confirmed as a documented gap in CLAUDE.md ("⚠️ `DashboardView` has only `IsAuthenticated` (no `HasTenantPermission` — bypasses resource RBAC; tenant isolation still holds via scoped querysets)"). 
+- VERDICT: confirmed (High) — The DashboardView at /home/kavin/Kanzen/apps/analytics/views.py:182-311 has only IsAuthenticated permission (line 196), with no HasTenantPermission or IsTenantMember check. This is confirmed as a documented gap in CLAUDE.md ("⚠️ `DashboardView` has only `IsAuthenticated` (no `HasTenantPermission` — bypasses resource RBAC; tenant isolation still holds via scoped querysets)"). 
 
 The vulnerability is
 
 ### [authn-3] Invitation tokens are reusable if races occur during acceptance  (OK)
 - category: Security | confidence: high | dimension: Authentication (JWT / API key / session / SSO)
-- location: /home/kavin/CRM/apps/accounts/views.py:686-758
+- location: /home/kavin/Kanzen/apps/accounts/views.py:686-758
 - description: Invitation tokens are checked only against is_accepted boolean, never marked consumed. Same token could be used multiple times if race conditions occur during acceptance.
 - expected: Each token consumed exactly once upon successful acceptance.
 - actual: Tokens have no consumption timestamp; only is_accepted checked.
 - fix: Add consumed_at timestamp to Invitation. Check and set atomically in accept_invitation. Enforce email matching before acceptance.
-- VERDICT: confirmed (High) — The finding correctly identifies a race condition vulnerability in the invitation acceptance flow (/home/kavin/CRM/apps/accounts/views.py:686-758). The code uses a before-check-before-act pattern without atomicity: line 695 checks the in-memory `is_accepted` property, but this check is not atomic with the save on lines 740-741 that sets `accepted_at`. Two concurrent requests with the same token
+- VERDICT: confirmed (High) — The finding correctly identifies a race condition vulnerability in the invitation acceptance flow (/home/kavin/Kanzen/apps/accounts/views.py:686-758). The code uses a before-check-before-act pattern without atomicity: line 695 checks the in-memory `is_accepted` property, but this check is not atomic with the save on lines 740-741 that sets `accepted_at`. Two concurrent requests with the same token
 
 ### [authz-rbac-1] Repeated dictionary key in ACTION_MAP causes silent overwrites  (DISMISSED(fp))
 - category: Code Quality | confidence: high | dimension: Authorization & RBAC
@@ -527,7 +527,7 @@ EVIDENCE:
 - expected: Even with concurrent task execution, each reminder should fire at most one notification, regardless of scheduler count. The watermark update should be atomic and prevent re-firing.
 - actual: The SELECT and UPDATE are not locked together. Both workers SELECT the same reminder, both UPDATE it, both call send_notification, resulting in two notifications for one reminder due event.
 - fix: Use `select_for_update()` to lock the reminder rows during the claim: `Reminder.unscoped.filter(pk=reminder.pk).select_for_update().update(due_notified_at=now)`. Alternatively, add a deployment-level safeguard to ensure only one Celery Beat instance runs.
-- VERDICT: confirmed (Medium) — The race condition is CONFIRMED in /home/kavin/CRM/apps/crm/tasks.py:70-104. The code performs a SELECT via iterator() at line 70-83 (no locks, no select_for_update), then a separate UPDATE at line 102-104. Between these two SQL operations, another concurrent task execution can read and modify the same reminder row, causing duplicate notifications. CLAUDE.md explicitly documents this risk (quot
+- VERDICT: confirmed (Medium) — The race condition is CONFIRMED in /home/kavin/Kanzen/apps/crm/tasks.py:70-104. The code performs a SELECT via iterator() at line 70-83 (no locks, no select_for_update), then a separate UPDATE at line 102-104. Between these two SQL operations, another concurrent task execution can read and modify the same reminder row, causing duplicate notifications. CLAUDE.md explicitly documents this risk (quot
 
 ### [feature-a-reminder-5] Race condition: recipient user deleted between fetch and send_notification  (OK)
 - category: Reliability | confidence: medium | dimension: Feature A — reminder-due popup
@@ -536,7 +536,7 @@ EVIDENCE:
 - expected: If a recipient user is deleted, the task should skip gracefully or find an alternative recipient (e.g., tenant admin).
 - actual: send_notification raises IntegrityError, which is caught and logged. The reminder is marked notified but no notification was delivered. No escalation to administrators.
 - fix: Check recipient.id validity or catch IntegrityError explicitly and log a higher-level warning. Alternatively, use `select_related` and `refresh_from_db()` to detect if the user no longer exists.
-- VERDICT: confirmed (High) — Code inspection of /home/kavin/CRM/apps/crm/tasks.py:81-151 confirms the race condition exists: (1) line 81 select_related("assigned_to", "created_by") fetches User objects; (2) line 90 stores in-memory user reference; (3) line 102-104 watermark stamped before send_notification (claim-first); (4) line 117-130 send_notification() called with potentially-stale user object; (5) apps/notifications/
+- VERDICT: confirmed (High) — Code inspection of /home/kavin/Kanzen/apps/crm/tasks.py:81-151 confirms the race condition exists: (1) line 81 select_related("assigned_to", "created_by") fetches User objects; (2) line 90 stores in-memory user reference; (3) line 102-104 watermark stamped before send_notification (claim-first); (4) line 117-130 send_notification() called with potentially-stale user object; (5) apps/notifications/
 
 ### [feature-b-overrides-1] Assignee Lookup Not Strictly Tenant-Scoped  (DISMISSED(fp))
 - category: Business Logic | confidence: high | dimension: Feature B — create-ticket-from-email overrides
@@ -658,7 +658,7 @@ EVIDENCE:
 - expected: Card syncs to the stage's column even after rename, or rename is prevented if stage mappings exist.
 - actual: Card silently stays in old column; no error logged.
 - fix: Replace name matching with a Foreign Key between PipelineStage and Column, or add validation to forbid column renames if stages are mapped.
-- VERDICT: confirmed (Medium) — The finding is absolutely correct and verified in the code. At /home/kavin/CRM/apps/tickets/signals.py lines 616-619, the `sync_kanban_card_on_pipeline_stage_change` function matches columns by name using `Column.objects.filter(board=board, name__iexact=new_stage_name).first()` instead of using a Foreign Key relationship. This is directly compared to the `sync_kanban_card_on_status_change` func
+- VERDICT: confirmed (Medium) — The finding is absolutely correct and verified in the code. At /home/kavin/Kanzen/apps/tickets/signals.py lines 616-619, the `sync_kanban_card_on_pipeline_stage_change` function matches columns by name using `Column.objects.filter(board=board, name__iexact=new_stage_name).first()` instead of using a Foreign Key relationship. This is directly compared to the `sync_kanban_card_on_status_change` func
 
 ### [kanban-4] Kanban serializer uses raw role instead of effective_role  (OK) [DUP-OF authz-rbac-2]
 - category: Security | confidence: high | dimension: Kanban boards
@@ -948,7 +948,7 @@ CONFIRMED FACTS (verified by code reading):
 - expected: Notification and broadcast happen atomically with replay on failure, OR retry logic exists for failed broadcasts.
 - actual: Notification sends; if broadcast fails, reminder marked done anyway. No retry path exists.
 - fix: Wrap notification+broadcast in sub-task or add fallback queue for retry. OR document that transient broadcast failures are fire-and-forget.
-- VERDICT: confirmed (Medium) — The finding identifies a real reliability issue, but with significant caveats. Reading the actual code at /home/kavin/CRM/apps/crm/tasks.py lines 94-150:
+- VERDICT: confirmed (Medium) — The finding identifies a real reliability issue, but with significant caveats. Reading the actual code at /home/kavin/Kanzen/apps/crm/tasks.py lines 94-150:
 
 (1) **The title is misleading.** The finding claims "Potential notification duplication," but the code actually produces *missed alerts*, not duplicates. Lines 94-101 explicitly document the intentional design: "Stamping first means a transie
 

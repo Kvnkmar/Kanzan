@@ -14,7 +14,7 @@ FIX: Add has_voip has_call_recording max_calls_per_month to each plan dict in PL
 
 ### [tenant-isolation-3] InboundEmail Not TenantScopedModel—Requires Manual Tenant Filtering Everywhere
 cat=Data Integrity | conf=high | verdict=confirmed | merged=[]
-LOC: /home/kavin/CRM/apps/inbound_email/models.py:22-75 (model definition)
+LOC: /home/kavin/Kanzen/apps/inbound_email/models.py:22-75 (model definition)
 DESC: InboundEmail inherits from TimestampedModel, not TenantScopedModel, so it does not get the automatic tenant-aware `.objects` manager. Every query on InboundEmail.objects must include an explicit `tenant=` filter to avoid cross-tenant leakage. This design is error-prone—a developer unfamiliar with this exception could use `.objects` without filtering and unknowingly leak data across tenants. The imap_poller.py:337 critical finding above is direct evidence this design has already been violated in production code.
 REPRO: A developer adds a new feature that queries InboundEmail without explicit tenant= filtering (as already happened in imap_poller.py line 337). The query returns cross-tenant data.
 EXPECTED: InboundEmail should either (a) inherit from TenantScopedModel so filtering is automatic, or (b) have a custom manager that requires explicit tenant= filters and raises an error if omitted.
@@ -225,7 +225,7 @@ FIX: Refresh reminder after claiming to re-validate, or use SELECT FOR UPDATE.
 
 ### [authn-2] DashboardView bypasses tenant RBAC with IsAuthenticated-only permission
 cat=Security | conf=high | verdict=confirmed | merged=['analytics-exports-1', 'performance-db-3']
-LOC: /home/kavin/CRM/apps/analytics/views.py
+LOC: /home/kavin/Kanzen/apps/analytics/views.py
 DESC: The DashboardView has only IsAuthenticated permission, no HasTenantPermission check. This bypasses role-based access control; admins cannot deny dashboard access via roles.
 REPRO: Create a user in tenant A. Navigate to GET /api/v1/analytics/ on a different tenant B's subdomain. Without HasTenantPermission, the endpoint processes the request.
 EXPECTED: Only authenticated members of the current tenant can access DashboardView via HasTenantPermission.
@@ -234,7 +234,7 @@ FIX: Add HasTenantPermission to DashboardView.permission_classes and define anal
 
 ### [authn-3] Invitation tokens are reusable if races occur during acceptance
 cat=Security | conf=high | verdict=confirmed | merged=['messaging-3']
-LOC: /home/kavin/CRM/apps/accounts/views.py:686-758
+LOC: /home/kavin/Kanzen/apps/accounts/views.py:686-758
 DESC: Invitation tokens are checked only against is_accepted boolean, never marked consumed. Same token could be used multiple times if race conditions occur during acceptance.
 REPRO: Intercept invitation token. Use it to accept for a different email address before legitimate recipient accepts.
 EXPECTED: Each token consumed exactly once upon successful acceptance.
@@ -355,7 +355,7 @@ FIX: Replace the placeholder PDF generation (line 210-212) with a real library l
 
 ### [tenant-isolation-4] Missing Tenant Context in convert_to_ticket Service
 cat=Business Logic | conf=high | verdict=confirmed | merged=[]
-LOC: /home/kavin/CRM/apps/inbox_hub/services.py:152-155
+LOC: /home/kavin/Kanzen/apps/inbox_hub/services.py:152-155
 DESC: The convert_to_ticket() function calls _create_ticket_from_email(...) at line 153 without wrapping in tenant_context(). While the function has access to the tenant variable (line 135), it does not set it in the context. This means if _create_ticket_from_email or any nested service internally uses TenantAwareManager without explicit tenant= filters, those queries could fail or return empty querysets. Since _create_ticket_from_email is also called from the direct API path (api_views.py), auditing both call sites is necessary.
 REPRO: If convert_to_ticket calls a downstream service that uses TenantAwareManager without explicit tenant= (e.g., during SLA initialization or notification queueing), the query could fail silently due to missing context.
 EXPECTED: All service functions that perform TenantAwareManager queries should either (a) be wrapped in `with tenant_context(tenant):`, or (b) have explicit documentation stating they require a bound tenant context and accept it as a parameter.
@@ -591,7 +591,7 @@ FIX: Add TestCreateTicketFromEmailLegacyPath to test_inbound_email.py covering o
 cat=Code Quality | conf=high | verdict=unverified | merged=[]
 LOC: apps/knowledge/models.py:168-191, apps/knowledge/migrations/0004_kbrevision_kbsearchgap_kbticketlink_kbvote_and_more.py:21-32
 DESC: The `KBRevision` model is defined with FK to Article and TenantMembership, intended to store snapshots of article body at a point in time, but no code anywhere in the codebase (views, services, signals, tasks, admin actions) ever creates KBRevision rows. Grep across all .py files confirms zero call sites to `KBRevision.objects.create()` or bulk operations. The model is fully migrated but aspirational—a schema ghost.
-REPRO: 1. Search the codebase: `grep -r 'KBRevision' /home/kavin/CRM/apps --include='*.py' | grep -E 'create|save|bulk'`. 2. Observe zero results. 3. Create and edit an Article via the API. 4. Query the database: `KBRevision.objects.count()` returns 0 even after multiple article edits.
+REPRO: 1. Search the codebase: `grep -r 'KBRevision' /home/kavin/Kanzen/apps --include='*.py' | grep -E 'create|save|bulk'`. 2. Observe zero results. 3. Create and edit an Article via the API. 4. Query the database: `KBRevision.objects.count()` returns 0 even after multiple article edits.
 EXPECTED: Either the model should not exist, or ArticleViewSet.perform_update should create a KBRevision snapshot before saving changes.
 ACTUAL: KBRevision table is empty and will remain so. The model is schema-only with no runtime usage, consuming storage and maintenance effort for no benefit.
 FIX: Either remove the model and its migration, or implement article versioning by creating a KBRevision on each Article.post_save (with the old body stored) before the new body is written. Document the intended behavior in the model's docstring.
@@ -600,7 +600,7 @@ FIX: Either remove the model and its migration, or implement article versioning 
 cat=Code Quality | conf=high | verdict=unverified | merged=[]
 LOC: apps/knowledge/models.py:236-262, apps/knowledge/migrations/0004_kbrevision_kbsearchgap_kbticketlink_kbvote_and_more.py:46-52, 111-115
 DESC: The `KBTicketLink` model is defined as a many-to-one audit link between Ticket and Article (recording which agent linked them and when), but no code anywhere in the codebase creates KBTicketLink rows. Grep across all .py files confirms zero call sites. The model is fully migrated and accessible from both Article (via .ticket_links) and Ticket (via .kb_links) but is never populated.
-REPRO: 1. Search the codebase: `grep -r 'KBTicketLink' /home/kavin/CRM/apps --include='*.py' | grep -E 'create|save|bulk'`. 2. Observe zero results. 3. Create a Ticket and Article, attempt to link them via the UI/API. 4. Query the database: `KBTicketLink.objects.count()` returns 0.
+REPRO: 1. Search the codebase: `grep -r 'KBTicketLink' /home/kavin/Kanzen/apps --include='*.py' | grep -E 'create|save|bulk'`. 2. Observe zero results. 3. Create a Ticket and Article, attempt to link them via the UI/API. 4. Query the database: `KBTicketLink.objects.count()` returns 0.
 EXPECTED: Either the model should not exist, or there should be an API action (e.g., POST /api/v1/tickets/{id}/link-kb-article/) that creates KBTicketLink rows, or a ticket detail view that shows linked articles.
 ACTUAL: KBTicketLink table is empty and will remain so. The model is schema-only. The `related_name='kb_links'` on Ticket and related_name='ticket_links'` on Article are never used.
 FIX: Remove the model and its migration, OR implement the linking feature: add a viewset action to TicketViewSet to create/list/delete KBTicketLink rows, and expose it in the API.
@@ -618,7 +618,7 @@ FIX: Update migration 0003 to include db_index=True, or add a new migration to e
 cat=Code Quality | conf=high | verdict=unverified | merged=[]
 LOC: apps/billing/decorators.py:23-95
 DESC: The require_feature decorator is fully implemented and documented but never applied to any view in codebase. Zero call sites found. Feature flag enforcement incomplete.
-REPRO: grep -r @require_feature /home/kavin/CRM --include=*.py returns only docstring examples in decorator file itself. No actual uses found.
+REPRO: grep -r @require_feature /home/kavin/Kanzen --include=*.py returns only docstring examples in decorator file itself. No actual uses found.
 EXPECTED: Decorator should protect views requiring feature flags such as api_access sso sla_management voip
 ACTUAL: Dead code. Feature enforcement happens through other mechanisms PlanLimitChecker VoIPSettings.is_active check_call_limit
 FIX: Either remove unused decorator and consolidate feature checks into single pattern. Or identify which views should enforce feature flags and apply @require_feature consistently.
@@ -643,7 +643,7 @@ FIX: Replace style attribute with var(--crm-z-toast) reference
 
 ### [tenant-isolation-8] InboundEmail.tenant Field Is Nullable, Allowing Ambiguous Data State
 cat=Data Integrity | conf=medium | verdict=unverified | merged=[]
-LOC: /home/kavin/CRM/apps/inbound_email/models.py:69-75
+LOC: /home/kavin/Kanzen/apps/inbound_email/models.py:69-75
 DESC: InboundEmail.tenant is defined as `null=True, blank=True`, meaning rows can exist in the database without knowing which tenant they belong to. This creates ambiguity: a row with tenant=NULL could be legacy data, a failed ingestion attempt, or a row awaiting tenant resolution that crashed before backfill. The async processing pipeline handles this by backfilling tenant after InboundEmail creation, but if the worker crashes or the database write fails, the row is stranded.
 REPRO: 1. Trigger IMAP/SMTP ingestion. 2. Kill the worker immediately after InboundEmail.objects.create() but before tenant backfill in process_inbound_email. 3. Query: SELECT COUNT(*) FROM inbound_email WHERE tenant_id IS NULL. 4. Orphaned rows exist.
 EXPECTED: Either require tenant to be set at creation time (not nullable) or implement a cleanup task to reconcile and quarantine stranded rows.
@@ -652,7 +652,7 @@ FIX: Make tenant required (null=False) and refactor to resolve tenant synchronou
 
 ### [authn-6] Missing row-level locking in inbox hub manual email assignment
 cat=Data Integrity | conf=medium | verdict=unverified | merged=[]
-LOC: /home/kavin/CRM/apps/inbox_hub/services.py
+LOC: /home/kavin/Kanzen/apps/inbox_hub/services.py
 DESC: Manual reassignment (assign/reassign/claim) lacks select_for_update(). Two agents simultaneously claiming the same email could both succeed, leaving assignee indeterminate.
 REPRO: Open Inbox Hub with two browsers viewing same HubEmail. Both click 'Assign to me' simultaneously. Check final assignee; either wins with no conflict.
 EXPECTED: Only one agent's assignment persists; conflict error or optimistic lock ensures determinism.
@@ -814,7 +814,7 @@ FIX: Conditionally SELECT based on update_fields or cache old values.
 
 ### [tenant-isolation-7] Celery Tasks Missing Defensive tenant_context() Wrapping
 cat=Reliability | conf=medium | verdict=unverified | merged=['authn-1', 'feature-a-reminder-2', 'notifications-1']
-LOC: /home/kavin/CRM/apps/crm/tasks.py:68-157 (fire_due_reminders, check_overdue_reminders)
+LOC: /home/kavin/Kanzen/apps/crm/tasks.py:68-157 (fire_due_reminders, check_overdue_reminders)
 DESC: Beat tasks fire_due_reminders and check_overdue_reminders correctly use .unscoped with explicit tenant= filtering. However, they do not wrap per-tenant work in tenant_context(). While the code is correct as-is, this violates defensive programming: if a called service function (send_notification, broadcast_live_event) changes in the future to use implicit context, the next deployment could leak data. The contract is implicit rather than explicit.
 REPRO: 1. A future developer modifies send_notification() to internally call get_current_tenant(). 2. Deploy. 3. fire_due_reminders runs and sends notifications to the wrong tenant due to lingering context from a previous task iteration.
 EXPECTED: All tenant-specific work in per-tenant tasks should be wrapped in `with tenant_context(tenant):` to make the intent explicit and protect against downstream regressions.
@@ -1031,7 +1031,7 @@ FIX: Enforce clock=true on only one Beat worker (document in PM2 config and READ
 ### [settings-secrets-6] CRM_webhooks queue routed but empty (no actual billing task consumers)
 cat=Reliability | conf=medium | verdict=unverified | merged=[]
 LOC: main/celery.py:21, apps/billing/tasks.py (does not exist)
-DESC: The main/celery.py routes 'apps.billing.tasks.*' to 'crm_webhooks' queue, which IS consumed by the worker. However, /home/kavin/CRM/apps/billing/tasks.py does not exist. This queue is technically operational but carries no tasks (since there are no billing tasks defined). The worker wastes a queue subscription on an empty route, and any billing tasks defined in the future would silently be dropped unless the developer remembers this route and creates the file.
+DESC: The main/celery.py routes 'apps.billing.tasks.*' to 'crm_webhooks' queue, which IS consumed by the worker. However, /home/kavin/Kanzen/apps/billing/tasks.py does not exist. This queue is technically operational but carries no tasks (since there are no billing tasks defined). The worker wastes a queue subscription on an empty route, and any billing tasks defined in the future would silently be dropped unless the developer remembers this route and creates the file.
 REPRO: 1. Check ecosystem.config.js: worker subscribes to crm_webhooks. 2. Check main/celery.py: route points to apps.billing.tasks.*. 3. Check apps/billing/: no tasks.py file exists. 4. If a developer adds a billing task without remembering this route, the task goes to crm_webhooks but crm_webhooks has no handler logic.
 EXPECTED: Either (a) remove the unused crm_webhooks route and let billing tasks default to crm_default, or (b) create a minimal apps/billing/tasks.py with a comment explaining the route, or (c) document this footgun clearly.
 ACTUAL: crm_webhooks queue is routed but no tasks use it, creating a silent bug-prone configuration.
@@ -1084,7 +1084,7 @@ FIX: Implement in-memory mutex fallback for SQLite, OR skip concurrent tests on 
 
 ### [tenant-isolation-9] InboundEmail Assignee Lookup Missing Defense-in-Depth Tenant Validation
 cat=Security | conf=medium | verdict=unverified | merged=[]
-LOC: /home/kavin/CRM/apps/inbound_email/api_views.py:121-134 (_build_ticket_overrides)
+LOC: /home/kavin/Kanzen/apps/inbound_email/api_views.py:121-134 (_build_ticket_overrides)
 DESC: The _build_ticket_overrides function validates assignee via TenantMembership.objects.filter(tenant=tenant, user_id=assignee_id, is_active=True).exists(), which is correct. However, it then looks up the User object separately (line 127) without re-validating the membership. If the membership check somehow passes but the user lookup returns a cross-tenant user (timing race), the ticket could be assigned to someone outside the current tenant.
 REPRO: 1. In a race condition window, membership check passes for user_id from Tenant A. 2. Before the User lookup, the membership is revoked. 3. User.objects.filter(pk=assignee_id) succeeds anyway (User is global, not tenant-scoped). 4. Ticket is assigned to a user outside the tenant.
 EXPECTED: After the membership check passes, reuse the membership object or re-fetch the user only if membership is confirmed: `membership = TenantMembership.objects.filter(...).first(); assignee = membership.user if membership else None`
@@ -1093,7 +1093,7 @@ FIX: Store the membership object and extract the user: `membership = TenantMembe
 
 ### [authn-4] TenantMiddleware context set on /admin/ without explicit permission guard
 cat=Security | conf=medium | verdict=unverified | merged=[]
-LOC: /home/kavin/CRM/main/settings/base.py:102, main/admin.py
+LOC: /home/kavin/Kanzen/main/settings/base.py:102, main/admin.py
 DESC: TenantMiddleware sets request.tenant on /admin/ (not exempt). While SuperuserOnlyAdminSite protects, middleware runs after auth, creating a window where custom integrations could see improperly scoped context.
 REPRO: Deploy custom admin view depending on request.tenant. Access /admin/ on tenant subdomain as non-superuser. Timing window could expose context before permission checks.
 EXPECTED: All admin access is superuser-only regardless of tenant context.
@@ -1102,7 +1102,7 @@ FIX: Add /admin/* exemption to TenantMiddleware or add superuser-only check at m
 
 ### [authn-5] SessionVersionMiddleware can fail to revoke sessions on global logout
 cat=Security | conf=medium | verdict=unverified | merged=[]
-LOC: /home/kavin/CRM/apps/accounts/middleware.py:34-45
+LOC: /home/kavin/Kanzen/apps/accounts/middleware.py:34-45
 DESC: SessionVersionMiddleware adopts current auth_version when stamped is None but does not persist immediately. Concurrent logout can bump auth_version before session saves, defeating global logout.
 REPRO: User logs in. On first request, middleware adopts version but does not persist. Concurrently, user logs out on another host, bumping auth_version. Next request re-adopts new version without logout.
 EXPECTED: Global logout revokes all sessions within one request.

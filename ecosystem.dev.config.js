@@ -9,7 +9,7 @@
  * Or use: make dev / make dev-stop
  */
 
-const PROJECT_ROOT = "/home/kavin/CRM";
+const PROJECT_ROOT = "/home/kavin/Kanzen";
 const VENV_BIN = `${PROJECT_ROOT}/env/bin`;
 
 const COMMON_CONFIG = {
