@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Groups - Kanzen Suite{% endblock %}
+{% block title %}Groups - CRM Suite{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -204,7 +204,7 @@
   var editingGroupId = '';
 
   function escapeHtml(s) { if (s === null || s === undefined) return ''; var d = document.createElement('div'); d.textContent = String(s); return d.innerHTML; }
-  function formatDate(d) { return Kanzan.formatDate(d); }
+  function formatDate(d) { return CRM.formatDate(d); }
   function getInitials(n) { if (!n) return '?'; return n.split(' ').map(function(w) { return w.charAt(0); }).join('').substring(0, 2).toUpperCase(); }
   // Single red identity avatar. Resolves to --crm-avatar-bg, which is the
   // brand red in light mode and lifts to the brighter red in dark mode

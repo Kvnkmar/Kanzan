@@ -2901,7 +2901,7 @@ class TicketTemplateViewSet(ModelViewSet):
         description=(
             "Register a URL to receive HTTP callbacks when ticket events fire.\n\n"
             "## Inbound Payload\n\n"
-            "When a subscribed event fires, Kanzen sends a `POST` to your configured URL "
+            "When a subscribed event fires, CRM sends a `POST` to your configured URL "
             "with the following headers and JSON body:\n\n"
             "**Headers:**\n"
             "- `Content-Type: application/json`\n"

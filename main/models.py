@@ -1,5 +1,5 @@
 """
-Abstract base models for the Kanzen Suite platform.
+Abstract base models for the CRM Suite platform.
 
 All concrete models should inherit from one of these bases:
 - TimestampedModel: UUID PK + created_at/updated_at (for global models)

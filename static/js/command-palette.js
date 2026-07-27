@@ -1,5 +1,5 @@
 /**
- * Command Palette (Cmd+K / Ctrl+K) for Kanzen Suite.
+ * Command Palette (Cmd+K / Ctrl+K) for CRM Suite.
  * Provides quick navigation, search, and actions.
  */
 (function() {
@@ -238,7 +238,7 @@
   // Recent pages in localStorage
   function getRecentPages() {
     try {
-      return JSON.parse(localStorage.getItem('kanzan_recent_pages') || '[]').slice(0, 5);
+      return JSON.parse(localStorage.getItem('crm_recent_pages') || '[]').slice(0, 5);
     } catch (e) { return []; }
   }
 
@@ -254,7 +254,7 @@
     recent.unshift({ title: title, url: url, icon: icon, desc: desc });
     recent = recent.slice(0, 5);
 
-    try { localStorage.setItem('kanzan_recent_pages', JSON.stringify(recent)); } catch (e) {}
+    try { localStorage.setItem('crm_recent_pages', JSON.stringify(recent)); } catch (e) {}
   }
 
   // Init

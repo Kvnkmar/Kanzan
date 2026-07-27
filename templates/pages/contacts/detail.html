@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Contact Detail - Kanzen Suite{% endblock %}
+{% block title %}Contact Detail - CRM Suite{% endblock %}
 
 {% block content %}
 <!-- Breadcrumb Header -->
@@ -300,7 +300,7 @@
 
   var CONTACT_ID = '{{ contact_id }}';
 
-  function formatDate(d) { return Kanzan.formatDateTime(d); }
+  function formatDate(d) { return CRM.formatDateTime(d); }
 
   var COUNTRY_CODES = [
     { code: 'MY', dial: '+60', label: 'Malaysia' },
@@ -513,8 +513,8 @@
       '<div class="contact-field-icons"><button type="button" class="contact-icon-btn text-danger" title="Remove" onclick="this.closest(\'.contact-input-with-actions\').remove()"><i class="ti ti-trash"></i></button></div>';
     container.appendChild(div);
     wirePhoneRow(div, DEFAULT_DIAL);
-    if (window.KanzenSelect) {
-      div.querySelectorAll('select.form-select').forEach(function(s) { KanzenSelect.upgrade(s); });
+    if (window.CRMSelect) {
+      div.querySelectorAll('select.form-select').forEach(function(s) { CRMSelect.upgrade(s); });
     }
   });
 

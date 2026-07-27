@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Kanzen Suite{% endblock %}
+{% block title %}Dashboard - CRM Suite{% endblock %}
 
 {% block content %}
 <!-- Page Header -->
@@ -70,27 +70,39 @@
 <!-- Summary Stat Cards -->
 <div class="fd-summary-row mb-3" id="summaryCards">
   <a href="{% url 'frontend:ticket-list' %}?filter=unresolved" class="fd-summary-card fd-summary-card--warning" style="text-decoration:none;color:inherit;">
-    <span class="fd-summary-label">Unresolved</span>
-    <span class="fd-summary-value" id="sumUnresolved">
-      <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+    <span class="fd-summary-icon" aria-hidden="true"><i class="ti ti-inbox"></i></span>
+    <span class="fd-summary-body">
+      <span class="fd-summary-value" id="sumUnresolved">
+        <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+      </span>
+      <span class="fd-summary-label">Unresolved</span>
     </span>
   </a>
   <a href="{% url 'frontend:ticket-list' %}?filter=open" class="fd-summary-card fd-summary-card--primary" style="text-decoration:none;color:inherit;">
-    <span class="fd-summary-label">Open</span>
-    <span class="fd-summary-value" id="sumOpen">
-      <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+    <span class="fd-summary-icon" aria-hidden="true"><i class="ti ti-ticket"></i></span>
+    <span class="fd-summary-body">
+      <span class="fd-summary-value" id="sumOpen">
+        <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+      </span>
+      <span class="fd-summary-label">Open</span>
     </span>
   </a>
   <a href="{% url 'frontend:ticket-list' %}?filter=overdue" class="fd-summary-card fd-summary-card--danger" style="text-decoration:none;color:inherit;">
-    <span class="fd-summary-label">Overdue</span>
-    <span class="fd-summary-value" id="sumOverdue">
-      <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+    <span class="fd-summary-icon" aria-hidden="true"><i class="ti ti-alarm"></i></span>
+    <span class="fd-summary-body">
+      <span class="fd-summary-value" id="sumOverdue">
+        <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+      </span>
+      <span class="fd-summary-label">Overdue</span>
     </span>
   </a>
   <a href="{% url 'frontend:ticket-list' %}?filter=unassigned" class="fd-summary-card fd-summary-card--muted" style="text-decoration:none;color:inherit;">
-    <span class="fd-summary-label">Unassigned</span>
-    <span class="fd-summary-value" id="sumUnassigned">
-      <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+    <span class="fd-summary-icon" aria-hidden="true"><i class="ti ti-user-question"></i></span>
+    <span class="fd-summary-body">
+      <span class="fd-summary-value" id="sumUnassigned">
+        <span class="skeleton skeleton-text" style="width:40px;">&nbsp;</span>
+      </span>
+      <span class="fd-summary-label">Unassigned</span>
     </span>
   </a>
 </div>
@@ -1554,7 +1566,7 @@
   loadAgentStats();
 
   // Real-time: refresh agent stats when any agent changes status
-  document.addEventListener('kanzan:notification', function(e) {
+  document.addEventListener('crm:notification', function(e) {
     if (e.detail && e.detail.type === 'agent_status_change') {
       loadAgentStats();
     }

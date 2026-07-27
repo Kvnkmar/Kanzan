@@ -159,7 +159,7 @@ def _create_service_user(tenant: Tenant, name: str):
     Create a hidden synthetic ``User`` to back this API key. UUID in the email
     guarantees uniqueness; the user has no usable password (``set_unusable_password``).
     """
-    email = f"service+{uuid4().hex}@svc.{tenant.slug}.kanzen.local"
+    email = f"service+{uuid4().hex}@svc.{tenant.slug}.crm.local"
     user = User(
         email=email,
         first_name=name[:30],

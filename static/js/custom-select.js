@@ -1,17 +1,17 @@
 /**
- * Kanzen Custom Select — upgrades native <select> into styled dropdowns.
+ * CRM Custom Select — upgrades native <select> into styled dropdowns.
  * Uses portal rendering (menu appended to document.body) to avoid
  * overflow/clipping issues inside modals, cards, and other containers.
  *
  * Usage:
- *   KanzenSelect.upgrade(selectElement, { searchable: true });
- *   KanzenSelect.upgradeAll('.form-select');
+ *   CRMSelect.upgrade(selectElement, { searchable: true });
+ *   CRMSelect.upgradeAll('.form-select');
  *
  * Options:
  *   searchable  — boolean, adds search input for long lists (auto if > 8 options)
  *   placeholder — string, placeholder text for search input
  */
-window.KanzenSelect = (function() {
+window.CRMSelect = (function() {
   'use strict';
 
   var SEARCH_THRESHOLD = 8;

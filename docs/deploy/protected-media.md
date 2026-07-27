@@ -29,7 +29,7 @@ bytes from an **internal** location (zero Python in the byte path):
 ```nginx
 # Public requests for /media/ go to Django for authorization.
 location /media/ {
-    proxy_pass http://kanzen_app;            # gunicorn/uvicorn upstream
+    proxy_pass http://crm_app;            # gunicorn/uvicorn upstream
     proxy_set_header Host $host;
     proxy_set_header X-Forwarded-Proto $scheme;
 }
@@ -38,7 +38,7 @@ location /media/ {
 # `internal` makes it unreachable directly from the outside.
 location /protected_media/ {
     internal;
-    alias /srv/kanzen/media/;                 # = MEDIA_ROOT, with trailing slash
+    alias /srv/crm/media/;                 # = MEDIA_ROOT, with trailing slash
 }
 ```
 
@@ -59,7 +59,7 @@ python manage.py check --deploy --fail-level ERROR
 
 It enforces the custom checks in `main/checks.py`:
 
-* `kanzen.E001` (Error) — `DEBUG` must be `False` in production.
-* `kanzen.W001` (Warning) — nudges enabling `USE_X_ACCEL_REDIRECT` for media.
+* `crm.E001` (Error) — `DEBUG` must be `False` in production.
+* `crm.W001` (Warning) — nudges enabling `USE_X_ACCEL_REDIRECT` for media.
 
 plus Django's built-in deployment checks (secure cookies, HSTS, etc.).

@@ -1,10 +1,10 @@
 /**
- * Theme switcher for Kanzen Suite.
+ * Theme switcher for CRM Suite.
  * Supports Light / Dark / System modes with localStorage persistence.
  * Loaded before body renders to prevent flash of wrong theme.
  */
 (function() {
-  var STORAGE_KEY = 'kanzan_theme';
+  var STORAGE_KEY = 'crm_theme';
 
   function getSystemTheme() {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';

@@ -1,4 +1,4 @@
-# Kanzen — Bug Report
+# CRM — Bug Report
 **Date:** 2026-06-14 · Functional / data-integrity / reliability defects (security defects are in `03-SECURITY-ASSESSMENT.md`).
 
 Each entry: **Severity · Location · Description · Steps · Expected · Actual · Fix**. IDs map to `_digest_confirmed.md`. All Critical/High below were adversarially verified; the headline Criticals were also hand-verified.

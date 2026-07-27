@@ -1,6 +1,6 @@
 """
 Response middleware that emits per-key ``X-RateLimit-*`` headers when an API
-key was used. Pure read-side — it only inspects ``request._kanzan_throttle_info``
+key was used. Pure read-side — it only inspects ``request._crm_throttle_info``
 set by :class:`apps.api_keys.throttling.APIKeyRateThrottle`.
 """
 
@@ -19,7 +19,7 @@ class RateLimitHeadersMiddleware:
 
     def __call__(self, request):
         response = self.get_response(request)
-        info = getattr(request, "_kanzan_throttle_info", None)
+        info = getattr(request, "_crm_throttle_info", None)
         if info is not None:
             try:
                 limit, remaining, reset_epoch = info

@@ -1,5 +1,5 @@
 /**
- * Global keyboard shortcuts for the Kanzen ticketing system.
+ * Global keyboard shortcuts for the CRM ticketing system.
  *
  * Shortcuts:
  *   Navigation:

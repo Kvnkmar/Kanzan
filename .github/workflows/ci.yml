@@ -1,6 +1,6 @@
 name: CI
 
-# The only automated gate for Kanzen (there was none before). Runs the same
+# The only automated gate for CRM (there was none before). Runs the same
 # checks as `make check` — but against PostgreSQL + Redis so that SQLite-only
 # no-ops (KB full-text search, SELECT ... FOR UPDATE) are actually exercised.
 # Lint is currently non-blocking while the pre-existing ruff debt is cleared
@@ -24,9 +24,9 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_USER: kanzen
-          POSTGRES_PASSWORD: kanzen
-          POSTGRES_DB: kanzen
+          POSTGRES_USER: crm
+          POSTGRES_PASSWORD: crm
+          POSTGRES_DB: crm
         ports:
           - 5432:5432
         options: >-
@@ -52,7 +52,7 @@ jobs:
       DJANGO_DEBUG: "True"
       DJANGO_SECRET_KEY: ci-insecure-key-not-for-production
       JWT_SECRET_KEY: ci-insecure-jwt-key
-      DATABASE_URL: postgres://kanzen:kanzen@localhost:5432/kanzen
+      DATABASE_URL: postgres://crm:crm@localhost:5432/crm
       REDIS_URL: redis://localhost:6379
       BASE_DOMAIN: localhost
       BASE_SCHEME: http

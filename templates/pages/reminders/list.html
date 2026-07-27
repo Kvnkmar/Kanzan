@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Reminders - Kanzen Suite{% endblock %}
+{% block title %}Reminders - CRM Suite{% endblock %}
 
 {% block extra_css %}
 <link href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css" rel="stylesheet">
@@ -1539,7 +1539,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   margin-bottom: 0.375rem;
 }
 /* Lock all form inputs to the same height/padding/font as the rendered
- * KanzenSelect trigger (40px, 0.5rem 0.75rem, 0.8125rem) so single-row
+ * CRMSelect trigger (40px, 0.5rem 0.75rem, 0.8125rem) so single-row
  * fields visually line up exactly. Textareas stay auto-height. */
 .rm-form .form-control,
 .rm-form .form-select,
@@ -1581,7 +1581,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 }
 .rm-form .rm-form-group { margin-bottom: 1.125rem; }
 /* Priority field: a colored dot sits inside the LEFT padding of the rendered
- * select trigger. KanzenSelect (custom-select.js) replaces the native
+ * select trigger. CRMSelect (custom-select.js) replaces the native
  * <select> with a .td-cselect-trigger button, so we have to push the dot's
  * positioning AND the trigger's text padding off the rendered widget, not
  * the (hidden) underlying <select>. */
@@ -1602,9 +1602,9 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
 .rm-form .rm-priority-field[data-priority="medium"]::before { background: rgba(59,130,246,0.95); }
 .rm-form .rm-priority-field[data-priority="high"]::before   { background: rgba(245,158,11,1); }
 .rm-form .rm-priority-field[data-priority="urgent"]::before { background: var(--crm-primary); }
-/* Native fallback (KanzenSelect disabled / not yet bound) */
+/* Native fallback (CRMSelect disabled / not yet bound) */
 .rm-form .rm-priority-field > .form-select { padding-left: 2.25rem !important; }
-/* KanzenSelect-rendered trigger button */
+/* CRMSelect-rendered trigger button */
 .rm-form .rm-priority-field .td-cselect-trigger { padding-left: 2.25rem !important; }
 .rm-form .rm-priority-field .td-cselect-text { padding-left: 0 !important; }
 
@@ -1731,7 +1731,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
         </button>
         <!-- Hidden source-of-truth selects: the Filters popover drives these so
              the existing filter JS (change handlers, clearAllFilters) is untouched.
-             data-native keeps KanzenSelect (base.html) from enhancing them. -->
+             data-native keeps CRMSelect (base.html) from enhancing them. -->
         <select id="statusFilter" data-native hidden aria-hidden="true" tabindex="-1">
           <option value="" selected>All statuses</option>
           <option value="overdue">Overdue</option>
@@ -2065,7 +2065,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   }
   function formatDateTime(iso) {
     if (!iso) return '-';
-    if (window.Kanzan && Kanzan.formatDateTime) return Kanzan.formatDateTime(iso);
+    if (window.CRM && CRM.formatDateTime) return CRM.formatDateTime(iso);
     return new Date(iso).toLocaleString();
   }
   // Compact, friendly date: "Today 5:00 PM", "Tomorrow 9:00 AM", "Yesterday 11:35 AM",
@@ -2088,7 +2088,7 @@ span.flatpickr-weekday { color: var(--crm-text-muted) !important; font-weight: 6
   }
   function timeAgo(iso) {
     if (!iso) return '';
-    if (window.Kanzan && Kanzan.timeAgo) return Kanzan.timeAgo(iso);
+    if (window.CRM && CRM.timeAgo) return CRM.timeAgo(iso);
     return new Date(iso).toLocaleString();
   }
   function priorityPill(p) {

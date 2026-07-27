@@ -1,8 +1,8 @@
-# Kanzen — Security Assessment
+# CRM — Security Assessment
 **Date:** 2026-06-14 · **HEAD:** `9575577` + 2 uncommitted features
 
 ## Executive view
-Kanzen's security **foundation is good**: contextvars-based tenant binding with a **fail-closed** `TenantAwareManager` (`.none()` when no tenant), timing-safe SHA-512 API-key comparison, short-lived rotating JWTs, host-only session cookies with signed cross-host handoff, superuser-locked admin, true-MIME upload validation, and HMAC-verified Stripe/webhook signatures. The DRF auth order (JWT → APIKey → Session) is correct and API keys fail-closed on tamper.
+CRM's security **foundation is good**: contextvars-based tenant binding with a **fail-closed** `TenantAwareManager` (`.none()` when no tenant), timing-safe SHA-512 API-key comparison, short-lived rotating JWTs, host-only session cookies with signed cross-host handoff, superuser-locked admin, true-MIME upload validation, and HMAC-verified Stripe/webhook signatures. The DRF auth order (JWT → APIKey → Session) is correct and API keys fail-closed on tamper.
 
 **However**, several confirmed issues break the multi-tenant security promise or expose data **within** a tenant across role boundaries. The single most dangerous issue is a **configuration footgun that can silently run production in DEBUG mode**.
 

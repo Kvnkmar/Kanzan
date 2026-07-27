@@ -1,4 +1,4 @@
-# Kanzen — First-Time-User Testing Checklist (condensed)
+# CRM — First-Time-User Testing Checklist (condensed)
 
 > Tick each item. Full detail/expected-results in `manual-testing-guide.md`. Test top-to-bottom.
 

@@ -185,7 +185,7 @@ CACHES = {
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
         },
-        "KEY_PREFIX": "kanzan",
+        "KEY_PREFIX": "crm",
     }
 }
 
@@ -261,7 +261,7 @@ SIMPLE_JWT = {
 
 # DRF Spectacular
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Kanzen Suite API",
+    "TITLE": "CRM Suite API",
     "DESCRIPTION": "Multi-tenant CRM & Ticketing SaaS Platform API",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
@@ -273,7 +273,7 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [f"{REDIS_URL}/5"],
-            "prefix": "kanzan:channels",
+            "prefix": "crm:channels",
         },
     },
 }
@@ -374,7 +374,7 @@ IMAP_USE_SSL = env.bool("IMAP_USE_SSL", default=True)
 IMAP_DEFAULT_TENANT_SLUG = env("IMAP_DEFAULT_TENANT_SLUG", default="")
 
 # In-process SMTP server (receives mail without a 3rd-party webhook)
-# Run with: `python manage.py run_smtp_server` (managed by PM2: kanzan-smtp)
+# Run with: `python manage.py run_smtp_server` (managed by PM2: crm-smtp)
 SMTP_SERVER_HOST = env("SMTP_SERVER_HOST", default="0.0.0.0")
 SMTP_SERVER_PORT = env.int("SMTP_SERVER_PORT", default=2525)
 SMTP_SERVER_HOSTNAME = env("SMTP_SERVER_HOSTNAME", default=BASE_DOMAIN)
@@ -394,7 +394,7 @@ EMAIL_BACKEND = env(
 )
 EMAIL_FILE_PATH = BASE_DIR / "tmp" / "emails"
 EMAIL_FILE_PATH.mkdir(parents=True, exist_ok=True)
-DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="support@kanzen.local")
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="support@crm.local")
 
 EMAIL_HOST = env("EMAIL_HOST", default="localhost")
 EMAIL_PORT = env.int("EMAIL_PORT", default=587)
@@ -459,11 +459,11 @@ LOGGING = {
 
 # Jazzmin Admin Theme
 JAZZMIN_SETTINGS = {
-    "site_title": "Kanzen Suites",
-    "site_header": "Kanzen Suites",
-    "site_brand": "Kanzen Suites",
-    "welcome_sign": "Welcome to Kanzen Suites Admin",
-    "copyright": "Kanzen Suites",
+    "site_title": "CRM Suites",
+    "site_header": "CRM Suites",
+    "site_brand": "CRM Suite",
+    "welcome_sign": "Welcome to CRM Suites Admin",
+    "copyright": "CRM Suites",
     "search_model": ["accounts.User", "tenants.Tenant"],
     "topmenu_links": [
         {"name": "Home", "url": "admin:index", "permissions": ["auth.view_user"]},
@@ -513,8 +513,8 @@ JAZZMIN_SETTINGS = {
     "use_google_fonts_cdn": True,
     "changeform_format": "horizontal_tabs",
     # Premium dark admin UI — Linear/Vercel/Stripe inspired.
-    # Tokens + overrides live in static/admin/css/kanzen-admin.css.
-    "custom_css": "admin/css/kanzen-admin.css",
+    # Tokens + overrides live in static/admin/css/crm-admin.css.
+    "custom_css": "admin/css/crm-admin.css",
 }
 
 JAZZMIN_UI_TWEAKS = {
@@ -537,7 +537,7 @@ JAZZMIN_UI_TWEAKS = {
     "sidebar_nav_compact_style": False,
     "sidebar_nav_legacy_style": False,
     "sidebar_nav_flat_style": False,
-    # Use AdminLTE's "darkly" bootswatch base; kanzen-admin.css overrides on top
+    # Use AdminLTE's "darkly" bootswatch base; crm-admin.css overrides on top
     # so every surface is a layered dark token, not a Bootstrap default.
     "theme": "darkly",
     "dark_mode_theme": "darkly",

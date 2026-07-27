@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Messages - Kanzen Suite{% endblock %}
+{% block title %}Messages - CRM Suite{% endblock %}
 
 {% block content %}
 <div class="chat-wrapper">
@@ -588,7 +588,7 @@
       // Tell the sidebar to re-fetch its badge counts (slight delay so the
       // server processes mark_read before we re-query).
       setTimeout(function() {
-        document.dispatchEvent(new CustomEvent('kanzan:messages-changed'));
+        document.dispatchEvent(new CustomEvent('crm:messages-changed'));
       }, 200);
     };
 
@@ -602,7 +602,7 @@
           if (socket.readyState === WebSocket.OPEN) {
             socket.send(JSON.stringify({ action: 'mark_read' }));
             setTimeout(function() {
-              document.dispatchEvent(new CustomEvent('kanzan:messages-changed'));
+              document.dispatchEvent(new CustomEvent('crm:messages-changed'));
             }, 200);
           }
         }

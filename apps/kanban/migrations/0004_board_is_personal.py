@@ -1,4 +1,4 @@
-# Generated for Kanzen — personal boards (visible only to creator).
+# Generated for CRM — personal boards (visible only to creator).
 
 from django.db import migrations, models
 

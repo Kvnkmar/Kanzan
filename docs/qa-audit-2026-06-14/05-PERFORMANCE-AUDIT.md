@@ -1,4 +1,4 @@
-# Kanzen — Performance & Database Audit
+# CRM — Performance & Database Audit
 **Date:** 2026-06-14 · DB: SQLite (dev) / PostgreSQL (prod) · Redis cache/sessions/Channels · Celery (12 beat tasks)
 
 > Code-level audit only — **no load/profiling run** was performed. Numbers/impact are reasoned from query shapes and indexes; validate with `django-silk`/`EXPLAIN`/load tests before launch.
@@ -46,7 +46,7 @@ These work differently (or not at all) in dev vs prod — a testing hazard:
 
 ## Operational
 - **`logs/` = 95 MB, no rotation** (gitignored) — disk-growth risk; add logrotate/PM2 log rotation.
-- **`kanzan_voip` Celery queue has no worker** — `cleanup-stale-calls` (hourly) and other VoIP tasks **pile up unconsumed** in the broker.
+- **`crm_voip` Celery queue has no worker** — `cleanup-stale-calls` (hourly) and other VoIP tasks **pile up unconsumed** in the broker.
 - **`CELERY_TIMEZONE="UTC"`** while `TIME_ZONE="Asia/Kuala_Lumpur"` — crontab beat entries (KB digests) fire on UTC wall-clock; confirm intended.
 - `process_export_job.delay()` not wrapped in `transaction.on_commit` — can run before the row commits and strand the job at `pending`.
 

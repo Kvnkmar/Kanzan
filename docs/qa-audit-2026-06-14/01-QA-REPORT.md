@@ -1,4 +1,4 @@
-# Kanzen — QA Report
+# CRM — QA Report
 **Date:** 2026-06-14 · **HEAD:** `9575577` + 2 uncommitted features · **Verdict:** Not production-ready (38/100)
 
 ## 1. Methodology & limitations

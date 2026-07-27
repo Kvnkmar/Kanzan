@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Create Contact - Kanzen Suite{% endblock %}
+{% block title %}Create Contact - CRM Suite{% endblock %}
 
 {% block content %}
 <!-- Breadcrumb Header -->
@@ -551,8 +551,8 @@
       '</div>';
     container.appendChild(div);
     wirePhoneRow(div);
-    if (window.KanzenSelect) {
-      div.querySelectorAll('select.form-select').forEach(function(s) { KanzenSelect.upgrade(s); });
+    if (window.CRMSelect) {
+      div.querySelectorAll('select.form-select').forEach(function(s) { CRMSelect.upgrade(s); });
     }
   });
 

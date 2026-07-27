@@ -1,4 +1,4 @@
-# Kanzen — QA Test Run Report (automated, HTTP/API level)
+# CRM — QA Test Run Report (automated, HTTP/API level)
 
 > Run date: 2026-06-29 · Executed against the live dev stack (all PM2 services online, SQLite).
 > Method: real first-time-user flow driven via HTTP + DRF API + SMTP receiver + DB assertions.

@@ -171,13 +171,13 @@
 
   function fmtDateTime(iso) {
     if (!iso) return '';
-    if (window.Kanzan && Kanzan.formatDateTime) return Kanzan.formatDateTime(iso);
+    if (window.CRM && CRM.formatDateTime) return CRM.formatDateTime(iso);
     try { return new Date(iso).toLocaleString(); } catch (_) { return iso; }
   }
 
   function timeAgo(iso) {
     if (!iso) return '';
-    if (window.Kanzan && Kanzan.timeAgo) return Kanzan.timeAgo(iso);
+    if (window.CRM && CRM.timeAgo) return CRM.timeAgo(iso);
     return fmtDateTime(iso);
   }
 
@@ -206,7 +206,7 @@
     else console.log('[Toast]', level, msg);
   }
 
-  // Compact forward/elapsed duration: 45s, 8m, 1h 4m, 2d 3h. (Kanzan.timeAgo
+  // Compact forward/elapsed duration: 45s, 8m, 1h 4m, 2d 3h. (CRM.timeAgo
   // is past-oriented and adds " ago"; we need bare magnitudes for both the
   // "waited" label and the SLA "due in" badge.)
   function humanizeDuration(ms) {
@@ -493,10 +493,10 @@
       els.detailBody.replaceChildren(emptyNode);
     }
 
-    // Customer-sent attachments — rendered by the shared Kanzan helper so the
+    // Customer-sent attachments — rendered by the shared CRM helper so the
     // Emails triage desk and the Inbox page stay identical.
-    if (window.Kanzan && Kanzan.renderMailAttachments) {
-      Kanzan.renderMailAttachments(els.detailAttachments, row.attachments);
+    if (window.CRM && CRM.renderMailAttachments) {
+      CRM.renderMailAttachments(els.detailAttachments, row.attachments);
     } else if (els.detailAttachments) {
       els.detailAttachments.hidden = true;
     }
@@ -1408,7 +1408,7 @@
     // themed date picker when the offcanvas is shown (native picker otherwise).
     if (els.convertPanelEl) {
       els.convertPanelEl.addEventListener('shown.bs.offcanvas', function () {
-        if (window.initKanzenFlatpickr) window.initKanzenFlatpickr(els.convertPanelEl);
+        if (window.initCRMFlatpickr) window.initCRMFlatpickr(els.convertPanelEl);
       });
     }
 

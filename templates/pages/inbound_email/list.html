@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Email Log - Kanzen Suite{% endblock %}
+{% block title %}Email Log - CRM Suite{% endblock %}
 
 {% block content %}
 {% include "includes/page_back_button.html" %}
@@ -193,7 +193,7 @@
     statFailed: document.getElementById('statFailed')
   };
 
-  function formatDate(dateStr) { return Kanzan.timeAgo(dateStr); }
+  function formatDate(dateStr) { return CRM.timeAgo(dateStr); }
 
   function buildParams() {
     var params = new URLSearchParams();
