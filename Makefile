@@ -3,7 +3,7 @@
 # Run `make help` to see all available targets.
 
 SHELL := /bin/bash
-PROJECT := /home/kavin/CRM
+PROJECT := /home/kavin/Kanzen
 VENV := $(PROJECT)/.venv/bin
 PYTHON := $(VENV)/python
 PIP := $(VENV)/pip

@@ -110,7 +110,7 @@ Six WebSocket endpoints (full breakdown in `api-surface.md`). `WebSocketTenantMi
 | `crm-flower`       | celery   | `-A main flower --port=5556 --url_prefix=flower --basic_auth=$CRM_FLOWER_AUTH`                                                                   | 512M   | (default)    |
 | `crm-smtp`         | python   | `manage.py run_smtp_server`                                                                                                                         | 512M   | 8000ms       |
 
-Common: `cwd=/home/kavin/CRM`, `exec_mode=fork`, `watch=false`, `autorestart=true (max 10 restarts, min 10s uptime)`, `merge_logs=true`.
+Common: `cwd=/home/kavin/Kanzen`, `exec_mode=fork`, `watch=false`, `autorestart=true (max 10 restarts, min 10s uptime)`, `merge_logs=true`.
 
 > **Caveat:** `crm_voip` queue is in Celery routes but **not in worker `-Q`** — VoIP Celery tasks won't run unless the queue is added or a dedicated VoIP worker is started. `run_ari_listener` is **not in PM2** by default — start separately if VoIP is live. Makefile `stop` and `restart` targets omit `crm-smtp` — manage that one independently.
 
