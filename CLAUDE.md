@@ -172,7 +172,7 @@ API Docs:       http://straat-x.localhost:8001/api/docs/
 ## Project Structure
 
 ```
-/home/kavin/Kanzen/
+/home/kavin/crm/
 ├── apps/                          # 22 dirs (excl __pycache__); 21 in INSTALLED_APPS (nav is URL-only, no models.py)
 │   ├── accounts/                  # Users (+is_service_account), 7-role RBAC + temp-role overrides + temp-perms intersection, invitations, profiles, UserGroups, middleware
 │   ├── agents/                    # AgentAvailability (+last_seen presence heartbeat, is_assignable gate) + CustomAgentStatus + presence.py + reap-stale-presence task + load-fairness pick_email_agent (⚠ raw role @226)
